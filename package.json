@@ -1,0 +1,77 @@
+{
+  "name": "tonal-guitar",
+  "version": "0.1.0",
+  "description": "Guitar fretboard, shapes, patterns, and sequences — built on Tonal.js",
+  "keywords": [
+    "guitar",
+    "fretboard",
+    "tab",
+    "tablature",
+    "shapes",
+    "caged",
+    "3nps",
+    "pentatonic",
+    "music",
+    "theory",
+    "tonal",
+    "alphatex"
+  ],
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --sourcemap --dts --format esm,cjs",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint 'src/**/*.ts'",
+    "lint:fix": "eslint 'src/**/*.ts' --fix",
+    "format": "prettier --write 'src/**/*.ts'",
+    "prepublishOnly": "npm run build"
+  },
+  "peerDependencies": {
+    "@tonaljs/note": "^4.12.0",
+    "@tonaljs/interval": "^5.1.0"
+  },
+  "peerDependenciesMeta": {
+    "@tonaljs/scale": {
+      "optional": true
+    },
+    "@tonaljs/chord": {
+      "optional": true
+    },
+    "@tonaljs/key": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@tonaljs/note": "^4.12.0",
+    "@tonaljs/interval": "^5.1.0",
+    "@tonaljs/scale": "^4.13.0",
+    "@tonaljs/chord": "^6.1.0",
+    "@tonaljs/key": "^4.11.0",
+    "@typescript-eslint/eslint-plugin": "^8.18.1",
+    "@typescript-eslint/parser": "^8.18.1",
+    "eslint": "^9.29.0",
+    "prettier": "^3.5.0",
+    "tsup": "^8.3.6",
+    "typescript": "^5.7.3",
+    "vitest": "^3.2.0"
+  },
+  "author": "Cory Leistikow",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/coryleistikow/tonal-guitar.git"
+  }
+}
