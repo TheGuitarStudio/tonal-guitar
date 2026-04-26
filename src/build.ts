@@ -9,12 +9,13 @@ import {
   pitchClass as toPitchClass,
   fromMidiSharps,
   enharmonic,
+  chroma as toChroma,
 } from "@tonaljs/note";
 import {
   num as intervalNum,
   semitones as intervalSemitones,
 } from "@tonaljs/interval";
-import { findNearestFret, findFretInPosition } from "./fretboard";
+import { findNearestFret } from "./fretboard";
 import {
   FrettedNote,
   FrettedScale,
@@ -29,6 +30,73 @@ import { STANDARD } from "./tuning";
 // ============================================================
 
 /**
+ * How many frets a shape may extend BELOW its anchor fret. Notes lower than
+ * `anchor - LOOKBACK` get pushed up by an octave so the shape stays
+ * cohesive instead of wrapping around the open strings.
+ */
+const LOOKBACK = 4;
+/**
+ * How many frets a shape may extend ABOVE its root fret. LOOKBACK + LOOKAHEAD
+ * must equal 12 so every pitch class lands in exactly one fret of the window.
+ */
+const LOOKAHEAD = 8;
+
+/**
+ * Find the fret >= 0 on `string` where `targetPc` lies, within the window
+ * [rootFret - LOOKBACK, rootFret + LOOKAHEAD]. Returns null if no fret in
+ * that window is non-negative.
+ */
+function fretInWindow(
+  tuning: string[],
+  string: number,
+  targetPc: string,
+  rootFret: number,
+): number | null {
+  const openChr = toChroma(tuning[string]);
+  const targetChr = toChroma(targetPc);
+  if (
+    openChr == null ||
+    targetChr == null ||
+    isNaN(openChr) ||
+    isNaN(targetChr)
+  ) {
+    return null;
+  }
+  const base = (((targetChr - openChr) % 12) + 12) % 12;
+  const lower = rootFret - LOOKBACK;
+  const upper = rootFret + LOOKAHEAD;
+  let f = base;
+  while (f < lower) f += 12;
+  if (f > upper) return null;
+  return f >= 0 ? f : null;
+}
+
+/**
+ * Pick the anchor fret for a shape. By convention each string's interval
+ * array is listed in pitch order (low to high), so the FIRST interval on
+ * the rootString is the lowest-pitched note on that string. We anchor the
+ * shape at that interval's natural fret on the rootString.
+ *
+ * (Sorting chromatically would mis-place shapes like CAGED C applied to A,
+ * whose A string holds [6M, 7M, 1P]: the "1P" there sits an octave above
+ * the 6M, so anchoring on it as if it were the lowest snaps the whole
+ * shape to the open position.)
+ */
+function findShapeAnchorFret(
+  tuning: string[],
+  shape: ScaleShape,
+  pc: string,
+): number | null {
+  const intervals = shape.strings[shape.rootString];
+  if (!intervals || intervals.length === 0) {
+    return findNearestFret(tuning, shape.rootString, pc);
+  }
+  const firstPc = transpose(pc, intervals[0]);
+  if (!firstPc) return null;
+  return findNearestFret(tuning, shape.rootString, firstPc);
+}
+
+/**
  * Apply a ScaleShape to a root note and tuning, returning all fretted positions.
  */
 export function buildFrettedScale(
@@ -40,7 +108,7 @@ export function buildFrettedScale(
   const pc = toPitchClass(root);
   if (!pc) return { ...NoFrettedScale };
 
-  const rootFret = findNearestFret(tuning, shape.rootString, pc);
+  const rootFret = findShapeAnchorFret(tuning, shape, pc);
   if (rootFret == null) return { ...NoFrettedScale };
 
   // FIX #1: Build interval-to-scaleIndex map
@@ -62,14 +130,8 @@ export function buildFrettedScale(
       const targetPc = transpose(pc, ivl);
       if (!targetPc) continue;
 
-      const fret = findFretInPosition(
-        tuning,
-        s,
-        targetPc,
-        rootFret,
-        shape.span,
-      );
-      if (fret == null) continue;
+      const fret = fretInWindow(tuning, s, targetPc, rootFret);
+      if (fret == null || fret < 0) continue;
 
       const openMidi = toMidi(tuning[s]);
       if (openMidi == null) continue;

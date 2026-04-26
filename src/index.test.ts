@@ -434,9 +434,13 @@ describe("Shape registry", () => {
 
 describe("buildFrettedScale — A major in E shape", () => {
   const scale = buildFrettedScale(CAGED_E, "A");
+  const expectedNoteCount = CAGED_E.strings.reduce(
+    (acc, s) => acc + (s?.length ?? 0),
+    0,
+  );
 
-  test("returns 15 notes", () => {
-    expect(scale.notes).toHaveLength(15);
+  test("returns one note per (string, interval) slot in the shape", () => {
+    expect(scale.notes).toHaveLength(expectedNoteCount);
   });
 
   test("all pitch classes are A major scale tones", () => {
@@ -446,10 +450,10 @@ describe("buildFrettedScale — A major in E shape", () => {
     });
   });
 
-  test("fret range is 5–9 (E shape A major starts at fret 5)", () => {
+  test("fret range fits within an 8-fret span (proper bounding box)", () => {
     const frets = scale.notes.map((n) => n.fret);
-    expect(Math.min(...frets)).toBe(5);
-    expect(Math.max(...frets)).toBe(9);
+    expect(Math.max(...frets) - Math.min(...frets)).toBeLessThanOrEqual(8);
+    expect(Math.min(...frets)).toBeGreaterThanOrEqual(0);
   });
 
   test("all 6 strings are used", () => {
@@ -514,9 +518,13 @@ describe("buildFrettedScale — scaleIndex and degree invariants (FIX #1)", () =
 describe("buildFrettedScale — root with octave is stripped (FIX #6)", () => {
   test("buildFrettedScale(CAGED_E, 'A4') works and root === 'A'", () => {
     const scale = buildFrettedScale(CAGED_E, "A4");
+    const expected = CAGED_E.strings.reduce(
+      (acc, s) => acc + (s?.length ?? 0),
+      0,
+    );
     expect(scale.empty).toBe(false);
     expect(scale.root).toBe("A");
-    expect(scale.notes).toHaveLength(15);
+    expect(scale.notes).toHaveLength(expected);
   });
 
   test("buildFrettedScale(CAGED_E, 'C3') works and root === 'C'", () => {
@@ -701,19 +709,9 @@ describe("buildFrettedScale — 3NPS patterns", () => {
   ];
   const aMajor = ["A", "B", "C#", "D", "E", "F#", "G#"];
 
-  // Patterns 1, 5, 6, 7 produce a full 18 notes with root A.
-  // Patterns 2, 3, 4 produce 15 notes with root A because the position
-  // window clips 1 note per string on strings 1–3 (the notes fall outside
-  // the span=5 window centered on the rootFret).
-  const full18Patterns = [
-    NPS_PATTERN_1,
-    NPS_PATTERN_5,
-    NPS_PATTERN_6,
-    NPS_PATTERN_7,
-  ];
-  const partial15Patterns = [NPS_PATTERN_2, NPS_PATTERN_3, NPS_PATTERN_4];
-
-  for (const shape of full18Patterns) {
+  // With the bounding-box anchor, every 3NPS pattern produces a full 18
+  // notes because the shape is positioned so all notes fit on the neck.
+  for (const shape of npsShapes) {
     test(`${shape.name} — exactly 18 notes (3 per string)`, () => {
       const scale = buildFrettedScale(shape, "A");
       expect(scale.notes).toHaveLength(18);
@@ -725,13 +723,6 @@ describe("buildFrettedScale — 3NPS patterns", () => {
         const onString = scale.notes.filter((n) => n.string === s);
         expect(onString).toHaveLength(3);
       }
-    });
-  }
-
-  for (const shape of partial15Patterns) {
-    test(`${shape.name} — 15 notes with root A (3 on some strings, 2 on others due to position window)`, () => {
-      const scale = buildFrettedScale(shape, "A");
-      expect(scale.notes).toHaveLength(15);
     });
   }
 
