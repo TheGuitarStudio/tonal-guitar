@@ -104,7 +104,10 @@ index.ts             ← re-exports everything
 
 ## Remaining work
 
-- [ ] README.md with API documentation and examples
+- [x] README.md with API documentation and examples
+- [x] API docs pages (docs/api/ — 7 markdown files)
+- [x] Interactive experiments page (site/ — Guitar Lab)
+- [ ] Deploy site to GitHub Pages
 - [ ] Task 2.5: 7/8-string rootString auto-adjustment logic
 - [ ] ASCII tab column alignment for multi-digit frets (QUESTIONS.md Q2)
 - [ ] Consider `analyzeInKey` chord name normalization (QUESTIONS.md Q3)

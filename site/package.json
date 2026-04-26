@@ -1,0 +1,33 @@
+{
+  "name": "tonal-guitar-site",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "deploy": "npm run deploy:build && npm run deploy:github",
+    "deploy:build": "DEPLOY=true next build",
+    "deploy:github": "gh-pages -d out/ -t"
+  },
+  "dependencies": {
+    "fumadocs-core": "^13.4.10",
+    "fumadocs-mdx": "^10.0.2",
+    "fumadocs-ui": "^13.4.10",
+    "lucide-react": "^1.7.0",
+    "next": "^14.2.24",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "tonal-guitar": "file:.."
+  },
+  "devDependencies": {
+    "@types/node": "25.5.2",
+    "@types/react": "^18.3.1",
+    "@types/react-dom": "^18.3.1",
+    "autoprefixer": "^10.4.20",
+    "gh-pages": "^6.3.0",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.8.2"
+  }
+}

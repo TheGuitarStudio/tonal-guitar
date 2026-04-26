@@ -1,0 +1,15 @@
+{
+  "title": "API Reference",
+  "root": true,
+  "pages": [
+    "---Overview---",
+    "index",
+    "---Modules---",
+    "fretboard",
+    "shapes",
+    "patterns",
+    "sequences",
+    "output",
+    "integration"
+  ]
+}

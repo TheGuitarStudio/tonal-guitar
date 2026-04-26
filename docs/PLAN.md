@@ -511,13 +511,19 @@ Add `@tonaljs/guitar` to `packages/tonal/package.json` and re-export from `packa
 
 ---
 
-### Epic 8: Documentation
+### Epic 8: Documentation (see [DOCS_EPIC.md](./DOCS_EPIC.md) for full plan)
 
-**Task 8.1 — README.md** with API examples (hybrid: simple functions primary, pipe shown as advanced)
+**Task 8.1 — Package README** (`README.md`) — full API reference with install, usage, all function signatures and examples -- DONE
 
-**Task 8.2 — Archive experiments** — move to `_research/` or exclude via `files` field
+**Task 8.2 — API docs pages** (`docs/api/`) — 7 markdown pages: overview, fretboard, shapes, patterns, sequences, output, integration -- DONE
 
-**Task 8.3 — Changeset** — `npx changeset` for the new package
+**Task 8.3 — Interactive experiments page** (`site/`) — Next.js + Fumadocs site with pipeline builder (Guitar Lab) where users compose guitar functions with live results, SVG fretboard visualization, and presets -- DONE (needs `npm install` in site/)
+
+**Task 8.4 — Deploy setup** — GitHub Pages via gh-pages package
+
+**Task 8.5 — Archive experiments** — move to `_research/` or exclude via `files` field
+
+**Task 8.6 — Changeset** — version bump for publishing
 
 ---
 
