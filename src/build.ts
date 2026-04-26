@@ -72,6 +72,29 @@ function fretInWindow(
 }
 
 /**
+ * Check whether every (string, interval) pair in `shape` placed against
+ * `anchor` lands on a non-negative fret inside the window.
+ */
+function shapeFitsAtAnchor(
+  tuning: string[],
+  shape: ScaleShape,
+  pc: string,
+  anchor: number,
+): boolean {
+  for (let s = 0; s < shape.strings.length && s < tuning.length; s++) {
+    const intervals = shape.strings[s];
+    if (!intervals) continue;
+    for (const ivl of intervals) {
+      const targetPc = transpose(pc, ivl);
+      if (!targetPc) continue;
+      const fret = fretInWindow(tuning, s, targetPc, anchor);
+      if (fret == null) return false;
+    }
+  }
+  return true;
+}
+
+/**
  * Pick the anchor fret for a shape. By convention each string's interval
  * array is listed in pitch order (low to high), so the FIRST interval on
  * the rootString is the lowest-pitched note on that string. We anchor the
@@ -81,19 +104,38 @@ function fretInWindow(
  * whose A string holds [6M, 7M, 1P]: the "1P" there sits an octave above
  * the 6M, so anchoring on it as if it were the lowest snaps the whole
  * shape to the open position.)
+ *
+ * If the shape doesn't fully fit at the natural anchor (e.g. Pentatonic
+ * Box 5 applied to A, where the lowest box would need notes below the
+ * open strings), shift the anchor up by 12 and retry.
  */
+const MAX_FRET = 24;
 function findShapeAnchorFret(
   tuning: string[],
   shape: ScaleShape,
   pc: string,
 ): number | null {
   const intervals = shape.strings[shape.rootString];
+  let baseAnchor: number | null;
   if (!intervals || intervals.length === 0) {
-    return findNearestFret(tuning, shape.rootString, pc);
+    baseAnchor = findNearestFret(tuning, shape.rootString, pc);
+  } else {
+    const firstPc = transpose(pc, intervals[0]);
+    if (!firstPc) return null;
+    baseAnchor = findNearestFret(tuning, shape.rootString, firstPc);
   }
-  const firstPc = transpose(pc, intervals[0]);
-  if (!firstPc) return null;
-  return findNearestFret(tuning, shape.rootString, firstPc);
+  if (baseAnchor == null) return null;
+
+  for (
+    let anchor = baseAnchor;
+    anchor <= MAX_FRET;
+    anchor += 12
+  ) {
+    if (shapeFitsAtAnchor(tuning, shape, pc, anchor)) return anchor;
+  }
+  // Fall back to the natural anchor even if some notes won't fit — the
+  // build loop will just drop them rather than return an empty result.
+  return baseAnchor;
 }
 
 /**

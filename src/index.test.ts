@@ -1395,8 +1395,12 @@ describe("isShapeCompatible", () => {
     expect(isShapeCompatible(CAGED_E, "A minor pentatonic")).toBe(false);
   });
 
-  test("pentatonic box is compatible with 'A minor pentatonic'", () => {
-    expect(isShapeCompatible(PENTA_BOX_1, "A minor pentatonic")).toBe(true);
+  test("pentatonic box is compatible with 'A major pentatonic'", () => {
+    // Boxes are now defined as major-pentatonic intervals (1P, 2M, 3M, 5P, 6M)
+    // so they only directly match the major-pent scale; the minor-pent
+    // version is produced via the modal-relabel path in fretboard-ui.
+    expect(isShapeCompatible(PENTA_BOX_1, "A major pentatonic")).toBe(true);
+    expect(isShapeCompatible(PENTA_BOX_1, "A minor pentatonic")).toBe(false);
   });
 
   test("invalid scale name returns false", () => {
@@ -1418,8 +1422,8 @@ describe("modeShapes", () => {
     expect(cagedOnly.length).toBe(5);
   });
 
-  test("filter by system: only pentatonic shapes for A minor pentatonic", () => {
-    const pentOnly = modeShapes("A minor pentatonic", "pentatonic");
+  test("filter by system: only pentatonic shapes for A major pentatonic", () => {
+    const pentOnly = modeShapes("A major pentatonic", "pentatonic");
     pentOnly.forEach((s) => {
       expect(s.system).toBe("pentatonic");
     });
@@ -1436,17 +1440,17 @@ describe("modeShapes", () => {
 // 14. Pentatonic-specific
 // ============================================================
 
-describe("Pentatonic Box 1 — A minor pentatonic", () => {
+describe("Pentatonic Box 1 — A major pentatonic (default mode)", () => {
   const scale = buildFrettedScale(PENTA_BOX_1, "A");
 
   test("produces 12 notes (2 per string × 6 strings)", () => {
     expect(scale.notes).toHaveLength(12);
   });
 
-  test("all notes are Am pentatonic tones: A, C, D, E, G", () => {
-    const amPent = ["A", "C", "D", "E", "G"];
+  test("all notes are A major pentatonic tones: A, B, C#, E, F#", () => {
+    const aMajPent = ["A", "B", "C#", "E", "F#"];
     scale.notes.forEach((n) => {
-      expect(amPent).toContain(n.pc);
+      expect(aMajPent).toContain(n.pc);
     });
   });
 
@@ -1468,15 +1472,28 @@ describe("Pentatonic Box 1 — A minor pentatonic", () => {
     const degrees = new Set(scale.notes.map((n) => n.degree));
     expect(degrees.size).toBe(5);
   });
+});
 
-  test("root A on low E string at fret 5", () => {
-    const rootNote = scale.notes.find((n) => n.string === 0 && n.pc === "A");
+describe("Pentatonic Box 1 at C — same physical notes as the old A minor pent shape", () => {
+  // Building the major-pent box at C produces the same notes as A minor pent
+  // (relative minor) since they share pitch content.
+  const scale = buildFrettedScale(PENTA_BOX_1, "C");
+
+  test("notes are A C D E G (the A-minor-pent / C-major-pent set)", () => {
+    const set = ["A", "C", "D", "E", "G"];
+    scale.notes.forEach((n) => {
+      expect(set).toContain(n.pc);
+    });
+  });
+
+  test("root C on low E string at fret 8", () => {
+    const rootNote = scale.notes.find((n) => n.string === 0 && n.pc === "C");
     expect(rootNote).toBeDefined();
-    expect(rootNote!.fret).toBe(5);
+    expect(rootNote!.fret).toBe(8);
   });
 });
 
-describe("Pentatonic — all 5 boxes for A minor pentatonic", () => {
+describe("Pentatonic — all 5 boxes for A major pentatonic", () => {
   const boxes = [
     PENTA_BOX_1,
     PENTA_BOX_2,
@@ -1484,14 +1501,14 @@ describe("Pentatonic — all 5 boxes for A minor pentatonic", () => {
     PENTA_BOX_4,
     PENTA_BOX_5,
   ];
-  const amPent = ["A", "C", "D", "E", "G"];
+  const aMajPent = ["A", "B", "C#", "E", "F#"];
 
   for (const box of boxes) {
-    test(`${box.name} — 12 notes, all Am pentatonic tones`, () => {
+    test(`${box.name} — 12 notes, all A major pentatonic tones`, () => {
       const scale = buildFrettedScale(box, "A");
       expect(scale.notes).toHaveLength(12);
       scale.notes.forEach((n) => {
-        expect(amPent).toContain(n.pc);
+        expect(aMajPent).toContain(n.pc);
       });
     });
   }

@@ -42,8 +42,12 @@ export const MODES: ModeDef[] = [
   { id: "mixolydian", name: "Mixolydian", family: "diatonic", parentInterval: "5P" },
   { id: "aeolian", name: "Minor (Aeolian)", family: "diatonic", parentInterval: "6M" },
   { id: "locrian", name: "Locrian", family: "diatonic", parentInterval: "7M" },
-  { id: "minor-pent", name: "Minor Pentatonic", family: "pentatonic", parentInterval: "" },
-  { id: "major-pent", name: "Major Pentatonic", family: "pentatonic", parentInterval: "3m" },
+  // Pentatonic shapes in src/data/pentatonic.ts are now defined as MAJOR
+  // pentatonic, so major-pent has no parent shift; minor-pent's parent
+  // major-pent root is a major 6th below the modal root (e.g. A minor pent
+  // -> C major pent: transpose("A", "-6M") = "C").
+  { id: "major-pent", name: "Major Pentatonic", family: "pentatonic", parentInterval: "" },
+  { id: "minor-pent", name: "Minor Pentatonic", family: "pentatonic", parentInterval: "6M" },
 ];
 
 export function getMode(id: string): ModeDef | undefined {
