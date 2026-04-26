@@ -10,7 +10,9 @@ import { PatternStep } from "./PatternStep";
 import { SequenceStep } from "./SequenceStep";
 import { OutputStep } from "./OutputStep";
 import { FretboardDiagram } from "./FretboardDiagram";
+import { ModeStep } from "./ModeStep";
 import { PresetLoader, type Preset } from "./PresetLoader";
+import { parentRoot } from "fretboard-ui";
 
 import {
   STANDARD,
@@ -111,6 +113,7 @@ export function PipelineBuilder() {
 
   // Step 3: Root
   const [root, setRoot] = useState("A");
+  const [modeId, setModeId] = useState("ionian");
 
   // Step 4: Pattern
   const [patternType, setPatternType] = useState<string>("Ascending Thirds");
@@ -130,11 +133,20 @@ export function PipelineBuilder() {
   const tuning = TUNINGS[tuningName] ?? STANDARD;
   const shape = get(shapeName);
 
+  // For modal rendering: build the shape at the parent root that matches
+  // the shape's data, then render with `modalRootPc` so intervals get
+  // relabeled from the modal root.
+  const buildRoot = useMemo(
+    () => parentRoot(root, modeId) ?? root,
+    [root, modeId],
+  );
+  const modalRootPc = modeId === "ionian" ? undefined : root;
+
   const scale: FrettedScale | null = useMemo(() => {
     if (!shape) return null;
-    const result = buildFrettedScale(shape, root, tuning);
+    const result = buildFrettedScale(shape, buildRoot, tuning);
     return result.empty ? null : result;
-  }, [shape, root, tuning]);
+  }, [shape, buildRoot, tuning]);
 
   const scaleLen = useMemo(() => {
     if (!scale) return 7;
@@ -256,6 +268,13 @@ export function PipelineBuilder() {
       </StepCard>
 
       <StepCard
+        title="3a. Mode"
+        subtitle={modeId === "ionian" ? "Major (Ionian)" : modeId}
+      >
+        <ModeStep modeId={modeId} onChange={setModeId} />
+      </StepCard>
+
+      <StepCard
         title="4. Fretted Scale"
         subtitle={
           scale
@@ -265,7 +284,11 @@ export function PipelineBuilder() {
       >
         {scale ? (
           <>
-            <FretboardDiagram scale={scale} tuning={tuning} />
+            <FretboardDiagram
+              scale={scale}
+              tuning={tuning}
+              modalRootPc={modalRootPc}
+            />
             <BuildResult scale={scale} />
           </>
         ) : (

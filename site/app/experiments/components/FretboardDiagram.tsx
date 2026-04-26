@@ -4,6 +4,8 @@ import { useState } from "react";
 import type { FrettedScale } from "tonal-guitar";
 import {
   Fretboard,
+  intervalFromTo,
+  intervalToDegreeNumber,
   type FretMarker,
   type LabelMode,
   type Orientation,
@@ -12,6 +14,12 @@ import {
 interface FretboardDiagramProps {
   scale: FrettedScale;
   tuning: string[];
+  /**
+   * If set, intervals are recomputed relative to this pitch class so the
+   * same physical shape can be relabeled across modes (e.g. an A-major
+   * shape viewed as B Dorian).
+   */
+  modalRootPc?: string;
 }
 
 const LEGEND = [
@@ -22,19 +30,36 @@ const LEGEND = [
   { color: "#ec4899", label: "7th" },
 ];
 
-export function FretboardDiagram({ scale, tuning }: FretboardDiagramProps) {
+export function FretboardDiagram({
+  scale,
+  tuning,
+  modalRootPc,
+}: FretboardDiagramProps) {
   const [labelMode, setLabelMode] = useState<LabelMode>("notes");
   const [orientation, setOrientation] = useState<Orientation>("horizontal");
 
   if (scale.notes.length === 0) return null;
 
-  const markers: FretMarker[] = scale.notes.map((n) => ({
-    string: n.string,
-    fret: n.fret,
-    pc: n.pc,
-    interval: n.interval,
-    intervalNumber: n.intervalNumber,
-  }));
+  const markers: FretMarker[] = scale.notes.map((n) => {
+    if (modalRootPc) {
+      const interval = intervalFromTo(modalRootPc, n.pc);
+      return {
+        string: n.string,
+        fret: n.fret,
+        pc: n.pc,
+        interval,
+        intervalNumber: intervalToDegreeNumber(interval),
+        role: interval === "1P" ? "root" : undefined,
+      };
+    }
+    return {
+      string: n.string,
+      fret: n.fret,
+      pc: n.pc,
+      interval: n.interval,
+      intervalNumber: n.intervalNumber,
+    };
+  });
 
   return (
     <div>

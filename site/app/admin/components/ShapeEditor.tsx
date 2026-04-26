@@ -3,6 +3,8 @@
 import { useMemo, useState } from "react";
 import {
   FretboardEditor,
+  MODES,
+  parentRoot,
   cellsToScaleShapeStrings,
   frettedNotesToCells,
   type EditorCell,
@@ -62,8 +64,10 @@ export function ShapeEditor() {
   // For loading an existing shape into the editor.
   const [loadShapeName, setLoadShapeName] = useState("");
   const [loadRoot, setLoadRoot] = useState("A");
+  const [loadMode, setLoadMode] = useState("ionian");
 
   const [cells, setCells] = useState<EditorCell[]>([]);
+  const [modalRootPc, setModalRootPc] = useState<string | undefined>(undefined);
 
   // Re-keying lets us reset the editor when we load a new shape.
   const [editorKey, setEditorKey] = useState(0);
@@ -113,12 +117,18 @@ ${stringsLit}
   function handleLoadShape() {
     const shape = get(loadShapeName);
     if (!shape) return;
-    const built = buildFrettedScale(shape, loadRoot, tuning);
+    // For modal contexts: build the shape at the parent root that the
+    // shape data is defined for (e.g. B Dorian D Shape -> build D Shape
+    // at A major), then ask the editor to relabel intervals from the
+    // modal root.
+    const buildRoot = parentRoot(loadRoot, loadMode) ?? loadRoot;
+    const built = buildFrettedScale(shape, buildRoot, tuning);
     if (built.empty) return;
     const loaded = frettedNotesToCells(built.notes);
     setCells(loaded);
     setShapeName(shape.name);
     setSystem(shape.system);
+    setModalRootPc(loadRoot);
     const fretsList = loaded.map((c) => c.fret);
     setFretMin(Math.max(0, Math.min(...fretsList) - 1));
     setFretMax(Math.max(...fretsList) + 1);
@@ -129,6 +139,7 @@ ${stringsLit}
     setCells([]);
     setShapeName("New Shape");
     setSystem("custom");
+    setModalRootPc(undefined);
     setEditorKey((k) => k + 1);
   }
 
@@ -248,6 +259,19 @@ ${stringsLit}
                 ))}
               </select>
             </Field>
+            <Field label="Mode">
+              <select
+                value={loadMode}
+                onChange={(e) => setLoadMode(e.target.value)}
+                className="rounded border border-fd-border bg-fd-background px-2 py-1"
+              >
+                {MODES.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
             <Field label="At root">
               <select
                 value={loadRoot}
@@ -296,6 +320,7 @@ ${stringsLit}
             tuning={tuning}
             cells={cells}
             onChange={setCells}
+            rootPitchClass={modalRootPc}
             fretRange={[Math.min(fretMin, fretMax), Math.max(fretMin, fretMax)]}
             layout={{ orientation }}
             labelMode={labelMode}

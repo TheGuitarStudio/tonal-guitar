@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useMemo, useState, type CSSProperties } from "react";
-import { midi as toMidi, fromMidiSharps, chroma } from "@tonaljs/note";
+import { midi as toMidi, fromMidiSharps } from "@tonaljs/note";
 import type { FrettedNote } from "tonal-guitar";
 import { Fretboard, type FretboardProps } from "./Fretboard";
+import { intervalFromTo, intervalToDegreeNumber } from "./intervals";
 import type { FretMarker, FretboardLayout, FretboardTheme, LabelMode } from "./types";
 
 /**
@@ -32,62 +33,17 @@ export interface FretboardEditorProps {
 }
 
 /**
- * Major-scale chromatic interval map: index = semitones from root.
- */
-const SEMI_TO_INTERVAL = [
-  "1P",
-  "2m",
-  "2M",
-  "3m",
-  "3M",
-  "4P",
-  "5d",
-  "5P",
-  "6m",
-  "6M",
-  "7m",
-  "7M",
-];
-
-/**
  * Compute pitch class at (string, fret) for a tuning.
  * Always returns sharp spelling (e.g. "F#" not "Gb"). Display-only;
  * intervals are computed independently via chroma so spelling never
  * affects interval results.
  */
-function pcAt(tuning: string[], string: number, fret: number): string {
+export function pcAt(tuning: string[], string: number, fret: number): string {
   const open = tuning[string];
   const openMidi = toMidi(open);
   if (openMidi == null) return "";
   const note = fromMidiSharps(openMidi + fret);
   return note.replace(/[0-9-]+$/, "");
-}
-
-/**
- * Interval from rootPc to otherPc, computed via chroma so spelling is
- * irrelevant. Always returns a standard major-scale interval per semitone
- * (1P, 2m, 2M, 3m, 3M, 4P, 5d, 5P, 6m, 6M, 7m, 7M).
- */
-function intervalFromTo(rootPc: string, otherPc: string): string {
-  const r = chroma(rootPc);
-  const o = chroma(otherPc);
-  if (r == null || o == null || isNaN(r) || isNaN(o)) return "";
-  const semis = ((o - r) % 12 + 12) % 12;
-  return SEMI_TO_INTERVAL[semis];
-}
-
-/**
- * Map a chromatic interval to a major-scale degree number, when applicable.
- * Returns undefined if the interval is non-diatonic to a major scale.
- * 1P->1, 2M->2, 3M->3, 4P->4, 5P->5, 6M->6, 7M->7. Minors get the same number too.
- */
-function intervalToDegreeNumber(interval: string): number | undefined {
-  if (!interval) return undefined;
-  const match = interval.match(/(\d+)/);
-  if (!match) return undefined;
-  let n = parseInt(match[1], 10);
-  while (n > 7) n -= 7;
-  return n;
 }
 
 export function FretboardEditor(props: FretboardEditorProps) {
@@ -106,11 +62,13 @@ export function FretboardEditor(props: FretboardEditorProps) {
 
   const [rootMode, setRootMode] = useState(false);
 
-  // Determine effective root pitch class.
+  // Determine effective root pitch class. An explicit isRoot cell (set via
+  // the "Set root" button) wins so the user can override a passed-in
+  // rootPitchClass without changing the prop.
   const rootPc = useMemo(() => {
-    if (rootPitchClass) return rootPitchClass;
     const rootCell = cells.find((c) => c.isRoot);
     if (rootCell) return pcAt(tuning, rootCell.string, rootCell.fret);
+    if (rootPitchClass) return rootPitchClass;
     return "";
   }, [rootPitchClass, cells, tuning]);
 
