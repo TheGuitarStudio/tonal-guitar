@@ -1,8 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState, type CSSProperties } from "react";
-import { transpose } from "@tonaljs/note";
-import { distance } from "@tonaljs/interval";
+import { midi as toMidi, fromMidiSharps, chroma } from "@tonaljs/note";
 import type { FrettedNote } from "tonal-guitar";
 import { Fretboard, type FretboardProps } from "./Fretboard";
 import type { FretMarker, FretboardLayout, FretboardTheme, LabelMode } from "./types";
@@ -33,49 +32,48 @@ export interface FretboardEditorProps {
 }
 
 /**
+ * Major-scale chromatic interval map: index = semitones from root.
+ */
+const SEMI_TO_INTERVAL = [
+  "1P",
+  "2m",
+  "2M",
+  "3m",
+  "3M",
+  "4P",
+  "5d",
+  "5P",
+  "6m",
+  "6M",
+  "7m",
+  "7M",
+];
+
+/**
  * Compute pitch class at (string, fret) for a tuning.
- * Returns the pitch class without octave.
+ * Always returns sharp spelling (e.g. "F#" not "Gb"). Display-only;
+ * intervals are computed independently via chroma so spelling never
+ * affects interval results.
  */
 function pcAt(tuning: string[], string: number, fret: number): string {
   const open = tuning[string];
-  const semitones = fret;
-  const note = transpose(open, semitoneToInterval(semitones)) || open;
-  // Strip octave digits.
-  return note.replace(/[0-9]+$/, "");
+  const openMidi = toMidi(open);
+  if (openMidi == null) return "";
+  const note = fromMidiSharps(openMidi + fret);
+  return note.replace(/[0-9-]+$/, "");
 }
 
 /**
- * Tonal expects interval names, not semitone counts, for transpose.
- * Use the chromatic ladder for absolute semitone steps.
+ * Interval from rootPc to otherPc, computed via chroma so spelling is
+ * irrelevant. Always returns a standard major-scale interval per semitone
+ * (1P, 2m, 2M, 3m, 3M, 4P, 5d, 5P, 6m, 6M, 7m, 7M).
  */
-function semitoneToInterval(semis: number): string {
-  const map = [
-    "1P",
-    "2m",
-    "2M",
-    "3m",
-    "3M",
-    "4P",
-    "5d",
-    "5P",
-    "6m",
-    "6M",
-    "7m",
-    "7M",
-  ];
-  if (semis < 0) return "1P";
-  const octaves = Math.floor(semis / 12);
-  const rem = semis % 12;
-  const base = map[rem];
-  if (octaves === 0) return base;
-  // Compose: e.g. 14 semis -> "2M" + 12 = "9M"
-  const num = parseInt(base, 10) + octaves * 7;
-  const quality = base.replace(/^\d+/, "");
-  return `${num}${quality}`;
-}
-
 function intervalFromTo(rootPc: string, otherPc: string): string {
-  return distance(rootPc, otherPc) || "";
+  const r = chroma(rootPc);
+  const o = chroma(otherPc);
+  if (r == null || o == null || isNaN(r) || isNaN(o)) return "";
+  const semis = ((o - r) % 12 + 12) % 12;
+  return SEMI_TO_INTERVAL[semis];
 }
 
 /**
