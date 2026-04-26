@@ -18,6 +18,7 @@ export type {
   FretMarker,
   FretboardLayout,
   FretboardTheme,
+  Handedness,
   LabelMode,
   MarkerRole,
   Orientation,

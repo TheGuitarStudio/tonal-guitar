@@ -33,6 +33,7 @@ export const defaultTheme: FretboardTheme = {
 
 export const defaultLayout: FretboardLayout = {
   orientation: "horizontal",
+  handedness: "right",
   cellWidth: 44,
   cellHeight: 26,
   labelGutter: 28,

@@ -7,6 +7,7 @@ import {
   intervalFromTo,
   intervalToDegreeNumber,
   type FretMarker,
+  type Handedness,
   type LabelMode,
   type Orientation,
 } from "fretboard-ui";
@@ -37,6 +38,7 @@ export function FretboardDiagram({
 }: FretboardDiagramProps) {
   const [labelMode, setLabelMode] = useState<LabelMode>("notes");
   const [orientation, setOrientation] = useState<Orientation>("horizontal");
+  const [handedness, setHandedness] = useState<Handedness>("right");
 
   if (scale.notes.length === 0) return null;
 
@@ -81,13 +83,23 @@ export function FretboardDiagram({
           value={orientation}
           onChange={(v) => setOrientation(v as Orientation)}
         />
+        {orientation === "vertical" && (
+          <ToggleGroup
+            options={[
+              { value: "right", label: "Standard" },
+              { value: "left", label: "Lefty" },
+            ]}
+            value={handedness}
+            onChange={(v) => setHandedness(v as Handedness)}
+          />
+        )}
       </div>
       <div className="overflow-x-auto text-fd-foreground">
         <Fretboard
           tuning={tuning}
           markers={markers}
           labelMode={labelMode}
-          layout={{ orientation }}
+          layout={{ orientation, handedness }}
           className="font-mono"
         />
       </div>

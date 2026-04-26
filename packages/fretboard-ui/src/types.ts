@@ -8,6 +8,16 @@ export type Fret = number;
 export type Orientation = "horizontal" | "vertical";
 
 /**
+ * Player handedness. Affects vertical-orientation rendering only:
+ * - "right": low E on the left (standard chord-diagram orientation)
+ * - "left": low E on the right (mirrored)
+ *
+ * Horizontal orientation always shows high E at the top per ASCII-tab
+ * convention regardless of handedness.
+ */
+export type Handedness = "right" | "left";
+
+/**
  * What text appears inside a marker dot.
  * - "notes": pitch class (C#, A, etc.)
  * - "numbers": scale degree number (1, 3, 5, ...)
@@ -60,6 +70,7 @@ export interface FretboardTheme {
 
 export interface FretboardLayout {
   orientation: Orientation;
+  handedness: Handedness;
   cellWidth: number;
   cellHeight: number;
   /** Width of the string-label column (or height in vertical mode). */

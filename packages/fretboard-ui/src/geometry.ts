@@ -29,13 +29,31 @@ function alongFret(
   return (fret - grid.minFret) * layout.cellWidth + layout.cellWidth / 2;
 }
 
+/**
+ * Map a string index (0 = lowest pitched) to its display index along the
+ * string axis. For horizontal we keep the ASCII-tab convention (high E on
+ * top) regardless of handedness. For vertical, right-handed players see
+ * low E on the left; left-handed players see it mirrored on the right.
+ */
+function stringDisplayIndex(
+  stringIndex: number,
+  grid: GridDimensions,
+  layout: FretboardLayout,
+): number {
+  if (layout.orientation === "horizontal") {
+    return grid.stringCount - 1 - stringIndex;
+  }
+  return layout.handedness === "left"
+    ? grid.stringCount - 1 - stringIndex
+    : stringIndex;
+}
+
 function alongString(
   stringIndex: number,
   grid: GridDimensions,
   layout: FretboardLayout,
 ): number {
-  // Display order: highest pitched string at top (horizontal) / left (vertical).
-  const display = grid.stringCount - 1 - stringIndex;
+  const display = stringDisplayIndex(stringIndex, grid, layout);
   return display * layout.cellHeight + layout.cellHeight / 2;
 }
 
@@ -110,10 +128,16 @@ export function cellAtPoint(
 
   const fretOffset = Math.floor(fretAxisPx / layout.cellWidth);
   const display = Math.floor(stringAxisPx / layout.cellHeight);
-  return {
-    string: grid.stringCount - 1 - display,
-    fret: grid.minFret + fretOffset,
-  };
+  // Inverse of stringDisplayIndex: same shape because both mappings are
+  // involutions (display -> string flips/identity matches string -> display).
+  let stringIndex: number;
+  if (layout.orientation === "horizontal") {
+    stringIndex = grid.stringCount - 1 - display;
+  } else {
+    stringIndex =
+      layout.handedness === "left" ? grid.stringCount - 1 - display : display;
+  }
+  return { string: stringIndex, fret: grid.minFret + fretOffset };
 }
 
 /**

@@ -8,6 +8,7 @@ import {
   cellsToScaleShapeStrings,
   frettedNotesToCells,
   type EditorCell,
+  type Handedness,
   type LabelMode,
   type Orientation,
 } from "fretboard-ui";
@@ -58,6 +59,7 @@ export function ShapeEditor() {
   const [mode, setMode] = useState<Mode>("scale");
   const [labelMode, setLabelMode] = useState<LabelMode>("intervals");
   const [orientation, setOrientation] = useState<Orientation>("horizontal");
+  const [handedness, setHandedness] = useState<Handedness>("right");
   const [fretMin, setFretMin] = useState(0);
   const [fretMax, setFretMax] = useState(12);
 
@@ -235,6 +237,18 @@ ${stringsLit}
                   <option value="horizontal">Horizontal</option>
                   <option value="vertical">Vertical</option>
                 </select>
+                {orientation === "vertical" && (
+                  <select
+                    value={handedness}
+                    onChange={(e) =>
+                      setHandedness(e.target.value as Handedness)
+                    }
+                    className="rounded border border-fd-border bg-fd-background px-2 py-1"
+                  >
+                    <option value="right">Standard</option>
+                    <option value="left">Lefty</option>
+                  </select>
+                )}
               </span>
             </Field>
           </div>
@@ -322,7 +336,7 @@ ${stringsLit}
             onChange={setCells}
             rootPitchClass={modalRootPc}
             fretRange={[Math.min(fretMin, fretMax), Math.max(fretMin, fretMax)]}
-            layout={{ orientation }}
+            layout={{ orientation, handedness }}
             labelMode={labelMode}
           />
         </div>
