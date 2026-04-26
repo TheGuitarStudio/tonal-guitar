@@ -189,10 +189,11 @@ export const Fretboard = forwardRef<FretboardHandle, FretboardProps>(
             ));
           })}
 
-        {/* Fret numbers */}
+        {/* Fret numbers — fret 0 is the nut (not a fretted position), so skip it. */}
         {layout.showFretNumbers &&
           Array.from({ length: grid.fretCount }, (_, i) => {
             const fret = grid.minFret + i;
+            if (fret === 0) return null;
             const pos = fretNumberPosition(fret, grid, layout, svgDims);
             return (
               <text
