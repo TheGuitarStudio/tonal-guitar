@@ -1,0 +1,46 @@
+import type { FretboardLayout, FretboardTheme } from "./types";
+
+export const defaultTheme: FretboardTheme = {
+  background: "transparent",
+  string: "currentColor",
+  fret: "currentColor",
+  nut: "currentColor",
+  inlay: "currentColor",
+  fretNumber: "currentColor",
+  stringLabel: "currentColor",
+  defaultMarker: "#6b7280",
+  rootMarker: "#ef4444",
+  ghostMarker: "#9ca3af",
+  highlightMarker: "#fbbf24",
+  markerLabel: "#ffffff",
+  intervalColors: {
+    "1P": "#ef4444",
+    "2m": "#a855f7",
+    "2M": "#a855f7",
+    "3m": "#3b82f6",
+    "3M": "#3b82f6",
+    "4P": "#f59e0b",
+    "4A": "#f59e0b",
+    "5d": "#22c55e",
+    "5P": "#22c55e",
+    "5A": "#22c55e",
+    "6m": "#06b6d4",
+    "6M": "#06b6d4",
+    "7m": "#ec4899",
+    "7M": "#ec4899",
+  },
+};
+
+export const defaultLayout: FretboardLayout = {
+  orientation: "horizontal",
+  cellWidth: 44,
+  cellHeight: 26,
+  labelGutter: 28,
+  headerGutter: 20,
+  showFretNumbers: true,
+  showStringLabels: true,
+  showInlays: true,
+  inlayFrets: [3, 5, 7, 9, 15, 17, 19, 21],
+  doubleInlayFrets: [12, 24],
+  markerRadius: 10,
+};

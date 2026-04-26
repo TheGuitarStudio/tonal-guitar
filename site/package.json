@@ -18,7 +18,8 @@
     "next": "^14.2.24",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "tonal-guitar": "file:.."
+    "tonal-guitar": "file:..",
+    "fretboard-ui": "file:../packages/fretboard-ui"
   },
   "devDependencies": {
     "@types/node": "25.5.2",
