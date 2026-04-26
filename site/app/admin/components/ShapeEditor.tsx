@@ -4,6 +4,8 @@ import { useMemo, useState } from "react";
 import {
   FretboardEditor,
   MODES,
+  effectiveModeForSystem,
+  isModeCompatibleWithSystem,
   parentRoot,
   cellsToScaleShapeStrings,
   frettedNotesToCells,
@@ -119,11 +121,12 @@ ${stringsLit}
   function handleLoadShape() {
     const shape = get(loadShapeName);
     if (!shape) return;
-    // For modal contexts: build the shape at the parent root that the
-    // shape data is defined for (e.g. B Dorian D Shape -> build D Shape
-    // at A major), then ask the editor to relabel intervals from the
-    // modal root.
-    const buildRoot = parentRoot(loadRoot, loadMode) ?? loadRoot;
+    // Pentatonic shapes only fit major or minor pent — diatonic modes get
+    // auto-translated to their pentatonic equivalent (Dorian -> minor pent
+    // etc.). Locrian + pent is rejected because there's no clean pent.
+    if (!isModeCompatibleWithSystem(loadMode, shape.system)) return;
+    const effective = effectiveModeForSystem(loadMode, shape.system) ?? loadMode;
+    const buildRoot = parentRoot(loadRoot, effective) ?? loadRoot;
     const built = buildFrettedScale(shape, buildRoot, tuning);
     if (built.empty) return;
     const loaded = frettedNotesToCells(built.notes);
@@ -279,11 +282,18 @@ ${stringsLit}
                 onChange={(e) => setLoadMode(e.target.value)}
                 className="rounded border border-fd-border bg-fd-background px-2 py-1"
               >
-                {MODES.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.name}
-                  </option>
-                ))}
+                {MODES.map((m) => {
+                  const loadShape = loadShapeName ? get(loadShapeName) : null;
+                  const disabled =
+                    loadShape?.system === "pentatonic" &&
+                    m.pentatonicEquivalent == null;
+                  return (
+                    <option key={m.id} value={m.id} disabled={disabled}>
+                      {m.name}
+                      {disabled ? " — n/a for pentatonic" : ""}
+                    </option>
+                  );
+                })}
               </select>
             </Field>
             <Field label="At root">

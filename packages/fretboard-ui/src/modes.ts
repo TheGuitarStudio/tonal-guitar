@@ -32,26 +32,123 @@ export interface ModeDef {
    * Empty string means the modal root IS the parent root.
    */
   parentInterval: string;
+  /**
+   * Which pentatonic family this mode shares notes with, when applying a
+   * pentatonic shape:
+   * - Ionian / Lydian / Mixolydian have a natural 3rd → major pentatonic
+   *   (1, 2, 3, 5, 6) is a clean subset
+   * - Dorian / Phrygian / Aeolian have a minor 3rd → minor pentatonic
+   *   (1, b3, 4, 5, b7) is a clean subset
+   * - Locrian has a diminished 5th, so neither standard pentatonic fits
+   *   without including a tritone — null means "no pent equivalent"
+   * - The two pent modes map to themselves
+   */
+  pentatonicEquivalent: "major-pent" | "minor-pent" | null;
 }
 
 export const MODES: ModeDef[] = [
-  { id: "ionian", name: "Major (Ionian)", family: "diatonic", parentInterval: "" },
-  { id: "dorian", name: "Dorian", family: "diatonic", parentInterval: "2M" },
-  { id: "phrygian", name: "Phrygian", family: "diatonic", parentInterval: "3M" },
-  { id: "lydian", name: "Lydian", family: "diatonic", parentInterval: "4P" },
-  { id: "mixolydian", name: "Mixolydian", family: "diatonic", parentInterval: "5P" },
-  { id: "aeolian", name: "Minor (Aeolian)", family: "diatonic", parentInterval: "6M" },
-  { id: "locrian", name: "Locrian", family: "diatonic", parentInterval: "7M" },
-  // Pentatonic shapes in src/data/pentatonic.ts are now defined as MAJOR
+  {
+    id: "ionian",
+    name: "Major (Ionian)",
+    family: "diatonic",
+    parentInterval: "",
+    pentatonicEquivalent: "major-pent",
+  },
+  {
+    id: "dorian",
+    name: "Dorian",
+    family: "diatonic",
+    parentInterval: "2M",
+    pentatonicEquivalent: "minor-pent",
+  },
+  {
+    id: "phrygian",
+    name: "Phrygian",
+    family: "diatonic",
+    parentInterval: "3M",
+    pentatonicEquivalent: "minor-pent",
+  },
+  {
+    id: "lydian",
+    name: "Lydian",
+    family: "diatonic",
+    parentInterval: "4P",
+    pentatonicEquivalent: "major-pent",
+  },
+  {
+    id: "mixolydian",
+    name: "Mixolydian",
+    family: "diatonic",
+    parentInterval: "5P",
+    pentatonicEquivalent: "major-pent",
+  },
+  {
+    id: "aeolian",
+    name: "Minor (Aeolian)",
+    family: "diatonic",
+    parentInterval: "6M",
+    pentatonicEquivalent: "minor-pent",
+  },
+  {
+    id: "locrian",
+    name: "Locrian",
+    family: "diatonic",
+    parentInterval: "7M",
+    pentatonicEquivalent: null,
+  },
+  // Pentatonic shapes in src/data/pentatonic.ts are defined as MAJOR
   // pentatonic, so major-pent has no parent shift; minor-pent's parent
   // major-pent root is a major 6th below the modal root (e.g. A minor pent
   // -> C major pent: transpose("A", "-6M") = "C").
-  { id: "major-pent", name: "Major Pentatonic", family: "pentatonic", parentInterval: "" },
-  { id: "minor-pent", name: "Minor Pentatonic", family: "pentatonic", parentInterval: "6M" },
+  {
+    id: "major-pent",
+    name: "Major Pentatonic",
+    family: "pentatonic",
+    parentInterval: "",
+    pentatonicEquivalent: "major-pent",
+  },
+  {
+    id: "minor-pent",
+    name: "Minor Pentatonic",
+    family: "pentatonic",
+    parentInterval: "6M",
+    pentatonicEquivalent: "minor-pent",
+  },
 ];
 
 export function getMode(id: string): ModeDef | undefined {
   return MODES.find((m) => m.id === id);
+}
+
+/**
+ * For a mode + shape system, return the mode that should actually drive
+ * parent-root computation. Pentatonic shapes only fit major or minor pent
+ * directly, so any diatonic mode picked alongside a pentatonic shape gets
+ * mapped to the pent equivalent (Dorian/Phrygian/Aeolian -> minor pent;
+ * Ionian/Lydian/Mixolydian -> major pent). Locrian has no clean pent and
+ * returns null so callers can disable / warn.
+ */
+export function effectiveModeForSystem(
+  modeId: string,
+  shapeSystem: string,
+): string | null {
+  const mode = getMode(modeId);
+  if (!mode) return null;
+  if (shapeSystem === "pentatonic") {
+    return mode.pentatonicEquivalent;
+  }
+  return mode.id;
+}
+
+/**
+ * Whether (mode, system) is a sensible pairing. False for pentatonic
+ * shapes paired with Locrian (which has no clean pentatonic match).
+ */
+export function isModeCompatibleWithSystem(
+  modeId: string,
+  shapeSystem: string,
+): boolean {
+  return effectiveModeForSystem(modeId, shapeSystem) != null;
 }
 
 /**

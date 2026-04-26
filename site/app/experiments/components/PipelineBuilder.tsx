@@ -12,7 +12,11 @@ import { OutputStep } from "./OutputStep";
 import { FretboardDiagram } from "./FretboardDiagram";
 import { ModeStep } from "./ModeStep";
 import { PresetLoader, type Preset } from "./PresetLoader";
-import { parentRoot } from "fretboard-ui";
+import {
+  effectiveModeForSystem,
+  isModeCompatibleWithSystem,
+  parentRoot,
+} from "fretboard-ui";
 
 import {
   STANDARD,
@@ -135,12 +139,21 @@ export function PipelineBuilder() {
 
   // For modal rendering: build the shape at the parent root that matches
   // the shape's data, then render with `modalRootPc` so intervals get
-  // relabeled from the modal root.
+  // relabeled from the modal root. Pentatonic shapes auto-translate any
+  // diatonic mode to its pentatonic equivalent (Dorian -> minor pent etc.)
+  // — see effectiveModeForSystem.
+  const shapeSystem = shape?.system ?? "";
+  const compatible = isModeCompatibleWithSystem(modeId, shapeSystem);
+  const effectiveMode =
+    effectiveModeForSystem(modeId, shapeSystem) ?? modeId;
   const buildRoot = useMemo(
-    () => parentRoot(root, modeId) ?? root,
-    [root, modeId],
+    () => (compatible ? parentRoot(root, effectiveMode) ?? root : root),
+    [root, effectiveMode, compatible],
   );
-  const modalRootPc = modeId === "ionian" ? undefined : root;
+  const modalRootPc =
+    !compatible || effectiveMode === "ionian" || effectiveMode === "major-pent"
+      ? undefined
+      : root;
 
   const scale: FrettedScale | null = useMemo(() => {
     if (!shape) return null;
@@ -271,7 +284,11 @@ export function PipelineBuilder() {
         title="3a. Mode"
         subtitle={modeId === "ionian" ? "Major (Ionian)" : modeId}
       >
-        <ModeStep modeId={modeId} onChange={setModeId} />
+        <ModeStep
+          modeId={modeId}
+          onChange={setModeId}
+          shapeSystem={shapeSystem}
+        />
       </StepCard>
 
       <StepCard
