@@ -247,10 +247,12 @@ export const Fretboard = forwardRef<FretboardHandle, FretboardProps>(
             );
           })}
 
-        {/* Fret lines */}
+        {/* Fret lines. When the diagram includes the open strings (minFret = 0),
+            cell 0 holds the open-string area and the NUT is the line that ends
+            it (i = 1). Otherwise every line is a regular fretwire. */}
         {Array.from({ length: grid.fretCount + 1 }, (_, i) => {
           const e = fretLineEndpoints(i, grid, layout, svgDims);
-          const isNut = i === 0 && grid.minFret === 0;
+          const isNut = grid.minFret === 0 && i === 1;
           return (
             <line
               key={`fretline-${i}`}

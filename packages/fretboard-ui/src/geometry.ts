@@ -182,17 +182,23 @@ export function stringLineEndpoints(
   };
 }
 
+/**
+ * Where to draw a fret-number label. Aligned with the fretwire that ENDS
+ * the given fret (the right edge of the cell in horizontal mode), so each
+ * label sits on the line of the corresponding fret rather than floating
+ * in the middle of a cell.
+ */
 export function fretNumberPosition(
   fret: number,
   grid: GridDimensions,
   layout: FretboardLayout,
   svg: SvgDimensions,
 ): { x: number; y: number; anchor: "middle" | "end" } {
-  const f = alongFret(fret, grid, layout);
+  const fretEdge = (fret - grid.minFret + 1) * layout.cellWidth;
   if (layout.orientation === "horizontal") {
-    return { x: svg.gridX + f, y: svg.gridY - 6, anchor: "middle" };
+    return { x: svg.gridX + fretEdge, y: svg.gridY - 6, anchor: "middle" };
   }
-  return { x: svg.gridX - 6, y: svg.gridY + f + 4, anchor: "end" };
+  return { x: svg.gridX - 6, y: svg.gridY + fretEdge + 4, anchor: "end" };
 }
 
 export function stringLabelPosition(
