@@ -30,6 +30,8 @@ import {
   names,
   buildFrettedScale,
   walkPattern,
+  walkShape,
+  walkShapeIntervals,
   applySequence,
   flattenSequence,
   thirds,
@@ -133,6 +135,7 @@ export function PipelineBuilder() {
   // Step 4: Pattern
   const [patternType, setPatternType] = useState<string>("Ascending Thirds");
   const [customPattern, setCustomPattern] = useState("1,3,5,7,6,5,4,3,2,1");
+  const [walkFullShape, setWalkFullShape] = useState(true);
 
   // Step 5: Sequence
   const [seqType, setSeqType] = useState<string>("None");
@@ -208,10 +211,45 @@ export function PipelineBuilder() {
   }, [patternType, scaleLen, customPattern]);
 
   const walkedNotes: FrettedNote[] | null = useMemo(() => {
-    if (!scale || !pattern) return null;
+    if (!scale) return null;
+    // "Walk full shape" mode uses the shape walkers (visit every note,
+    // end on the highest). Otherwise fall back to degree-based walking.
+    if (walkFullShape && patternType !== "Custom Degrees") {
+      let result: FrettedNote[] = [];
+      switch (patternType) {
+        case "None":
+          return null;
+        case "Ascending Linear":
+          result = walkShape(scale);
+          break;
+        case "Descending Linear":
+          result = walkShape(scale, { direction: "descending" });
+          break;
+        case "Ascending Thirds":
+          result = walkShapeIntervals(scale, 2);
+          break;
+        case "Ascending Fourths":
+          result = walkShapeIntervals(scale, 3);
+          break;
+        case "Ascending Sixths":
+          result = walkShapeIntervals(scale, 5);
+          break;
+        case "Descending Thirds":
+          result = walkShapeIntervals(scale, 2, { direction: "descending" });
+          break;
+        case "Grouping (4s)":
+          // Grouping doesn't have a direct shape-walker analogue; fall back.
+          result = pattern ? walkPattern(scale, pattern) : [];
+          break;
+        default:
+          return null;
+      }
+      return result.length > 0 ? result : null;
+    }
+    if (!pattern) return null;
     const result = walkPattern(scale, pattern);
     return result.length > 0 ? result : null;
-  }, [scale, pattern]);
+  }, [scale, pattern, walkFullShape, patternType]);
 
   const sequenceNotes: FrettedNote[] | null = useMemo(() => {
     if (!scale || seqType === "None") return null;
@@ -340,8 +378,10 @@ export function PipelineBuilder() {
           patternType={patternType}
           patternTypes={PATTERN_TYPES as unknown as string[]}
           customPattern={customPattern}
+          walkFullShape={walkFullShape}
           onTypeChange={setPatternType}
           onCustomChange={setCustomPattern}
+          onWalkFullShapeChange={setWalkFullShape}
         />
         {walkedNotes && (
           <p className="mt-2 text-xs text-fd-muted-foreground">
@@ -397,6 +437,7 @@ export function PipelineBuilder() {
           patternType={patternType}
           customPattern={customPattern}
           scaleLen={scaleLen}
+          walkFullShape={walkFullShape}
           seqType={seqType}
           customSeq={customSeq}
           incremental={incremental}

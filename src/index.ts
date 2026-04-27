@@ -55,9 +55,9 @@ export {
   sixths,
 } from "./pattern";
 
-// Pattern walker
-export { walkPattern } from "./walker";
-export type { WalkOptions } from "./walker";
+// Pattern walker + shape walker
+export { walkPattern, walkShape, walkShapeIntervals } from "./walker";
+export type { WalkOptions, WalkShapeOptions } from "./walker";
 
 // Sequence engine
 export { applySequence, flattenSequence } from "./sequence";

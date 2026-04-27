@@ -40,6 +40,8 @@ import {
   sixths,
   // Walker
   walkPattern,
+  walkShape,
+  walkShapeIntervals,
   // Sequence
   applySequence,
   flattenSequence,
@@ -991,6 +993,49 @@ describe("walkPattern — auto direction", () => {
 // ============================================================
 // 10. Sequence engine
 // ============================================================
+
+describe("walkShape", () => {
+  const scale = buildFrettedScale(CAGED_E, "A");
+
+  test("returns every note in the shape, sorted ascending by midi", () => {
+    const notes = walkShape(scale);
+    expect(notes).toHaveLength(scale.notes.length);
+    for (let i = 1; i < notes.length; i++) {
+      expect(notes[i].midi).toBeGreaterThanOrEqual(notes[i - 1].midi);
+    }
+  });
+
+  test("first note is the lowest in the shape; last is the highest", () => {
+    const sorted = [...scale.notes].sort((a, b) => a.midi - b.midi);
+    const ascending = walkShape(scale);
+    expect(ascending[0].midi).toBe(sorted[0].midi);
+    expect(ascending[ascending.length - 1].midi).toBe(
+      sorted[sorted.length - 1].midi,
+    );
+  });
+
+  test("descending direction reverses the order", () => {
+    const ascending = walkShape(scale);
+    const descending = walkShape(scale, { direction: "descending" });
+    expect(descending).toEqual([...ascending].reverse());
+  });
+});
+
+describe("walkShapeIntervals", () => {
+  const scale = buildFrettedScale(CAGED_E, "A");
+
+  test("intervalSize=2 (thirds): pairs every-other-note across the shape", () => {
+    const notes = walkShapeIntervals(scale, 2);
+    // For N sorted notes and intervalSize=2, we get (N - 2) pairs = (N-2)*2 notes.
+    expect(notes).toHaveLength((scale.notes.length - 2) * 2);
+  });
+
+  test("the very last emitted note is the highest in the shape", () => {
+    const notes = walkShapeIntervals(scale, 2);
+    const highest = scale.notes.reduce((p, c) => (c.midi > p.midi ? c : p));
+    expect(notes[notes.length - 1].midi).toBe(highest.midi);
+  });
+});
 
 describe("applySequence", () => {
   const scale = buildFrettedScale(CAGED_E, "A");

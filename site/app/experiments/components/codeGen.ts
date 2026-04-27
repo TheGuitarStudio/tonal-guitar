@@ -13,6 +13,7 @@ export interface CodeGenInput {
   patternType: string;
   customPattern: string;
   scaleLen: number;
+  walkFullShape: boolean;
 
   seqType: string;
   customSeq: string;
@@ -65,6 +66,42 @@ function patternExpr(
     }
     default:
       return { expr: "[]", fn: null };
+  }
+}
+
+function shapeWalkerCall(
+  type: string,
+): { fn: string; expr: string } | null {
+  switch (type) {
+    case "Ascending Linear":
+      return { fn: "walkShape", expr: `walkShape(scale)` };
+    case "Descending Linear":
+      return {
+        fn: "walkShape",
+        expr: `walkShape(scale, { direction: "descending" })`,
+      };
+    case "Ascending Thirds":
+      return {
+        fn: "walkShapeIntervals",
+        expr: `walkShapeIntervals(scale, 2)`,
+      };
+    case "Ascending Fourths":
+      return {
+        fn: "walkShapeIntervals",
+        expr: `walkShapeIntervals(scale, 3)`,
+      };
+    case "Ascending Sixths":
+      return {
+        fn: "walkShapeIntervals",
+        expr: `walkShapeIntervals(scale, 5)`,
+      };
+    case "Descending Thirds":
+      return {
+        fn: "walkShapeIntervals",
+        expr: `walkShapeIntervals(scale, 2, { direction: "descending" })`,
+      };
+    default:
+      return null;
   }
 }
 
@@ -126,13 +163,29 @@ export function generateCode(input: CodeGenInput): CodeGenResult {
   // Pattern
   let walkedVar: string | null = null;
   if (input.patternType !== "None") {
-    const p = patternExpr(input.patternType, input.scaleLen, input.customPattern);
-    tonal.add("walkPattern");
-    if (p.fn) tonal.add(p.fn);
-    lines.push("");
-    lines.push(`const pattern = ${p.expr};`);
-    lines.push(`const notes = walkPattern(scale, pattern);`);
-    walkedVar = "notes";
+    const customMode = input.patternType === "Custom Degrees";
+    if (input.walkFullShape && !customMode) {
+      // Shape-aware walkers — visit every position in the shape, end on the highest note.
+      const call = shapeWalkerCall(input.patternType);
+      if (call) {
+        tonal.add(call.fn);
+        lines.push("");
+        lines.push(`const notes = ${call.expr};`);
+        walkedVar = "notes";
+      }
+    } else {
+      const p = patternExpr(
+        input.patternType,
+        input.scaleLen,
+        input.customPattern,
+      );
+      tonal.add("walkPattern");
+      if (p.fn) tonal.add(p.fn);
+      lines.push("");
+      lines.push(`const pattern = ${p.expr};`);
+      lines.push(`const notes = walkPattern(scale, pattern);`);
+      walkedVar = "notes";
+    }
   }
 
   // Sequence

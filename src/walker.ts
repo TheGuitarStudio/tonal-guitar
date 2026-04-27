@@ -4,6 +4,55 @@ export interface WalkOptions {
   direction?: "auto" | "up" | "down" | "nearest"; // default: "auto"
 }
 
+export interface WalkShapeOptions {
+  /** "ascending" walks low → high; "descending" walks high → low. Default: "ascending". */
+  direction?: "ascending" | "descending";
+}
+
+/**
+ * Walk every note in a fretted shape in pitch order, low-to-high
+ * (or high-to-low when descending).
+ *
+ * Use this when you want a melodic exercise that visits every position
+ * in the shape exactly once and ends on the highest (or lowest) note.
+ * Unlike walkPattern, this doesn't go through degrees — it visits the
+ * shape's actual notes, so you don't have to know which degree happens
+ * to be the lowest one in your chosen position.
+ */
+export function walkShape(
+  scale: FrettedScale,
+  options: WalkShapeOptions = {},
+): FrettedNote[] {
+  const sorted = [...scale.notes].sort((a, b) => a.midi - b.midi);
+  return options.direction === "descending" ? sorted.reverse() : sorted;
+}
+
+/**
+ * Walk interval pairs across the shape in pitch order. For each adjacent
+ * "step" of size `intervalSize` along the sorted notes, emit both notes
+ * of the pair. Convention matches `ascendingIntervals`:
+ *   intervalSize = 2 → thirds (every other note)
+ *   intervalSize = 3 → fourths
+ *   intervalSize = 5 → sixths
+ *
+ * Example: thirds across CAGED E A major (17 notes) yields
+ *   [G#2, B2, A2, C#3, B2, D3, ..., G#4, B4]
+ * — every position is covered and the run ends on the shape's
+ * highest note.
+ */
+export function walkShapeIntervals(
+  scale: FrettedScale,
+  intervalSize: number,
+  options: WalkShapeOptions = {},
+): FrettedNote[] {
+  const sorted = walkShape(scale, options);
+  const result: FrettedNote[] = [];
+  for (let i = 0; i + intervalSize < sorted.length; i++) {
+    result.push(sorted[i], sorted[i + intervalSize]);
+  }
+  return result;
+}
+
 /**
  * Walk a degree pattern through a fretted scale, picking notes from the
  * scale's fretted positions.
