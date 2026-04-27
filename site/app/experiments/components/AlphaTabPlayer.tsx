@@ -33,10 +33,13 @@ export function AlphaTabPlayer({ alphaTex }: AlphaTabPlayerProps) {
 
         api = new alphaTab.AlphaTabApi(containerRef.current, {
           core: {
-            engine: "svg",
+            // alphaTab tries to derive the worker URL from where it was
+            // loaded, but with Next.js bundling that becomes a file:// path
+            // the browser refuses. Pin both the script and font assets to
+            // the CDN.
+            scriptFile: `${ASSETS_BASE}/alphaTab.min.mjs`,
             fontDirectory: `${ASSETS_BASE}/font/`,
-            tex: true,
-            file: alphaTex,
+            engine: "svg",
           },
           display: {
             scale: 1,
@@ -67,6 +70,8 @@ export function AlphaTabPlayer({ alphaTex }: AlphaTabPlayerProps) {
         });
 
         apiRef.current = api;
+        // Load inline AlphaTeX (not a URL) — must come after constructor.
+        api.tex(alphaTex);
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : String(err));
