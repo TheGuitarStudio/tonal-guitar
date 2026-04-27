@@ -11,6 +11,7 @@ import { SequenceStep } from "./SequenceStep";
 import { OutputStep } from "./OutputStep";
 import { FretboardDiagram } from "./FretboardDiagram";
 import { ModeStep } from "./ModeStep";
+import { CodePreview } from "./CodePreview";
 import { PresetLoader, type Preset } from "./PresetLoader";
 import {
   effectiveModeForSystem,
@@ -57,6 +58,15 @@ const TUNINGS: Record<string, string[]> = {
   "Open G": OPEN_G,
   "7-String": STANDARD_7,
   "8-String": STANDARD_8,
+};
+
+const TUNING_CONST: Record<string, string> = {
+  Standard: "STANDARD",
+  "Drop D": "DROP_D",
+  DADGAD: "DADGAD",
+  "Open G": "OPEN_G",
+  "7-String": "STANDARD_7",
+  "8-String": "STANDARD_8",
 };
 
 const PATTERN_TYPES = [
@@ -372,6 +382,27 @@ export function PipelineBuilder() {
           output={output}
           onFormatChange={setOutputFormat}
           onTempoChange={setTempo}
+        />
+      </StepCard>
+
+      <StepCard title="8. Code preview" subtitle="library calls for this pipeline">
+        <CodePreview
+          tuningName={tuningName}
+          tuningConst={TUNING_CONST[tuningName] ?? "STANDARD"}
+          shapeName={shapeName}
+          shapeSystem={shapeSystem}
+          root={root}
+          modeId={modeId}
+          showOpenStrings={showOpenStrings}
+          patternType={patternType}
+          customPattern={customPattern}
+          scaleLen={scaleLen}
+          seqType={seqType}
+          customSeq={customSeq}
+          incremental={incremental}
+          maxPasses={maxPasses}
+          outputFormat={outputFormat}
+          tempo={tempo}
         />
       </StepCard>
     </div>
