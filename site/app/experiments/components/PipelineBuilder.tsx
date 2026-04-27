@@ -118,6 +118,7 @@ export function PipelineBuilder() {
   // Step 3: Root
   const [root, setRoot] = useState("A");
   const [modeId, setModeId] = useState("ionian");
+  const [showOpenStrings, setShowOpenStrings] = useState(true);
 
   // Step 4: Pattern
   const [patternType, setPatternType] = useState<string>("Ascending Thirds");
@@ -157,9 +158,11 @@ export function PipelineBuilder() {
 
   const scale: FrettedScale | null = useMemo(() => {
     if (!shape) return null;
-    const result = buildFrettedScale(shape, buildRoot, tuning);
+    const result = buildFrettedScale(shape, buildRoot, tuning, {
+      allowOpenStrings: showOpenStrings,
+    });
     return result.empty ? null : result;
-  }, [shape, buildRoot, tuning]);
+  }, [shape, buildRoot, tuning, showOpenStrings]);
 
   const scaleLen = useMemo(() => {
     if (!scale) return 7;
@@ -305,6 +308,8 @@ export function PipelineBuilder() {
               scale={scale}
               tuning={tuning}
               modalRootPc={modalRootPc}
+              showOpenStrings={showOpenStrings}
+              onShowOpenStringsChange={setShowOpenStrings}
             />
             <BuildResult scale={scale} />
           </>

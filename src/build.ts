@@ -42,15 +42,16 @@ const LOOKBACK = 4;
 const LOOKAHEAD = 8;
 
 /**
- * Find the fret >= 0 on `string` where `targetPc` lies, within the window
- * [rootFret - LOOKBACK, rootFret + LOOKAHEAD]. Returns null if no fret in
- * that window is non-negative.
+ * Find the fret on `string` where `targetPc` lies, within the window
+ * [rootFret - LOOKBACK, rootFret + LOOKAHEAD] and >= `minFret`.
+ * Returns null if no fret in that window meets the constraint.
  */
 function fretInWindow(
   tuning: string[],
   string: number,
   targetPc: string,
   rootFret: number,
+  minFret: number,
 ): number | null {
   const openChr = toChroma(tuning[string]);
   const targetChr = toChroma(targetPc);
@@ -68,18 +69,19 @@ function fretInWindow(
   let f = base;
   while (f < lower) f += 12;
   if (f > upper) return null;
-  return f >= 0 ? f : null;
+  return f >= minFret ? f : null;
 }
 
 /**
  * Check whether every (string, interval) pair in `shape` placed against
- * `anchor` lands on a non-negative fret inside the window.
+ * `anchor` lands on a fret inside the window and >= `minFret`.
  */
 function shapeFitsAtAnchor(
   tuning: string[],
   shape: ScaleShape,
   pc: string,
   anchor: number,
+  minFret: number,
 ): boolean {
   for (let s = 0; s < shape.strings.length && s < tuning.length; s++) {
     const intervals = shape.strings[s];
@@ -87,7 +89,7 @@ function shapeFitsAtAnchor(
     for (const ivl of intervals) {
       const targetPc = transpose(pc, ivl);
       if (!targetPc) continue;
-      const fret = fretInWindow(tuning, s, targetPc, anchor);
+      const fret = fretInWindow(tuning, s, targetPc, anchor, minFret);
       if (fret == null) return false;
     }
   }
@@ -114,6 +116,7 @@ function findShapeAnchorFret(
   tuning: string[],
   shape: ScaleShape,
   pc: string,
+  minFret: number,
 ): number | null {
   const intervals = shape.strings[shape.rootString];
   let baseAnchor: number | null;
@@ -125,17 +128,30 @@ function findShapeAnchorFret(
     baseAnchor = findNearestFret(tuning, shape.rootString, firstPc);
   }
   if (baseAnchor == null) return null;
+  // If the natural anchor would force notes below minFret, jump up an octave.
+  while (baseAnchor + LOOKAHEAD < minFret && baseAnchor + 12 <= MAX_FRET) {
+    baseAnchor += 12;
+  }
 
   for (
     let anchor = baseAnchor;
     anchor <= MAX_FRET;
     anchor += 12
   ) {
-    if (shapeFitsAtAnchor(tuning, shape, pc, anchor)) return anchor;
+    if (shapeFitsAtAnchor(tuning, shape, pc, anchor, minFret)) return anchor;
   }
   // Fall back to the natural anchor even if some notes won't fit — the
   // build loop will just drop them rather than return an empty result.
   return baseAnchor;
+}
+
+export interface BuildOptions {
+  /**
+   * If false, never produce notes at fret 0. The shape is shifted up by
+   * an octave (or more) until no note in the layout would land on an
+   * open string. Default: true.
+   */
+  allowOpenStrings?: boolean;
 }
 
 /**
@@ -145,12 +161,14 @@ export function buildFrettedScale(
   shape: ScaleShape,
   root: string,
   tuning: string[] = STANDARD,
+  options: BuildOptions = {},
 ): FrettedScale {
   // FIX #6: Strip octave from root
   const pc = toPitchClass(root);
   if (!pc) return { ...NoFrettedScale };
 
-  const rootFret = findShapeAnchorFret(tuning, shape, pc);
+  const minFret = options.allowOpenStrings === false ? 1 : 0;
+  const rootFret = findShapeAnchorFret(tuning, shape, pc, minFret);
   if (rootFret == null) return { ...NoFrettedScale };
 
   // FIX #1: Build interval-to-scaleIndex map
@@ -172,8 +190,8 @@ export function buildFrettedScale(
       const targetPc = transpose(pc, ivl);
       if (!targetPc) continue;
 
-      const fret = fretInWindow(tuning, s, targetPc, rootFret);
-      if (fret == null || fret < 0) continue;
+      const fret = fretInWindow(tuning, s, targetPc, rootFret, minFret);
+      if (fret == null || fret < minFret) continue;
 
       const openMidi = toMidi(tuning[s]);
       if (openMidi == null) continue;
@@ -236,6 +254,7 @@ export function applyChordShape(
   shape: ChordShape,
   root: string,
   tuning: string[] = STANDARD,
+  options: BuildOptions = {},
 ): Fingering {
   const asScaleShape: ScaleShape = {
     name: shape.name,
@@ -244,7 +263,7 @@ export function applyChordShape(
     rootString: shape.rootString,
   };
 
-  const result = buildFrettedScale(asScaleShape, root, tuning);
+  const result = buildFrettedScale(asScaleShape, root, tuning, options);
   const frets: (number | null)[] = tuning.map(() => null);
   for (const p of result.notes) {
     frets[p.string] = p.fret;

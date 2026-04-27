@@ -21,6 +21,10 @@ interface FretboardDiagramProps {
    * shape viewed as B Dorian).
    */
   modalRootPc?: string;
+  /** Whether the open-string column (fret 0) is rendered. */
+  showOpenStrings?: boolean;
+  /** Callback when the user toggles the open-strings checkbox. */
+  onShowOpenStringsChange?: (show: boolean) => void;
 }
 
 const LEGEND = [
@@ -35,12 +39,23 @@ export function FretboardDiagram({
   scale,
   tuning,
   modalRootPc,
+  showOpenStrings = true,
+  onShowOpenStringsChange,
 }: FretboardDiagramProps) {
   const [labelMode, setLabelMode] = useState<LabelMode>("notes");
   const [orientation, setOrientation] = useState<Orientation>("horizontal");
   const [handedness, setHandedness] = useState<Handedness>("right");
 
   if (scale.notes.length === 0) return null;
+
+  // Auto fret-range based on the actual notes; clamp the lower bound to 1
+  // when open strings are hidden so the fret-0 column doesn't render.
+  const minNoteFret = Math.min(...scale.notes.map((n) => n.fret));
+  const maxNoteFret = Math.max(...scale.notes.map((n) => n.fret));
+  const lower = showOpenStrings
+    ? Math.max(0, minNoteFret - 1)
+    : Math.max(1, minNoteFret - 1);
+  const fretRange: [number, number] = [lower, maxNoteFret + 1];
 
   const markers: FretMarker[] = scale.notes.map((n) => {
     if (modalRootPc) {
@@ -93,11 +108,23 @@ export function FretboardDiagram({
             onChange={(v) => setHandedness(v as Handedness)}
           />
         )}
+        {onShowOpenStringsChange && (
+          <label className="inline-flex items-center gap-1.5 rounded-md border border-fd-border px-3 py-1 text-xs">
+            <input
+              type="checkbox"
+              checked={showOpenStrings}
+              onChange={(e) => onShowOpenStringsChange(e.target.checked)}
+              className="accent-fd-primary"
+            />
+            Open strings
+          </label>
+        )}
       </div>
       <div className="overflow-x-auto text-fd-foreground">
         <Fretboard
           tuning={tuning}
           markers={markers}
+          fretRange={fretRange}
           labelMode={labelMode}
           layout={{ orientation, handedness }}
           className="font-mono"

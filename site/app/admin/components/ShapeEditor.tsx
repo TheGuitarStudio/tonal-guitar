@@ -62,6 +62,7 @@ export function ShapeEditor() {
   const [labelMode, setLabelMode] = useState<LabelMode>("intervals");
   const [orientation, setOrientation] = useState<Orientation>("horizontal");
   const [handedness, setHandedness] = useState<Handedness>("right");
+  const [showOpenStrings, setShowOpenStrings] = useState(true);
   const [fretMin, setFretMin] = useState(0);
   const [fretMax, setFretMax] = useState(12);
 
@@ -127,7 +128,9 @@ ${stringsLit}
     if (!isModeCompatibleWithSystem(loadMode, shape.system)) return;
     const effective = effectiveModeForSystem(loadMode, shape.system) ?? loadMode;
     const buildRoot = parentRoot(loadRoot, effective) ?? loadRoot;
-    const built = buildFrettedScale(shape, buildRoot, tuning);
+    const built = buildFrettedScale(shape, buildRoot, tuning, {
+      allowOpenStrings: showOpenStrings,
+    });
     if (built.empty) return;
     const loaded = frettedNotesToCells(built.notes);
     setCells(loaded);
@@ -252,6 +255,15 @@ ${stringsLit}
                     <option value="left">Lefty</option>
                   </select>
                 )}
+                <label className="ml-1 inline-flex items-center gap-1.5 text-xs">
+                  <input
+                    type="checkbox"
+                    checked={showOpenStrings}
+                    onChange={(e) => setShowOpenStrings(e.target.checked)}
+                    className="accent-fd-primary"
+                  />
+                  Open strings
+                </label>
               </span>
             </Field>
           </div>
@@ -345,7 +357,10 @@ ${stringsLit}
             cells={cells}
             onChange={setCells}
             rootPitchClass={modalRootPc}
-            fretRange={[Math.min(fretMin, fretMax), Math.max(fretMin, fretMax)]}
+            fretRange={[
+              Math.max(showOpenStrings ? 0 : 1, Math.min(fretMin, fretMax)),
+              Math.max(fretMin, fretMax),
+            ]}
             layout={{ orientation, handedness }}
             labelMode={labelMode}
           />
