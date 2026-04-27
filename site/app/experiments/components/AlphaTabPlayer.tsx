@@ -8,11 +8,15 @@ interface AlphaTabPlayerProps {
 
 const ASSETS_BASE =
   "https://cdn.jsdelivr.net/npm/@coderline/alphatab@1.8.2/dist";
+const SCRIPT_SRC = `${ASSETS_BASE}/alphaTab.min.js`;
 
 /**
- * Embeds an interactive alphaTab renderer + audio player. alphaTab is
- * browser-only (uses Web Audio + Worker), so we dynamically import it and
- * mount only on the client.
+ * Embeds an interactive alphaTab renderer + audio player.
+ *
+ * alphaTab is loaded from the CDN as a classical (UMD) script so its worker
+ * construction path uses `core.scriptFile` instead of `import.meta.url`.
+ * (Importing via npm in a Next.js bundle resolves `import.meta.url` to a
+ * file:// path the browser refuses to load.)
  */
 export function AlphaTabPlayer({ alphaTex }: AlphaTabPlayerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -21,63 +25,75 @@ export function AlphaTabPlayer({ alphaTex }: AlphaTabPlayerProps) {
   const [error, setError] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
 
-  // Mount alphaTab once.
   useEffect(() => {
     let cancelled = false;
     let api: any = null;
 
-    (async () => {
-      try {
-        const alphaTab = await import("@coderline/alphatab");
-        if (cancelled || !containerRef.current) return;
-
-        api = new alphaTab.AlphaTabApi(containerRef.current, {
-          core: {
-            // alphaTab tries to derive the worker URL from where it was
-            // loaded, but with Next.js bundling that becomes a file:// path
-            // the browser refuses. Pin both the script and font assets to
-            // the CDN.
-            scriptFile: `${ASSETS_BASE}/alphaTab.min.mjs`,
-            fontDirectory: `${ASSETS_BASE}/font/`,
-            engine: "svg",
-          },
-          display: {
-            scale: 1,
-            staveProfile: "ScoreTab",
-          },
-          player: {
-            enablePlayer: true,
-            enableCursor: true,
-            enableUserInteraction: true,
-            soundFont: `${ASSETS_BASE}/soundfont/sonivox.sf2`,
-            scrollMode: 0, // off
-          },
-        });
-
-        api.renderStarted.on(() => {
-          if (!cancelled) setReady(true);
-        });
-        api.error.on((e: { message?: string } | string) => {
-          if (cancelled) return;
-          const msg =
-            typeof e === "string" ? e : (e?.message ?? "Unknown alphaTab error");
-          setError(msg);
-        });
-        api.playerStateChanged.on((e: { state: number }) => {
-          if (cancelled) return;
-          // 0 = paused, 1 = playing, 2 = stopped (alphaTab PlayerState enum)
-          setIsPlaying(e.state === 1);
-        });
-
-        apiRef.current = api;
-        // Load inline AlphaTeX (not a URL) — must come after constructor.
-        api.tex(alphaTex);
-      } catch (err) {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : String(err));
-        }
+    function init() {
+      if (cancelled || !containerRef.current) return;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const at = (window as any).alphaTab;
+      if (!at) {
+        setError("alphaTab failed to load from CDN.");
+        return;
       }
-    })();
+
+      api = new at.AlphaTabApi(containerRef.current, {
+        core: {
+          scriptFile: SCRIPT_SRC,
+          fontDirectory: `${ASSETS_BASE}/font/`,
+          engine: "svg",
+        },
+        display: {
+          scale: 1,
+          staveProfile: "ScoreTab",
+        },
+        player: {
+          enablePlayer: true,
+          enableCursor: true,
+          enableUserInteraction: true,
+          soundFont: `${ASSETS_BASE}/soundfont/sonivox.sf2`,
+          scrollMode: 0,
+        },
+      });
+
+      api.renderStarted.on(() => {
+        if (!cancelled) setReady(true);
+      });
+      api.error.on((e: { message?: string } | string) => {
+        if (cancelled) return;
+        const msg =
+          typeof e === "string" ? e : (e?.message ?? "Unknown alphaTab error");
+        setError(msg);
+      });
+      api.playerStateChanged.on((e: { state: number }) => {
+        if (cancelled) return;
+        setIsPlaying(e.state === 1);
+      });
+
+      apiRef.current = api;
+      api.tex(alphaTex);
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if ((window as any).alphaTab) {
+      init();
+    } else {
+      let script = document.querySelector<HTMLScriptElement>(
+        `script[data-alphatab="1"]`,
+      );
+      if (!script) {
+        script = document.createElement("script");
+        script.src = SCRIPT_SRC;
+        script.async = true;
+        script.dataset.alphatab = "1";
+        document.head.appendChild(script);
+      }
+      script.addEventListener("load", init);
+      script.addEventListener("error", () =>
+        setError("Failed to load alphaTab from CDN."),
+      );
+    }
 
     return () => {
       cancelled = true;
@@ -88,11 +104,10 @@ export function AlphaTabPlayer({ alphaTex }: AlphaTabPlayerProps) {
       }
       apiRef.current = null;
     };
-    // intentionally only on mount — alphaTex updates handled below
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Re-render when alphaTex changes.
+  // Re-render when alphaTex changes (after initial load).
   useEffect(() => {
     const api = apiRef.current as { tex?: (s: string) => void } | null;
     if (api?.tex) api.tex(alphaTex);
@@ -100,14 +115,11 @@ export function AlphaTabPlayer({ alphaTex }: AlphaTabPlayerProps) {
 
   function togglePlay() {
     const api = apiRef.current as
-      | { play?: () => void; pause?: () => void; isReadyForPlayback?: boolean }
+      | { play?: () => void; pause?: () => void }
       | null;
     if (!api) return;
-    if (isPlaying) {
-      api.pause?.();
-    } else {
-      api.play?.();
-    }
+    if (isPlaying) api.pause?.();
+    else api.play?.();
   }
 
   function stop() {
