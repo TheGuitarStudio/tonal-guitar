@@ -6,7 +6,6 @@ import { TuningStep } from "./TuningStep";
 import { ShapeStep } from "./ShapeStep";
 import { RootStep } from "./RootStep";
 import { BuildResult } from "./BuildResult";
-import { PatternStep } from "./PatternStep";
 import { SequenceStep } from "./SequenceStep";
 import { OutputStep } from "./OutputStep";
 import { FretboardDiagram } from "./FretboardDiagram";
@@ -30,26 +29,9 @@ import {
   names,
   buildFrettedScale,
   walkPattern,
-  walkShape,
-  walkShapeIntervals,
-  applySequence,
-  flattenSequence,
-  thirds,
-  fourths,
-  sixths,
-  descendingIntervals,
-  ascendingLinear,
-  descendingLinear,
-  grouping,
+  walkShapeMotif,
   toAlphaTeX,
   toAsciiTab,
-  ASCENDING_THIRDS,
-  DESCENDING_THIRDS,
-  SEQ_1235,
-  SEQ_1234_GROUP,
-  SEQ_UP_DOWN,
-  SEQ_TRIAD_CLIMB,
-  SEQ_1357_DESC,
 } from "tonal-guitar";
 import type { FrettedNote, FrettedScale } from "tonal-guitar";
 
@@ -71,38 +53,25 @@ const TUNING_CONST: Record<string, string> = {
   "8-String": "STANDARD_8",
 };
 
-const PATTERN_TYPES = [
-  "None",
-  "Ascending Thirds",
-  "Ascending Fourths",
-  "Ascending Sixths",
-  "Descending Thirds",
-  "Ascending Linear",
-  "Descending Linear",
-  "Grouping (4s)",
-  "Custom Degrees",
-] as const;
-
-const SEQUENCE_TYPES = [
-  "None",
-  "ASCENDING_THIRDS",
-  "DESCENDING_THIRDS",
-  "SEQ_1235",
-  "SEQ_1234_GROUP",
-  "SEQ_UP_DOWN",
-  "SEQ_TRIAD_CLIMB",
-  "SEQ_1357_DESC",
-  "Custom",
-] as const;
-
-const SEQUENCE_MAP: Record<string, number[]> = {
-  ASCENDING_THIRDS,
-  DESCENDING_THIRDS,
-  SEQ_1235,
-  SEQ_1234_GROUP,
-  SEQ_UP_DOWN,
-  SEQ_TRIAD_CLIMB,
-  SEQ_1357_DESC,
+/**
+ * A unified motif is just a small array of scale degrees. "Patterns" like
+ * thirds and "sequences" like 1235 collapse to the same idea — a base
+ * motif applied across the scale. walkShapeMotif or walkPattern handles
+ * the actual application.
+ */
+const MOTIFS: Record<string, number[]> = {
+  None: [],
+  "Linear (1)": [1],
+  "Thirds (1,3)": [1, 3],
+  "Fourths (1,4)": [1, 4],
+  "Sixths (1,6)": [1, 6],
+  "Triads (1,3,5)": [1, 3, 5],
+  "Sevenths (1,3,5,7)": [1, 3, 5, 7],
+  "1-2-3-4 group": [1, 2, 3, 4],
+  "1-2-3-5": [1, 2, 3, 5],
+  "Up-Down (1,2,3,4,3,2)": [1, 2, 3, 4, 3, 2],
+  "Triad climb (1,3,5,3)": [1, 3, 5, 3],
+  Custom: [],
 };
 
 const ROOTS = [
@@ -132,18 +101,12 @@ export function PipelineBuilder() {
   const [modeId, setModeId] = useState("ionian");
   const [showOpenStrings, setShowOpenStrings] = useState(true);
 
-  // Step 4: Pattern
-  const [patternType, setPatternType] = useState<string>("Ascending Thirds");
-  const [customPattern, setCustomPattern] = useState("1,3,5,7,6,5,4,3,2,1");
+  // Step 4: Sequence (unified motif + walk behaviour)
+  const [motifName, setMotifName] = useState<string>("Thirds (1,3)");
+  const [customMotif, setCustomMotif] = useState("1,3,5");
   const [walkFullShape, setWalkFullShape] = useState(true);
 
-  // Step 5: Sequence
-  const [seqType, setSeqType] = useState<string>("None");
-  const [customSeq, setCustomSeq] = useState("1,2,3,5");
-  const [incremental, setIncremental] = useState(true);
-  const [maxPasses, setMaxPasses] = useState(0); // 0 = unlimited
-
-  // Step 6: Output
+  // Step 5: Output
   const [outputFormat, setOutputFormat] = useState<"ascii" | "alphatex" | "json">("ascii");
   const [tempo, setTempo] = useState(120);
 
@@ -177,105 +140,30 @@ export function PipelineBuilder() {
     return result.empty ? null : result;
   }, [shape, buildRoot, tuning, showOpenStrings]);
 
-  const scaleLen = useMemo(() => {
-    if (!scale) return 7;
-    return new Set(scale.notes.map((n) => n.scaleIndex)).size;
-  }, [scale]);
-
-  const pattern: number[] | null = useMemo(() => {
-    switch (patternType) {
-      case "None":
-        return null;
-      case "Ascending Thirds":
-        return thirds(scaleLen);
-      case "Ascending Fourths":
-        return fourths(scaleLen);
-      case "Ascending Sixths":
-        return sixths(scaleLen);
-      case "Descending Thirds":
-        return descendingIntervals(scaleLen, 2);
-      case "Ascending Linear":
-        return ascendingLinear(1, scaleLen + 1);
-      case "Descending Linear":
-        return descendingLinear(scaleLen + 1, 1);
-      case "Grouping (4s)":
-        return grouping(scaleLen, 4);
-      case "Custom Degrees":
-        return customPattern
-          .split(",")
-          .map((s) => parseInt(s.trim(), 10))
-          .filter((n) => !isNaN(n));
-      default:
-        return null;
+  // Resolve the active motif (a small array of scale degrees).
+  const motif: number[] = useMemo(() => {
+    if (motifName === "Custom") {
+      return customMotif
+        .split(",")
+        .map((s) => parseInt(s.trim(), 10))
+        .filter((n) => !isNaN(n));
     }
-  }, [patternType, scaleLen, customPattern]);
+    return MOTIFS[motifName] ?? [];
+  }, [motifName, customMotif]);
 
-  const walkedNotes: FrettedNote[] | null = useMemo(() => {
-    if (!scale) return null;
-    // "Walk full shape" mode uses the shape walkers (visit every note,
-    // end on the highest). Otherwise fall back to degree-based walking.
-    if (walkFullShape && patternType !== "Custom Degrees") {
-      let result: FrettedNote[] = [];
-      switch (patternType) {
-        case "None":
-          return null;
-        case "Ascending Linear":
-          result = walkShape(scale);
-          break;
-        case "Descending Linear":
-          result = walkShape(scale, { direction: "descending" });
-          break;
-        case "Ascending Thirds":
-          result = walkShapeIntervals(scale, 2);
-          break;
-        case "Ascending Fourths":
-          result = walkShapeIntervals(scale, 3);
-          break;
-        case "Ascending Sixths":
-          result = walkShapeIntervals(scale, 5);
-          break;
-        case "Descending Thirds":
-          result = walkShapeIntervals(scale, 2, { direction: "descending" });
-          break;
-        case "Grouping (4s)":
-          // Grouping doesn't have a direct shape-walker analogue; fall back.
-          result = pattern ? walkPattern(scale, pattern) : [];
-          break;
-        default:
-          return null;
-      }
-      return result.length > 0 ? result : null;
-    }
-    if (!pattern) return null;
-    const result = walkPattern(scale, pattern);
-    return result.length > 0 ? result : null;
-  }, [scale, pattern, walkFullShape, patternType]);
-
-  const sequenceNotes: FrettedNote[] | null = useMemo(() => {
-    if (!scale || seqType === "None") return null;
-    const seq =
-      seqType === "Custom"
-        ? customSeq
-            .split(",")
-            .map((s) => parseInt(s.trim(), 10))
-            .filter((n) => !isNaN(n))
-        : SEQUENCE_MAP[seqType];
-    if (!seq || seq.length === 0) return null;
-    const passes = applySequence(scale, seq, {
-      incremental,
-      boundToShape: true,
-      passes: maxPasses > 0 ? maxPasses : undefined,
-    });
-    return flattenSequence(passes);
-  }, [scale, seqType, customSeq, incremental, maxPasses]);
-
-  // The final notes for output: sequence > walked > raw scale
+  // Apply the motif. "Walk full shape" uses walkShapeMotif (visit every
+  // position in the shape, end on the highest). Otherwise walkPattern
+  // plays the motif once at the scale's lowest occurrence of degree 1.
   const outputNotes: FrettedNote[] | null = useMemo(() => {
-    if (sequenceNotes && sequenceNotes.length > 0) return sequenceNotes;
-    if (walkedNotes && walkedNotes.length > 0) return walkedNotes;
-    if (scale) return scale.notes;
-    return null;
-  }, [sequenceNotes, walkedNotes, scale]);
+    if (!scale) return null;
+    if (motif.length === 0) {
+      return scale.notes;
+    }
+    const notes = walkFullShape
+      ? walkShapeMotif(scale, motif)
+      : walkPattern(scale, motif);
+    return notes.length > 0 ? notes : scale.notes;
+  }, [scale, motif, walkFullShape]);
 
   const output: string = useMemo(() => {
     if (!outputNotes || outputNotes.length === 0) return "";
@@ -298,12 +186,11 @@ export function PipelineBuilder() {
     setTuningName(preset.tuning);
     setShapeName(preset.shape);
     setRoot(preset.root);
-    setPatternType(preset.pattern);
-    if (preset.customPattern) setCustomPattern(preset.customPattern);
-    setSeqType(preset.sequence);
-    if (preset.customSeq) setCustomSeq(preset.customSeq);
-    setIncremental(preset.incremental ?? true);
-    setMaxPasses(preset.maxPasses ?? 0);
+    if (preset.motif) setMotifName(preset.motif);
+    if (preset.customMotif) setCustomMotif(preset.customMotif);
+    if (typeof preset.walkFullShape === "boolean") {
+      setWalkFullShape(preset.walkFullShape);
+    }
     setOutputFormat(preset.outputFormat ?? "ascii");
   }, []);
 
@@ -371,49 +258,27 @@ export function PipelineBuilder() {
       </StepCard>
 
       <StepCard
-        title="5. Pattern"
-        subtitle={patternType}
-      >
-        <PatternStep
-          patternType={patternType}
-          patternTypes={PATTERN_TYPES as unknown as string[]}
-          customPattern={customPattern}
-          walkFullShape={walkFullShape}
-          onTypeChange={setPatternType}
-          onCustomChange={setCustomPattern}
-          onWalkFullShapeChange={setWalkFullShape}
-        />
-        {walkedNotes && (
-          <p className="mt-2 text-xs text-fd-muted-foreground">
-            {walkedNotes.length} notes walked
-          </p>
-        )}
-      </StepCard>
-
-      <StepCard
-        title="6. Sequence"
-        subtitle={seqType}
+        title="5. Sequence"
+        subtitle={`${motifName}${walkFullShape ? " · full shape" : ""}`}
       >
         <SequenceStep
-          seqType={seqType}
-          seqTypes={SEQUENCE_TYPES as unknown as string[]}
-          customSeq={customSeq}
-          incremental={incremental}
-          maxPasses={maxPasses}
-          onTypeChange={setSeqType}
-          onCustomChange={setCustomSeq}
-          onIncrementalChange={setIncremental}
-          onMaxPassesChange={setMaxPasses}
+          motifName={motifName}
+          motifNames={Object.keys(MOTIFS)}
+          customMotif={customMotif}
+          walkFullShape={walkFullShape}
+          onMotifChange={setMotifName}
+          onCustomChange={setCustomMotif}
+          onWalkFullShapeChange={setWalkFullShape}
         />
-        {sequenceNotes && (
+        {outputNotes && motif.length > 0 && (
           <p className="mt-2 text-xs text-fd-muted-foreground">
-            {sequenceNotes.length} notes from sequence
+            {outputNotes.length} notes
           </p>
         )}
       </StepCard>
 
       <StepCard
-        title="7. Output"
+        title="6. Output"
         subtitle={`${outputFormat.toUpperCase()} — ${outputNotes?.length ?? 0} notes`}
       >
         <OutputStep
@@ -425,7 +290,7 @@ export function PipelineBuilder() {
         />
       </StepCard>
 
-      <StepCard title="8. Code preview" subtitle="library calls for this pipeline">
+      <StepCard title="7. Code preview" subtitle="library calls for this pipeline">
         <CodePreview
           tuningName={tuningName}
           tuningConst={TUNING_CONST[tuningName] ?? "STANDARD"}
@@ -434,14 +299,9 @@ export function PipelineBuilder() {
           root={root}
           modeId={modeId}
           showOpenStrings={showOpenStrings}
-          patternType={patternType}
-          customPattern={customPattern}
-          scaleLen={scaleLen}
+          motif={motif}
+          motifName={motifName}
           walkFullShape={walkFullShape}
-          seqType={seqType}
-          customSeq={customSeq}
-          incremental={incremental}
-          maxPasses={maxPasses}
           outputFormat={outputFormat}
           tempo={tempo}
         />

@@ -28,29 +28,63 @@ export function walkShape(
 }
 
 /**
- * Walk interval pairs across the shape in pitch order. For each adjacent
- * "step" of size `intervalSize` along the sorted notes, emit both notes
- * of the pair. Convention matches `ascendingIntervals`:
- *   intervalSize = 2 → thirds (every other note)
- *   intervalSize = 3 → fourths
- *   intervalSize = 5 → sixths
+ * Walk a SCALE-DEGREE motif across the shape, starting from each pitch
+ * position in turn. The motif is expressed as scale degrees ([1,3] =
+ * thirds, [1,3,5] = triads, [1,2,3,5] = "1235", [1,2,3,4,3,2] = up-down,
+ * etc.) and each emission walks those degrees in pitch order across the
+ * shape — so every position is covered and the run ends on the shape's
+ * highest reachable note.
  *
- * Example: thirds across CAGED E A major (17 notes) yields
- *   [G#2, B2, A2, C#3, B2, D3, ..., G#4, B4]
- * — every position is covered and the run ends on the shape's
- * highest note.
+ * This unifies what used to be expressed two ways:
+ * - "Patterns" (e.g. thirds(7) = [1,3, 2,4, 3,5, ...]) — pre-expanded
+ *   degree arrays meant to be passed to walkPattern.
+ * - "Sequences" (e.g. SEQ_1235 = [1,2,3,5]) — short motifs meant to be
+ *   applied incrementally through the scale via applySequence.
+ *
+ * walkShapeMotif treats both as the same thing: a small base motif applied
+ * at every starting position of the shape, in pitch order.
+ *
+ * Example: walkShapeMotif(cagedE_AMajor, [1, 3]) on the 17-note CAGED E
+ * A major shape yields 30 notes — 15 third-pairs covering every note
+ * pair in the shape, ending on G#4-B4.
+ */
+export function walkShapeMotif(
+  scale: FrettedScale,
+  motif: number[],
+  options: WalkShapeOptions = {},
+): FrettedNote[] {
+  if (motif.length === 0) return [];
+  const sorted = walkShape(scale, options);
+  // Convert degrees to pitch-order offsets from the first degree.
+  // (Scale degrees and pitch-order indices coincide for a sorted single-
+  // octave-or-multi-octave shape, since notes are emitted in scale order
+  // when sorted by midi.)
+  const offsets = motif.map((d) => d - motif[0]);
+  const lo = Math.min(...offsets);
+  const hi = Math.max(...offsets);
+  const result: FrettedNote[] = [];
+  // i is the pitch-order index of the FIRST note of each emission;
+  // i + lo and i + hi must both be valid indices into `sorted`.
+  for (let i = -lo; i + hi < sorted.length; i++) {
+    for (const off of offsets) {
+      result.push(sorted[i + off]);
+    }
+  }
+  return result;
+}
+
+/**
+ * Convenience wrapper: walk every-Nth-note pairs across the shape.
+ * Equivalent to walkShapeMotif(scale, [1, 1 + intervalSize]).
+ *
+ * intervalSize = 2 → thirds, 3 → fourths, 5 → sixths.
  */
 export function walkShapeIntervals(
   scale: FrettedScale,
   intervalSize: number,
   options: WalkShapeOptions = {},
 ): FrettedNote[] {
-  const sorted = walkShape(scale, options);
-  const result: FrettedNote[] = [];
-  for (let i = 0; i + intervalSize < sorted.length; i++) {
-    result.push(sorted[i], sorted[i + intervalSize]);
-  }
-  return result;
+  return walkShapeMotif(scale, [1, 1 + intervalSize], options);
 }
 
 /**

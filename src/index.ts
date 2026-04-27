@@ -56,7 +56,12 @@ export {
 } from "./pattern";
 
 // Pattern walker + shape walker
-export { walkPattern, walkShape, walkShapeIntervals } from "./walker";
+export {
+  walkPattern,
+  walkShape,
+  walkShapeIntervals,
+  walkShapeMotif,
+} from "./walker";
 export type { WalkOptions, WalkShapeOptions } from "./walker";
 
 // Sequence engine

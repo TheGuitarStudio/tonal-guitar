@@ -42,6 +42,7 @@ import {
   walkPattern,
   walkShape,
   walkShapeIntervals,
+  walkShapeMotif,
   // Sequence
   applySequence,
   flattenSequence,
@@ -1034,6 +1035,29 @@ describe("walkShapeIntervals", () => {
     const notes = walkShapeIntervals(scale, 2);
     const highest = scale.notes.reduce((p, c) => (c.midi > p.midi ? c : p));
     expect(notes[notes.length - 1].midi).toBe(highest.midi);
+  });
+});
+
+describe("walkShapeMotif", () => {
+  const scale = buildFrettedScale(CAGED_E, "A");
+
+  test("motif [1,3] is equivalent to walkShapeIntervals(2)", () => {
+    const a = walkShapeMotif(scale, [1, 3]);
+    const b = walkShapeIntervals(scale, 2);
+    expect(a).toEqual(b);
+  });
+
+  test("motif [1,3,5] (triads): triples covering every starting position", () => {
+    const notes = walkShapeMotif(scale, [1, 3, 5]);
+    // Each emission has 3 notes; emissions span (N - 4) starts.
+    expect(notes).toHaveLength((scale.notes.length - 4) * 3);
+  });
+
+  test("motif [1,2,3,5] (the SEQ_1235 motif) walks the full shape", () => {
+    const notes = walkShapeMotif(scale, [1, 2, 3, 5]);
+    expect(notes.length).toBeGreaterThan(0);
+    // Each emission's max offset is 4 (5-1), so there are (N - 4) starts × 4 notes each.
+    expect(notes).toHaveLength((scale.notes.length - 4) * 4);
   });
 });
 

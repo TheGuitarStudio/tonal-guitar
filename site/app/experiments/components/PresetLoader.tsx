@@ -5,23 +5,20 @@ export interface Preset {
   tuning: string;
   shape: string;
   root: string;
-  pattern: string;
-  customPattern?: string;
-  sequence: string;
-  customSeq?: string;
-  incremental?: boolean;
-  maxPasses?: number;
+  motif?: string;
+  customMotif?: string;
+  walkFullShape?: boolean;
   outputFormat?: "ascii" | "alphatex" | "json";
 }
 
 const PRESETS: Preset[] = [
   {
-    label: "Am Pentatonic Box 1",
+    label: "Am Pentatonic Box 1 — full shape",
     tuning: "Standard",
     shape: "Pentatonic Box 1",
     root: "A",
-    pattern: "Ascending Linear",
-    sequence: "None",
+    motif: "Linear (1)",
+    walkFullShape: true,
     outputFormat: "ascii",
   },
   {
@@ -29,47 +26,45 @@ const PRESETS: Preset[] = [
     tuning: "Standard",
     shape: "CAGED E Shape",
     root: "A",
-    pattern: "Ascending Thirds",
-    sequence: "None",
+    motif: "Thirds (1,3)",
+    walkFullShape: true,
     outputFormat: "ascii",
   },
   {
-    label: "C Major 3NPS — Grouping",
+    label: "C Major 3NPS — 1234 group",
     tuning: "Standard",
-    shape: "3NPS Pattern 1",
+    shape: "3NPS Pattern 1 (Ionian)",
     root: "C",
-    pattern: "Grouping (4s)",
-    sequence: "None",
+    motif: "1-2-3-4 group",
+    walkFullShape: true,
     outputFormat: "alphatex",
   },
   {
-    label: "G Major CAGED E — Triad Climb",
+    label: "G Major CAGED E — Triad climb",
     tuning: "Standard",
     shape: "CAGED E Shape",
     root: "G",
-    pattern: "None",
-    sequence: "SEQ_TRIAD_CLIMB",
-    incremental: true,
+    motif: "Triad climb (1,3,5,3)",
+    walkFullShape: true,
     outputFormat: "ascii",
   },
   {
-    label: "E Minor Pentatonic — 1235 Sequence",
+    label: "E Minor Pentatonic — 1235",
     tuning: "Standard",
     shape: "Pentatonic Box 1",
     root: "E",
-    pattern: "None",
-    sequence: "SEQ_1235",
-    incremental: true,
+    motif: "1-2-3-5",
+    walkFullShape: true,
     outputFormat: "ascii",
   },
   {
-    label: "D Major CAGED A — Arpeggiated Descent",
+    label: "D Major CAGED A — custom (1,3,5,7,6,5,4,3,2,1)",
     tuning: "Standard",
     shape: "CAGED A Shape",
     root: "D",
-    pattern: "Custom Degrees",
-    customPattern: "1,3,5,7,6,5,4,3,2,1",
-    sequence: "None",
+    motif: "Custom",
+    customMotif: "1,3,5,7,6,5,4,3,2,1",
+    walkFullShape: false,
     outputFormat: "alphatex",
   },
 ];

@@ -10,15 +10,11 @@ export interface CodeGenInput {
   modeId: string;
   showOpenStrings: boolean;
 
-  patternType: string;
-  customPattern: string;
-  scaleLen: number;
+  /** Resolved motif (degree array) — empty array means "no motif, just play the scale". */
+  motif: number[];
+  /** Display name (e.g. "Thirds (1,3)") — used to detect the "Linear (1)" shorthand. */
+  motifName: string;
   walkFullShape: boolean;
-
-  seqType: string;
-  customSeq: string;
-  incremental: boolean;
-  maxPasses: number;
 
   outputFormat: "ascii" | "alphatex" | "json";
   tempo: number;
@@ -26,83 +22,6 @@ export interface CodeGenInput {
 
 interface CodeGenResult {
   code: string;
-}
-
-function patternExpr(
-  type: string,
-  scaleLen: number,
-  customPattern: string,
-): { expr: string; fn: string | null } {
-  switch (type) {
-    case "Ascending Thirds":
-      return { expr: `thirds(${scaleLen})`, fn: "thirds" };
-    case "Ascending Fourths":
-      return { expr: `fourths(${scaleLen})`, fn: "fourths" };
-    case "Ascending Sixths":
-      return { expr: `sixths(${scaleLen})`, fn: "sixths" };
-    case "Descending Thirds":
-      return {
-        expr: `descendingIntervals(${scaleLen}, 2)`,
-        fn: "descendingIntervals",
-      };
-    case "Ascending Linear":
-      return {
-        expr: `ascendingLinear(1, ${scaleLen + 1})`,
-        fn: "ascendingLinear",
-      };
-    case "Descending Linear":
-      return {
-        expr: `descendingLinear(${scaleLen + 1}, 1)`,
-        fn: "descendingLinear",
-      };
-    case "Grouping (4s)":
-      return { expr: `grouping(${scaleLen}, 4)`, fn: "grouping" };
-    case "Custom Degrees": {
-      const arr = customPattern
-        .split(",")
-        .map((s) => parseInt(s.trim(), 10))
-        .filter((n) => !isNaN(n));
-      return { expr: `[${arr.join(", ")}]`, fn: null };
-    }
-    default:
-      return { expr: "[]", fn: null };
-  }
-}
-
-function shapeWalkerCall(
-  type: string,
-): { fn: string; expr: string } | null {
-  switch (type) {
-    case "Ascending Linear":
-      return { fn: "walkShape", expr: `walkShape(scale)` };
-    case "Descending Linear":
-      return {
-        fn: "walkShape",
-        expr: `walkShape(scale, { direction: "descending" })`,
-      };
-    case "Ascending Thirds":
-      return {
-        fn: "walkShapeIntervals",
-        expr: `walkShapeIntervals(scale, 2)`,
-      };
-    case "Ascending Fourths":
-      return {
-        fn: "walkShapeIntervals",
-        expr: `walkShapeIntervals(scale, 3)`,
-      };
-    case "Ascending Sixths":
-      return {
-        fn: "walkShapeIntervals",
-        expr: `walkShapeIntervals(scale, 5)`,
-      };
-    case "Descending Thirds":
-      return {
-        fn: "walkShapeIntervals",
-        expr: `walkShapeIntervals(scale, 2, { direction: "descending" })`,
-      };
-    default:
-      return null;
-  }
 }
 
 function buildImportBlock(
@@ -129,8 +48,7 @@ export function generateCode(input: CodeGenInput): CodeGenResult {
   tonal.add("get");
   lines.push(`const shape = get(${JSON.stringify(input.shapeName)});`);
 
-  // Modal context — only relabel/translate if the effective mode shifts
-  // away from the canonical (ionian for diatonic, major-pent for pent).
+  // Modal context
   const effective = effectiveModeForSystem(input.modeId, input.shapeSystem);
   const needsModalShift =
     effective != null &&
@@ -160,75 +78,35 @@ export function generateCode(input: CodeGenInput): CodeGenResult {
     `const scale = buildFrettedScale(shape, ${buildRootExpr}, ${input.tuningConst}${buildOpts});`,
   );
 
-  // Pattern
-  let walkedVar: string | null = null;
-  if (input.patternType !== "None") {
-    const customMode = input.patternType === "Custom Degrees";
-    if (input.walkFullShape && !customMode) {
-      // Shape-aware walkers — visit every position in the shape, end on the highest note.
-      const call = shapeWalkerCall(input.patternType);
-      if (call) {
-        tonal.add(call.fn);
-        lines.push("");
-        lines.push(`const notes = ${call.expr};`);
-        walkedVar = "notes";
-      }
-    } else {
-      const p = patternExpr(
-        input.patternType,
-        input.scaleLen,
-        input.customPattern,
-      );
-      tonal.add("walkPattern");
-      if (p.fn) tonal.add(p.fn);
+  // Sequence (motif application)
+  let resultVar = "scale.notes";
+  if (input.motif.length > 0) {
+    const motifLiteral = `[${input.motif.join(", ")}]`;
+    if (input.walkFullShape) {
+      tonal.add("walkShapeMotif");
       lines.push("");
-      lines.push(`const pattern = ${p.expr};`);
-      lines.push(`const notes = walkPattern(scale, pattern);`);
-      walkedVar = "notes";
-    }
-  }
-
-  // Sequence
-  let sequenceVar: string | null = null;
-  if (input.seqType !== "None") {
-    let seqExpr: string;
-    if (input.seqType === "Custom") {
-      const arr = input.customSeq
-        .split(",")
-        .map((s) => parseInt(s.trim(), 10))
-        .filter((n) => !isNaN(n));
-      seqExpr = `[${arr.join(", ")}]`;
+      lines.push(`const motif = ${motifLiteral};`);
+      lines.push(`const notes = walkShapeMotif(scale, motif);`);
     } else {
-      seqExpr = input.seqType;
-      tonal.add(input.seqType);
+      tonal.add("walkPattern");
+      lines.push("");
+      lines.push(`const motif = ${motifLiteral};`);
+      lines.push(`const notes = walkPattern(scale, motif);`);
     }
-    tonal.add("applySequence");
-    tonal.add("flattenSequence");
-    const optParts = [
-      `incremental: ${input.incremental}`,
-      `boundToShape: true`,
-    ];
-    if (input.maxPasses > 0) optParts.push(`passes: ${input.maxPasses}`);
-    lines.push("");
-    lines.push(`const passes = applySequence(scale, ${seqExpr}, {`);
-    optParts.forEach((p) => lines.push(`  ${p},`));
-    lines.push(`});`);
-    lines.push(`const allNotes = flattenSequence(passes);`);
-    sequenceVar = "allNotes";
+    resultVar = "notes";
   }
 
   // Output
-  const finalVar = sequenceVar ?? walkedVar ?? "scale.notes";
   lines.push("");
   if (input.outputFormat === "ascii") {
     tonal.add("toAsciiTab");
     lines.push(
-      `console.log(toAsciiTab(${finalVar}, { tuning: ${input.tuningConst} }));`,
+      `console.log(toAsciiTab(${resultVar}, { tuning: ${input.tuningConst} }));`,
     );
   } else if (input.outputFormat === "alphatex") {
     tonal.add("toAlphaTeX");
     lines.push(`console.log(`);
-    lines.push(`  toAlphaTeX(${finalVar}, {`);
+    lines.push(`  toAlphaTeX(${resultVar}, {`);
     lines.push(
       `    title: ${JSON.stringify(`${input.root} ${input.shapeName}`)},`,
     );
@@ -239,7 +117,7 @@ export function generateCode(input: CodeGenInput): CodeGenResult {
     lines.push(`  }),`);
     lines.push(`);`);
   } else {
-    lines.push(`console.log(JSON.stringify(${finalVar}, null, 2));`);
+    lines.push(`console.log(JSON.stringify(${resultVar}, null, 2));`);
   }
 
   const imports: string[] = [];
