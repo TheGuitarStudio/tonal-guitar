@@ -11,6 +11,7 @@
     "deploy:github": "gh-pages -d out/ -t"
   },
   "dependencies": {
+    "@coderline/alphatab": "^1.8.2",
     "fretboard-ui": "file:../packages/fretboard-ui",
     "fumadocs-core": "^13.4.10",
     "fumadocs-mdx": "^10.0.2",

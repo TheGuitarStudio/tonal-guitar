@@ -18,6 +18,7 @@ export interface CodeGenInput {
 
   outputFormat: "ascii" | "alphatex" | "json";
   tempo: number;
+  duration: 4 | 8 | 16;
 }
 
 interface CodeGenResult {
@@ -111,7 +112,7 @@ export function generateCode(input: CodeGenInput): CodeGenResult {
       `    title: ${JSON.stringify(`${input.root} ${input.shapeName}`)},`,
     );
     lines.push(`    tempo: ${input.tempo},`);
-    lines.push(`    duration: 8,`);
+    lines.push(`    duration: ${input.duration},`);
     lines.push(`    tuning: ${input.tuningConst},`);
     lines.push(`    key: ${JSON.stringify(input.root)},`);
     lines.push(`  }),`);

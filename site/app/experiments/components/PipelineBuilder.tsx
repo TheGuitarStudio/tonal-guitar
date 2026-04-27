@@ -109,6 +109,7 @@ export function PipelineBuilder() {
   // Step 5: Output
   const [outputFormat, setOutputFormat] = useState<"ascii" | "alphatex" | "json">("ascii");
   const [tempo, setTempo] = useState(120);
+  const [duration, setDuration] = useState<4 | 8 | 16>(8);
 
   // Derived state
   const tuning = TUNINGS[tuningName] ?? STANDARD;
@@ -174,13 +175,13 @@ export function PipelineBuilder() {
       return toAlphaTeX(outputNotes, {
         title: `${root} ${shapeName}`,
         tempo,
-        duration: 8,
+        duration,
         tuning,
         key: root,
       });
     }
     return JSON.stringify(outputNotes, null, 2);
-  }, [outputNotes, outputFormat, tuning, root, shapeName, tempo]);
+  }, [outputNotes, outputFormat, tuning, root, shapeName, tempo, duration]);
 
   const loadPreset = useCallback((preset: Preset) => {
     setTuningName(preset.tuning);
@@ -284,9 +285,11 @@ export function PipelineBuilder() {
         <OutputStep
           format={outputFormat}
           tempo={tempo}
+          duration={duration}
           output={output}
           onFormatChange={setOutputFormat}
           onTempoChange={setTempo}
+          onDurationChange={setDuration}
         />
       </StepCard>
 
@@ -304,6 +307,7 @@ export function PipelineBuilder() {
           walkFullShape={walkFullShape}
           outputFormat={outputFormat}
           tempo={tempo}
+          duration={duration}
         />
       </StepCard>
     </div>
