@@ -45,17 +45,20 @@ export function FretboardDiagram({
   const [labelMode, setLabelMode] = useState<LabelMode>("notes");
   const [orientation, setOrientation] = useState<Orientation>("horizontal");
   const [handedness, setHandedness] = useState<Handedness>("right");
+  const [viewMode, setViewMode] = useState<"shape" | "full">("shape");
 
   if (scale.notes.length === 0) return null;
 
-  // Auto fret-range based on the actual notes; clamp the lower bound to 1
-  // when open strings are hidden so the fret-0 column doesn't render.
+  // "shape" fits to the actual notes; "full" shows nut → fret 15. In both
+  // modes the lower bound is clamped to 1 when open strings are hidden so
+  // the fret-0 column doesn't render.
   const minNoteFret = Math.min(...scale.notes.map((n) => n.fret));
   const maxNoteFret = Math.max(...scale.notes.map((n) => n.fret));
-  const lower = showOpenStrings
-    ? Math.max(0, minNoteFret - 1)
-    : Math.max(1, minNoteFret - 1);
-  const fretRange: [number, number] = [lower, maxNoteFret + 1];
+  const minVisible = showOpenStrings ? 0 : 1;
+  const fretRange: [number, number] =
+    viewMode === "full"
+      ? [minVisible, 15]
+      : [Math.max(minVisible, minNoteFret - 1), maxNoteFret + 1];
 
   const markers: FretMarker[] = scale.notes.map((n) => {
     if (modalRootPc) {
@@ -108,6 +111,14 @@ export function FretboardDiagram({
             onChange={(v) => setHandedness(v as Handedness)}
           />
         )}
+        <ToggleGroup
+          options={[
+            { value: "shape", label: "Shape" },
+            { value: "full", label: "Full" },
+          ]}
+          value={viewMode}
+          onChange={(v) => setViewMode(v as "shape" | "full")}
+        />
         {onShowOpenStringsChange && (
           <label className="inline-flex items-center gap-1.5 rounded-md border border-fd-border px-3 py-1 text-xs">
             <input
