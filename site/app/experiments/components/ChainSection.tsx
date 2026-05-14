@@ -1,71 +1,54 @@
 "use client";
 
-import { useState } from "react";
-import dynamic from "next/dynamic";
 import type { FrettedNote } from "tonal-guitar";
-import { toAlphaTeX } from "tonal-guitar";
-
-const AlphaTabPlayer = dynamic(
-  () => import("./AlphaTabPlayer").then((m) => m.AlphaTabPlayer),
-  { ssr: false, loading: () => <p className="text-xs">Loading player…</p> },
-);
 
 export interface ChainEntry {
-  /** Human-readable label, e.g. "A maj G shape — Thirds ↑". */
+  /** Human-readable label, e.g. "A maj E shape — Thirds ↑". */
   label: string;
   /** Snapshot of the pipeline's notes at the time the entry was added. */
   notes: FrettedNote[];
+  /**
+   * Optional connector phrase to play before this entry — used to bridge
+   * the previous entry's last note into this entry's first. Empty until
+   * the connector algorithm lands; the UI shows a placeholder slot.
+   */
+  connector?: FrettedNote[];
 }
+
+type Selection =
+  | { kind: "current" }
+  | { kind: "chainEntry"; index: number }
+  | { kind: "chain" };
 
 interface ChainSectionProps {
   entries: ChainEntry[];
-  tuning: string[];
-  tempo: number;
-  duration: 4 | 8 | 16;
-  /** Title to embed in the AlphaTeX header (any string). */
-  chainTitle?: string;
+  selection: Selection;
+  /** Disabled when there's nothing to add (no current outputNotes). */
+  canAdd: boolean;
   onAdd: () => void;
   onRemove: (index: number) => void;
   onMoveUp: (index: number) => void;
   onMoveDown: (index: number) => void;
   onClear: () => void;
-  /** Disabled when there's nothing to add (no current outputNotes). */
-  canAdd: boolean;
+  onSelectCurrent: () => void;
+  onSelectChain: () => void;
+  onSelectEntry: (index: number) => void;
 }
 
 export function ChainSection({
   entries,
-  tuning,
-  tempo,
-  duration,
-  chainTitle = "Chained Sequence",
+  selection,
+  canAdd,
   onAdd,
   onRemove,
   onMoveUp,
   onMoveDown,
   onClear,
-  canAdd,
+  onSelectCurrent,
+  onSelectChain,
+  onSelectEntry,
 }: ChainSectionProps) {
-  const [copied, setCopied] = useState(false);
-
-  const combinedNotes: FrettedNote[] = entries.flatMap((e) => e.notes);
-  const combinedAlphaTex = combinedNotes.length
-    ? toAlphaTeX(combinedNotes, {
-        title: chainTitle,
-        tempo,
-        duration,
-        tuning,
-        key: "C",
-      })
-    : "";
-
-  function copy() {
-    if (!combinedAlphaTex) return;
-    navigator.clipboard.writeText(combinedAlphaTex).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    });
-  }
+  const totalNotes = entries.reduce((sum, e) => sum + e.notes.length, 0);
 
   return (
     <div className="space-y-3">
@@ -88,78 +71,145 @@ export function ChainSection({
         </button>
         <span className="text-xs text-fd-muted-foreground">
           {entries.length} entr{entries.length === 1 ? "y" : "ies"} ·{" "}
-          {combinedNotes.length} total notes
+          {totalNotes} total notes
         </span>
       </div>
+
+      <SelectableRow
+        label="Current (unsaved)"
+        selected={selection.kind === "current"}
+        onClick={onSelectCurrent}
+      />
+
+      {entries.length > 0 && (
+        <SelectableRow
+          label={`Whole chain · ${entries.length} entr${entries.length === 1 ? "y" : "ies"}`}
+          selected={selection.kind === "chain"}
+          onClick={onSelectChain}
+          accent
+        />
+      )}
 
       {entries.length === 0 ? (
         <p className="text-sm text-fd-muted-foreground">
           Nothing chained yet. Configure a sequence above and click “Add
-          current to chain” to queue it. Add as many as you want, then play
-          them back-to-back as one piece below.
+          current to chain” to queue it. Add as many as you want, then click
+          “Whole chain” to play them back-to-back in the Output below.
         </p>
       ) : (
         <ol className="space-y-1">
           {entries.map((e, i) => (
-            <li
-              key={i}
-              className="flex items-center gap-2 rounded-md border border-fd-border bg-fd-card px-3 py-1.5 text-sm"
-            >
-              <span className="w-6 text-xs text-fd-muted-foreground">
-                {i + 1}.
-              </span>
-              <span className="flex-1">{e.label}</span>
-              <span className="text-xs text-fd-muted-foreground">
-                {e.notes.length} notes
-              </span>
-              <button
-                type="button"
-                onClick={() => onMoveUp(i)}
-                disabled={i === 0}
-                className="rounded border border-fd-border px-1.5 text-xs disabled:opacity-30"
-                aria-label="Move up"
+            <li key={i}>
+              {i > 0 && <ConnectorSlot connector={e.connector} />}
+              <div
+                className={`group flex items-center gap-2 rounded-md border bg-fd-card px-3 py-1.5 text-sm transition-colors ${
+                  selection.kind === "chainEntry" && selection.index === i
+                    ? "border-fd-primary bg-fd-primary/10"
+                    : "border-fd-border hover:border-fd-primary/50"
+                }`}
               >
-                ↑
-              </button>
-              <button
-                type="button"
-                onClick={() => onMoveDown(i)}
-                disabled={i === entries.length - 1}
-                className="rounded border border-fd-border px-1.5 text-xs disabled:opacity-30"
-                aria-label="Move down"
-              >
-                ↓
-              </button>
-              <button
-                type="button"
-                onClick={() => onRemove(i)}
-                className="rounded border border-fd-border px-1.5 text-xs hover:bg-fd-muted"
-                aria-label="Remove"
-              >
-                ×
-              </button>
+                <button
+                  type="button"
+                  onClick={() => onSelectEntry(i)}
+                  className="flex flex-1 items-center gap-2 text-left"
+                >
+                  <span className="w-6 text-xs text-fd-muted-foreground">
+                    {i + 1}.
+                  </span>
+                  <span className="flex-1">{e.label}</span>
+                  <span className="text-xs text-fd-muted-foreground">
+                    {e.notes.length} notes
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onMoveUp(i)}
+                  disabled={i === 0}
+                  className="rounded border border-fd-border px-1.5 text-xs disabled:opacity-30"
+                  aria-label="Move up"
+                >
+                  ↑
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onMoveDown(i)}
+                  disabled={i === entries.length - 1}
+                  className="rounded border border-fd-border px-1.5 text-xs disabled:opacity-30"
+                  aria-label="Move down"
+                >
+                  ↓
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onRemove(i)}
+                  className="rounded border border-fd-border px-1.5 text-xs hover:bg-fd-muted"
+                  aria-label="Remove"
+                >
+                  ×
+                </button>
+              </div>
             </li>
           ))}
         </ol>
       )}
+    </div>
+  );
+}
 
-      {entries.length > 0 && combinedAlphaTex && (
-        <>
-          <AlphaTabPlayer alphaTex={combinedAlphaTex} />
-          <div className="relative">
-            <pre className="max-h-64 overflow-auto rounded-md border border-fd-border bg-fd-background p-3 text-xs leading-relaxed">
-              {combinedAlphaTex}
-            </pre>
-            <button
-              type="button"
-              onClick={copy}
-              className="absolute right-2 top-2 rounded border border-fd-border bg-fd-background px-2 py-1 text-xs hover:bg-fd-accent"
-            >
-              {copied ? "Copied" : "Copy AlphaTeX"}
-            </button>
-          </div>
-        </>
+interface SelectableRowProps {
+  label: string;
+  selected: boolean;
+  onClick: () => void;
+  accent?: boolean;
+}
+
+function SelectableRow({
+  label,
+  selected,
+  onClick,
+  accent = false,
+}: SelectableRowProps) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex w-full items-center gap-2 rounded-md border px-3 py-1.5 text-left text-sm transition-colors ${
+        selected
+          ? "border-fd-primary bg-fd-primary/10"
+          : "border-fd-border hover:border-fd-primary/50"
+      } ${accent ? "font-medium" : ""}`}
+    >
+      <span
+        className={`inline-block h-2 w-2 rounded-full ${
+          selected ? "bg-fd-primary" : "bg-fd-border"
+        }`}
+      />
+      <span className="flex-1">{label}</span>
+    </button>
+  );
+}
+
+interface ConnectorSlotProps {
+  connector?: FrettedNote[];
+}
+
+/**
+ * Placeholder for the bridge phrase between two chain entries. The
+ * connector algorithm (transition / passing notes) isn't built yet —
+ * the slot just shows the seam.
+ */
+function ConnectorSlot({ connector }: ConnectorSlotProps) {
+  return (
+    <div className="my-1 ml-8 flex items-center gap-2 text-xs text-fd-muted-foreground">
+      <span className="h-px flex-1 bg-fd-border" />
+      {connector && connector.length > 0 ? (
+        <span>
+          connector · {connector.length} note{connector.length === 1 ? "" : "s"}
+        </span>
+      ) : (
+        <span className="italic">no connector (TODO)</span>
       )}
+      <span className="h-px flex-1 bg-fd-border" />
     </div>
   );
 }

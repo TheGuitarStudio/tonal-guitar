@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { StepCard } from "./StepCard";
 import { TuningStep } from "./TuningStep";
 import { ShapeStep } from "./ShapeStep";
@@ -55,10 +55,8 @@ const TUNING_CONST: Record<string, string> = {
 };
 
 /**
- * A unified motif is just a small array of scale degrees. "Patterns" like
- * thirds and "sequences" like 1235 collapse to the same idea — a base
- * motif applied across the scale. walkShapeMotif or walkPattern handles
- * the actual application.
+ * A unified motif is just a small array of scale degrees. Library helpers
+ * walkShapeMotif / walkPattern handle the application.
  */
 const MOTIFS: Record<string, number[]> = {
   None: [],
@@ -90,43 +88,47 @@ const ROOTS = [
   "B",
 ];
 
+/**
+ * What's currently driving the Output section at the bottom.
+ *   - "current": the unsaved pipeline above
+ *   - chain entry N: just one entry of the chain
+ *   - "chain": all chain entries played back-to-back
+ */
+type Selection =
+  | { kind: "current" }
+  | { kind: "chainEntry"; index: number }
+  | { kind: "chain" };
+
 export function PipelineBuilder() {
   // Step 1: Tuning
   const [tuningName, setTuningName] = useState("Standard");
-
   // Step 2: Shape
-  const [shapeName, setShapeName] = useState("CAGED E Shape");
-
-  // Step 3: Root
+  const [shapeName, setShapeName] = useState("E Shape");
+  // Step 3: Root + Mode
   const [root, setRoot] = useState("A");
   const [modeId, setModeId] = useState("ionian");
   const [showOpenStrings, setShowOpenStrings] = useState(true);
-
-  // Step 4: Sequence (unified motif + walk behaviour)
+  // Step 4: Sequence
   const [motifName, setMotifName] = useState<string>("Thirds (1,3)");
   const [customMotif, setCustomMotif] = useState("1,3,5");
   const [walkFullShape, setWalkFullShape] = useState(true);
   const [direction, setDirection] = useState<"ascending" | "descending">(
     "ascending",
   );
-
-  // Step 5: Output
-  const [outputFormat, setOutputFormat] = useState<"ascii" | "alphatex" | "json">("ascii");
+  // Output formatting
+  const [outputFormat, setOutputFormat] = useState<"ascii" | "alphatex" | "json">(
+    "alphatex",
+  );
   const [tempo, setTempo] = useState(120);
   const [duration, setDuration] = useState<4 | 8 | 16>(8);
 
-  // Chain of queued sequences (rendered together as one piece).
+  // Chain of queued sequences.
   const [chain, setChain] = useState<ChainEntry[]>([]);
+  const [selection, setSelection] = useState<Selection>({ kind: "current" });
 
-  // Derived state
+  // Derived
   const tuning = TUNINGS[tuningName] ?? STANDARD;
   const shape = get(shapeName);
-
-  // For modal rendering: build the shape at the parent root that matches
-  // the shape's data, then render with `modalRootPc` so intervals get
-  // relabeled from the modal root. Pentatonic shapes auto-translate any
-  // diatonic mode to its pentatonic equivalent (Dorian -> minor pent etc.)
-  // — see effectiveModeForSystem.
   const shapeSystem = shape?.system ?? "";
   const compatible = isModeCompatibleWithSystem(modeId, shapeSystem);
   const effectiveMode =
@@ -148,7 +150,6 @@ export function PipelineBuilder() {
     return result.empty ? null : result;
   }, [shape, buildRoot, tuning, showOpenStrings]);
 
-  // Resolve the active motif (a small array of scale degrees).
   const motif: number[] = useMemo(() => {
     if (motifName === "Custom") {
       return customMotif
@@ -159,12 +160,8 @@ export function PipelineBuilder() {
     return MOTIFS[motifName] ?? [];
   }, [motifName, customMotif]);
 
-  // Apply the motif. "Walk full shape" uses walkShapeMotif (visit every
-  // position in the shape, end on the highest in ascending mode / lowest
-  // in descending). Otherwise walkPattern plays the motif once — for
-  // descending we reverse the motif so the walker auto-direction goes
-  // downward (e.g. [1,3] -> [3,1]).
-  const outputNotes: FrettedNote[] | null = useMemo(() => {
+  // Currently-edited pipeline output (the "preview").
+  const currentNotes: FrettedNote[] | null = useMemo(() => {
     if (!scale) return null;
     if (motif.length === 0) {
       return direction === "descending"
@@ -181,22 +178,65 @@ export function PipelineBuilder() {
     return notes.length > 0 ? notes : scale.notes;
   }, [scale, motif, walkFullShape, direction]);
 
+  // Snap selection back to "current" whenever the user tweaks an input.
+  // (They almost certainly want to see what they're editing.)
+  useEffect(() => {
+    setSelection({ kind: "current" });
+  }, [
+    tuningName,
+    shapeName,
+    root,
+    modeId,
+    motifName,
+    customMotif,
+    walkFullShape,
+    direction,
+    showOpenStrings,
+  ]);
+
+  // When the chain becomes empty, selection has to fall back to "current".
+  // When a selected chain entry gets removed, clamp the index.
+  useEffect(() => {
+    if (selection.kind === "chainEntry" && selection.index >= chain.length) {
+      setSelection(chain.length > 0 ? { kind: "chain" } : { kind: "current" });
+    } else if (selection.kind === "chain" && chain.length === 0) {
+      setSelection({ kind: "current" });
+    }
+  }, [chain, selection]);
+
+  // What the Output section actually renders.
+  const selectedNotes: FrettedNote[] | null = useMemo(() => {
+    if (selection.kind === "current") return currentNotes;
+    if (selection.kind === "chainEntry") return chain[selection.index]?.notes ?? null;
+    return chain.flatMap((e) => e.notes);
+  }, [selection, currentNotes, chain]);
+
+  const selectedLabel = useMemo(() => {
+    if (selection.kind === "current") return "Current (unsaved)";
+    if (selection.kind === "chainEntry") {
+      return `Chain · ${chain[selection.index]?.label ?? "?"}`;
+    }
+    return chain.length > 0
+      ? `Whole chain · ${chain.length} entr${chain.length === 1 ? "y" : "ies"}`
+      : "Empty chain";
+  }, [selection, chain]);
+
   const output: string = useMemo(() => {
-    if (!outputNotes || outputNotes.length === 0) return "";
+    if (!selectedNotes || selectedNotes.length === 0) return "";
     if (outputFormat === "ascii") {
-      return toAsciiTab(outputNotes, { tuning });
+      return toAsciiTab(selectedNotes, { tuning });
     }
     if (outputFormat === "alphatex") {
-      return toAlphaTeX(outputNotes, {
-        title: `${root} ${shapeName}`,
+      return toAlphaTeX(selectedNotes, {
+        title: selectedLabel,
         tempo,
         duration,
         tuning,
         key: root,
       });
     }
-    return JSON.stringify(outputNotes, null, 2);
-  }, [outputNotes, outputFormat, tuning, root, shapeName, tempo, duration]);
+    return JSON.stringify(selectedNotes, null, 2);
+  }, [selectedNotes, outputFormat, tuning, root, tempo, duration, selectedLabel]);
 
   const loadPreset = useCallback((preset: Preset) => {
     setTuningName(preset.tuning);
@@ -207,7 +247,7 @@ export function PipelineBuilder() {
     if (typeof preset.walkFullShape === "boolean") {
       setWalkFullShape(preset.walkFullShape);
     }
-    setOutputFormat(preset.outputFormat ?? "ascii");
+    setOutputFormat(preset.outputFormat ?? "alphatex");
   }, []);
 
   // Chain handlers.
@@ -215,9 +255,10 @@ export function PipelineBuilder() {
     direction === "descending" ? " ↓" : " ↑"
   }${walkFullShape ? " · full shape" : ""}`;
   const addToChain = useCallback(() => {
-    if (!outputNotes || outputNotes.length === 0) return;
-    setChain((prev) => [...prev, { label: chainLabel, notes: outputNotes }]);
-  }, [outputNotes, chainLabel]);
+    if (!currentNotes || currentNotes.length === 0) return;
+    setChain((prev) => [...prev, { label: chainLabel, notes: currentNotes }]);
+    setSelection({ kind: "chain" });
+  }, [currentNotes, chainLabel]);
   const removeFromChain = useCallback(
     (i: number) => setChain((prev) => prev.filter((_, j) => j !== i)),
     [],
@@ -236,90 +277,126 @@ export function PipelineBuilder() {
     <div className="space-y-4">
       <PresetLoader onLoad={loadPreset} />
 
-      <StepCard title="1. Tuning" subtitle={tuning.join(" ")}>
-        <TuningStep
-          tuningName={tuningName}
-          tuningNames={Object.keys(TUNINGS)}
-          onChange={setTuningName}
-        />
-      </StepCard>
-
-      <StepCard title="2. Shape" subtitle={shapeName}>
-        <ShapeStep
-          shapeName={shapeName}
-          shapeNames={names()}
-          onChange={setShapeName}
-        />
-      </StepCard>
-
-      <StepCard title="3. Root Note" subtitle={root}>
-        <RootStep root={root} roots={ROOTS} onChange={setRoot} />
-      </StepCard>
-
-      <StepCard
-        title="3a. Mode"
-        subtitle={modeId === "ionian" ? "Major (Ionian)" : modeId}
-      >
-        <ModeStep
-          modeId={modeId}
-          onChange={setModeId}
-          shapeSystem={shapeSystem}
-        />
-      </StepCard>
-
-      <StepCard
-        title="4. Fretted Scale"
-        subtitle={
-          scale
-            ? `${scale.notes.length} notes, frets ${Math.min(...scale.notes.map((n) => n.fret))}-${Math.max(...scale.notes.map((n) => n.fret))}`
-            : "No result"
-        }
-      >
-        {scale ? (
-          <>
-            <FretboardDiagram
-              scale={scale}
-              tuning={tuning}
-              modalRootPc={modalRootPc}
-              showOpenStrings={showOpenStrings}
-              onShowOpenStringsChange={setShowOpenStrings}
+      <div className="grid gap-4 lg:grid-cols-2">
+        {/* Left column — inputs */}
+        <div className="space-y-4">
+          <StepCard title="1. Tuning" subtitle={tuning.join(" ")}>
+            <TuningStep
+              tuningName={tuningName}
+              tuningNames={Object.keys(TUNINGS)}
+              onChange={setTuningName}
             />
-            <BuildResult scale={scale} />
-          </>
-        ) : (
-          <p className="text-sm text-fd-muted-foreground">
-            {shape
-              ? "Could not build scale — check root note and tuning."
-              : "Select a valid shape above."}
-          </p>
-        )}
-      </StepCard>
+          </StepCard>
 
-      <StepCard
-        title="5. Sequence"
-        subtitle={`${motifName}${walkFullShape ? " · full shape" : ""}`}
-      >
-        <SequenceStep
-          motifName={motifName}
-          motifNames={Object.keys(MOTIFS)}
-          customMotif={customMotif}
-          walkFullShape={walkFullShape}
-          direction={direction}
-          onMotifChange={setMotifName}
-          onCustomChange={setCustomMotif}
-          onWalkFullShapeChange={setWalkFullShape}
-          onDirectionChange={setDirection}
-        />
-        {outputNotes && motif.length > 0 && (
-          <p className="mt-2 text-xs text-fd-muted-foreground">
-            {outputNotes.length} notes
-          </p>
-        )}
-      </StepCard>
+          <StepCard title="2. Shape" subtitle={shapeName}>
+            <ShapeStep
+              shapeName={shapeName}
+              shapeNames={names()}
+              onChange={setShapeName}
+            />
+          </StepCard>
 
+          <StepCard title="3. Root Note" subtitle={root}>
+            <RootStep root={root} roots={ROOTS} onChange={setRoot} />
+          </StepCard>
+
+          <StepCard
+            title="3a. Mode"
+            subtitle={modeId === "ionian" ? "Major (Ionian)" : modeId}
+          >
+            <ModeStep
+              modeId={modeId}
+              onChange={setModeId}
+              shapeSystem={shapeSystem}
+            />
+          </StepCard>
+        </div>
+
+        {/* Right column — fretboard + sequence + chain */}
+        <div className="space-y-4">
+          <StepCard
+            title="4. Fretted Scale"
+            subtitle={
+              scale
+                ? `${scale.notes.length} notes, frets ${Math.min(...scale.notes.map((n) => n.fret))}–${Math.max(...scale.notes.map((n) => n.fret))}`
+                : "No result"
+            }
+          >
+            {scale ? (
+              <>
+                <FretboardDiagram
+                  scale={scale}
+                  tuning={tuning}
+                  modalRootPc={modalRootPc}
+                  showOpenStrings={showOpenStrings}
+                  onShowOpenStringsChange={setShowOpenStrings}
+                />
+                <BuildResult scale={scale} />
+              </>
+            ) : (
+              <p className="text-sm text-fd-muted-foreground">
+                {shape
+                  ? "Could not build scale — check root note and tuning."
+                  : "Select a valid shape above."}
+              </p>
+            )}
+          </StepCard>
+
+          <StepCard
+            title="5. Sequence"
+            subtitle={`${motifName}${walkFullShape ? " · full shape" : ""} · ${
+              direction === "descending" ? "↓" : "↑"
+            }`}
+          >
+            <SequenceStep
+              motifName={motifName}
+              motifNames={Object.keys(MOTIFS)}
+              customMotif={customMotif}
+              walkFullShape={walkFullShape}
+              direction={direction}
+              onMotifChange={setMotifName}
+              onCustomChange={setCustomMotif}
+              onWalkFullShapeChange={setWalkFullShape}
+              onDirectionChange={setDirection}
+            />
+            {currentNotes && motif.length > 0 && (
+              <p className="mt-2 text-xs text-fd-muted-foreground">
+                {currentNotes.length} notes in this sequence
+              </p>
+            )}
+          </StepCard>
+
+          <StepCard
+            title="6. Chain"
+            subtitle={
+              chain.length === 0
+                ? "queue sequences to play back-to-back"
+                : `${chain.length} entr${chain.length === 1 ? "y" : "ies"}`
+            }
+          >
+            <ChainSection
+              entries={chain}
+              selection={selection}
+              canAdd={(currentNotes?.length ?? 0) > 0}
+              onAdd={addToChain}
+              onRemove={removeFromChain}
+              onMoveUp={(i) => moveChain(i, i - 1)}
+              onMoveDown={(i) => moveChain(i, i + 1)}
+              onClear={() => setChain([])}
+              onSelectCurrent={() => setSelection({ kind: "current" })}
+              onSelectChain={() => setSelection({ kind: "chain" })}
+              onSelectEntry={(i) =>
+                setSelection({ kind: "chainEntry", index: i })
+              }
+            />
+          </StepCard>
+        </div>
+      </div>
+
+      {/* Full-width output below, driven by `selection`. */}
       <StepCard
-        title="6. Output"
-        subtitle={`${outputFormat.toUpperCase()} — ${outputNotes?.length ?? 0} notes`}
+        title="7. Output"
+        subtitle={`${selectedLabel} · ${outputFormat.toUpperCase()} · ${selectedNotes?.length ?? 0} notes`}
       >
         <OutputStep
           format={outputFormat}
@@ -329,29 +406,6 @@ export function PipelineBuilder() {
           onFormatChange={setOutputFormat}
           onTempoChange={setTempo}
           onDurationChange={setDuration}
-        />
-      </StepCard>
-
-      <StepCard
-        title="7. Chain"
-        subtitle={
-          chain.length === 0
-            ? "queue sequences to play back-to-back"
-            : `${chain.length} entr${chain.length === 1 ? "y" : "ies"}`
-        }
-      >
-        <ChainSection
-          entries={chain}
-          tuning={tuning}
-          tempo={tempo}
-          duration={duration}
-          chainTitle={`${root} chain`}
-          canAdd={(outputNotes?.length ?? 0) > 0}
-          onAdd={addToChain}
-          onRemove={removeFromChain}
-          onMoveUp={(i) => moveChain(i, i - 1)}
-          onMoveDown={(i) => moveChain(i, i + 1)}
-          onClear={() => setChain([])}
         />
       </StepCard>
 
