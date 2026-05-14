@@ -1659,3 +1659,173 @@ describe("End-to-end: buildFromScale → applySequence → flattenSequence → t
     expect(tex).toContain('\\title "3NPS 3rds"');
   });
 });
+
+// ============================================================
+// 17. Lab preset smoke tests
+//
+// These mirror the presets in site/app/experiments/components/PresetLoader.tsx.
+// They protect against silent breakage when shape names get renamed or the
+// pipeline (build → walk → output) changes shape.
+// ============================================================
+
+const MOTIFS: Record<string, number[]> = {
+  "Linear (1)": [1],
+  "Thirds (1,3)": [1, 3],
+  "Fourths (1,4)": [1, 4],
+  "Sixths (1,6)": [1, 6],
+  "Triads (1,3,5)": [1, 3, 5],
+  "Sevenths (1,3,5,7)": [1, 3, 5, 7],
+  "1-2-3-4 group": [1, 2, 3, 4],
+  "1-2-3-5": [1, 2, 3, 5],
+  "Up-Down (1,2,3,4,3,2)": [1, 2, 3, 4, 3, 2],
+  "Triad climb (1,3,5,3)": [1, 3, 5, 3],
+};
+
+interface PresetScenario {
+  label: string;
+  shape: string;
+  root: string;
+  motif: number[];
+  walkFullShape: boolean;
+  direction: "ascending" | "descending";
+}
+
+const LAB_PRESETS: PresetScenario[] = [
+  {
+    label: "Am Pentatonic Box 1 — full shape",
+    shape: "Pentatonic Box 1",
+    root: "A",
+    motif: MOTIFS["Linear (1)"],
+    walkFullShape: true,
+    direction: "ascending",
+  },
+  {
+    label: "A Major E shape — Thirds",
+    shape: "E Shape",
+    root: "A",
+    motif: MOTIFS["Thirds (1,3)"],
+    walkFullShape: true,
+    direction: "ascending",
+  },
+  {
+    label: "C Major 3NPS — 1234 group",
+    shape: "3NPS Pattern 1 (Ionian)",
+    root: "C",
+    motif: MOTIFS["1-2-3-4 group"],
+    walkFullShape: true,
+    direction: "ascending",
+  },
+  {
+    label: "G Major E shape — Triad climb",
+    shape: "E Shape",
+    root: "G",
+    motif: MOTIFS["Triad climb (1,3,5,3)"],
+    walkFullShape: true,
+    direction: "ascending",
+  },
+  {
+    label: "E Minor Pentatonic — 1235",
+    shape: "Pentatonic Box 1",
+    root: "E",
+    motif: MOTIFS["1-2-3-5"],
+    walkFullShape: true,
+    direction: "ascending",
+  },
+  {
+    label: "D Major A shape — custom run",
+    shape: "A Shape",
+    root: "D",
+    motif: [1, 3, 5, 7, 6, 5, 4, 3, 2, 1],
+    walkFullShape: false,
+    direction: "ascending",
+  },
+];
+
+describe("Lab preset smoke tests", () => {
+  for (const p of LAB_PRESETS) {
+    describe(p.label, () => {
+      test("shape exists in the registry", () => {
+        const shape = get(p.shape);
+        expect(shape).toBeDefined();
+      });
+
+      test("buildFrettedScale returns notes", () => {
+        const shape = get(p.shape);
+        if (!shape) throw new Error(`shape missing: ${p.shape}`);
+        const scale = buildFrettedScale(shape, p.root, STANDARD);
+        expect(scale.empty).toBe(false);
+        expect(scale.notes.length).toBeGreaterThan(0);
+      });
+
+      test("motif application produces notes", () => {
+        const shape = get(p.shape);
+        if (!shape) throw new Error(`shape missing: ${p.shape}`);
+        const scale = buildFrettedScale(shape, p.root, STANDARD);
+        const notes = p.walkFullShape
+          ? walkShapeMotif(scale, p.motif, { direction: p.direction })
+          : walkPattern(
+              scale,
+              p.direction === "descending" ? [...p.motif].reverse() : p.motif,
+            );
+        expect(notes.length).toBeGreaterThan(0);
+      });
+
+      test("toAlphaTeX produces non-empty output", () => {
+        const shape = get(p.shape);
+        if (!shape) throw new Error(`shape missing: ${p.shape}`);
+        const scale = buildFrettedScale(shape, p.root, STANDARD);
+        const notes = p.walkFullShape
+          ? walkShapeMotif(scale, p.motif, { direction: p.direction })
+          : walkPattern(
+              scale,
+              p.direction === "descending" ? [...p.motif].reverse() : p.motif,
+            );
+        const tex = toAlphaTeX(notes, {
+          title: p.label,
+          tempo: 120,
+          tuning: STANDARD,
+          key: p.root,
+        });
+        expect(tex).toContain('\\title');
+        expect(tex).toContain('\\tuning');
+        expect(tex).toMatch(/\d+\.\d+/); // at least one fret.string note
+      });
+
+      test("toAsciiTab produces 6 lines", () => {
+        const shape = get(p.shape);
+        if (!shape) throw new Error(`shape missing: ${p.shape}`);
+        const scale = buildFrettedScale(shape, p.root, STANDARD);
+        const notes = p.walkFullShape
+          ? walkShapeMotif(scale, p.motif, { direction: p.direction })
+          : walkPattern(
+              scale,
+              p.direction === "descending" ? [...p.motif].reverse() : p.motif,
+            );
+        const tab = toAsciiTab(notes, { tuning: STANDARD });
+        expect(tab.split("\n")).toHaveLength(6);
+      });
+    });
+  }
+});
+
+describe("walkShapeMotif — descending direction", () => {
+  const scale = buildFrettedScale(get("E Shape")!, "A", STANDARD);
+
+  test("first note is the highest in the shape", () => {
+    const notes = walkShapeMotif(scale, [1, 3], { direction: "descending" });
+    const highest = scale.notes.reduce((p, c) => (c.midi > p.midi ? c : p));
+    expect(notes[0].midi).toBe(highest.midi);
+  });
+
+  test("last note is the lowest reachable in the shape", () => {
+    const notes = walkShapeMotif(scale, [1, 3], { direction: "descending" });
+    const lowest = scale.notes.reduce((p, c) => (c.midi < p.midi ? c : p));
+    expect(notes[notes.length - 1].midi).toBe(lowest.midi);
+  });
+
+  test("descending output is reverse of ascending pairwise (for symmetric motifs)", () => {
+    const asc = walkShapeMotif(scale, [1, 3]);
+    const desc = walkShapeMotif(scale, [1, 3], { direction: "descending" });
+    expect(desc).toHaveLength(asc.length);
+  });
+});

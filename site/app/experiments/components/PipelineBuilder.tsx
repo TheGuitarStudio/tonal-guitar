@@ -11,6 +11,7 @@ import { OutputStep } from "./OutputStep";
 import { FretboardDiagram } from "./FretboardDiagram";
 import { ModeStep } from "./ModeStep";
 import { CodePreview } from "./CodePreview";
+import { ChainSection, type ChainEntry } from "./ChainSection";
 import { PresetLoader, type Preset } from "./PresetLoader";
 import {
   effectiveModeForSystem,
@@ -105,11 +106,17 @@ export function PipelineBuilder() {
   const [motifName, setMotifName] = useState<string>("Thirds (1,3)");
   const [customMotif, setCustomMotif] = useState("1,3,5");
   const [walkFullShape, setWalkFullShape] = useState(true);
+  const [direction, setDirection] = useState<"ascending" | "descending">(
+    "ascending",
+  );
 
   // Step 5: Output
   const [outputFormat, setOutputFormat] = useState<"ascii" | "alphatex" | "json">("ascii");
   const [tempo, setTempo] = useState(120);
   const [duration, setDuration] = useState<4 | 8 | 16>(8);
+
+  // Chain of queued sequences (rendered together as one piece).
+  const [chain, setChain] = useState<ChainEntry[]>([]);
 
   // Derived state
   const tuning = TUNINGS[tuningName] ?? STANDARD;
@@ -153,18 +160,26 @@ export function PipelineBuilder() {
   }, [motifName, customMotif]);
 
   // Apply the motif. "Walk full shape" uses walkShapeMotif (visit every
-  // position in the shape, end on the highest). Otherwise walkPattern
-  // plays the motif once at the scale's lowest occurrence of degree 1.
+  // position in the shape, end on the highest in ascending mode / lowest
+  // in descending). Otherwise walkPattern plays the motif once — for
+  // descending we reverse the motif so the walker auto-direction goes
+  // downward (e.g. [1,3] -> [3,1]).
   const outputNotes: FrettedNote[] | null = useMemo(() => {
     if (!scale) return null;
     if (motif.length === 0) {
-      return scale.notes;
+      return direction === "descending"
+        ? [...scale.notes].sort((a, b) => b.midi - a.midi)
+        : scale.notes;
     }
-    const notes = walkFullShape
-      ? walkShapeMotif(scale, motif)
-      : walkPattern(scale, motif);
+    let notes: FrettedNote[];
+    if (walkFullShape) {
+      notes = walkShapeMotif(scale, motif, { direction });
+    } else {
+      const m = direction === "descending" ? [...motif].reverse() : motif;
+      notes = walkPattern(scale, m);
+    }
     return notes.length > 0 ? notes : scale.notes;
-  }, [scale, motif, walkFullShape]);
+  }, [scale, motif, walkFullShape, direction]);
 
   const output: string = useMemo(() => {
     if (!outputNotes || outputNotes.length === 0) return "";
@@ -193,6 +208,28 @@ export function PipelineBuilder() {
       setWalkFullShape(preset.walkFullShape);
     }
     setOutputFormat(preset.outputFormat ?? "ascii");
+  }, []);
+
+  // Chain handlers.
+  const chainLabel = `${root} ${shapeName} · ${motifName}${
+    direction === "descending" ? " ↓" : " ↑"
+  }${walkFullShape ? " · full shape" : ""}`;
+  const addToChain = useCallback(() => {
+    if (!outputNotes || outputNotes.length === 0) return;
+    setChain((prev) => [...prev, { label: chainLabel, notes: outputNotes }]);
+  }, [outputNotes, chainLabel]);
+  const removeFromChain = useCallback(
+    (i: number) => setChain((prev) => prev.filter((_, j) => j !== i)),
+    [],
+  );
+  const moveChain = useCallback((from: number, to: number) => {
+    setChain((prev) => {
+      if (to < 0 || to >= prev.length) return prev;
+      const copy = [...prev];
+      const [item] = copy.splice(from, 1);
+      copy.splice(to, 0, item);
+      return copy;
+    });
   }, []);
 
   return (
@@ -267,9 +304,11 @@ export function PipelineBuilder() {
           motifNames={Object.keys(MOTIFS)}
           customMotif={customMotif}
           walkFullShape={walkFullShape}
+          direction={direction}
           onMotifChange={setMotifName}
           onCustomChange={setCustomMotif}
           onWalkFullShapeChange={setWalkFullShape}
+          onDirectionChange={setDirection}
         />
         {outputNotes && motif.length > 0 && (
           <p className="mt-2 text-xs text-fd-muted-foreground">
@@ -293,7 +332,30 @@ export function PipelineBuilder() {
         />
       </StepCard>
 
-      <StepCard title="7. Code preview" subtitle="library calls for this pipeline">
+      <StepCard
+        title="7. Chain"
+        subtitle={
+          chain.length === 0
+            ? "queue sequences to play back-to-back"
+            : `${chain.length} entr${chain.length === 1 ? "y" : "ies"}`
+        }
+      >
+        <ChainSection
+          entries={chain}
+          tuning={tuning}
+          tempo={tempo}
+          duration={duration}
+          chainTitle={`${root} chain`}
+          canAdd={(outputNotes?.length ?? 0) > 0}
+          onAdd={addToChain}
+          onRemove={removeFromChain}
+          onMoveUp={(i) => moveChain(i, i - 1)}
+          onMoveDown={(i) => moveChain(i, i + 1)}
+          onClear={() => setChain([])}
+        />
+      </StepCard>
+
+      <StepCard title="8. Code preview" subtitle="library calls for this pipeline">
         <CodePreview
           tuningName={tuningName}
           tuningConst={TUNING_CONST[tuningName] ?? "STANDARD"}
@@ -305,6 +367,7 @@ export function PipelineBuilder() {
           motif={motif}
           motifName={motifName}
           walkFullShape={walkFullShape}
+          direction={direction}
           outputFormat={outputFormat}
           tempo={tempo}
           duration={duration}

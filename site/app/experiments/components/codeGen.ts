@@ -15,6 +15,7 @@ export interface CodeGenInput {
   /** Display name (e.g. "Thirds (1,3)") — used to detect the "Linear (1)" shorthand. */
   motifName: string;
   walkFullShape: boolean;
+  direction: "ascending" | "descending";
 
   outputFormat: "ascii" | "alphatex" | "json";
   tempo: number;
@@ -81,18 +82,23 @@ export function generateCode(input: CodeGenInput): CodeGenResult {
 
   // Sequence (motif application)
   let resultVar = "scale.notes";
+  const descending = input.direction === "descending";
   if (input.motif.length > 0) {
     const motifLiteral = `[${input.motif.join(", ")}]`;
+    lines.push("");
+    lines.push(`const motif = ${motifLiteral};`);
     if (input.walkFullShape) {
       tonal.add("walkShapeMotif");
-      lines.push("");
-      lines.push(`const motif = ${motifLiteral};`);
-      lines.push(`const notes = walkShapeMotif(scale, motif);`);
+      lines.push(
+        `const notes = walkShapeMotif(scale, motif${descending ? `, { direction: "descending" }` : ""});`,
+      );
     } else {
       tonal.add("walkPattern");
-      lines.push("");
-      lines.push(`const motif = ${motifLiteral};`);
-      lines.push(`const notes = walkPattern(scale, motif);`);
+      if (descending) {
+        lines.push(`const notes = walkPattern(scale, [...motif].reverse());`);
+      } else {
+        lines.push(`const notes = walkPattern(scale, motif);`);
+      }
     }
     resultVar = "notes";
   }

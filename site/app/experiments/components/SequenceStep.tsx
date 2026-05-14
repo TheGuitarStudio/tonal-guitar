@@ -5,9 +5,11 @@ interface SequenceStepProps {
   motifNames: string[];
   customMotif: string;
   walkFullShape: boolean;
+  direction: "ascending" | "descending";
   onMotifChange: (name: string) => void;
   onCustomChange: (value: string) => void;
   onWalkFullShapeChange: (value: boolean) => void;
+  onDirectionChange: (d: "ascending" | "descending") => void;
 }
 
 export function SequenceStep({
@@ -15,9 +17,11 @@ export function SequenceStep({
   motifNames,
   customMotif,
   walkFullShape,
+  direction,
   onMotifChange,
   onCustomChange,
   onWalkFullShapeChange,
+  onDirectionChange,
 }: SequenceStepProps) {
   const isCustom = motifName === "Custom";
   return (
@@ -34,6 +38,22 @@ export function SequenceStep({
             </option>
           ))}
         </select>
+        <div className="inline-flex rounded-md border border-fd-border text-xs">
+          {(["ascending", "descending"] as const).map((d, i) => (
+            <button
+              key={d}
+              type="button"
+              onClick={() => onDirectionChange(d)}
+              className={`${i === 0 ? "rounded-l-md" : "rounded-r-md"} px-3 py-1 transition-colors ${
+                direction === d
+                  ? "bg-fd-primary text-fd-primary-foreground"
+                  : "hover:bg-fd-muted"
+              }`}
+            >
+              {d === "ascending" ? "↑ Ascending" : "↓ Descending"}
+            </button>
+          ))}
+        </div>
         <label className="inline-flex items-center gap-1.5 text-xs">
           <input
             type="checkbox"
@@ -41,7 +61,7 @@ export function SequenceStep({
             onChange={(e) => onWalkFullShapeChange(e.target.checked)}
             className="accent-fd-primary"
           />
-          Walk full shape (end on highest note)
+          Walk full shape
         </label>
       </div>
 
