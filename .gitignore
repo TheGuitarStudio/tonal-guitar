@@ -3,3 +3,6 @@ dist/
 coverage/
 *.tsbuildinfo
 .DS_Store
+
+# Per-developer project board config + skill state (auto-detected by /idea, /feature, /task, etc.)
+.tonal-guitar/
