@@ -60,7 +60,9 @@ export function toAlphaTeX(notes: FrettedNote[], options?: AlphaTexOptions): str
     return duration;
   };
 
-  // Build bars
+  // Build bars. AlphaTeX uses `|` as the bar separator — we end every bar with
+  // `|` so adjacent bars stay distinct. The default note duration is set once
+  // at the start; per-note duration changes are emitted inline when they vary.
   const barLines: string[] = [];
   let currentBar: string[] = [];
   let prevDuration: number | null = null;
@@ -89,13 +91,8 @@ export function toAlphaTeX(notes: FrettedNote[], options?: AlphaTexOptions): str
 
     if (currentBar.length === notesPerBar || i === notes.length - 1) {
       const isFirst = barCount === 0;
-      if (isFirst && !hasVariableDurations) {
-        barLines.push(`| :${duration} ${currentBar.join(" ")} `);
-      } else if (isFirst && hasVariableDurations) {
-        barLines.push(`| ${currentBar.join(" ")} `);
-      } else {
-        barLines.push(`  ${currentBar.join(" ")} |`);
-      }
+      const prefix = isFirst && !hasVariableDurations ? `:${duration} ` : "";
+      barLines.push(`${prefix}${currentBar.join(" ")} |`);
       currentBar = [];
       barCount++;
     }

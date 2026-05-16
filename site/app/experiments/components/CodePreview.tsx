@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { generateCode, type CodeGenInput } from "./codeGen";
 
-interface CodePreviewProps extends CodeGenInput {}
+type CodePreviewProps = CodeGenInput;
 
 export function CodePreview(props: CodePreviewProps) {
   const { code } = generateCode(props);
