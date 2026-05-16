@@ -1,12 +1,19 @@
 "use client";
 
 import type { FrettedNote } from "tonal-guitar";
+import type { PipelineRecipe } from "./codeGen";
 
 export interface ChainEntry {
   /** Human-readable label, e.g. "A maj E shape — Thirds ↑". */
   label: string;
   /** Snapshot of the pipeline's notes at the time the entry was added. */
   notes: FrettedNote[];
+  /**
+   * Snapshot of the inputs that produced `notes`. Lets the code preview
+   * regenerate the recipe for this entry instead of always reflecting the
+   * live pipeline.
+   */
+  recipe: PipelineRecipe;
   /**
    * Optional connector phrase to play before this entry — used to bridge
    * the previous entry's last note into this entry's first. Empty until

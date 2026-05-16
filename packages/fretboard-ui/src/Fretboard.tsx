@@ -311,8 +311,7 @@ export const Fretboard = forwardRef<FretboardHandle, FretboardProps>(
                 </text>
               )}
               <title>
-                {m.pc ?? ""} {m.interval ? `(${m.interval})` : ""} — string{" "}
-                {m.string}, fret {m.fret}
+                {`${m.pc ?? ""}${m.interval ? ` (${m.interval})` : ""} — string ${m.string}, fret ${m.fret}`}
               </title>
             </g>
           );

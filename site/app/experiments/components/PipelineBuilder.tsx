@@ -13,6 +13,7 @@ import { ModeStep } from "./ModeStep";
 import { CodePreview } from "./CodePreview";
 import { ChainSection, type ChainEntry } from "./ChainSection";
 import { PresetLoader, type Preset } from "./PresetLoader";
+import type { PipelineRecipe } from "./codeGen";
 import {
   effectiveModeForSystem,
   isModeCompatibleWithSystem,
@@ -250,15 +251,48 @@ export function PipelineBuilder() {
     setOutputFormat(preset.outputFormat ?? "alphatex");
   }, []);
 
+  // Snapshot of the live pipeline inputs — used both by the code preview
+  // (when "current" is selected) and when freezing the recipe into the chain.
+  const currentRecipe: PipelineRecipe = useMemo(
+    () => ({
+      tuningName,
+      tuningConst: TUNING_CONST[tuningName] ?? "STANDARD",
+      shapeName,
+      shapeSystem,
+      root,
+      modeId,
+      showOpenStrings,
+      motif,
+      motifName,
+      walkFullShape,
+      direction,
+    }),
+    [
+      tuningName,
+      shapeName,
+      shapeSystem,
+      root,
+      modeId,
+      showOpenStrings,
+      motif,
+      motifName,
+      walkFullShape,
+      direction,
+    ],
+  );
+
   // Chain handlers.
   const chainLabel = `${root} ${shapeName} · ${motifName}${
     direction === "descending" ? " ↓" : " ↑"
   }${walkFullShape ? " · full shape" : ""}`;
   const addToChain = useCallback(() => {
     if (!currentNotes || currentNotes.length === 0) return;
-    setChain((prev) => [...prev, { label: chainLabel, notes: currentNotes }]);
+    setChain((prev) => [
+      ...prev,
+      { label: chainLabel, notes: currentNotes, recipe: currentRecipe },
+    ]);
     setSelection({ kind: "chain" });
-  }, [currentNotes, chainLabel]);
+  }, [currentNotes, chainLabel, currentRecipe]);
   const removeFromChain = useCallback(
     (i: number) => setChain((prev) => prev.filter((_, j) => j !== i)),
     [],
@@ -409,19 +443,20 @@ export function PipelineBuilder() {
         />
       </StepCard>
 
-      <StepCard title="8. Code preview" subtitle="library calls for this pipeline">
+      <StepCard
+        title="8. Code preview"
+        subtitle={
+          selection.kind === "chain"
+            ? `library calls for the whole chain · ${chain.length} entr${chain.length === 1 ? "y" : "ies"}`
+            : selection.kind === "chainEntry"
+              ? `library calls for chain entry ${selection.index + 1}`
+              : "library calls for the current pipeline"
+        }
+      >
         <CodePreview
-          tuningName={tuningName}
-          tuningConst={TUNING_CONST[tuningName] ?? "STANDARD"}
-          shapeName={shapeName}
-          shapeSystem={shapeSystem}
-          root={root}
-          modeId={modeId}
-          showOpenStrings={showOpenStrings}
-          motif={motif}
-          motifName={motifName}
-          walkFullShape={walkFullShape}
-          direction={direction}
+          selection={selection}
+          current={currentRecipe}
+          chain={chain.map((e) => ({ label: e.label, recipe: e.recipe }))}
           outputFormat={outputFormat}
           tempo={tempo}
           duration={duration}
