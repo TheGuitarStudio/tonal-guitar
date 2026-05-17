@@ -132,8 +132,26 @@ export function classifyStrategy(
 }
 
 // ============================================================
-// Internal strategy builders (TG3)
+// Internal strategy builders (TG3, TG4)
 // ============================================================
+
+/**
+ * Build a deduplicated, midi-sorted combined note array from two scales.
+ * Notes from `prevScale` win over `nextScale` on a `(string, fret)` collision.
+ *
+ * @internal
+ */
+export function dedupAndSortCombined(
+  prevScale: FrettedScale,
+  nextScale: FrettedScale,
+): FrettedNote[] {
+  const seen = new Map<string, FrettedNote>();
+  for (const n of [...prevScale.notes, ...nextScale.notes]) {
+    const key = `${n.string}:${n.fret}`;
+    if (!seen.has(key)) seen.set(key, n);
+  }
+  return [...seen.values()].sort((a, b) => a.midi - b.midi);
+}
 
 /**
  * Build the extend strategy result. The extend strategy applies when the
@@ -164,12 +182,7 @@ export function buildExtend(
   const { prev, next } = input;
 
   // Build combined note set: prev then next, dedup by (string, fret), first wins.
-  const seen = new Map<string, FrettedNote>();
-  for (const n of [...prev.scale.notes, ...next.scale.notes]) {
-    const key = `${n.string}:${n.fret}`;
-    if (!seen.has(key)) seen.set(key, n);
-  }
-  const combined = [...seen.values()].sort((a, b) => a.midi - b.midi);
+  const combined = dedupAndSortCombined(prev.scale, next.scale);
 
   const seam = prev.lastNote.midi;
   const nextMidis = next.scale.notes.map((n) => n.midi);
@@ -220,6 +233,69 @@ export function buildExtend(
   }
 
   return { connector, nextNotes, strategy: "extend" };
+}
+
+/**
+ * Build the reach-back strategy result. The reach-back strategy applies when
+ * the direction reverses but the next shape's range overlaps or is on the
+ * "wrong" side — so instead of bridging to the next shape's extreme, the
+ * combined scale is re-walked from the seam point using next's motif.
+ *
+ * Algorithm (spec §3.3 reach-back):
+ *   combined  = prev.scale.notes ∪ next.scale.notes, deduped by (string, fret),
+ *               sorted by midi ascending; metadata inherited from next.scale
+ *   walked    = walkShapeMotif(combined, effectiveMotif, { direction: next.direction })
+ *   Trim ascending:  walked.filter(n => n.midi >= seamMidi)
+ *   Trim descending: walked.filter(n => n.midi <= seamMidi)
+ *   dedupSeam: drop trimmed[0] if it occupies the same (string, fret) as prev.lastNote
+ *
+ * @internal
+ */
+export function buildReachBack(
+  input: ConnectSequencesInput,
+  dedupSeam: boolean,
+  effectiveMotif: number[],
+): ConnectSequencesResult {
+  const { prev, next } = input;
+
+  // Build synthetic combined FrettedScale: dedup by (string, fret), prev wins.
+  const combinedNotes = dedupAndSortCombined(prev.scale, next.scale);
+  const combinedScale: FrettedScale = {
+    empty: false,
+    root: next.scale.root,
+    scaleType: next.scale.scaleType,
+    scaleName: next.scale.scaleName,
+    shapeName: next.scale.shapeName,
+    tuning: next.scale.tuning,
+    notes: combinedNotes,
+  };
+
+  // Walk the combined scale using next's motif and direction.
+  const walked = walkShapeMotif(combinedScale, effectiveMotif, {
+    direction: next.direction,
+  });
+
+  // Trim: keep only notes at or past the seam in the walk direction.
+  const seamMidi = prev.lastNote.midi;
+  let trimmed: FrettedNote[];
+  if (next.direction === "ascending") {
+    trimmed = walked.filter((n) => n.midi >= seamMidi);
+  } else {
+    trimmed = walked.filter((n) => n.midi <= seamMidi);
+  }
+
+  // Dedup seam: drop head if it physically matches prev.lastNote (string, fret).
+  let nextNotes = trimmed;
+  if (
+    dedupSeam &&
+    nextNotes.length > 0 &&
+    nextNotes[0].string === prev.lastNote.string &&
+    nextNotes[0].fret === prev.lastNote.fret
+  ) {
+    nextNotes = nextNotes.slice(1);
+  }
+
+  return { connector: [], nextNotes, strategy: "reach-back" };
 }
 
 // ============================================================

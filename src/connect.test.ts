@@ -10,6 +10,7 @@ import {
   nextSide,
   classifyStrategy,
   buildExtend,
+  buildReachBack,
   type ChainDirection,
   type ConnectSequencesInput,
   type ConnectorOptions,
@@ -421,5 +422,163 @@ describe("Task Group 3: Extend Strategy", () => {
     for (const n of result.connector) {
       expect(validPositions.has(`${n.string}:${n.fret}`)).toBe(true);
     }
+  });
+});
+
+// ============================================================
+// Task Group 4: Reach-Back Strategy (spec §3.3, §3.4 scenarios 2, 3, 7)
+// ============================================================
+
+describe("Task Group 4: Reach-Back Strategy", () => {
+  const motif = [1, 3];
+
+  // ---------------------------------------------------------------
+  // Scenario 2: E asc → G desc (next lower → reach-back)
+  // prev.lastNote = B4 (s5f7, midi 71)
+  // combined = sort(E ∪ G) by midi (25 notes, midi 42–71)
+  // walked desc → starts at B4 → deduped → nextNotes[0] is not s5f7
+  // ---------------------------------------------------------------
+  const prevAscS2 = walkShapeMotif(eShapeA, motif, { direction: "ascending" });
+  const prevLastNoteS2 = prevAscS2[prevAscS2.length - 1]; // B4 (s5f7, midi 71)
+
+  const inputS2: ConnectSequencesInput = {
+    prev: { scale: eShapeA, lastNote: prevLastNoteS2, direction: "ascending" },
+    next: { scale: gShapeA, motif, direction: "descending" },
+  };
+
+  // ---------------------------------------------------------------
+  // Scenario 3: E desc → D asc (next higher → reach-back)
+  // prev.lastNote = G#2 (s0f4, midi 44)
+  // combined = sort(E ∪ D) by midi (26 notes, midi 44–74)
+  // walked asc → starts at G#2 → deduped → nextNotes[0] is not s0f4
+  // ---------------------------------------------------------------
+  const prevDescS3 = walkShapeMotif(eShapeA, motif, { direction: "descending" });
+  const prevLastNoteS3 = prevDescS3[prevDescS3.length - 1]; // G#2 (s0f4, midi 44)
+
+  const inputS3: ConnectSequencesInput = {
+    prev: { scale: eShapeA, lastNote: prevLastNoteS3, direction: "descending" },
+    next: { scale: dShapeA, motif, direction: "ascending" },
+  };
+
+  // ---------------------------------------------------------------
+  // Scenario 7: E asc → E desc (identical shape → reach-back)
+  // combined = E shape (after dedup, same as single E shape)
+  // ---------------------------------------------------------------
+  const eShapeA2 = buildFrettedScale(CAGED_E, "A", STANDARD);
+  const prevLastNoteS7 = prevAscS2[prevAscS2.length - 1]; // B4 (s5f7, midi 71)
+
+  const inputS7: ConnectSequencesInput = {
+    prev: { scale: eShapeA, lastNote: prevLastNoteS7, direction: "ascending" },
+    next: { scale: eShapeA2, motif, direction: "descending" },
+  };
+
+  // ---------------------------------------------------------------
+  // Scenario 2 tests
+  // ---------------------------------------------------------------
+
+  test("Scenario 2: strategy === reach-back (E asc → G desc, next lower)", () => {
+    const result = buildReachBack(inputS2, true, motif);
+    expect(result.strategy).toBe("reach-back");
+  });
+
+  test("Scenario 2: connector is always empty for reach-back", () => {
+    const result = buildReachBack(inputS2, true, motif);
+    expect(result.connector).toEqual([]);
+  });
+
+  test("Scenario 2: dedupSeam true — nextNotes[0] does NOT occupy (string:5, fret:7) (B4 deduped)", () => {
+    const result = buildReachBack(inputS2, true, motif);
+    expect(result.nextNotes.length).toBeGreaterThan(0);
+    // B4 at s5f7 should be deduped because it matches prev.lastNote's (string, fret)
+    expect(result.nextNotes[0].string === 5 && result.nextNotes[0].fret === 7).toBe(false);
+  });
+
+  test("Scenario 2: dedupSeam false — nextNotes[0] DOES occupy (string:5, fret:7) (B4 retained)", () => {
+    // Locks in: reach-back dedup targets prev.lastNote.(string, fret),
+    // NOT connector.at(-1) (which is always undefined since connector === []).
+    const result = buildReachBack(inputS2, false, motif);
+    expect(result.nextNotes.length).toBeGreaterThan(0);
+    expect(result.nextNotes[0].string).toBe(5);
+    expect(result.nextNotes[0].fret).toBe(7);
+  });
+
+  // ---------------------------------------------------------------
+  // Scenario 3 tests
+  // ---------------------------------------------------------------
+
+  test("Scenario 3: strategy === reach-back (E desc → D asc, next higher)", () => {
+    const result = buildReachBack(inputS3, true, motif);
+    expect(result.strategy).toBe("reach-back");
+  });
+
+  test("Scenario 3: dedupSeam true — nextNotes[0] does NOT occupy (string:0, fret:4) (G#2 deduped)", () => {
+    const result = buildReachBack(inputS3, true, motif);
+    expect(result.nextNotes.length).toBeGreaterThan(0);
+    expect(result.nextNotes[0].string === 0 && result.nextNotes[0].fret === 4).toBe(false);
+  });
+
+  // ---------------------------------------------------------------
+  // Scenario 7 tests
+  // ---------------------------------------------------------------
+
+  test("Scenario 7: strategy === reach-back for identical shape (E asc → E desc)", () => {
+    const result = buildReachBack(inputS7, true, motif);
+    expect(result.strategy).toBe("reach-back");
+  });
+
+  test("Scenario 7: combined scale (after string,fret dedup) has same note count as single E shape", () => {
+    // When prev and next are the same shape, dedup by (string, fret) yields
+    // exactly the same set as a single E-shape build.
+    const result = buildReachBack(inputS7, true, motif);
+    // The connector is [] — the combined notes count is reflected indirectly.
+    // We verify by checking that dedupAndSortCombined(eShapeA, eShapeA2) === eShapeA.notes.length
+    const combinedNoteCount = (() => {
+      const seen = new Set<string>();
+      for (const n of [...eShapeA.notes, ...eShapeA2.notes]) {
+        seen.add(`${n.string}:${n.fret}`);
+      }
+      return seen.size;
+    })();
+    expect(combinedNoteCount).toBe(eShapeA.notes.length);
+    // Also verify nextNotes is non-empty and B4 is not the head (it was deduped)
+    expect(result.nextNotes.length).toBeGreaterThan(0);
+    expect(result.nextNotes[0].note).not.toBe("B4");
+  });
+
+  // ---------------------------------------------------------------
+  // Direction invariants
+  // ---------------------------------------------------------------
+
+  test("Descending reach-back: nextNotes[0].midi <= prev.lastNote.midi (spec §6.4)", () => {
+    const result = buildReachBack(inputS2, true, motif);
+    expect(result.nextNotes.length).toBeGreaterThan(0);
+    // After dedup, head should still be at or below the seam midi
+    expect(result.nextNotes[0].midi).toBeLessThanOrEqual(prevLastNoteS2.midi);
+  });
+
+  test("Ascending reach-back: nextNotes[0].midi >= prev.lastNote.midi (spec §6.4)", () => {
+    const result = buildReachBack(inputS3, true, motif);
+    expect(result.nextNotes.length).toBeGreaterThan(0);
+    // After dedup, head should still be at or above the seam midi
+    expect(result.nextNotes[0].midi).toBeGreaterThanOrEqual(prevLastNoteS3.midi);
+  });
+
+  // ---------------------------------------------------------------
+  // Seam far outside combined range → empty nextNotes
+  // ---------------------------------------------------------------
+
+  test("Reach-back where seam is far outside combined range produces nextNotes: []", () => {
+    // Use ascending direction with a seam far above the combined range:
+    // filter(n => n.midi >= 9999) yields empty since all notes are <= 74.
+    const farAboveNote: import("./shape").FrettedNote = {
+      ...prevLastNoteS2,
+      midi: 9999, // impossibly high — no combined notes will satisfy ascending trim
+    };
+    const inputFarAboveAsc: ConnectSequencesInput = {
+      prev: { scale: eShapeA, lastNote: farAboveNote, direction: "descending" },
+      next: { scale: gShapeA, motif, direction: "ascending" },
+    };
+    const result = buildReachBack(inputFarAboveAsc, true, motif);
+    expect(result.nextNotes).toEqual([]);
   });
 });
