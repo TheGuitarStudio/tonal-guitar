@@ -314,8 +314,50 @@ export function buildReachBack(
  *   Bars re-flow automatically when connector notes are inserted.
  */
 export function connectSequences(
-  _input: ConnectSequencesInput,
-  _options?: ConnectorOptions,
+  input: ConnectSequencesInput,
+  options?: ConnectorOptions,
 ): ConnectSequencesResult {
-  throw new Error("not implemented");
+  const { prev, next } = input;
+
+  // Guard: degenerate scale inputs → graceful empty result
+  if (
+    prev.scale.empty ||
+    next.scale.empty ||
+    prev.scale.notes.length === 0 ||
+    next.scale.notes.length === 0
+  ) {
+    return { connector: [], nextNotes: [], strategy: "none" };
+  }
+
+  // Normalize motif: treat empty motif as [1] (linear walk)
+  const effectiveMotif = next.motif.length > 0 ? next.motif : [1];
+
+  // Normalize reserved strategy values: "linear" and "motif-extend" are
+  // treated as "auto" in MVP (no-op — just don't act on them specially).
+  // "auto" (or undefined) → proceed with auto classification.
+
+  // Resolve options
+  const dedupSeam = options?.dedupSeam ?? true;
+
+  // Classify strategy
+  const side = nextSide(prev.scale, next.scale);
+  const strategy = classifyStrategy(prev.direction, next.direction, side);
+
+  // Dispatch to appropriate strategy builder
+  if (strategy === "none") {
+    return {
+      connector: [],
+      nextNotes: walkShapeMotif(next.scale, effectiveMotif, {
+        direction: next.direction,
+      }),
+      strategy: "none",
+    };
+  }
+
+  if (strategy === "extend") {
+    return buildExtend(input, dedupSeam, effectiveMotif);
+  }
+
+  // strategy === "reach-back"
+  return buildReachBack(input, dedupSeam, effectiveMotif);
 }

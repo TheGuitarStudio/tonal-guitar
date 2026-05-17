@@ -34,6 +34,8 @@ import {
 
 // Shape constants for fixtures
 import { CAGED_E, CAGED_D, CAGED_G } from "./data/caged-scales";
+import { NPS_PATTERN_1, NPS_PATTERN_2 } from "./data/three-nps";
+import { PENTA_BOX_1, PENTA_BOX_2 } from "./data/pentatonic";
 
 // ============================================================
 // Fixtures for Task Group 2 (and future groups)
@@ -580,5 +582,202 @@ describe("Task Group 4: Reach-Back Strategy", () => {
     };
     const result = buildReachBack(inputFarAboveAsc, true, motif);
     expect(result.nextNotes).toEqual([]);
+  });
+});
+
+// ============================================================
+// Task Group 5: connectSequences Integration & Edge Cases
+// (spec §3.3 none, §4.1 options, §5 edge cases, §3.4 scenarios 5, 6, 8)
+// ============================================================
+
+describe("Task Group 5: connectSequences Integration & Edge Cases", () => {
+  const motif = [1, 3];
+
+  // ---------------------------------------------------------------
+  // Scenario 5: asc → asc (same direction) → strategy "none"
+  // E-asc → D-asc (A major, motif [1,3])
+  // ---------------------------------------------------------------
+
+  const eAscLastNote = walkShapeMotif(eShapeA, motif, { direction: "ascending" });
+  const eAscPrevLast = eAscLastNote[eAscLastNote.length - 1];
+
+  const inputS5: ConnectSequencesInput = {
+    prev: { scale: eShapeA, lastNote: eAscPrevLast, direction: "ascending" },
+    next: { scale: dShapeA, motif, direction: "ascending" },
+  };
+
+  test("Scenario 5 (asc → asc): strategy is 'none'", () => {
+    const result = connectSequences(inputS5);
+    expect(result.strategy).toBe("none");
+  });
+
+  test("Scenario 5 (asc → asc): connector is empty", () => {
+    const result = connectSequences(inputS5);
+    expect(result.connector).toEqual([]);
+  });
+
+  test("Scenario 5 (asc → asc): nextNotes equals unmodified walkShapeMotif of D-shape ascending", () => {
+    const result = connectSequences(inputS5);
+    const naturalWalk = walkShapeMotif(dShapeA, motif, { direction: "ascending" });
+    expect(result.nextNotes).toEqual(naturalWalk);
+  });
+
+  // ---------------------------------------------------------------
+  // Scenario 6: desc → desc (same direction) → strategy "none"
+  // E-desc → G-desc (A major, motif [1,3])
+  // ---------------------------------------------------------------
+
+  const eDescWalk = walkShapeMotif(eShapeA, motif, { direction: "descending" });
+  const eDescLastNote = eDescWalk[eDescWalk.length - 1];
+
+  const inputS6: ConnectSequencesInput = {
+    prev: { scale: eShapeA, lastNote: eDescLastNote, direction: "descending" },
+    next: { scale: gShapeA, motif, direction: "descending" },
+  };
+
+  test("Scenario 6 (desc → desc): strategy is 'none'", () => {
+    const result = connectSequences(inputS6);
+    expect(result.strategy).toBe("none");
+  });
+
+  test("Scenario 6 (desc → desc): connector is empty and nextNotes equals natural walk of G-shape desc", () => {
+    const result = connectSequences(inputS6);
+    const naturalWalk = walkShapeMotif(gShapeA, motif, { direction: "descending" });
+    expect(result.connector).toEqual([]);
+    expect(result.nextNotes).toEqual(naturalWalk);
+  });
+
+  // ---------------------------------------------------------------
+  // Scenario 8: empty prev scale → graceful result
+  // ---------------------------------------------------------------
+
+  test("Scenario 8 (empty prev scale: NoFrettedScale): returns { connector:[], nextNotes:[], strategy:'none' }", () => {
+    const inputEmpty: ConnectSequencesInput = {
+      prev: { scale: NoFrettedScale, lastNote: eAscPrevLast, direction: "ascending" },
+      next: { scale: dShapeA, motif, direction: "descending" },
+    };
+    const result = connectSequences(inputEmpty);
+    expect(result).toEqual({ connector: [], nextNotes: [], strategy: "none" });
+  });
+
+  // ---------------------------------------------------------------
+  // Empty next scale → graceful result
+  // ---------------------------------------------------------------
+
+  test("Empty next scale: returns { connector:[], nextNotes:[], strategy:'none' }", () => {
+    const inputEmptyNext: ConnectSequencesInput = {
+      prev: { scale: eShapeA, lastNote: eAscPrevLast, direction: "ascending" },
+      next: { scale: NoFrettedScale, motif, direction: "descending" },
+    };
+    const result = connectSequences(inputEmptyNext);
+    expect(result).toEqual({ connector: [], nextNotes: [], strategy: "none" });
+  });
+
+  // ---------------------------------------------------------------
+  // Empty motif → treated as [1], nextNotes non-empty
+  // ---------------------------------------------------------------
+
+  test("Empty next.motif ([]) is treated as [1]: nextNotes is non-empty", () => {
+    const inputEmptyMotif: ConnectSequencesInput = {
+      prev: { scale: eShapeA, lastNote: eAscPrevLast, direction: "ascending" },
+      next: { scale: dShapeA, motif: [], direction: "descending" },
+    };
+    const result = connectSequences(inputEmptyMotif);
+    expect(result.nextNotes.length).toBeGreaterThan(0);
+  });
+
+  // ---------------------------------------------------------------
+  // Reserved strategy options: "linear" and "motif-extend" → treated as "auto"
+  // ---------------------------------------------------------------
+
+  test("options.strategy 'linear' is treated as 'auto' (no throw, result consistent with auto)", () => {
+    const autoResult = connectSequences(inputS5);
+    const linearResult = connectSequences(inputS5, { strategy: "linear" });
+    expect(linearResult.strategy).toBe(autoResult.strategy);
+    expect(linearResult.connector).toEqual(autoResult.connector);
+    expect(linearResult.nextNotes).toEqual(autoResult.nextNotes);
+  });
+
+  test("options.strategy 'motif-extend' is treated as 'auto' (no throw, result consistent with auto)", () => {
+    const autoResult = connectSequences(inputS5);
+    const motifExtendResult = connectSequences(inputS5, { strategy: "motif-extend" });
+    expect(motifExtendResult.strategy).toBe(autoResult.strategy);
+    expect(motifExtendResult.connector).toEqual(autoResult.connector);
+    expect(motifExtendResult.nextNotes).toEqual(autoResult.nextNotes);
+  });
+
+  // ---------------------------------------------------------------
+  // 3NPS smoke test: NPS_PATTERN_1 asc → NPS_PATTERN_2 desc
+  // (A major, motif [1,3])
+  // ---------------------------------------------------------------
+
+  test("3NPS smoke: NPS_PATTERN_1 asc → NPS_PATTERN_2 desc — no throw, strategy !== 'none', nextNotes.length > 0", () => {
+    const nps1A = buildFrettedScale(NPS_PATTERN_1, "A", STANDARD);
+    const nps2A = buildFrettedScale(NPS_PATTERN_2, "A", STANDARD);
+    const nps1Walk = walkShapeMotif(nps1A, motif, { direction: "ascending" });
+    const nps1LastNote = nps1Walk[nps1Walk.length - 1];
+
+    const inputNps: ConnectSequencesInput = {
+      prev: { scale: nps1A, lastNote: nps1LastNote, direction: "ascending" },
+      next: { scale: nps2A, motif, direction: "descending" },
+    };
+
+    let result: ConnectSequencesResult;
+    expect(() => {
+      result = connectSequences(inputNps);
+    }).not.toThrow();
+    expect(result!.strategy).not.toBe("none");
+    expect(result!.nextNotes.length).toBeGreaterThan(0);
+  });
+
+  // ---------------------------------------------------------------
+  // Pentatonic smoke test: PENTA_BOX_1 asc → PENTA_BOX_2 desc
+  // ---------------------------------------------------------------
+
+  test("Pentatonic smoke: PENTA_BOX_1 asc → PENTA_BOX_2 desc — no throw, strategy !== 'none'", () => {
+    const box1A = buildFrettedScale(PENTA_BOX_1, "A", STANDARD);
+    const box2A = buildFrettedScale(PENTA_BOX_2, "A", STANDARD);
+    const box1Walk = walkShapeMotif(box1A, motif, { direction: "ascending" });
+    const box1LastNote = box1Walk[box1Walk.length - 1];
+
+    const inputPenta: ConnectSequencesInput = {
+      prev: { scale: box1A, lastNote: box1LastNote, direction: "ascending" },
+      next: { scale: box2A, motif, direction: "descending" },
+    };
+
+    let result: ConnectSequencesResult;
+    expect(() => {
+      result = connectSequences(inputPenta);
+    }).not.toThrow();
+    expect(result!.strategy).not.toBe("none");
+  });
+
+  // ---------------------------------------------------------------
+  // Out-of-range seam: prev.lastNote.midi = 9999 — function does not throw
+  // ---------------------------------------------------------------
+
+  test("Out-of-range seam (prev.lastNote.midi = 9999): function does not throw", () => {
+    const farNote: import("./shape").FrettedNote = {
+      ...eAscPrevLast,
+      midi: 9999,
+    };
+    const inputOutOfRange: ConnectSequencesInput = {
+      prev: { scale: eShapeA, lastNote: farNote, direction: "ascending" },
+      next: { scale: dShapeA, motif, direction: "descending" },
+    };
+    expect(() => connectSequences(inputOutOfRange)).not.toThrow();
+  });
+
+  // ---------------------------------------------------------------
+  // Cross-key smoke: deliberately unusual cross-key input — no throw
+  // ---------------------------------------------------------------
+
+  test("Cross-key smoke (E-shape A major vs G-shape C major): function does not throw", () => {
+    const gShapeC = buildFrettedScale(CAGED_G, "C", STANDARD);
+    const crossKeyInput: ConnectSequencesInput = {
+      prev: { scale: eShapeA, lastNote: eAscPrevLast, direction: "ascending" },
+      next: { scale: gShapeC, motif, direction: "descending" },
+    };
+    expect(() => connectSequences(crossKeyInput)).not.toThrow();
   });
 });
