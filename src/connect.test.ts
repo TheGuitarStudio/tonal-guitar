@@ -9,6 +9,7 @@ import {
   connectSequences,
   nextSide,
   classifyStrategy,
+  buildExtend,
   type ChainDirection,
   type ConnectSequencesInput,
   type ConnectorOptions,
@@ -27,6 +28,7 @@ import {
   buildFrettedScale,
   STANDARD,
   NoFrettedScale,
+  walkShapeMotif,
 } from "./index";
 
 // Shape constants for fixtures
@@ -240,5 +242,184 @@ describe("Task Group 2: Strategy Classifier", () => {
       expect(side).toBe("same");
       expect(strategy).toBe("reach-back");
     });
+  });
+});
+
+// ============================================================
+// Task Group 3: Extend Strategy (spec §3.3, §3.4 scenarios 1 & 4, tasks 3.1–3.3)
+// ============================================================
+
+describe("Task Group 3: Extend Strategy", () => {
+  // Fixtures: A major in standard tuning
+  const motif = [1, 3];
+
+  // Scenario 1: E asc → D desc (next higher → extend)
+  // prev last note = B4 (s5f7, midi 71), target = D5 (midi 74)
+  // connector = [C#5(s5f9), D5(s5f10)]
+  const prevAscS1 = walkShapeMotif(eShapeA, motif, { direction: "ascending" });
+  const prevLastNoteS1 = prevAscS1[prevAscS1.length - 1]; // B4 (s5f7, midi 71)
+
+  const inputS1: ConnectSequencesInput = {
+    prev: { scale: eShapeA, lastNote: prevLastNoteS1, direction: "ascending" },
+    next: { scale: dShapeA, motif, direction: "descending" },
+  };
+
+  // Scenario 4: E desc → G asc (next lower → extend)
+  // prev last note = G#2 (s0f4, midi 44), target = F#2 (midi 42)
+  // connector = [F#2(s0f2)]
+  const prevDescS4 = walkShapeMotif(eShapeA, motif, { direction: "descending" });
+  const prevLastNoteS4 = prevDescS4[prevDescS4.length - 1]; // G#2 (s0f4, midi 44)
+
+  const inputS4: ConnectSequencesInput = {
+    prev: { scale: eShapeA, lastNote: prevLastNoteS4, direction: "descending" },
+    next: { scale: gShapeA, motif, direction: "ascending" },
+  };
+
+  // ---------------------------------------------------------------
+  // Scenario 1 tests
+  // ---------------------------------------------------------------
+
+  test("Scenario 1: strategy === extend (E asc → D desc, next higher)", () => {
+    const result = buildExtend(inputS1, true, motif);
+    expect(result.strategy).toBe("extend");
+  });
+
+  test("Scenario 1: connector note names are [C#5, D5]", () => {
+    const result = buildExtend(inputS1, true, motif);
+    expect(result.connector.map((n) => n.note)).toEqual(["C#5", "D5"]);
+  });
+
+  test("Scenario 1: connector fret positions are [[5,9], [5,10]]", () => {
+    const result = buildExtend(inputS1, true, motif);
+    expect(result.connector.map((n) => [n.string, n.fret])).toEqual([
+      [5, 9],
+      [5, 10],
+    ]);
+  });
+
+  test("Scenario 1: dedupSeam true — nextNotes[0] is not D5 and nextNotes is non-empty", () => {
+    const result = buildExtend(inputS1, true, motif);
+    expect(result.nextNotes.length).toBeGreaterThan(0);
+    expect(result.nextNotes[0].note).not.toBe("D5");
+  });
+
+  test("Scenario 1: dedupSeam false — nextNotes[0] IS D5 (head kept)", () => {
+    const result = buildExtend(inputS1, false, motif);
+    expect(result.nextNotes[0].note).toBe("D5");
+  });
+
+  // ---------------------------------------------------------------
+  // Scenario 4 tests
+  // ---------------------------------------------------------------
+
+  test("Scenario 4: strategy === extend (E desc → G asc, next lower)", () => {
+    const result = buildExtend(inputS4, true, motif);
+    expect(result.strategy).toBe("extend");
+  });
+
+  test("Scenario 4: connector note names are [F#2] at [[0,2]]", () => {
+    const result = buildExtend(inputS4, true, motif);
+    expect(result.connector.map((n) => n.note)).toEqual(["F#2"]);
+    expect(result.connector.map((n) => [n.string, n.fret])).toEqual([[0, 2]]);
+  });
+
+  test("Scenario 4: dedupSeam true — nextNotes[0] is not F#2 and nextNotes is non-empty", () => {
+    const result = buildExtend(inputS4, true, motif);
+    expect(result.nextNotes.length).toBeGreaterThan(0);
+    expect(result.nextNotes[0].note).not.toBe("F#2");
+  });
+
+  test("Scenario 4: dedupSeam false — nextNotes[0] IS F#2 (head kept)", () => {
+    const result = buildExtend(inputS4, false, motif);
+    expect(result.nextNotes[0].note).toBe("F#2");
+  });
+
+  // ---------------------------------------------------------------
+  // Direction invariants
+  // ---------------------------------------------------------------
+
+  test("Ascending extend: connector midi values are strictly ascending", () => {
+    const result = buildExtend(inputS1, true, motif);
+    const midis = result.connector.map((n) => n.midi);
+    for (let i = 1; i < midis.length; i++) {
+      expect(midis[i]).toBeGreaterThan(midis[i - 1]);
+    }
+  });
+
+  test("Descending extend: connector midi values are strictly descending", () => {
+    const result = buildExtend(inputS4, true, motif);
+    const midis = result.connector.map((n) => n.midi);
+    for (let i = 1; i < midis.length; i++) {
+      expect(midis[i]).toBeLessThan(midis[i - 1]);
+    }
+  });
+
+  // ---------------------------------------------------------------
+  // No-gap case: prev already at shape top → empty connector
+  // ---------------------------------------------------------------
+
+  test("Extend with no gap (prev lastNote IS the shape top): connector is empty", () => {
+    // Build a last note that is exactly the max midi of D Shape (D5, s5f10, midi 74).
+    // For asc→desc with D higher, seam >= target ⟹ no notes between them.
+    const dTopNote = dShapeA.notes
+      .slice()
+      .sort((a, b) => b.midi - a.midi)[0]; // D5, midi 74
+    const inputNoGap: ConnectSequencesInput = {
+      prev: {
+        scale: eShapeA,
+        lastNote: dTopNote, // seam = 74 = target = 74 → filter yields nothing
+        direction: "ascending",
+      },
+      next: { scale: dShapeA, motif, direction: "descending" },
+    };
+    const result = buildExtend(inputNoGap, true, motif);
+    expect(result.connector.length).toBe(0);
+  });
+
+  // ---------------------------------------------------------------
+  // Empty-connector dedup: when connector is empty, dedup falls back to
+  // comparing nextNotes[0] against prev.lastNote by (string, fret).
+  // ---------------------------------------------------------------
+
+  test("Empty-connector dedup: nextNotes[0] matching prev.lastNote (string,fret) is dropped when dedupSeam=true", () => {
+    // Use the no-gap scenario (connector empty, seam = D5 at s5f10).
+    // D shape descending walk naturally starts at D5 (s5f10) — same physical
+    // position as prev.lastNote → should be dropped.
+    const dTopNote = dShapeA.notes
+      .slice()
+      .sort((a, b) => b.midi - a.midi)[0]; // D5, s5f10, midi 74
+    const inputNoGap: ConnectSequencesInput = {
+      prev: {
+        scale: eShapeA,
+        lastNote: dTopNote,
+        direction: "ascending",
+      },
+      next: { scale: dShapeA, motif, direction: "descending" },
+    };
+    const resultDedup = buildExtend(inputNoGap, true, motif);
+    const resultNoDedup = buildExtend(inputNoGap, false, motif);
+
+    // With dedup: head (D5 at s5f10) should be dropped
+    expect(resultDedup.connector.length).toBe(0);
+    expect(resultDedup.nextNotes[0].note).not.toBe("D5");
+
+    // Without dedup: head is kept
+    expect(resultNoDedup.nextNotes[0].note).toBe("D5");
+  });
+
+  // ---------------------------------------------------------------
+  // Connector notes come from actual scale positions
+  // ---------------------------------------------------------------
+
+  test("Connector notes are drawn from actual (string,fret) positions in the input scales", () => {
+    const result = buildExtend(inputS1, true, motif);
+    // Build a set of all valid (string, fret) positions from both scales
+    const validPositions = new Set<string>();
+    for (const n of [...eShapeA.notes, ...dShapeA.notes]) {
+      validPositions.add(`${n.string}:${n.fret}`);
+    }
+    for (const n of result.connector) {
+      expect(validPositions.has(`${n.string}:${n.fret}`)).toBe(true);
+    }
   });
 });

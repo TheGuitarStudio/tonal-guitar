@@ -10,9 +10,6 @@
 import { FrettedNote, FrettedScale } from "./shape";
 import { walkShapeMotif } from "./walker";
 
-// Suppress "unused import" warnings — these will be used in later task groups.
-void (walkShapeMotif as unknown);
-
 // ============================================================
 // Types (spec §4.1)
 // ============================================================
@@ -132,6 +129,97 @@ export function classifyStrategy(
 
   // prevDir === "descending" && nextDir === "ascending"
   return side === "lower" ? "extend" : "reach-back";
+}
+
+// ============================================================
+// Internal strategy builders (TG3)
+// ============================================================
+
+/**
+ * Build the extend strategy result. The extend strategy applies when the
+ * direction reverses and the next shape sits in a non-overlapping pitch range
+ * (higher for asc→desc, lower for desc→asc). A linear diatonic "pickup" is
+ * inserted between prev's last note and next's extreme, then next is walked
+ * normally with the duplicate pivot note optionally deduped.
+ *
+ * Algorithm (spec §3.3 extend):
+ *   seam     = prev.lastNote.midi
+ *   target   = ascending → max(next.scale.notes[*].midi)
+ *              descending → min(next.scale.notes[*].midi)
+ *   combined = prev.scale.notes ∪ next.scale.notes, deduped by (string, fret),
+ *              sorted by midi ascending
+ *   connector (ascending):  combined.filter(n => n.midi >  seam && n.midi <= target)
+ *   connector (descending): combined.filter(n => n.midi <  seam && n.midi >= target).reverse()
+ *   nextNotes = walkShapeMotif(next.scale, effectiveMotif, { direction: next.direction })
+ *   dedupSeam: drop nextNotes[0] if it matches connector.at(-1) on (midi, string, fret);
+ *              or, if connector is empty, drop nextNotes[0] if it matches prev.lastNote on (string, fret)
+ *
+ * @internal
+ */
+export function buildExtend(
+  input: ConnectSequencesInput,
+  dedupSeam: boolean,
+  effectiveMotif: number[],
+): ConnectSequencesResult {
+  const { prev, next } = input;
+
+  // Build combined note set: prev then next, dedup by (string, fret), first wins.
+  const seen = new Map<string, FrettedNote>();
+  for (const n of [...prev.scale.notes, ...next.scale.notes]) {
+    const key = `${n.string}:${n.fret}`;
+    if (!seen.has(key)) seen.set(key, n);
+  }
+  const combined = [...seen.values()].sort((a, b) => a.midi - b.midi);
+
+  const seam = prev.lastNote.midi;
+  const nextMidis = next.scale.notes.map((n) => n.midi);
+  const target =
+    prev.direction === "ascending"
+      ? Math.max(...nextMidis)
+      : Math.min(...nextMidis);
+
+  // Filter connector notes between seam (exclusive) and target (inclusive).
+  let connector: FrettedNote[];
+  if (prev.direction === "ascending") {
+    connector = combined.filter((n) => n.midi > seam && n.midi <= target);
+    // combined is already ascending — no need to sort again
+  } else {
+    // descending: notes below seam down to target, reversed to descending order
+    connector = combined
+      .filter((n) => n.midi < seam && n.midi >= target)
+      .reverse();
+  }
+
+  // Walk next shape with the effective motif.
+  let nextNotes = walkShapeMotif(next.scale, effectiveMotif, {
+    direction: next.direction,
+  });
+
+  // Dedup seam: drop nextNotes[0] if it physically duplicates the bridge end.
+  if (dedupSeam && nextNotes.length > 0) {
+    if (connector.length > 0) {
+      const connTail = connector[connector.length - 1];
+      const head = nextNotes[0];
+      if (
+        head.midi === connTail.midi &&
+        head.string === connTail.string &&
+        head.fret === connTail.fret
+      ) {
+        nextNotes = nextNotes.slice(1);
+      }
+    } else {
+      // Empty connector: compare against prev.lastNote by (string, fret).
+      const head = nextNotes[0];
+      if (
+        head.string === prev.lastNote.string &&
+        head.fret === prev.lastNote.fret
+      ) {
+        nextNotes = nextNotes.slice(1);
+      }
+    }
+  }
+
+  return { connector, nextNotes, strategy: "extend" };
 }
 
 // ============================================================
