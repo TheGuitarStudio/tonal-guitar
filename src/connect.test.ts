@@ -68,7 +68,11 @@ describe("Task Group 1: Module Scaffolding", () => {
 
     // We need ConnectSequencesInput to reference FrettedScale / FrettedNote,
     // so just verify the type can be named without error.
+    // Use the alias in a structural way to prevent any noUnusedLocals warnings.
     type _InputAlias = ConnectSequencesInput;
+    type _PrevField = _InputAlias["prev"]; // exercises the alias structurally
+    const _prevShape: _PrevField["scale"] = eShapeA; // confirms FrettedScale resolves
+    void _prevShape; // suppress unused-value lint
 
     expect(_direction).toBe("ascending");
     expect(_strategy).toBe("none");
@@ -93,7 +97,11 @@ describe("Task Group 1: Module Scaffolding", () => {
       nextNotes: [],
       strategy: "reach-back",
     };
+    // Same structural consumption pattern to satisfy noUnusedLocals if enabled.
     type _InputAlias = ConnectSequencesInputFromIndex;
+    type _NextField = _InputAlias["next"];
+    const _nextMotif: _NextField["motif"] = [1]; // confirms number[] resolves
+    void _nextMotif; // suppress unused-value lint
 
     expect(_direction).toBe("descending");
     expect(_strategy).toBe("extend");
@@ -519,6 +527,20 @@ describe("Task Group 4: Reach-Back Strategy", () => {
     expect(result.nextNotes[0].string === 0 && result.nextNotes[0].fret === 4).toBe(false);
   });
 
+  // GAP FILL §6.2: Scenario 3 explicit connector: [] assertion (spec §6.2)
+  test("Scenario 3: connector is always empty for reach-back", () => {
+    const result = buildReachBack(inputS3, true, motif);
+    expect(result.connector).toEqual([]);
+  });
+
+  // GAP FILL §6.3: Scenario 3 dedupSeam: false — nextNotes[0] DOES occupy (string:0, fret:4)
+  test("Scenario 3: dedupSeam false — nextNotes[0] DOES occupy (string:0, fret:4) (G#2 retained)", () => {
+    const result = buildReachBack(inputS3, false, motif);
+    expect(result.nextNotes.length).toBeGreaterThan(0);
+    expect(result.nextNotes[0].string).toBe(0);
+    expect(result.nextNotes[0].fret).toBe(4);
+  });
+
   // ---------------------------------------------------------------
   // Scenario 7 tests
   // ---------------------------------------------------------------
@@ -526,6 +548,12 @@ describe("Task Group 4: Reach-Back Strategy", () => {
   test("Scenario 7: strategy === reach-back for identical shape (E asc → E desc)", () => {
     const result = buildReachBack(inputS7, true, motif);
     expect(result.strategy).toBe("reach-back");
+  });
+
+  // GAP FILL §6.2: Scenario 7 explicit connector: [] assertion (spec §6.2)
+  test("Scenario 7: connector is always empty for reach-back (identical shapes)", () => {
+    const result = buildReachBack(inputS7, true, motif);
+    expect(result.connector).toEqual([]);
   });
 
   test("Scenario 7: combined scale (after string,fret dedup) has same note count as single E shape", () => {
@@ -779,5 +807,78 @@ describe("Task Group 5: connectSequences Integration & Edge Cases", () => {
       next: { scale: gShapeC, motif, direction: "descending" },
     };
     expect(() => connectSequences(crossKeyInput)).not.toThrow();
+  });
+});
+
+// ============================================================
+// Task Group 6: Test Review and Gap Analysis (spec §6.1–6.6, TG6 gap fills)
+// ============================================================
+
+describe("Task Group 6: Gap Fills (spec §6.2 scenario fingerprints, §6.3 dedup)", () => {
+  const motif = [1, 3];
+
+  // ---------------------------------------------------------------
+  // GAP §6.2: Scenario 7 end-to-end via connectSequences public API
+  // (previous Scenario 7 tests only called buildReachBack directly)
+  // ---------------------------------------------------------------
+
+  const eShapeA_tg6 = buildFrettedScale(CAGED_E, "A", STANDARD);
+  const eShapeA2_tg6 = buildFrettedScale(CAGED_E, "A", STANDARD);
+  const prevAscWalk_tg6 = walkShapeMotif(eShapeA_tg6, motif, { direction: "ascending" });
+  const prevLastNote_tg6 = prevAscWalk_tg6[prevAscWalk_tg6.length - 1]; // B4 (s5f7)
+
+  const inputS7_tg6: ConnectSequencesInput = {
+    prev: { scale: eShapeA_tg6, lastNote: prevLastNote_tg6, direction: "ascending" },
+    next: { scale: eShapeA2_tg6, motif, direction: "descending" },
+  };
+
+  test("Scenario 7 end-to-end (connectSequences): strategy reach-back, connector [], nextNotes non-empty", () => {
+    const result = connectSequences(inputS7_tg6);
+    expect(result.strategy).toBe("reach-back");
+    expect(result.connector).toEqual([]);
+    expect(result.nextNotes.length).toBeGreaterThan(0);
+  });
+
+  // ---------------------------------------------------------------
+  // GAP §6.4: Direction invariant — asc extend connector ends at/below target,
+  // desc extend connector ends at/above target (positional sanity check)
+  // ---------------------------------------------------------------
+
+  test("Asc extend connector: last connector note midi equals next-scale's max midi (target reached)", () => {
+    // Scenario 1: E asc → D desc, target = D5 (midi 74)
+    const dShapeA_tg6 = buildFrettedScale(CAGED_D, "A", STANDARD);
+    const inputS1_tg6: ConnectSequencesInput = {
+      prev: { scale: eShapeA_tg6, lastNote: prevLastNote_tg6, direction: "ascending" },
+      next: { scale: dShapeA_tg6, motif, direction: "descending" },
+    };
+    const result = connectSequences(inputS1_tg6);
+    expect(result.strategy).toBe("extend");
+    // The connector's last note should be the target (max midi of D shape = D5 = midi 74)
+    const target = Math.max(...dShapeA_tg6.notes.map((n) => n.midi));
+    expect(result.connector[result.connector.length - 1].midi).toBe(target);
+  });
+
+  // ---------------------------------------------------------------
+  // GAP §6.2: Scenario 3 nextNotes[0] head position confirmed via strategy field
+  // in the full connectSequences call (exercises public API path)
+  // ---------------------------------------------------------------
+
+  test("Scenario 3 end-to-end (connectSequences): strategy reach-back, connector [], seam respected", () => {
+    const eShapeA_s3 = buildFrettedScale(CAGED_E, "A", STANDARD);
+    const dShapeA_s3 = buildFrettedScale(CAGED_D, "A", STANDARD);
+    const prevDescWalk = walkShapeMotif(eShapeA_s3, motif, { direction: "descending" });
+    const prevLastNote = prevDescWalk[prevDescWalk.length - 1]; // G#2 (s0f4)
+
+    const inputS3_tg6: ConnectSequencesInput = {
+      prev: { scale: eShapeA_s3, lastNote: prevLastNote, direction: "descending" },
+      next: { scale: dShapeA_s3, motif, direction: "ascending" },
+    };
+
+    const result = connectSequences(inputS3_tg6);
+    expect(result.strategy).toBe("reach-back");
+    expect(result.connector).toEqual([]);
+    // Default dedupSeam: true — G#2 at (s0,f4) should be dropped
+    expect(result.nextNotes.length).toBeGreaterThan(0);
+    expect(result.nextNotes[0].string === 0 && result.nextNotes[0].fret === 4).toBe(false);
   });
 });
