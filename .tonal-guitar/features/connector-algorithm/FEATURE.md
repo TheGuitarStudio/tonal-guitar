@@ -1,17 +1,17 @@
 # Feature: Connector algorithm — bridge chained sequences
 
-**Issue:** _pending — draft not yet promoted to a real issue_ | **Started:** 2026-05-16
+**Issue:** [#2](https://github.com/TheGuitarStudio/tonal-guitar/issues/2) | **Started:** 2026-05-16
 
 ## Pipeline Progress
 
 - [x] Phase 1: Research
 - [x] Phase 2: Shape
-- [ ] Phase 3: Plan
+- [x] Phase 3: Plan
 - [ ] Phase 4: Implement
 
 ## Context
 
-- **Origin:** `/idea PVTI_lADOEFcb-s4BX5t_zgs8ILM` (draft `DI_lADOEFcb-s4BX5t_zgKgNPs`)
+- **Origin:** `/idea` → graduated 2026-05-16 (project item `PVTI_lADOEFcb-s4BX5t_zgs8ILM`)
 - **Branch:** `feat/connector-algorithm`
 - **Priority:** P1
 - **Size:** M
@@ -22,16 +22,16 @@
 | --------- | ----------- | ------- | ----- | -------- |
 | Research  | research.md | draft   | 1     | no       |
 | Shape     | spec.md     | draft   | 1     | no       |
-| Plan      | tasks.md    | pending | 0     | no       |
+| Plan      | tasks.md    | draft   | 1     | yes      |
 | Implement | FEATURE.md  | pending | 0     | no       |
 
 ## Deferred GitHub steps
 
-This feature was graduated locally with `/idea --shape` using the "no push yet" option. Before starting the feature pipeline (`/feature --from`), complete:
+All resolved on 2026-05-17:
 
-- [ ] Promote the project draft (`DI_lADOEFcb-s4BX5t_zgKgNPs`) to a real GitHub issue with the `feature-spec` label
-- [ ] Move the project item from `Spark` to `Backlog`
-- [ ] `git push -u origin feat/connector-algorithm`
+- [x] Promoted draft to issue [#2](https://github.com/TheGuitarStudio/tonal-guitar/issues/2) with `feature-spec` label
+- [x] Project item moved `Spark` → `In progress` (skipped `Backlog` since Phase 1 & 2 already shipped)
+- [x] `git push -u origin feat/connector-algorithm`
 
 ## Loop History
 
@@ -73,6 +73,40 @@ follow-ups, plan-scoped separately.
 Worked expected-output fingerprints for all 8 test scenarios committed in
 spec §3.4 — these become Phase 4 test assertions.
 
+### Phase 3 · Loop 1 — 2026-05-17
+
+Resumed the pipeline via `/feature` after the rebase brought in the planning
+skills from main. First-run discovery exposed two tooling gaps:
+
+1. **GitHub config missing.** Set up `.tonal-guitar/project-config.json`
+   (auto-detected `TheGuitarStudio/tonal-guitar` org project #2 "Tonal Guitar",
+   captured Status/Priority/Size field IDs). Promoted the project draft to
+   real issue [#2](https://github.com/TheGuitarStudio/tonal-guitar/issues/2)
+   with `feature-spec` label, set status `Spark → In progress`, priority P1,
+   size M. Pushed `feat/connector-algorithm` with `--force-with-lease`.
+
+2. **Skill task template assumed Prisma/tRPC/React.** Rewrote
+   `.claude/skills/feature/templates/tasks-template.md` and
+   `.claude/skills/feature/references/agent-prompts.md` to fit this stack:
+   pure-TS library (`src/`) + optional Next.js docs/lab site (`site/`).
+   Layered breakdown is now Module/Types → Core Logic → Integration →
+   (optional Output / Lab / Docs) → Testing. Optional layers explicitly
+   opt-in so library-only features don't fabricate UI groups.
+
+Then dispatched the planner (`feature-dev:code-architect`, sonnet) and
+reviewer (`feature-dev:code-reviewer`, sonnet). Planner produced 6 task
+groups with Groups 3 (extend) and 4 (reach-back) parallelizable. Reviewer
+returned **PASS** with three minor gaps; all addressed inline in `tasks.md`.
+Plan review persisted to `reviews/plan-review.md`.
+
+Spec coverage: 43/44 requirements; all 8 scenario fingerprints have explicit
+test assertions. Ready for Phase 4 (`/implement`).
+
 ## Review History
 
-_Appended per external review._
+### Phase 3 plan review — 2026-05-17
+
+Reviewer: `feature-dev:code-reviewer` (sonnet). Verdict: **PASS** (43/44 requirements
+covered, all 8 §3.4 scenario fingerprints present, dependency chain correct, Groups 3
+and 4 parallelizable). Three minor gaps addressed inline; review persisted to
+`reviews/plan-review.md`.
