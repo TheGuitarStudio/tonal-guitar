@@ -216,26 +216,11 @@ If `git merge` produces a conflict:
 After merging a layer, **always** run dependency install (agents may have added packages):
 
 ```bash
-pnpm install
+npm install
 ```
 
-**Additionally**, run DB setup if the layer contained database or validation work:
-
-```bash
-pnpm db:generate
-dotenv -e .env -- pnpm db:push
-```
-
-#### DB Layer Detection
-
-Detect database/validation work by checking these sources (case-insensitive):
-
-1. **Task group names** for keywords: `database`, `schema`, `migration`, `prisma`, `db`, `validation`, `zod`
-2. **Files-to-create / files-to-modify** in the task group for paths containing: `schema.prisma`, `packages/db/`, `packages/validation/`
-3. **Subtask text** for commands like `db:generate`, `db:push`, or `db:migrate`
-
-If ANY of these signals are present in ANY task group within the layer, run DB setup.
-This multi-signal approach avoids false negatives from keyword-only detection.
+`tonal-guitar` is a single-package library, not a turbo monorepo. There is **no database
+layer**, no Prisma, no `db:generate` / `db:push` commands. Skip those steps entirely.
 
 ---
 
