@@ -25,12 +25,20 @@ impl/{slug}/gap-{N}
 
 - `{N}` — sequential gap number within the `--loop` iteration (1, 2, 3, ...)
 
-### Worktree Path Patterns
+### Worktree Naming
 
-| Type        | Path                                   |
-| ----------- | -------------------------------------- |
-| Implementer | `../GuitarStudio/impl-{slug}-tg{N}/`   |
-| Gap-fix     | `../GuitarStudio/impl-{slug}-gap-{N}/` |
+Both implementer and gap-fix worktrees are created via `workmux add` — workmux determines the
+actual filesystem path and reports it on the `Worktree:` line. Capture and reuse that path as
+`<worktree-path>` for any follow-up commands.
+
+| Type        | Branch                                  | Workmux directory hint     |
+| ----------- | --------------------------------------- | -------------------------- |
+| Implementer | `impl/{slug}/tg{N}-{group-name-slug}`   | `impl-{slug}-tg{N}/`       |
+| Gap-fix     | `impl/{slug}/gap-{N}`                   | `impl-{slug}-gap-{N}/`     |
+
+The "directory hint" is the branch's slugified form workmux uses when naming the worktree
+directory; the absolute parent path is workmux's choice — read it from `workmux ls` or the
+`Worktree:` line printed by `workmux add`.
 
 ### Slugification Rules for `{group-name-slug}`
 
@@ -60,7 +68,7 @@ Slugification:
 Results:
 
 - Sub-branch: `impl/implement-skill/tg3-state-management-conventions`
-- Worktree: `../GuitarStudio/impl-implement-skill-tg3/`
+- Worktree directory hint: `impl-implement-skill-tg3/` (workmux reports the full path on creation)
 
 ---
 

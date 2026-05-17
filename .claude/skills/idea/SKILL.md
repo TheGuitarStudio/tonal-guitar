@@ -206,17 +206,18 @@ Interactive brainstorming session to refine a captured idea into a structured sp
 
 4. Derive the branch name: `feat/{slug}`
 
-5. Create worktree + branch:
+5. Create worktree + branch **without firing the pane agent yet** (the agent's prompt asks it to read `FEATURE.md`, which doesn't exist until step 7):
 
    ```bash
-   workmux add feat/{slug} --base origin/main -b --prompt "Read FEATURE.md to understand this feature's context."
+   workmux add feat/{slug} --base origin/main -b -C
    ```
 
-6. Create the feature directory **in the worktree** (not the main repo):
+   - `-b` runs in background so the current session continues.
+   - `-C` (`--no-pane-cmds`) skips the agent invocation; the pane opens as a plain shell when later opened. This avoids a race where the agent reads `FEATURE.md` before it's written.
 
-   ```
-   ../GuitarStudio/{slug}/.tonal-guitar/features/{slug}/
-   ```
+   Capture the worktree path from the workmux output (line `Worktree: <path>`). Use it as `<worktree-path>` in subsequent steps. The feature directory lives at `<worktree-path>/.tonal-guitar/features/{slug}/`.
+
+6. Create the feature directory at `<worktree-path>/.tonal-guitar/features/{slug}/`.
 
 7. Create `raw-idea.md` with the idea content from the GitHub item (in the worktree feature directory).
 
@@ -249,21 +250,20 @@ Interactive brainstorming session to refine a captured idea into a structured sp
     > **Feature directory:** `.tonal-guitar/features/{slug}/`
     ```
 
-12. Commit **on the feature branch** (in the worktree):
+12. Commit **on the feature branch** (in the worktree). Use `git -C` so this works without changing directory:
 
     ```bash
-    cd ../GuitarStudio/{slug}
-    git add .tonal-guitar/features/{slug}/
-    git commit -m "docs(idea): graduate - {title}"
+    git -C <worktree-path> add .tonal-guitar/features/{slug}/
+    git -C <worktree-path> commit -m "docs(idea): graduate - {title}"
     ```
 
 13. Push the branch:
 
     ```bash
-    git push -u origin feat/{slug}
+    git -C <worktree-path> push -u origin feat/{slug}
     ```
 
-14. Tell the user: "Idea graduated. Worktree at `../GuitarStudio/{slug}/`, branch `feat/{slug}` pushed to GitHub. Run `/feature --from #{issueNumber}` from that worktree to start the specification pipeline."
+14. Tell the user: "Idea graduated. Worktree at `<worktree-path>`, branch `feat/{slug}` pushed to GitHub. Open the pane when you're ready with `workmux open feat/{slug}` (now that FEATURE.md exists the agent will read it correctly), then run `/feature --from #{issueNumber}` from that worktree."
 
 ---
 

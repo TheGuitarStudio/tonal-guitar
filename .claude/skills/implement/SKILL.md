@@ -511,7 +511,7 @@ Key scenarios to verify when testing `/implement`:
 
 - Feature artifacts live on the feature branch (`feat/{slug}`), not on main.
 - Sub-branches use the `impl/{slug}/` prefix to distinguish from feature branches.
-- Worktrees are created via workmux in `../GuitarStudio/` alongside other worktrees.
+- Worktrees are created via workmux alongside other worktrees (workmux determines the path on `add` — capture it from the output as `<worktree-path>` and reuse).
 - The 5-agent concurrency cap matches the `/fix --all` pattern.
 - `--watch` is default-on in v1 to build trust in the skill. Can flip to opt-in later.
 - `--plan-file` mode disables all pipeline integration (FEATURE.md, GitHub Project, oversight, compliance).

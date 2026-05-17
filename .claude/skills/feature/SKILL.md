@@ -99,7 +99,7 @@ For all other modes, enforce that the current branch matches the feature's branc
      You are on `{current-branch}`.
 
      Switch to the feature worktree:
-       cd ../GuitarStudio/{slug}/
+       cd <worktree-path>            # path reported by `workmux ls` or the original `workmux add` output
 
      Or if you don't have a local worktree, create one:
        /tree add {slug}
@@ -120,11 +120,12 @@ Based on the mode, determine the active feature:
 1. Interactive session: ask the user what feature they want to specify.
 2. Read product context: `docs/product/roadmap.md`, `docs/product/mission.md`.
 3. Derive a slug from the feature title.
-4. Create worktree + branch:
+4. Create worktree + branch. Use `-C` to suppress pane commands so the agent doesn't try to read `FEATURE.md` before it exists:
    ```bash
-   workmux add feat/{slug} --base origin/main -b --prompt "Read FEATURE.md and continue the current pipeline phase."
+   workmux add feat/{slug} --base origin/main -b -C
    ```
-5. Create `.tonal-guitar/features/{slug}/FEATURE.md` **in the worktree** using [templates/feature-state-template.md](templates/feature-state-template.md). Set `Branch: feat/{slug}`.
+   Capture the path workmux prints on the `Worktree:` line and reuse it as `<worktree-path>` below.
+5. Create `<worktree-path>/.tonal-guitar/features/{slug}/FEATURE.md` using [templates/feature-state-template.md](templates/feature-state-template.md). Set `Branch: feat/{slug}`.
 6. Create a GitHub issue for tracking:
    ```bash
    gh issue create --title "{Feature Name}" --body "Feature specification in progress.\n\n> **Branch:** \`feat/{slug}\`\n> **Feature directory:** \`.tonal-guitar/features/{slug}/\`" --label "feature-spec"
@@ -132,15 +133,14 @@ Based on the mode, determine the active feature:
 7. Add the issue to the GitHub Project and set status to "Backlog".
 8. Commit on the feature branch (in the worktree):
    ```bash
-   cd ../GuitarStudio/{slug}
-   git add .tonal-guitar/features/{slug}/FEATURE.md
-   git commit -m "docs(feature): init - {feature-name}"
+   git -C <worktree-path> add .tonal-guitar/features/{slug}/FEATURE.md
+   git -C <worktree-path> commit -m "docs(feature): init - {feature-name}"
    ```
 9. Push the branch:
    ```bash
-   git push -u origin feat/{slug}
+   git -C <worktree-path> push -u origin feat/{slug}
    ```
-10. Tell the user: "Feature initialized. Worktree at `../GuitarStudio/{slug}/`, branch `feat/{slug}` pushed. All subsequent `/feature` work should happen from that worktree."
+10. Tell the user: "Feature initialized. Worktree at `<worktree-path>`, branch `feat/{slug}` pushed. Run `workmux open feat/{slug}` to attach the pane (now that FEATURE.md exists), then continue `/feature` work from that worktree."
 11. Proceed to Phase 1.
 
 #### `mode = "from"` (`--from <id>`)
@@ -152,29 +152,30 @@ Based on the mode, determine the active feature:
 2. Check if a feature directory already exists for this issue (scan FEATURE.md files for matching issue number).
 3. If a directory exists (e.g., from `/idea --shape`):
    - Read FEATURE.md and extract the `Branch` field.
-   - Check if a local worktree exists for this branch. If not, create one from the remote:
+   - Check if a local worktree exists for this branch. If not, create one from the remote. `FEATURE.md` already exists on the remote branch, so it's safe to fire the pane agent immediately:
      ```bash
      git fetch origin feat/{slug}
-     workmux add feat/{slug} --base origin/feat/{slug} -b --prompt "Read FEATURE.md and continue the current pipeline phase."
+     workmux add feat/{slug} --base origin/feat/{slug} -b --prompt "Read .tonal-guitar/features/{slug}/FEATURE.md and continue the current pipeline phase."
      ```
    - The branch guard (Step 1.5) enforces you're on the correct branch before proceeding.
 4. If no directory exists:
    - Derive slug from issue title.
-   - Create worktree + branch:
+   - Create worktree + branch (suppress pane agent until FEATURE.md is written — same race as in `/idea --shape`):
      ```bash
-     workmux add feat/{slug} --base origin/main -b --prompt "Read FEATURE.md and continue the current pipeline phase."
+     workmux add feat/{slug} --base origin/main -b -C
      ```
-   - Create `.tonal-guitar/features/{slug}/FEATURE.md` **in the worktree** with origin set to `--from #{id}` and `Branch: feat/{slug}`.
+     Capture the `Worktree:` path from workmux output as `<worktree-path>`.
+   - Create `<worktree-path>/.tonal-guitar/features/{slug}/FEATURE.md` with origin set to `--from #{id}` and `Branch: feat/{slug}`.
    - Commit on the feature branch:
      ```bash
-     cd ../GuitarStudio/{slug}
-     git add .tonal-guitar/features/{slug}/FEATURE.md
-     git commit -m "docs(feature): init - {feature-name}"
+     git -C <worktree-path> add .tonal-guitar/features/{slug}/FEATURE.md
+     git -C <worktree-path> commit -m "docs(feature): init - {feature-name}"
      ```
    - Push the branch:
      ```bash
-     git push -u origin feat/{slug}
+     git -C <worktree-path> push -u origin feat/{slug}
      ```
+   - Tell the user to `workmux open feat/{slug}` when ready to attach the pane.
    - Update the issue body to include branch info:
 
      ```markdown
@@ -469,7 +470,7 @@ When `/feature --resume` is invoked:
 ## Notes
 
 - Feature artifacts live on the feature branch (`feat/{slug}`), not on main
-- Each feature gets a dedicated worktree at `../GuitarStudio/{slug}/`
+- Each feature gets a dedicated worktree (workmux determines the path on `add`; capture it from the output and store it as `<worktree-path>` for the rest of the flow)
 - The branch guard (Step 1.5) prevents accidental work on the wrong branch
 - The `project-config.json` is gitignored — auto-detected per developer
 - Each phase can be run independently with phase flags (`--research`, `--shape`, `--plan`)

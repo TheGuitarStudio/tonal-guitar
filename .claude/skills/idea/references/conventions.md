@@ -112,27 +112,28 @@ gh issue edit {issueNumber} --body "{body}"
 
 ### Graduation Commit
 
-When an idea is graduated via `--shape`, commit happens **on the feature branch in the worktree**, not on the current branch:
+When an idea is graduated via `--shape`, commit happens **on the feature branch in the worktree**, not on the current branch. Use `git -C <worktree-path>` so the command works regardless of your current shell directory:
 
 ```bash
-cd ../GuitarStudio/{slug}
-git add .tonal-guitar/features/{slug}/raw-idea.md
-git add .tonal-guitar/features/{slug}/FEATURE.md
-git commit -m "docs(idea): graduate - {title}"
-git push -u origin feat/{slug}
+git -C <worktree-path> add .tonal-guitar/features/{slug}/raw-idea.md
+git -C <worktree-path> add .tonal-guitar/features/{slug}/FEATURE.md
+git -C <worktree-path> commit -m "docs(idea): graduate - {title}"
+git -C <worktree-path> push -u origin feat/{slug}
 ```
 
 Never use `git add -A` — only stage specific files.
 
 ### Worktree Creation
 
-Graduation creates a worktree + branch using workmux:
+Graduation creates a worktree + branch using workmux. **Do not pass `--prompt` here** — the pane agent would fire immediately and try to read `FEATURE.md` before it's written, hitting a race. Suppress pane commands with `-C`:
 
 ```bash
-workmux add feat/{slug} --base origin/main -b --prompt "Read FEATURE.md to understand this feature's context."
+workmux add feat/{slug} --base origin/main -b -C
 ```
 
-This creates branch `feat/{slug}` from `origin/main` and sets up the worktree at `../GuitarStudio/{slug}/`. The `.env` file is automatically copied. `-b` runs in background so the current session continues.
+This creates branch `feat/{slug}` from `origin/main` and sets up the worktree (workmux reports the actual path on the `Worktree:` line — capture and reuse it as `<worktree-path>`). The `.env` file is copied automatically. `-b` keeps the current session active; `-C` keeps the pane as a plain shell until you open it.
+
+After writing `raw-idea.md` and `FEATURE.md` and committing, tell the user to run `workmux open feat/{slug}` when they want to start the feature pipeline — the pane will then have access to the populated `FEATURE.md`.
 
 ### Issue Body Template (Post-Graduation)
 
