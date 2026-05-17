@@ -70,6 +70,71 @@ export interface ConnectSequencesResult {
 }
 
 // ============================================================
+// Internal helpers (TG2)
+// ============================================================
+
+/**
+ * Determine whether `next` scale is pitched higher, lower, or at the same
+ * range as `prev` scale. Uses the conjunction rule from spec §3.2:
+ * both the top AND bottom of next must strictly exceed those of prev
+ * (or both be strictly lower) to be classified as "higher"/"lower".
+ * Anything that doesn't satisfy either strict conjunction is "same".
+ *
+ * Guard: if either scale has no notes, returns "same".
+ *
+ * @internal
+ */
+export function nextSide(
+  prevScale: FrettedScale,
+  nextScale: FrettedScale,
+): "higher" | "lower" | "same" {
+  if (prevScale.notes.length === 0 || nextScale.notes.length === 0) {
+    return "same";
+  }
+
+  const prevMidis = prevScale.notes.map((n) => n.midi);
+  const nextMidis = nextScale.notes.map((n) => n.midi);
+
+  const prevTop = Math.max(...prevMidis);
+  const prevBottom = Math.min(...prevMidis);
+  const nextTop = Math.max(...nextMidis);
+  const nextBottom = Math.min(...nextMidis);
+
+  if (nextTop > prevTop && nextBottom > prevBottom) return "higher";
+  if (nextTop < prevTop && nextBottom < prevBottom) return "lower";
+  return "same";
+}
+
+/**
+ * Classify which connector strategy to use given the direction pair and the
+ * pitch-side relationship. Encodes the §3.1 truth table:
+ *
+ * | prevDir → nextDir | higher      | lower       | same        |
+ * |-------------------|-------------|-------------|-------------|
+ * | asc → asc         | none        | none        | none        |
+ * | desc → desc       | none        | none        | none        |
+ * | asc → desc        | extend      | reach-back  | reach-back  |
+ * | desc → asc        | reach-back  | extend      | reach-back  |
+ *
+ * @internal
+ */
+export function classifyStrategy(
+  prevDir: ChainDirection,
+  nextDir: ChainDirection,
+  side: "higher" | "lower" | "same",
+): ConnectorStrategy {
+  // Same-direction pairs always produce no bridge (beginner restart semantics).
+  if (prevDir === nextDir) return "none";
+
+  if (prevDir === "ascending" && nextDir === "descending") {
+    return side === "higher" ? "extend" : "reach-back";
+  }
+
+  // prevDir === "descending" && nextDir === "ascending"
+  return side === "lower" ? "extend" : "reach-back";
+}
+
+// ============================================================
 // Public API
 // ============================================================
 
