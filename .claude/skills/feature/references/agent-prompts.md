@@ -16,44 +16,57 @@ You are researching the codebase for the feature: "{feature-name}"
 
 {feature-description — from raw-idea.md, issue body, or user description}
 
+## Project Context
+
+`tonal-guitar` is a pure-TypeScript library (`src/`) for guitar fretboard math, shapes,
+patterns, and sequences, with an optional Next.js docs/lab site (`site/`). It has NO
+database, NO API server, NO Prisma, NO tRPC, NO Zod. Adapt your investigation accordingly.
+
+Read `CLAUDE.md` first for the canonical project overview, including the dependency-layer
+ordering between modules in `src/`.
+
 ## Research Focus
 
 Investigate the codebase to understand what exists that's relevant to this feature.
-Follow these investigation areas:
+Follow these investigation areas (skip any that don't apply):
 
-### 1. Data Model Patterns
-- Existing Prisma models related to this feature
-- Schema conventions (@@map, @default, relations, indexes)
-- Related validation schemas in packages/validation
+### 1. Types and data
+- Type definitions in `src/shape.ts`, `src/fretboard.ts` (e.g. `FrettedNote`, `FrettedScale`)
+- Built-in shape data in `src/data/*` (CAGED, 3NPS, pentatonic)
+- Whether the feature adds a new type, a new shape system, or new data
 
-### 2. API Patterns
-- Existing tRPC routers with similar functionality
-- Procedure patterns (protectedProcedure, input validation, error handling)
-- Query patterns (pagination, filtering, includes)
+### 2. Pure-function primitives
+- Existing functions in `src/walker.ts`, `src/sequence.ts`, `src/build.ts`, `src/pattern.ts`, `src/notation.ts`, `src/fretboard.ts`
+- Which primitives the feature can compose vs. what would have to be new
+- Dependency layering (see CLAUDE.md §Dependency layers) — what tier the new code belongs in
 
-### 3. UI Patterns
-- Existing components that could be reused or extended
-- Page layout patterns and navigation structure
-- Form patterns (react-hook-form, zodResolver, mutations)
+### 3. Integration and output
+- Tonal.js integration in `src/integration.ts` (peer-dep boundary)
+- Output formatters in `src/output/alphatex.ts`, `src/output/ascii-tab.ts`
+- Whether the feature needs new formatter behavior or just plays through unchanged
 
-### 4. Related Features
-- Features in .tonal-guitar/features/ that relate to this work
-- Specs in docs/specs/ that are similar
-- Existing code that this feature might depend on or interact with
+### 4. Public API
+- Re-export structure in `src/index.ts`
+- Naming conventions (named exports, no defaults; pure functions; empty-result sentinels)
 
-### 5. Infrastructure
-- Package structure and where new code should live
-- Build and test patterns for affected packages
-- Environment and configuration considerations
+### 5. Lab and docs surface (if the feature touches `site/`)
+- Lab components in `site/app/experiments/components/*` (notably `PipelineBuilder.tsx`, `ChainSection.tsx`, `codeGen.ts`)
+- Docs in `site/app/docs/*` (Fumadocs) and `docs/api/*.md` (source of those pages)
+- Whether the feature is library-only, site-only, or both
+
+### 6. Related features
+- Other features in `.tonal-guitar/features/` and their specs
+- Existing experiments in `experiments/` that may have prototyped this
+- Related issues / project items already on GitHub
 
 ## Output Format
 
-Write your findings as structured markdown following the research template format:
-- Use clear headings for each investigation area
-- Include specific file paths and line numbers
-- Quote relevant code patterns (keep quotes concise)
+Write your findings as structured markdown:
+- Clear headings per investigation area
+- Specific file paths and line numbers (e.g. `src/walker.ts:51`)
+- Concise code quotes
 - Note any gaps, risks, or dependencies discovered
-- Recommend where new code should be placed
+- Recommend where new code should live (which file, which dependency tier)
 
 Do NOT write code. Only research and document findings.
 ```
@@ -197,15 +210,27 @@ You are breaking down the feature specification into implementation tasks for: "
 ### Spec Review Feedback
 {path to reviews/spec-review.md}
 
+## Project Context
+
+`tonal-guitar` is a pure-TypeScript library (`src/`) plus an optional Next.js docs/lab
+site (`site/`). There is NO database, NO API server, NO Prisma, NO tRPC, NO Zod. Adapt
+the layer ordering to fit this stack.
+
+Read `CLAUDE.md` first for the dependency layering between modules in `src/`.
+
 ## Task Breakdown Rules
 
-1. **Group by layer** in this order:
-   - Database Layer (Prisma schema, migrations)
-   - Validation Layer (Zod schemas)
-   - API Layer (tRPC routers, procedures)
-   - Frontend Components (reusable UI pieces)
-   - Frontend Pages (page-level integration)
-   - Testing (test review and gap analysis)
+1. **Group by layer**, including only layers that apply to this feature:
+   - **Module / Types** — new file in `src/`, type exports, public re-exports in `src/index.ts`
+   - **Core Logic** — pure functions, algorithmic helpers, internal-only
+   - **Integration** — wiring helpers behind the public function, edge cases, smoke tests
+   - **Output / Formatter** (optional) — only if `src/output/*` changes
+   - **Lab / Site** (optional) — only if `site/` integration is in scope
+   - **Docs** (optional) — only if the public API changed; updates `docs/api/*.md` + `README.md`
+   - **Testing** — final review and gap analysis
+
+   Skip layers that don't apply. Do NOT fabricate DB / API / Validation groups — those layers
+   do not exist in this codebase.
 
 2. **Each task group must include:**
    - Dependencies on other task groups
@@ -216,12 +241,14 @@ You are breaking down the feature specification into implementation tasks for: "
 3. **Task sizing guidance:**
    - Each task group should be completable in one focused session
    - If a task group has more than 8 subtasks, consider splitting
-   - Testing should be integrated into each group (test-first)
+   - Testing should be integrated into each group (test-first via vitest)
+   - For independent Core Logic helpers, split into parallel groups so `/implement` can dispatch them concurrently
 
 4. **Follow existing patterns:**
-   - Reference the project's canonical task format
+   - Reference the project's conventions in `CLAUDE.md` (pure functions, named exports, empty-result sentinels)
    - Include specific file paths for all files to create/modify
-   - Specify the test file location for each group
+   - Specify the test file location for each group (typically a sibling `*.test.ts`)
+   - Respect the dependency-layer ordering documented in `CLAUDE.md` §Dependency layers
 
 ## Output Format
 
