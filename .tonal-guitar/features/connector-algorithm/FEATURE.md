@@ -110,3 +110,18 @@ Reviewer: `feature-dev:code-reviewer` (sonnet). Verdict: **PASS** (43/44 require
 covered, all 8 §3.4 scenario fingerprints present, dependency chain correct, Groups 3
 and 4 parallelizable). Three minor gaps addressed inline; review persisted to
 `reviews/plan-review.md`.
+
+## Phase 4: Implement
+
+| Layer | Task Group                  | Status      | Agent | Notes |
+| ----- | --------------------------- | ----------- | ----- | ----- |
+| 0     | TG1: Module Scaffolding     | pending     | -     | -     |
+| 1     | TG2: Strategy Classifier    | pending     | -     | -     |
+| 2     | TG3: Extend Strategy        | pending     | -     | -     |
+| 2     | TG4: Reach-Back Strategy    | pending     | -     | -     |
+| 3     | TG5: Integration            | pending     | -     | -     |
+| 4     | TG6: Test Review            | pending     | -     | -     |
+
+### Oversight Reports
+
+_Appended per layer after merge + verification._
