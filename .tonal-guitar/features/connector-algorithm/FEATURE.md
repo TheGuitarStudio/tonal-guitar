@@ -5,7 +5,7 @@
 ## Pipeline Progress
 
 - [x] Phase 1: Research
-- [ ] Phase 2: Shape
+- [x] Phase 2: Shape
 - [ ] Phase 3: Plan
 - [ ] Phase 4: Implement
 
@@ -21,7 +21,7 @@
 | Phase     | File        | Status  | Loops | Reviewed |
 | --------- | ----------- | ------- | ----- | -------- |
 | Research  | research.md | draft   | 1     | no       |
-| Shape     | spec.md     | pending | 0     | no       |
+| Shape     | spec.md     | draft   | 1     | no       |
 | Plan      | tasks.md    | pending | 0     | no       |
 | Implement | FEATURE.md  | pending | 0     | no       |
 
@@ -55,6 +55,23 @@ needed. AlphaTeX and lab integration are non-blocking.
 
 8 open questions remaining (1 needs explicit pick in Shape phase, rest are
 scoping or post-MVP).
+
+### Phase 2 · Loop 1 — 2026-05-16
+
+Resolved all 8 research questions. User direction mid-phase: **same-direction
+chains do NOT get a bridge** — they express a beginner "restart in another
+position" exercise, distinct from the intermediate "ascend-then-descend"
+arc that bridging serves. Spec collapses the strategy taxonomy to three
+cases (`none` / `extend` / `reach-back`) with a deterministic classifier
+based on direction-pair × pitch-side.
+
+API locked: `connectSequences({prev, next}, options?) → {connector,
+nextNotes, strategy}`. Pure midi logic, no new dependencies. ~150-line
+new file `src/connect.ts`. AlphaTeX and lab integration are post-library
+follow-ups, plan-scoped separately.
+
+Worked expected-output fingerprints for all 8 test scenarios committed in
+spec §3.4 — these become Phase 4 test assertions.
 
 ## Review History
 
