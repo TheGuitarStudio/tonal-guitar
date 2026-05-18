@@ -29,7 +29,7 @@ Non-code artifacts not under review:
 - [x] Phase 1: Setup
 - [x] Phase 2: Lint/Build/Test verification
 - [x] Phase 3: Architecture Review
-- [ ] Phase 4: Architecture Fix
+- [x] Phase 4: Architecture Fix
 - [x] Phase 5: Code Simplification Review
 - [ ] Phase 6: Code Simplification Fix
 - [x] Phase 7: Specialized Review (type safety)
@@ -85,6 +85,27 @@ All checks passed on first run — no fixes needed.
 - CR-020: [Suggestion] `// GAP FILL §6.x` markers (`connect.test.ts:530, 536, 553, 862`) are commit-archaeology — useful in PR body, noise in the merged file.
 
 Verified clean in `connect.ts`: no dead code, no commented-out scaffolding, no stale block comments; `@internal` JSDoc algorithm summaries match the implementations.
+
+## Phase 4: Architecture Fixes
+
+### Fixed
+
+- CR-001 / CR-007: Narrowed `ConnectorOptions.strategy` to `"auto"` only. Updated JSDoc to reserve `"linear"` / `"motif-extend"` for future releases. Also dropped the now-dead "normalize reserved values" comment block (covers CR-014).
+- CR-002 / CR-009: Added an explicit section comment above the internal helpers explaining the intentional export-for-testing tension with the `@internal` JSDoc tag.
+- CR-003: Clarified the degenerate-input guard comment to distinguish it from the same-direction `strategy === "none"` return path.
+- CR-004 / CR-012: Replaced the 7-field explicit synthetic `FrettedScale` literal in `buildReachBack` with `{ ...next.scale, notes: combinedNotes, empty: combinedNotes.length === 0 }`. Inherits metadata + fixes the `empty` sentinel for the all-empty edge case.
+- CR-005: Added defensive empty-notes guard at the top of `buildExtend` to protect against direct-caller misuse (returns `{ connector: [], nextNotes: [], strategy: "extend" }`).
+- CR-006: Converted the if-chain dispatch to an exhaustive `switch` with a `default` branch that assigns `strategy` to `never` — future additions to `ConnectorStrategy` now cause a compile error.
+
+### Test follow-up
+
+- Consolidated the two "reserved strategy treated as auto" runtime tests into one combined test that asserts compile-time rejection (via `@ts-expect-error`) AND defensive runtime tolerance for JS callers bypassing TypeScript. Test count: 65 → 64 (337 → 336 total).
+
+### Verification
+
+- `npm run lint` clean
+- `npm run build` clean
+- `npm test` — 336 tests pass
 
 ## Statistics
 

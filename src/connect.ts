@@ -37,11 +37,13 @@ export interface ConnectSequencesInput {
 
 export interface ConnectorOptions {
   /**
-   * Force a specific strategy. Default "auto" picks via §3.1 truth table.
-   * "linear" / "motif-extend" are reserved for future variants and are
-   * NOT implemented in MVP — passing them is equivalent to "auto".
+   * Connector strategy. Currently only `"auto"` is supported — the §3.1
+   * truth table picks `"none"`, `"extend"`, or `"reach-back"`, and the
+   * choice is reported back in `ConnectSequencesResult.strategy`. The
+   * variant labels `"linear"` and `"motif-extend"` are reserved for future
+   * releases and are intentionally absent from the type until implemented.
    */
-  strategy?: "auto" | "linear" | "motif-extend";
+  strategy?: "auto";
   /**
    * Drop next's first note when it duplicates the physical position of the
    * connector's last note (or, in reach-back, of prev's last note).
@@ -67,7 +69,12 @@ export interface ConnectSequencesResult {
 }
 
 // ============================================================
-// Internal helpers (TG2)
+// Internal helpers (TG2, TG3, TG4)
+//
+// NOTE: The helpers below are `export`ed solely so unit tests can exercise
+// the §3.1 classifier and §3.3 strategy builders directly. Each is tagged
+// `@internal` and is NOT re-exported from `index.ts` — the only public
+// surface of this module is `connectSequences` plus its types.
 // ============================================================
 
 /**
@@ -181,6 +188,14 @@ export function buildExtend(
 ): ConnectSequencesResult {
   const { prev, next } = input;
 
+  // Defensive: callers reaching this helper directly (e.g. unit tests) bypass
+  // the empty-notes guard in connectSequences. Without this check, the
+  // Math.max/min calls below would resolve to ±Infinity and silently produce
+  // a wrong `target`.
+  if (next.scale.notes.length === 0) {
+    return { connector: [], nextNotes: [], strategy: "extend" };
+  }
+
   // Build combined note set: prev then next, dedup by (string, fret), first wins.
   const combined = dedupAndSortCombined(prev.scale, next.scale);
 
@@ -259,15 +274,12 @@ export function buildReachBack(
   const { prev, next } = input;
 
   // Build synthetic combined FrettedScale: dedup by (string, fret), prev wins.
+  // Metadata is inherited from next; only `notes` and `empty` are overridden.
   const combinedNotes = dedupAndSortCombined(prev.scale, next.scale);
   const combinedScale: FrettedScale = {
-    empty: false,
-    root: next.scale.root,
-    scaleType: next.scale.scaleType,
-    scaleName: next.scale.scaleName,
-    shapeName: next.scale.shapeName,
-    tuning: next.scale.tuning,
+    ...next.scale,
     notes: combinedNotes,
+    empty: combinedNotes.length === 0,
   };
 
   // Walk the combined scale using next's motif and direction.
@@ -319,7 +331,10 @@ export function connectSequences(
 ): ConnectSequencesResult {
   const { prev, next } = input;
 
-  // Guard: degenerate scale inputs → graceful empty result
+  // Guard: degenerate scale inputs → graceful empty result. This is the
+  // "nothing to walk on either side" path, distinct from the `strategy ===
+  // "none"` case below (same-direction chains) — that path returns the
+  // natural walk of next, this one returns nothing.
   if (
     prev.scale.empty ||
     next.scale.empty ||
@@ -332,32 +347,28 @@ export function connectSequences(
   // Normalize motif: treat empty motif as [1] (linear walk)
   const effectiveMotif = next.motif.length > 0 ? next.motif : [1];
 
-  // Normalize reserved strategy values: "linear" and "motif-extend" are
-  // treated as "auto" in MVP (no-op — just don't act on them specially).
-  // "auto" (or undefined) → proceed with auto classification.
-
-  // Resolve options
   const dedupSeam = options?.dedupSeam ?? true;
 
-  // Classify strategy
   const side = nextSide(prev.scale, next.scale);
   const strategy = classifyStrategy(prev.direction, next.direction, side);
 
-  // Dispatch to appropriate strategy builder
-  if (strategy === "none") {
-    return {
-      connector: [],
-      nextNotes: walkShapeMotif(next.scale, effectiveMotif, {
-        direction: next.direction,
-      }),
-      strategy: "none",
-    };
+  switch (strategy) {
+    case "none":
+      // Same-direction chains: no bridge, but walk next normally.
+      return {
+        connector: [],
+        nextNotes: walkShapeMotif(next.scale, effectiveMotif, {
+          direction: next.direction,
+        }),
+        strategy: "none",
+      };
+    case "extend":
+      return buildExtend(input, dedupSeam, effectiveMotif);
+    case "reach-back":
+      return buildReachBack(input, dedupSeam, effectiveMotif);
+    default: {
+      const _exhaustive: never = strategy;
+      return _exhaustive;
+    }
   }
-
-  if (strategy === "extend") {
-    return buildExtend(input, dedupSeam, effectiveMotif);
-  }
-
-  // strategy === "reach-back"
-  return buildReachBack(input, dedupSeam, effectiveMotif);
 }

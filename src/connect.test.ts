@@ -715,23 +715,18 @@ describe("Task Group 5: connectSequences Integration & Edge Cases", () => {
   });
 
   // ---------------------------------------------------------------
-  // Reserved strategy options: "linear" and "motif-extend" → treated as "auto"
+  // Reserved strategy values are rejected at compile time, but a JS caller
+  // that bypasses TypeScript still gets identical behavior to "auto".
   // ---------------------------------------------------------------
 
-  test("options.strategy 'linear' is treated as 'auto' (no throw, result consistent with auto)", () => {
+  test("options.strategy reserved values are rejected at compile time and tolerated at runtime", () => {
     const autoResult = connectSequences(inputS5);
+    // @ts-expect-error — "linear" is reserved for future variants
     const linearResult = connectSequences(inputS5, { strategy: "linear" });
-    expect(linearResult.strategy).toBe(autoResult.strategy);
-    expect(linearResult.connector).toEqual(autoResult.connector);
-    expect(linearResult.nextNotes).toEqual(autoResult.nextNotes);
-  });
-
-  test("options.strategy 'motif-extend' is treated as 'auto' (no throw, result consistent with auto)", () => {
-    const autoResult = connectSequences(inputS5);
+    // @ts-expect-error — "motif-extend" is reserved for future variants
     const motifExtendResult = connectSequences(inputS5, { strategy: "motif-extend" });
-    expect(motifExtendResult.strategy).toBe(autoResult.strategy);
-    expect(motifExtendResult.connector).toEqual(autoResult.connector);
-    expect(motifExtendResult.nextNotes).toEqual(autoResult.nextNotes);
+    expect(linearResult).toEqual(autoResult);
+    expect(motifExtendResult).toEqual(autoResult);
   });
 
   // ---------------------------------------------------------------
