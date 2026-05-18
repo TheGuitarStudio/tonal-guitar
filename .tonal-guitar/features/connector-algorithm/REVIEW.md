@@ -31,7 +31,7 @@ Non-code artifacts not under review:
 - [x] Phase 3: Architecture Review
 - [x] Phase 4: Architecture Fix
 - [x] Phase 5: Code Simplification Review
-- [ ] Phase 6: Code Simplification Fix
+- [x] Phase 6: Code Simplification Fix
 - [x] Phase 7: Specialized Review (type safety)
 - [ ] Phase 8: Specialized Fixes
 - [ ] Phase 9: Final Verification
@@ -105,6 +105,23 @@ Verified clean in `connect.ts`: no dead code, no commented-out scaffolding, no s
 
 - `npm run lint` clean
 - `npm run build` clean
+- `npm test` — 336 tests pass
+
+## Phase 6: Code Simplification Fixes
+
+### Fixed
+
+- CR-011: Extracted `samePosition(a, b)` private helper. Replaced 14 lines of nested if-blocks in `buildExtend` and 5 lines in `buildReachBack`. The redundant midi-equality check in `buildExtend` is also dropped — `(string, fret)` uniquely determines midi for a given tuning, as noted in the helper's JSDoc.
+- CR-014: Already fixed in Phase 4 (dead "normalize reserved strategy values" comment block removed alongside CR-001's type narrowing).
+
+### Deferred (rolled into Phase 8 roll-up issue)
+
+- CR-010: Extract `trimBySeam` helper for the asc/desc filter branches in `buildExtend` and `buildReachBack`. Reviewer flagged this as "borderline — keeping each strategy readable end-to-end is also valid." Semantics differ (bracket vs. half-plane filter); a shared helper would need a mode parameter and obscure intent. Won't Fix.
+- CR-013, CR-015, CR-016, CR-017, CR-018, CR-019, CR-020: All Suggestion-severity test-quality nitpicks. Bundled into a single roll-up GitHub issue in Phase 8.
+
+### Verification
+
+- `npm run lint` clean
 - `npm test` — 336 tests pass
 
 ## Statistics

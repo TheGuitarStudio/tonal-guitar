@@ -143,6 +143,15 @@ export function classifyStrategy(
 // ============================================================
 
 /**
+ * Two `FrettedNote`s occupy the same physical position when they share the
+ * same `string` and `fret`. For a given tuning this also uniquely determines
+ * `midi`, so callers don't need to compare midi separately.
+ */
+function samePosition(a: FrettedNote, b: FrettedNote): boolean {
+  return a.string === b.string && a.fret === b.fret;
+}
+
+/**
  * Build a deduplicated, midi-sorted combined note array from two scales.
  * Notes from `prevScale` win over `nextScale` on a `(string, fret)` collision.
  *
@@ -224,26 +233,12 @@ export function buildExtend(
   });
 
   // Dedup seam: drop nextNotes[0] if it physically duplicates the bridge end.
+  // If the connector is empty, the "bridge end" is prev.lastNote itself.
   if (dedupSeam && nextNotes.length > 0) {
-    if (connector.length > 0) {
-      const connTail = connector[connector.length - 1];
-      const head = nextNotes[0];
-      if (
-        head.midi === connTail.midi &&
-        head.string === connTail.string &&
-        head.fret === connTail.fret
-      ) {
-        nextNotes = nextNotes.slice(1);
-      }
-    } else {
-      // Empty connector: compare against prev.lastNote by (string, fret).
-      const head = nextNotes[0];
-      if (
-        head.string === prev.lastNote.string &&
-        head.fret === prev.lastNote.fret
-      ) {
-        nextNotes = nextNotes.slice(1);
-      }
+    const reference =
+      connector.length > 0 ? connector[connector.length - 1] : prev.lastNote;
+    if (samePosition(nextNotes[0], reference)) {
+      nextNotes = nextNotes.slice(1);
     }
   }
 
@@ -298,12 +293,7 @@ export function buildReachBack(
 
   // Dedup seam: drop head if it physically matches prev.lastNote (string, fret).
   let nextNotes = trimmed;
-  if (
-    dedupSeam &&
-    nextNotes.length > 0 &&
-    nextNotes[0].string === prev.lastNote.string &&
-    nextNotes[0].fret === prev.lastNote.fret
-  ) {
+  if (dedupSeam && nextNotes.length > 0 && samePosition(nextNotes[0], prev.lastNote)) {
     nextNotes = nextNotes.slice(1);
   }
 
