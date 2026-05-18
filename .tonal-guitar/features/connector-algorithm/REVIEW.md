@@ -33,7 +33,7 @@ Non-code artifacts not under review:
 - [x] Phase 5: Code Simplification Review
 - [x] Phase 6: Code Simplification Fix
 - [x] Phase 7: Specialized Review (type safety)
-- [ ] Phase 8: Specialized Fixes
+- [x] Phase 8: Specialized Fixes
 - [ ] Phase 9: Final Verification
 
 ## Phase 2: Lint/Build/Test Results
@@ -123,6 +123,31 @@ Verified clean in `connect.ts`: no dead code, no commented-out scaffolding, no s
 
 - `npm run lint` clean
 - `npm test` — 336 tests pass
+
+## Phase 8: Specialized Fixes
+
+### Fixed
+
+All Important Phase 7 findings were rolled into the Phase 4 architecture-fix
+commit (they overlapped substantively with the API-shape work):
+
+- CR-005 (`buildExtend` empty-notes guard) — fixed in Phase 4
+- CR-006 (exhaustive switch dispatch) — fixed in Phase 4
+- CR-007 (duplicate of CR-001 type narrowing) — fixed in Phase 4
+
+### Deferred
+
+Per user's preference for a single roll-up issue, all 8 Suggestion-severity
+findings (CR-008, CR-013, CR-015, CR-016, CR-017, CR-018, CR-019, CR-020)
+are tracked in [issue #3](https://github.com/TheGuitarStudio/tonal-guitar/issues/3)
+with the `code-review` label.
+
+### Won't Fix
+
+- CR-010: Extract `trimBySeam` for the asc/desc filter branches. Reviewer
+  flagged as borderline; semantics differ across the two callsites (bracket
+  filter in `buildExtend` vs. half-plane filter in `buildReachBack`) and a
+  shared helper would obscure intent. Kept inline.
 
 ## Statistics
 
