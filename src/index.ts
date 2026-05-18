@@ -68,6 +68,16 @@ export type { WalkOptions, WalkShapeOptions } from "./walker";
 export { applySequence, flattenSequence } from "./sequence";
 export type { SequenceOptions } from "./sequence";
 
+// Connector algorithm
+export { connectSequences } from "./connect";
+export type {
+  ChainDirection,
+  ConnectSequencesInput,
+  ConnectorOptions,
+  ConnectorStrategy,
+  ConnectSequencesResult,
+} from "./connect";
+
 // Notation
 export {
   parseChordFrets,
