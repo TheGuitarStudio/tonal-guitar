@@ -23,7 +23,7 @@
 | Research  | research.md | draft   | 1     | no       |
 | Shape     | spec.md     | draft   | 1     | no       |
 | Plan      | tasks.md    | draft   | 1     | yes      |
-| Implement | src/connect.ts | complete | 1   | pending  |
+| Implement | src/connect.ts | complete | 1   | yes      |
 
 ## Deferred GitHub steps
 
@@ -132,6 +132,15 @@ Reviewer: `feature-dev:code-reviewer` (sonnet). Verdict: **PASS** (43/44 require
 covered, all 8 §3.4 scenario fingerprints present, dependency chain correct, Groups 3
 and 4 parallelizable). Three minor gaps addressed inline; review persisted to
 `reviews/plan-review.md`.
+
+### Phase 4 code review — 2026-05-18
+
+Full `/review` pipeline (9 phases) run against the branch; persisted to `REVIEW.md`.
+Findings: 0 critical, 10 important (9 fixed, 1 won't-fix CR-010), 10 suggestions (2
+fixed, 8 deferred to #3). Headline fixes: narrowed `ConnectorOptions.strategy` to
+`"auto"`, exhaustive `never`-typed switch dispatch, empty-notes guard in `buildExtend`,
+extracted `samePosition` helper. Final suite: 336 tests pass. PR
+[#4](https://github.com/TheGuitarStudio/tonal-guitar/pull/4) opened (Closes #2).
 
 ## Phase 4: Implement
 
