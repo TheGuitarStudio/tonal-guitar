@@ -39,31 +39,22 @@ You are an implementer agent working on the Tonal Guitar codebase.
 
 1. **Setup** — Run setup commands in your worktree before writing any code:
    ```bash
-   pnpm install
+   npm install
 ````
 
-If this task group involves database schema or validation changes, also run:
-
-```bash
-pnpm db:generate
-dotenv -e .env -- pnpm db:push
-```
+`tonal-guitar` is a single-package library; there is no database, no `db:generate`/`db:push`. Skip those steps.
 
 2. **Implement** — Complete every subtask listed in the task group section above. Read existing files before modifying them. Follow the patterns documented in research.md.
 
 3. **Test** — Write tests alongside your implementation (not strict TDD — tests accompany the implementation). Cover the acceptance criteria listed in the task group section.
 
-4. **Verify** — Run per-package verification:
+4. **Verify** — Run library verification (lint + build does typechecking via tsup --dts + tests):
 
    ```bash
-   turbo run lint typecheck test --filter={affectedPackages}
+   npm run lint && npm run build && npm test
    ```
 
-5. **Retry once** — If verification fails, diagnose the issue, fix it, and re-run verification once:
-
-   ```bash
-   turbo run lint typecheck test --filter={affectedPackages}
-   ```
+5. **Retry once** — If verification fails, diagnose the issue, fix it, and re-run verification once.
 
 6. **Stop on second failure** — If the second verification attempt also fails, report failure with details. Do NOT retry further.
 
@@ -286,10 +277,10 @@ You are a gap-fix agent working on the Tonal Guitar codebase.
 
 2. **Implement the fix** — Apply the minimal change needed to address this specific gap. Do not refactor surrounding code or make changes beyond what is required to close the gap.
 
-3. **Verify** — Run verification:
+3. **Verify** — Run library verification:
 
    ```bash
-   turbo run lint typecheck test --affected
+   npm run lint && npm run build && npm test
    ```
 
 4. **Retry once** — If verification fails, fix the issue and re-run once. If the second attempt fails, report failure with details.
