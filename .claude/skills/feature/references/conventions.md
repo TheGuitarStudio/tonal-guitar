@@ -165,11 +165,11 @@ Derive from the feature title:
 ### Feature Directory Structure
 
 The feature directory exists on the feature branch (`feat/{slug}`), not on main. When working
-locally, the worktree is created by `workmux add` — capture the path it reports as
-`<worktree-path>` and use it for the rest of the flow.
+locally, the worktree is created by `herdr worktree create` — capture the path it reports in
+the JSON (`result.worktree.path`) and use it for the rest of the flow.
 
 ```
-<worktree-path>/                         # Worktree root (reported by workmux on `add`)
+<worktree-path>/                         # Worktree root (from `herdr worktree create` JSON)
 └── .tonal-guitar/features/{slug}/
     ├── FEATURE.md          # Pipeline state tracking (includes Branch field)
     ├── raw-idea.md         # From /idea graduation (optional)

@@ -125,15 +125,16 @@ Never use `git add -A` — only stage specific files.
 
 ### Worktree Creation
 
-Graduation creates a worktree + branch using workmux. **Do not pass `--prompt` here** — the pane agent would fire immediately and try to read `FEATURE.md` before it's written, hitting a race. Suppress pane commands with `-C`:
+Graduation creates a worktree + branch using herdr. **Do not launch an agent here** — herdr opens the worktree's root pane as a plain shell, so nothing tries to read `FEATURE.md` before it's written (no race):
 
 ```bash
-workmux add feat/{slug} --base origin/main -b -C
+REPO=$(git rev-parse --show-toplevel)
+herdr worktree create --cwd "$REPO" --branch feat/{slug} --base origin/main --no-focus --json
 ```
 
-This creates branch `feat/{slug}` from `origin/main` and sets up the worktree (workmux reports the actual path on the `Worktree:` line — capture and reuse it as `<worktree-path>`). The `.env` file is copied automatically. `-b` keeps the current session active; `-C` keeps the pane as a plain shell until you open it.
+This creates branch `feat/{slug}` from `origin/main` and sets up the worktree (capture the path from the JSON `result.worktree.path` and reuse it as `<worktree-path>`). Copy any untracked `.env` into the worktree if the app needs it. `--no-focus` keeps the current session active; the root pane stays a plain shell until you open it.
 
-After writing `raw-idea.md` and `FEATURE.md` and committing, tell the user to run `workmux open feat/{slug}` when they want to start the feature pipeline — the pane will then have access to the populated `FEATURE.md`.
+After writing `raw-idea.md` and `FEATURE.md` and committing, tell the user to run `/tree --open feat/{slug}` (or `herdr worktree open --branch feat/{slug} --focus`) and start Claude when they want to begin the feature pipeline — the worktree will then have the populated `FEATURE.md`.
 
 ### Issue Body Template (Post-Graduation)
 

@@ -27,18 +27,18 @@ impl/{slug}/gap-{N}
 
 ### Worktree Naming
 
-Both implementer and gap-fix worktrees are created via `workmux add` — workmux determines the
-actual filesystem path and reports it on the `Worktree:` line. Capture and reuse that path as
-`<worktree-path>` for any follow-up commands.
+Both implementer and gap-fix worktrees are created via `herdr worktree create` — herdr
+determines the filesystem path and reports it in the JSON (`result.worktree.path`). Capture
+and reuse that path as `<worktree-path>` for any follow-up commands.
 
-| Type        | Branch                                  | Workmux directory hint     |
-| ----------- | --------------------------------------- | -------------------------- |
-| Implementer | `impl/{slug}/tg{N}-{group-name-slug}`   | `impl-{slug}-tg{N}/`       |
-| Gap-fix     | `impl/{slug}/gap-{N}`                   | `impl-{slug}-gap-{N}/`     |
+| Type        | Branch                                  | Worktree directory (flattened branch)   |
+| ----------- | --------------------------------------- | --------------------------------------- |
+| Implementer | `impl/{slug}/tg{N}-{group-name-slug}`   | `impl-{slug}-tg{N}-{group-name-slug}/`  |
+| Gap-fix     | `impl/{slug}/gap-{N}`                   | `impl-{slug}-gap-{N}/`                   |
 
-The "directory hint" is the branch's slugified form workmux uses when naming the worktree
-directory; the absolute parent path is workmux's choice — read it from `workmux ls` or the
-`Worktree:` line printed by `workmux add`.
+The directory name is the branch with slashes flattened to dashes, under herdr's central
+worktree tree; read the absolute path from `herdr worktree list --json`
+(`result.worktrees[].path`) or the `worktree create` JSON.
 
 ### Slugification Rules for `{group-name-slug}`
 
@@ -68,7 +68,7 @@ Slugification:
 Results:
 
 - Sub-branch: `impl/implement-skill/tg3-state-management-conventions`
-- Worktree directory hint: `impl-implement-skill-tg3/` (workmux reports the full path on creation)
+- Worktree directory: `impl-implement-skill-tg3-state-management-conventions/` (herdr reports the full path in the create JSON)
 
 ---
 
@@ -230,16 +230,20 @@ layer**, no Prisma, no `db:generate` / `db:push` commands. Skip those steps enti
 
 After a sub-branch is successfully merged, immediately remove its worktree and delete the
 branch. Do not defer cleanup to end-of-layer — clean up each sub-branch right after its
-individual merge succeeds.
+individual merge succeeds. Remove by the workspace id recorded when the worktree was created (`$WS`), or look it up by branch:
 
 ```bash
-workmux remove impl-{slug}-tg{N}
+WS=$(herdr worktree list --cwd "$(git rev-parse --show-toplevel)" --json \
+  | python3 -c 'import sys,json;b="impl/{slug}/tg{N}-{group-name-slug}";print(next((w["open_workspace_id"] for w in json.load(sys.stdin)["result"]["worktrees"] if w["branch"]==b and w.get("open_workspace_id")),""))')
+[ -n "$WS" ] && herdr worktree remove --workspace "$WS" --force --json
 ```
 
-For gap-fix branches:
+For gap-fix branches (look up by branch `impl/{slug}/gap-{N}`):
 
 ```bash
-workmux remove impl-{slug}-gap-{N}
+WS=$(herdr worktree list --cwd "$(git rev-parse --show-toplevel)" --json \
+  | python3 -c 'import sys,json;b="impl/{slug}/gap-{N}";print(next((w["open_workspace_id"] for w in json.load(sys.stdin)["result"]["worktrees"] if w["branch"]==b and w.get("open_workspace_id")),""))')
+[ -n "$WS" ] && herdr worktree remove --workspace "$WS" --force --json
 ```
 
 ### Failure Path
@@ -248,13 +252,15 @@ If an agent fails and the sub-branch was not merged:
 
 1. Remove the worktree immediately (it holds no unmerged value):
    ```bash
-   workmux remove impl-{slug}-tg{N}
+   WS=$(herdr worktree list --cwd "$(git rev-parse --show-toplevel)" --json \
+     | python3 -c 'import sys,json;b="impl/{slug}/tg{N}-{group-name-slug}";print(next((w["open_workspace_id"] for w in json.load(sys.stdin)["result"]["worktrees"] if w["branch"]==b and w.get("open_workspace_id")),""))')
+   [ -n "$WS" ] && herdr worktree remove --workspace "$WS" --force --json
    ```
    This removes the worktree but keeps the sub-branch (`impl/{slug}/tg{N}-{group-name-slug}`) — the user may inspect partial work or use it as a reference if they choose the manual fix option.
 2. On user-initiated **retry**: delete the old sub-branch and create a fresh worktree:
    ```bash
    git branch -D impl/{slug}/tg{N}-{group-name-slug}
-   workmux add impl/{slug}/tg{N}-{group-name-slug} --base feat/{slug} -b -C --name impl-{slug}-tg{N}
+   herdr worktree create --cwd "$(git rev-parse --show-toplevel)" --branch impl/{slug}/tg{N}-{group-name-slug} --base feat/{slug} --no-focus --json
    ```
 3. On user-initiated **skip**: delete the sub-branch (it will not be merged):
    ```bash

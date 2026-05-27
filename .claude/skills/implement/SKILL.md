@@ -225,13 +225,16 @@ For each layer (sequentially), execute the 12-step lifecycle:
 
 **Step 5.1 — Pre-layer logging**: Log the layer number, task groups, and sub-branch names.
 
-**Step 5.2 — Worktree creation**: For each task group in this layer, create a worktree with workmux:
+**Step 5.2 — Worktree creation**: For each task group in this layer, create a worktree with herdr. Record the worktree path (pass it to the Task agent in Step 5.3) and the workspace id (for cleanup in Step 5.6):
 
 ```bash
-workmux add impl/{slug}/tg{N}-{group-name-slug} --base feat/{slug} -b -C --name impl-{slug}-tg{N}
+REPO=$(git rev-parse --show-toplevel)
+OUT=$(herdr worktree create --cwd "$REPO" --branch impl/{slug}/tg{N}-{group-name-slug} --base feat/{slug} --no-focus --json)
+WTPATH=$(echo "$OUT" | python3 -c 'import sys,json;print(json.load(sys.stdin)["result"]["worktree"]["path"])')
+WS=$(echo "$OUT"     | python3 -c 'import sys,json;print(json.load(sys.stdin)["result"]["workspace"]["workspace_id"])')
 ```
 
-`-C` (no pane commands) suppresses auto-launching Claude because `/implement` manages its own agents via the `Task` tool. `-b` keeps it in background. The tmux window still opens (useful for monitoring) but with a plain shell.
+No agent is auto-launched — `/implement` manages its own agents via the `Task` tool, which works inside `$WTPATH`. `--no-focus` keeps your session focused; herdr opens a workspace for the worktree (useful for monitoring) with a plain shell.
 
 Sub-branch convention: `impl/{slug}/tg{N}-{group-name-slug}` where `{group-name-slug}` is the
 task group name slugified (lowercase, hyphens, no special chars, max 30 chars).
@@ -261,10 +264,10 @@ git merge impl/{slug}/tg{N}-{group-name-slug} --no-edit
 Merge each sub-branch sequentially. Order within a layer is arbitrary (same-layer groups modify
 independent code by design).
 
-**Step 5.6 — Cleanup**: Remove worktrees and sub-branches:
+**Step 5.6 — Cleanup**: Remove worktrees and sub-branches (use the `$WS` workspace id recorded in Step 5.2):
 
 ```bash
-workmux remove impl-{slug}-tg{N}
+herdr worktree remove --workspace "$WS" --force --json
 ```
 
 **Step 5.7 — Setup verification**: Re-run setup on the merged feature branch.
@@ -373,7 +376,10 @@ Runs after ALL layers complete successfully and the final full verification pass
 4. **Gap dispatch**: For each "Missing" or "Partial" gap:
 
    ```bash
-   workmux add impl/{slug}/gap-{N} --base feat/{slug} -b -C --name impl-{slug}-gap-{N}
+   REPO=$(git rev-parse --show-toplevel)
+   OUT=$(herdr worktree create --cwd "$REPO" --branch impl/{slug}/gap-{N} --base feat/{slug} --no-focus --json)
+   WTPATH=$(echo "$OUT" | python3 -c 'import sys,json;print(json.load(sys.stdin)["result"]["worktree"]["path"])')
+   WS=$(echo "$OUT"     | python3 -c 'import sys,json;print(json.load(sys.stdin)["result"]["workspace"]["workspace_id"])')
    ```
 
    Dispatch a sonnet agent using the Gap-Fix Agent prompt. Merge back, verify.
@@ -511,7 +517,7 @@ Key scenarios to verify when testing `/implement`:
 
 - Feature artifacts live on the feature branch (`feat/{slug}`), not on main.
 - Sub-branches use the `impl/{slug}/` prefix to distinguish from feature branches.
-- Worktrees are created via workmux alongside other worktrees (workmux determines the path on `add` — capture it from the output as `<worktree-path>` and reuse).
+- Worktrees are created via herdr alongside other worktrees (herdr reports the path in the `worktree create` JSON as `result.worktree.path` — capture it as `<worktree-path>` and reuse).
 - The 5-agent concurrency cap matches the `/fix --all` pattern.
 - `--watch` is default-on in v1 to build trust in the skill. Can flip to opt-in later.
 - `--plan-file` mode disables all pipeline integration (FEATURE.md, GitHub Project, oversight, compliance).

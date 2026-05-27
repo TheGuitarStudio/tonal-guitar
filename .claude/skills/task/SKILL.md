@@ -161,7 +161,11 @@ For `mode = "issue"`: the issue already exists, skip creation.
    - Default → `feat/`
 3. Create worktree:
    ```bash
-   workmux add {prefix}{slug} --base origin/main -b --prompt "Read TASK.md and continue implementation."
+   REPO=$(git rev-parse --show-toplevel)
+   PANE=$(herdr worktree create --cwd "$REPO" --branch {prefix}{slug} --base origin/main --no-focus --json \
+     | python3 -c 'import sys,json;print(json.load(sys.stdin)["result"]["root_pane"]["pane_id"])')
+   herdr pane run "$PANE" "claude" && herdr wait output "$PANE" --match ">" --timeout 20000
+   herdr pane run "$PANE" "Read TASK.md and continue implementation."
    ```
 
 #### 4c: Create TASK.md
@@ -260,7 +264,11 @@ For S-sized tasks only. No TASK.md, no GitHub issue, no persistence.
 2. **If on `main`** — create a worktree (never work directly on main):
 
    ```bash
-   workmux add {prefix}{slug} --base origin/main -b --prompt "Implement the task and verify."
+   REPO=$(git rev-parse --show-toplevel)
+   PANE=$(herdr worktree create --cwd "$REPO" --branch {prefix}{slug} --base origin/main --no-focus --json \
+     | python3 -c 'import sys,json;print(json.load(sys.stdin)["result"]["root_pane"]["pane_id"])')
+   herdr pane run "$PANE" "claude" && herdr wait output "$PANE" --match ">" --timeout 20000
+   herdr pane run "$PANE" "Implement the task and verify."
    ```
 
 3. **If on a feature/task/fix branch** — work on the current branch. The task becomes
