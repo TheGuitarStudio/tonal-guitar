@@ -266,7 +266,9 @@ describe("Task Group 3: Extend Strategy", () => {
 
   // Scenario 1: E asc → D desc (next higher → extend)
   // prev last note = B4 (s5f7, midi 71), target = D5 (midi 74)
-  // connector = [C#5(s5f9), D5(s5f10)]
+  // Motif-aware connector: thirds (1,3) pairs walking the combined E∪D scale,
+  // keeping periods whose final note is past seam and within target.
+  // → pairs (A4, C#5), (B4, D5) at [[5,5], [5,9], [5,7], [5,10]]
   const prevAscS1 = walkShapeMotif(eShapeA, motif, { direction: "ascending" });
   const prevLastNoteS1 = prevAscS1[prevAscS1.length - 1]; // B4 (s5f7, midi 71)
 
@@ -295,15 +297,26 @@ describe("Task Group 3: Extend Strategy", () => {
     expect(result.strategy).toBe("extend");
   });
 
-  test("Scenario 1: connector note names are [C#5, D5]", () => {
+  test("Scenario 1: connector note names are [A4, C#5, B4, D5]", () => {
     const result = buildExtend(inputS1, true, motif);
-    expect(result.connector.map((n) => n.note)).toEqual(["C#5", "D5"]);
+    expect(result.connector.map((n) => n.note)).toEqual([
+      "A4",
+      "C#5",
+      "B4",
+      "D5",
+    ]);
   });
 
-  test("Scenario 1: connector fret positions are [[5,9], [5,10]]", () => {
+  test("Scenario 1: connector fret positions are [[4,10], [5,9], [5,7], [5,10]]", () => {
     const result = buildExtend(inputS1, true, motif);
+    // A4 dedup lands on D shape's [4,10] (E shape's [5,5] is a later
+    // duplicate key — combined dedup keeps insertion order, prev wins;
+    // here D's A4 occupies a different (string, fret) so both survive
+    // but the lower-numbered (string, fret) sorts first at midi 69).
     expect(result.connector.map((n) => [n.string, n.fret])).toEqual([
+      [4, 10],
       [5, 9],
+      [5, 7],
       [5, 10],
     ]);
   });
@@ -328,10 +341,16 @@ describe("Task Group 3: Extend Strategy", () => {
     expect(result.strategy).toBe("extend");
   });
 
-  test("Scenario 4: connector note names are [F#2] at [[0,2]]", () => {
+  test("Scenario 4: connector note names are [A2, F#2] at [[0,5], [0,2]]", () => {
     const result = buildExtend(inputS4, true, motif);
-    expect(result.connector.map((n) => n.note)).toEqual(["F#2"]);
-    expect(result.connector.map((n) => [n.string, n.fret])).toEqual([[0, 2]]);
+    expect(result.connector.map((n) => n.note)).toEqual(["A2", "F#2"]);
+    // A2 occurs at both [0,5] (low E + 5) and [1,0] (A string open).
+    // Combined dedup keeps both (different keys); descending sort by midi
+    // is stable and the E shape's [0,5] is iterated first.
+    expect(result.connector.map((n) => [n.string, n.fret])).toEqual([
+      [0, 5],
+      [0, 2],
+    ]);
   });
 
   test("Scenario 4: dedupSeam true — nextNotes[0] is not F#2 and nextNotes is non-empty", () => {
@@ -347,21 +366,31 @@ describe("Task Group 3: Extend Strategy", () => {
 
   // ---------------------------------------------------------------
   // Direction invariants
+  //
+  // Motif-aware extend emits whole motif periods (e.g. thirds (1,3) → pairs
+  // of (low, high) ascending or (high, low) descending). The per-note midi
+  // sequence is therefore NOT monotonic — within a single period it can
+  // zig-zag. The valid invariant is on *period starts*: they are strictly
+  // monotonic in prev.direction.
   // ---------------------------------------------------------------
 
-  test("Ascending extend: connector midi values are strictly ascending", () => {
+  test("Ascending extend: motif period starts are strictly ascending", () => {
     const result = buildExtend(inputS1, true, motif);
-    const midis = result.connector.map((n) => n.midi);
-    for (let i = 1; i < midis.length; i++) {
-      expect(midis[i]).toBeGreaterThan(midis[i - 1]);
+    const period = motif.length;
+    for (let i = period; i < result.connector.length; i += period) {
+      expect(result.connector[i].midi).toBeGreaterThan(
+        result.connector[i - period].midi,
+      );
     }
   });
 
-  test("Descending extend: connector midi values are strictly descending", () => {
+  test("Descending extend: motif period starts are strictly descending", () => {
     const result = buildExtend(inputS4, true, motif);
-    const midis = result.connector.map((n) => n.midi);
-    for (let i = 1; i < midis.length; i++) {
-      expect(midis[i]).toBeLessThan(midis[i - 1]);
+    const period = motif.length;
+    for (let i = period; i < result.connector.length; i += period) {
+      expect(result.connector[i].midi).toBeLessThan(
+        result.connector[i - period].midi,
+      );
     }
   });
 

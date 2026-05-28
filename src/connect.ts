@@ -172,20 +172,30 @@ export function dedupAndSortCombined(
 /**
  * Build the extend strategy result. The extend strategy applies when the
  * direction reverses and the next shape sits in a non-overlapping pitch range
- * (higher for asc→desc, lower for desc→asc). A linear diatonic "pickup" is
- * inserted between prev's last note and next's extreme, then next is walked
+ * (higher for asc→desc, lower for desc→asc). A motif-aware diatonic "pickup"
+ * is inserted between prev's last note and next's extreme, then next is walked
  * normally with the duplicate pivot note optionally deduped.
  *
- * Algorithm (spec §3.3 extend):
+ * Algorithm (motif-aware extend):
  *   seam     = prev.lastNote.midi
  *   target   = ascending → max(next.scale.notes[*].midi)
  *              descending → min(next.scale.notes[*].midi)
- *   combined = prev.scale.notes ∪ next.scale.notes, deduped by (string, fret),
- *              sorted by midi ascending
- *   connector (ascending):  combined.filter(n => n.midi >  seam && n.midi <= target)
- *   connector (descending): combined.filter(n => n.midi <  seam && n.midi >= target).reverse()
+ *   combined = synthetic FrettedScale whose notes are prev.scale.notes ∪
+ *              next.scale.notes, deduped by (string, fret), sorted ascending;
+ *              metadata inherited from next.scale
+ *   walked   = walkShapeMotif(combined, effectiveMotif, { direction: prev.direction })
+ *
+ *   The walk emits the motif at every starting position in the combined shape,
+ *   producing groups of `effectiveMotif.length` notes per period. The connector
+ *   is the suffix of `walked` covering the seam-to-target range, keeping ENTIRE
+ *   motif periods whose final note lies past the seam and up to the target.
+ *
+ *   For motif `[1, 3]` (thirds) E↑ → D↓ in A major, this yields pairs like
+ *   (A, C#) and (B, D) — matching how a guitarist would musically extend the
+ *   pattern over the seam rather than just playing the in-between pitches.
+ *
  *   nextNotes = walkShapeMotif(next.scale, effectiveMotif, { direction: next.direction })
- *   dedupSeam: drop nextNotes[0] if it matches connector.at(-1) on (midi, string, fret);
+ *   dedupSeam: drop nextNotes[0] if it matches connector.at(-1) on (string, fret);
  *              or, if connector is empty, drop nextNotes[0] if it matches prev.lastNote on (string, fret)
  *
  * @internal
@@ -205,8 +215,14 @@ export function buildExtend(
     return { connector: [], nextNotes: [], strategy: "extend" };
   }
 
-  // Build combined note set: prev then next, dedup by (string, fret), first wins.
-  const combined = dedupAndSortCombined(prev.scale, next.scale);
+  // Build synthetic combined FrettedScale: dedup by (string, fret), prev wins.
+  // Metadata is inherited from next; only `notes` and `empty` are overridden.
+  const combinedNotes = dedupAndSortCombined(prev.scale, next.scale);
+  const combinedScale: FrettedScale = {
+    ...next.scale,
+    notes: combinedNotes,
+    empty: combinedNotes.length === 0,
+  };
 
   const seam = prev.lastNote.midi;
   const nextMidis = next.scale.notes.map((n) => n.midi);
@@ -215,16 +231,28 @@ export function buildExtend(
       ? Math.max(...nextMidis)
       : Math.min(...nextMidis);
 
-  // Filter connector notes between seam (exclusive) and target (inclusive).
-  let connector: FrettedNote[];
-  if (prev.direction === "ascending") {
-    connector = combined.filter((n) => n.midi > seam && n.midi <= target);
-    // combined is already ascending — no need to sort again
-  } else {
-    // descending: notes below seam down to target, reversed to descending order
-    connector = combined
-      .filter((n) => n.midi < seam && n.midi >= target)
-      .reverse();
+  // Walk the combined scale with the motif in prev's direction. This produces
+  // the same kind of pair/triplet emissions a guitarist would play, just over
+  // the combined fretboard region rather than within a single shape.
+  const walked = walkShapeMotif(combinedScale, effectiveMotif, {
+    direction: prev.direction,
+  });
+
+  // Trim to whole motif periods whose final note lies past the seam and within
+  // the target. Iterating period-by-period keeps motif pairs intact (e.g. an
+  // ascending thirds period (A, C#) is kept even though A < seam, because C#
+  // > seam — dropping the A would break the musical pattern).
+  const period = effectiveMotif.length;
+  const connector: FrettedNote[] = [];
+  for (let i = 0; i + period <= walked.length; i += period) {
+    const last = walked[i + period - 1];
+    const inRange =
+      prev.direction === "ascending"
+        ? last.midi > seam && last.midi <= target
+        : last.midi < seam && last.midi >= target;
+    if (inRange) {
+      for (let j = 0; j < period; j++) connector.push(walked[i + j]);
+    }
   }
 
   // Walk next shape with the effective motif.
