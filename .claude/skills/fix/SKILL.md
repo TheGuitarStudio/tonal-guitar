@@ -114,7 +114,11 @@ See [../references/shared-conventions.md](../references/shared-conventions.md).
      ```
    - **M:** Worktree:
      ```bash
-     workmux add {prefix}/{slug} --base origin/main -b --prompt "Investigate and fix the issue described in the branch name."
+     REPO=$(git rev-parse --show-toplevel)
+     PANE=$(herdr worktree create --cwd "$REPO" --branch {prefix}/{slug} --base origin/main --no-focus --json \
+       | python3 -c 'import sys,json;print(json.load(sys.stdin)["result"]["root_pane"]["pane_id"])')
+     herdr pane run "$PANE" "claude" && herdr wait output "$PANE" --match ">" --timeout 20000
+     herdr pane run "$PANE" "Investigate and fix the issue described in the branch name."
      ```
 
 4. Update GitHub Project item status to "In Progress" (if from issue).
@@ -200,7 +204,11 @@ For each selected issue (max **5 concurrent**, queue the rest):
 1. Create worktree:
 
    ```bash
-   workmux add {prefix}/{slug} --base origin/main -b --prompt "Investigate and fix the issue described in the branch name."
+   REPO=$(git rev-parse --show-toplevel)
+   PANE=$(herdr worktree create --cwd "$REPO" --branch {prefix}/{slug} --base origin/main --no-focus --json \
+     | python3 -c 'import sys,json;print(json.load(sys.stdin)["result"]["root_pane"]["pane_id"])')
+   herdr pane run "$PANE" "claude" && herdr wait output "$PANE" --match ">" --timeout 20000
+   herdr pane run "$PANE" "Investigate and fix the issue described in the branch name."
    ```
 
 2. Read [references/agent-prompts.md](references/agent-prompts.md) for the appropriate agent prompt:

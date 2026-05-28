@@ -206,16 +206,17 @@ Interactive brainstorming session to refine a captured idea into a structured sp
 
 4. Derive the branch name: `feat/{slug}`
 
-5. Create worktree + branch **without firing the pane agent yet** (the agent's prompt asks it to read `FEATURE.md`, which doesn't exist until step 7):
+5. Create worktree + branch. herdr opens a plain shell workspace (no agent fires), so there's no race with `FEATURE.md` not existing until step 7:
 
    ```bash
-   workmux add feat/{slug} --base origin/main -b -C
+   REPO=$(git rev-parse --show-toplevel)
+   herdr worktree create --cwd "$REPO" --branch feat/{slug} --base origin/main --no-focus --json
    ```
 
-   - `-b` runs in background so the current session continues.
-   - `-C` (`--no-pane-cmds`) skips the agent invocation; the pane opens as a plain shell when later opened. This avoids a race where the agent reads `FEATURE.md` before it's written.
+   - `--no-focus` keeps the current session focused so it continues.
+   - herdr does not auto-launch an agent; the worktree's root pane is a plain shell until you open it. This avoids a race where an agent reads `FEATURE.md` before it's written.
 
-   Capture the worktree path from the workmux output (line `Worktree: <path>`). Use it as `<worktree-path>` in subsequent steps. The feature directory lives at `<worktree-path>/.tonal-guitar/features/{slug}/`.
+   Capture the worktree path from the JSON (`result.worktree.path`). Use it as `<worktree-path>` in subsequent steps. The feature directory lives at `<worktree-path>/.tonal-guitar/features/{slug}/`.
 
 6. Create the feature directory at `<worktree-path>/.tonal-guitar/features/{slug}/`.
 
@@ -263,7 +264,7 @@ Interactive brainstorming session to refine a captured idea into a structured sp
     git -C <worktree-path> push -u origin feat/{slug}
     ```
 
-14. Tell the user: "Idea graduated. Worktree at `<worktree-path>`, branch `feat/{slug}` pushed to GitHub. Open the pane when you're ready with `workmux open feat/{slug}` (now that FEATURE.md exists the agent will read it correctly), then run `/feature --from #{issueNumber}` from that worktree."
+14. Tell the user: "Idea graduated. Worktree at `<worktree-path>`, branch `feat/{slug}` pushed to GitHub. Open it when you're ready with `/tree --open feat/{slug}` (or `herdr worktree open --branch feat/{slug} --focus`) and start Claude there — now that FEATURE.md exists it'll read correctly. Then run `/feature --from #{issueNumber}` from that worktree."
 
 ---
 

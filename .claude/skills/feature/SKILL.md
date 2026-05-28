@@ -99,7 +99,7 @@ For all other modes, enforce that the current branch matches the feature's branc
      You are on `{current-branch}`.
 
      Switch to the feature worktree:
-       cd <worktree-path>            # path reported by `workmux ls` or the original `workmux add` output
+       cd <worktree-path>            # path from `herdr worktree list --json` or the original `worktree create` output
 
      Or if you don't have a local worktree, create one:
        /tree add {slug}
@@ -120,11 +120,12 @@ Based on the mode, determine the active feature:
 1. Interactive session: ask the user what feature they want to specify.
 2. Read product context: `docs/product/roadmap.md`, `docs/product/mission.md`.
 3. Derive a slug from the feature title.
-4. Create worktree + branch. Use `-C` to suppress pane commands so the agent doesn't try to read `FEATURE.md` before it exists:
+4. Create worktree + branch. herdr opens a plain shell workspace (no agent), so nothing reads `FEATURE.md` before it exists:
    ```bash
-   workmux add feat/{slug} --base origin/main -b -C
+   REPO=$(git rev-parse --show-toplevel)
+   herdr worktree create --cwd "$REPO" --branch feat/{slug} --base origin/main --no-focus --json
    ```
-   Capture the path workmux prints on the `Worktree:` line and reuse it as `<worktree-path>` below.
+   Capture the path from the JSON (`result.worktree.path`) and reuse it as `<worktree-path>` below.
 5. Create `<worktree-path>/.tonal-guitar/features/{slug}/FEATURE.md` using [templates/feature-state-template.md](templates/feature-state-template.md). Set `Branch: feat/{slug}`.
 6. Create a GitHub issue for tracking:
    ```bash
@@ -140,7 +141,7 @@ Based on the mode, determine the active feature:
    ```bash
    git -C <worktree-path> push -u origin feat/{slug}
    ```
-10. Tell the user: "Feature initialized. Worktree at `<worktree-path>`, branch `feat/{slug}` pushed. Run `workmux open feat/{slug}` to attach the pane (now that FEATURE.md exists), then continue `/feature` work from that worktree."
+10. Tell the user: "Feature initialized. Worktree at `<worktree-path>`, branch `feat/{slug}` pushed. Run `/tree --open feat/{slug}` (or `herdr worktree open --branch feat/{slug} --focus`) and start Claude to attach (now that FEATURE.md exists), then continue `/feature` work from that worktree."
 11. Proceed to Phase 1.
 
 #### `mode = "from"` (`--from <id>`)
@@ -152,19 +153,24 @@ Based on the mode, determine the active feature:
 2. Check if a feature directory already exists for this issue (scan FEATURE.md files for matching issue number).
 3. If a directory exists (e.g., from `/idea --shape`):
    - Read FEATURE.md and extract the `Branch` field.
-   - Check if a local worktree exists for this branch. If not, create one from the remote. `FEATURE.md` already exists on the remote branch, so it's safe to fire the pane agent immediately:
+   - Check if a local worktree exists for this branch. If not, create one from the remote. `FEATURE.md` already exists on the remote branch, so it's safe to launch the agent immediately:
      ```bash
      git fetch origin feat/{slug}
-     workmux add feat/{slug} --base origin/feat/{slug} -b --prompt "Read .tonal-guitar/features/{slug}/FEATURE.md and continue the current pipeline phase."
+     REPO=$(git rev-parse --show-toplevel)
+     PANE=$(herdr worktree create --cwd "$REPO" --branch feat/{slug} --base origin/feat/{slug} --no-focus --json \
+       | python3 -c 'import sys,json;print(json.load(sys.stdin)["result"]["root_pane"]["pane_id"])')
+     herdr pane run "$PANE" "claude" && herdr wait output "$PANE" --match ">" --timeout 20000
+     herdr pane run "$PANE" "Read .tonal-guitar/features/{slug}/FEATURE.md and continue the current pipeline phase."
      ```
    - The branch guard (Step 1.5) enforces you're on the correct branch before proceeding.
 4. If no directory exists:
    - Derive slug from issue title.
-   - Create worktree + branch (suppress pane agent until FEATURE.md is written — same race as in `/idea --shape`):
+   - Create worktree + branch (no agent until FEATURE.md is written — same race as in `/idea --shape`):
      ```bash
-     workmux add feat/{slug} --base origin/main -b -C
+     REPO=$(git rev-parse --show-toplevel)
+     herdr worktree create --cwd "$REPO" --branch feat/{slug} --base origin/main --no-focus --json
      ```
-     Capture the `Worktree:` path from workmux output as `<worktree-path>`.
+     Capture the worktree path from the JSON (`result.worktree.path`) as `<worktree-path>`.
    - Create `<worktree-path>/.tonal-guitar/features/{slug}/FEATURE.md` with origin set to `--from #{id}` and `Branch: feat/{slug}`.
    - Commit on the feature branch:
      ```bash
@@ -175,7 +181,7 @@ Based on the mode, determine the active feature:
      ```bash
      git -C <worktree-path> push -u origin feat/{slug}
      ```
-   - Tell the user to `workmux open feat/{slug}` when ready to attach the pane.
+   - Tell the user to `/tree --open feat/{slug}` (or `herdr worktree open --branch feat/{slug} --focus`) and start Claude when ready.
    - Update the issue body to include branch info:
 
      ```markdown
@@ -470,7 +476,7 @@ When `/feature --resume` is invoked:
 ## Notes
 
 - Feature artifacts live on the feature branch (`feat/{slug}`), not on main
-- Each feature gets a dedicated worktree (workmux determines the path on `add`; capture it from the output and store it as `<worktree-path>` for the rest of the flow)
+- Each feature gets a dedicated worktree (herdr reports the path in the `worktree create` JSON as `result.worktree.path`; capture it and store it as `<worktree-path>` for the rest of the flow)
 - The branch guard (Step 1.5) prevents accidental work on the wrong branch
 - The `project-config.json` is gitignored — auto-detected per developer
 - Each phase can be run independently with phase flags (`--research`, `--shape`, `--plan`)
