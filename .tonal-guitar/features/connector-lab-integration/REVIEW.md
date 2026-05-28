@@ -18,7 +18,9 @@ This project is a single-package npm library (`src/`) plus a Next.js site (`site
 - [x] Phase 3: Architecture Review
 - [x] Phase 4: Architecture Fix (8 of 10 applied, 2 deferred)
 - [x] Phase 5: Code Simplification Review
-- [ ] Phase 6: Code Simplification Fix
+- [x] Phase 6: Code Simplification Fix (5 of 6 applied, 1 deferred)
+- [x] Phase 7: Specialized Reviews
+- [ ] Phase 8: Specialized Fixes
 - [ ] Phase 4: Architecture Fix
 - [ ] Phase 5: Code Simplification Review
 - [ ] Phase 6: Code Simplification Fix
@@ -93,6 +95,35 @@ This project is a single-package npm library (`src/`) plus a Next.js site (`site
 | CR-014 | Suggestion | **Fix**  | Shared type prevents drift |
 | CR-015 | Suggestion | **Fix**  | Refactor helper with options param |
 | CR-016 | Suggestion | Defer    | Changing generated-code shape risks regressing AlphaTab/JSON expectations; cosmetic |
+
+## Phase 7: Specialized Reviews
+
+### Type Safety — Important
+
+- **CR-017**: `codeGen.ts:203` accesses `connectorsAndNextNotes[k-1].strategy` without an optional-chain guard. The invariant `length === chain.length - 1` is set by PipelineBuilder but not enforced by the `CodeGenInput` type. ChainSection already uses `?.` on the same pattern.
+
+### Type Safety — Suggestions
+
+- **CR-018**: 3NPS/pentatonic smoke tests use `result!.strategy` after declaring `let result` uninitialized. If `connectSequences` did throw, the assertion message would be misleading. (`src/connect.test.ts:806,807,829`)
+- **CR-019**: `CodeGenInput.connectorsAndNextNotes` uses `unknown[]` for connector/nextNotes. Intentional (avoids `tonal-guitar` runtime import) but accepts type mismatches silently. Documented in `ChainSection.tsx:SeamData` comment.
+
+### Security — Important
+
+- **CR-020**: `recipe.tuningConst` interpolated **raw** (unquoted) into emitted JS as an identifier. UI path is safe (closed `TUNING_CONST` map), but a malicious preset could inject arbitrary JS into the code preview which the user might copy/run. (`codeGen.ts:108,159,168`)
+
+### Security — Suggestions
+
+- **CR-021**: `entry.label` and `recipe.modeId` interpolated into `//` comment lines without newline stripping. A multiline label would terminate the comment and emit the remainder as code. UI inputs are constrained today; presets could pose risk. (`codeGen.ts:192,96`)
+
+### Triage decisions
+
+| ID     | Lens         | Action   | Notes |
+| ------ | ------------ | -------- | ----- |
+| CR-017 | Type safety  | **Fix**  | Defensive `?.` matches existing style in ChainSection |
+| CR-018 | Type safety  | **Fix**  | Replace with direct call assignment |
+| CR-019 | Type safety  | Defer    | Already documented; intentional |
+| CR-020 | Security     | **Fix**  | Validate against allowlist before emitting |
+| CR-021 | Security     | **Fix**  | One-liner newline sanitization |
 
 ## Commands adapted for this project
 

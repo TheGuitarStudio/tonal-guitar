@@ -1,6 +1,35 @@
 import { effectiveModeForSystem } from "fretboard-ui";
 
 /**
+ * Allow-list of tuning identifiers that `codeGen` is willing to emit as
+ * bare JavaScript identifiers. Any `tuningConst` outside this set is
+ * replaced with `"STANDARD"` before injection — protects against
+ * malformed presets sneaking arbitrary identifiers (or worse, JS
+ * fragments) into the generated code that the user might copy/paste.
+ */
+const ALLOWED_TUNING_CONSTS = new Set([
+  "STANDARD",
+  "DROP_D",
+  "DADGAD",
+  "OPEN_G",
+  "STANDARD_7",
+  "STANDARD_8",
+]);
+
+function safeTuningConst(raw: string): string {
+  return ALLOWED_TUNING_CONSTS.has(raw) ? raw : "STANDARD";
+}
+
+/**
+ * Strip CR/LF characters so a multi-line value (e.g. a malformed preset
+ * label) cannot terminate a generated `//` comment and emit the remainder
+ * as bare code. Replaces line breaks with a single space.
+ */
+function safeComment(raw: string): string {
+  return raw.replace(/[\r\n]+/g, " ");
+}
+
+/**
  * A snapshot of pipeline inputs sufficient to regenerate a sequence —
  * either the live preview or a frozen chain entry.
  */
@@ -75,8 +104,9 @@ function emitSegment(
   const notesVar = `notes${suffix}`;
   const buildRootVar = `buildRoot${suffix}`;
 
+  const tuningConst = safeTuningConst(recipe.tuningConst);
   tonal.add("get");
-  tonal.add(recipe.tuningConst);
+  tonal.add(tuningConst);
   tonal.add("buildFrettedScale");
   lines.push(`const ${shapeVar} = get(${JSON.stringify(recipe.shapeName)});`);
 
@@ -93,7 +123,9 @@ function emitSegment(
   if (needsModalShift) {
     fretboardUi.add("parentRoot");
     lines.push(
-      `// "${recipe.root}" + ${recipe.modeId} -> parent = ${effective}`,
+      safeComment(
+        `// "${recipe.root}" + ${recipe.modeId} -> parent = ${effective}`,
+      ),
     );
     lines.push(
       `const ${buildRootVar} = parentRoot(${JSON.stringify(recipe.root)}, ${JSON.stringify(effective)}) ?? ${JSON.stringify(recipe.root)};`,
@@ -105,7 +137,7 @@ function emitSegment(
     ? ", { allowOpenStrings: false }"
     : "";
   lines.push(
-    `const ${scaleVar} = buildFrettedScale(${shapeVar}, ${buildRootExpr}, ${recipe.tuningConst}${buildOpts});`,
+    `const ${scaleVar} = buildFrettedScale(${shapeVar}, ${buildRootExpr}, ${tuningConst}${buildOpts});`,
   );
 
   const descending = recipe.direction === "descending";
@@ -189,7 +221,7 @@ export function generateCode(input: CodeGenInput): CodeGenResult {
     input.chain.forEach((entry, i) => {
       const suffix = String(i + 1);
       if (i > 0) lines.push("");
-      lines.push(`// ${i + 1}. ${entry.label}`);
+      lines.push(safeComment(`// ${i + 1}. ${entry.label}`));
       const seg = emitSegment(entry.recipe, suffix, tonal, fretboardUi);
       lines.push(...seg.lines);
       scaleVars.push(seg.scaleVar);
@@ -200,7 +232,11 @@ export function generateCode(input: CodeGenInput): CodeGenResult {
     if (input.bridgeEnabled && input.chain.length >= 2) {
       tonal.add("connectSequences");
       for (let k = 1; k < input.chain.length; k++) {
-        const strategy = input.connectorsAndNextNotes[k - 1].strategy;
+        // Defensive `?.` — the parallel-array invariant (length ===
+        // chain.length - 1) is established in PipelineBuilder but the
+        // CodeGenInput type can't enforce it across the boundary.
+        const strategy =
+          input.connectorsAndNextNotes[k - 1]?.strategy ?? "none";
         lines.push(`// seam ${k + 1}: ${strategy}`);
         lines.push(
           `const seam${k + 1} = connectSequences({ prev: { scale: ${scaleVars[k - 1]}, lastNote: ${notesVars[k - 1]}[${notesVars[k - 1]}.length - 1], direction: ${JSON.stringify(input.chain[k - 1].recipe.direction)} }, next: { scale: ${scaleVars[k]}, motif: ${motifVars[k]}, direction: ${JSON.stringify(input.chain[k].recipe.direction)} } });`,
@@ -226,7 +262,7 @@ export function generateCode(input: CodeGenInput): CodeGenResult {
     lines.push(
       ...emitOutput(
         "chain",
-        input.current.tuningConst,
+        safeTuningConst(input.current.tuningConst),
         input.current.root,
         "Chain",
         input,
@@ -251,7 +287,7 @@ export function generateCode(input: CodeGenInput): CodeGenResult {
     lines.push(
       ...emitOutput(
         seg.notesVar,
-        recipe.tuningConst,
+        safeTuningConst(recipe.tuningConst),
         recipe.root,
         title,
         input,

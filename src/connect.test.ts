@@ -799,12 +799,12 @@ describe("Task Group 5: connectSequences Integration & Edge Cases", () => {
       next: { scale: nps2A, motif, direction: "descending" },
     };
 
-    let result: ConnectSequencesResult;
-    expect(() => {
-      result = connectSequences(inputNps);
-    }).not.toThrow();
-    expect(result!.strategy).not.toBe("none");
-    expect(result!.nextNotes.length).toBeGreaterThan(0);
+    // connectSequences is documented as "never throws" — call it directly
+    // and let vitest surface any throw as a test failure with a real
+    // stack rather than hiding it behind a non-null assertion.
+    const result = connectSequences(inputNps);
+    expect(result.strategy).not.toBe("none");
+    expect(result.nextNotes.length).toBeGreaterThan(0);
   });
 
   // ---------------------------------------------------------------
@@ -822,11 +822,8 @@ describe("Task Group 5: connectSequences Integration & Edge Cases", () => {
       next: { scale: box2A, motif, direction: "descending" },
     };
 
-    let result: ConnectSequencesResult;
-    expect(() => {
-      result = connectSequences(inputPenta);
-    }).not.toThrow();
-    expect(result!.strategy).not.toBe("none");
+    const result = connectSequences(inputPenta);
+    expect(result.strategy).not.toBe("none");
   });
 
   // ---------------------------------------------------------------
