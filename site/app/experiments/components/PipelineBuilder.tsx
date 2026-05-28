@@ -29,13 +29,14 @@ import {
   STANDARD_8,
   get,
   names,
-  buildFrettedScale,
   walkPattern,
   walkShapeMotif,
   toAlphaTeX,
   toAsciiTab,
+  connectSequences,
 } from "tonal-guitar";
-import type { FrettedNote, FrettedScale } from "tonal-guitar";
+import type { FrettedNote, FrettedScale, ConnectorStrategy } from "tonal-guitar";
+import { rebuildScale } from "./chainUtils";
 
 const TUNINGS: Record<string, string[]> = {
   Standard: STANDARD,
@@ -125,6 +126,7 @@ export function PipelineBuilder() {
 
   // Chain of queued sequences.
   const [chain, setChain] = useState<ChainEntry[]>([]);
+  const [bridgeEnabled, setBridgeEnabled] = useState(false);
   const [selection, setSelection] = useState<Selection>({ kind: "current" });
 
   // Derived
@@ -143,14 +145,6 @@ export function PipelineBuilder() {
       ? undefined
       : root;
 
-  const scale: FrettedScale | null = useMemo(() => {
-    if (!shape) return null;
-    const result = buildFrettedScale(shape, buildRoot, tuning, {
-      allowOpenStrings: showOpenStrings,
-    });
-    return result.empty ? null : result;
-  }, [shape, buildRoot, tuning, showOpenStrings]);
-
   const motif: number[] = useMemo(() => {
     if (motifName === "Custom") {
       return customMotif
@@ -160,6 +154,41 @@ export function PipelineBuilder() {
     }
     return MOTIFS[motifName] ?? [];
   }, [motifName, customMotif]);
+
+  // Snapshot of the live pipeline inputs — used both by the code preview
+  // (when "current" is selected) and when freezing the recipe into the chain.
+  const currentRecipe: PipelineRecipe = useMemo(
+    () => ({
+      tuningName,
+      tuningConst: TUNING_CONST[tuningName] ?? "STANDARD",
+      shapeName,
+      shapeSystem,
+      root,
+      modeId,
+      showOpenStrings,
+      motif,
+      motifName,
+      walkFullShape,
+      direction,
+    }),
+    [
+      tuningName,
+      shapeName,
+      shapeSystem,
+      root,
+      modeId,
+      showOpenStrings,
+      motif,
+      motifName,
+      walkFullShape,
+      direction,
+    ],
+  );
+
+  const scale: FrettedScale | null = useMemo(
+    () => rebuildScale(currentRecipe, tuning),
+    [currentRecipe, tuning],
+  );
 
   // Currently-edited pipeline output (the "preview").
   const currentNotes: FrettedNote[] | null = useMemo(() => {
@@ -178,6 +207,50 @@ export function PipelineBuilder() {
     }
     return notes.length > 0 ? notes : scale.notes;
   }, [scale, motif, walkFullShape, direction]);
+
+  type SeamData = {
+    connector: FrettedNote[];
+    nextNotes: FrettedNote[];
+    strategy: ConnectorStrategy;
+  };
+
+  const connectorsAndNextNotes: SeamData[] = useMemo(() => {
+    const out: SeamData[] = [];
+    for (let i = 1; i < chain.length; i++) {
+      const prevEntry = chain[i - 1];
+      const nextEntry = chain[i];
+      const prevScale = rebuildScale(prevEntry.recipe, TUNINGS[prevEntry.recipe.tuningName] ?? STANDARD);
+      const nextScale = rebuildScale(nextEntry.recipe, TUNINGS[nextEntry.recipe.tuningName] ?? STANDARD);
+      if (
+        !prevScale ||
+        !nextScale ||
+        prevEntry.notes.length === 0
+      ) {
+        out.push({ connector: [], nextNotes: nextEntry.notes, strategy: "none" });
+        continue;
+      }
+      const lastNote = prevEntry.notes[prevEntry.notes.length - 1];
+      const result = connectSequences({
+        prev: {
+          scale: prevScale,
+          lastNote,
+          direction: prevEntry.recipe.direction,
+        },
+        next: {
+          scale: nextScale,
+          motif: nextEntry.recipe.motif,
+          direction: nextEntry.recipe.direction,
+        },
+      });
+      out.push({
+        connector: result.connector,
+        nextNotes: result.nextNotes,
+        strategy: result.strategy,
+      });
+    }
+    return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chain]);
 
   // Snap selection back to "current" whenever the user tweaks an input.
   // (They almost certainly want to see what they're editing.)
@@ -209,8 +282,17 @@ export function PipelineBuilder() {
   const selectedNotes: FrettedNote[] | null = useMemo(() => {
     if (selection.kind === "current") return currentNotes;
     if (selection.kind === "chainEntry") return chain[selection.index]?.notes ?? null;
-    return chain.flatMap((e) => e.notes);
-  }, [selection, currentNotes, chain]);
+    // "chain" (whole chain) selection
+    if (!bridgeEnabled || chain.length < 2) {
+      return chain.flatMap((e) => e.notes);
+    }
+    const out: FrettedNote[] = [...chain[0].notes];
+    for (let i = 1; i < chain.length; i++) {
+      const seam = connectorsAndNextNotes[i - 1];
+      out.push(...seam.connector, ...seam.nextNotes);
+    }
+    return out;
+  }, [selection, currentNotes, chain, bridgeEnabled, connectorsAndNextNotes]);
 
   const selectedLabel = useMemo(() => {
     if (selection.kind === "current") return "Current (unsaved)";
@@ -250,36 +332,6 @@ export function PipelineBuilder() {
     }
     setOutputFormat(preset.outputFormat ?? "alphatex");
   }, []);
-
-  // Snapshot of the live pipeline inputs — used both by the code preview
-  // (when "current" is selected) and when freezing the recipe into the chain.
-  const currentRecipe: PipelineRecipe = useMemo(
-    () => ({
-      tuningName,
-      tuningConst: TUNING_CONST[tuningName] ?? "STANDARD",
-      shapeName,
-      shapeSystem,
-      root,
-      modeId,
-      showOpenStrings,
-      motif,
-      motifName,
-      walkFullShape,
-      direction,
-    }),
-    [
-      tuningName,
-      shapeName,
-      shapeSystem,
-      root,
-      modeId,
-      showOpenStrings,
-      motif,
-      motifName,
-      walkFullShape,
-      direction,
-    ],
-  );
 
   // Chain handlers.
   const chainLabel = `${root} ${shapeName} · ${motifName}${
