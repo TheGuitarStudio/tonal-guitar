@@ -153,18 +153,43 @@ function samePosition(a: FrettedNote, b: FrettedNote): boolean {
 
 /**
  * Build a deduplicated, midi-sorted combined note array from two scales.
- * Notes from `prevScale` win over `nextScale` on a `(string, fret)` collision.
+ *
+ * Notes are deduped by **midi**: a pitch occurring at two different physical
+ * positions across the prev∪next scales collapses to a single representative.
+ * Position selection:
+ *
+ *   1. If `referenceString` is provided AND ANY duplicate occurs on that
+ *      string, the on-string occurrence wins. This keeps the motif walk on
+ *      the user's "current string" through the seam — when the previous walk
+ *      just played C#3@[s0,f9] (low E) and the next pair needs D3, the dedup
+ *      picks D's D3@[s0,f10] rather than E's D3@[s1,f5] (A string).
+ *   2. Otherwise, prev wins (first insertion).
+ *
+ * The default (no reference string) is plain "prev wins by midi" — used in
+ * places like reach-back fixtures where the caller doesn't care about
+ * single-string continuity.
  *
  * @internal
  */
 export function dedupAndSortCombined(
   prevScale: FrettedScale,
   nextScale: FrettedScale,
+  referenceString?: number,
 ): FrettedNote[] {
-  const seen = new Map<string, FrettedNote>();
+  const seen = new Map<number, FrettedNote>();
   for (const n of [...prevScale.notes, ...nextScale.notes]) {
-    const key = `${n.string}:${n.fret}`;
-    if (!seen.has(key)) seen.set(key, n);
+    const existing = seen.get(n.midi);
+    if (!existing) {
+      seen.set(n.midi, n);
+    } else if (
+      referenceString !== undefined &&
+      n.string === referenceString &&
+      existing.string !== referenceString
+    ) {
+      // Reference-string promotion: override prev's off-string pick with the
+      // duplicate that lands on the reference string.
+      seen.set(n.midi, n);
+    }
   }
   return [...seen.values()].sort((a, b) => a.midi - b.midi);
 }
@@ -215,9 +240,14 @@ export function buildExtend(
     return { connector: [], nextNotes: [], strategy: "extend" };
   }
 
-  // Build synthetic combined FrettedScale: dedup by (string, fret), prev wins.
-  // Metadata is inherited from next; only `notes` and `empty` are overridden.
-  const combinedNotes = dedupAndSortCombined(prev.scale, next.scale);
+  // Build synthetic combined FrettedScale: dedup by midi; positions on
+  // prev.lastNote.string win over off-string duplicates so the motif walk
+  // stays on the guitarist's current string through the seam.
+  const combinedNotes = dedupAndSortCombined(
+    prev.scale,
+    next.scale,
+    prev.lastNote.string,
+  );
   const combinedScale: FrettedScale = {
     ...next.scale,
     notes: combinedNotes,
@@ -296,9 +326,17 @@ export function buildReachBack(
 ): ConnectSequencesResult {
   const { prev, next } = input;
 
-  // Build synthetic combined FrettedScale: dedup by (string, fret), prev wins.
-  // Metadata is inherited from next; only `notes` and `empty` are overridden.
-  const combinedNotes = dedupAndSortCombined(prev.scale, next.scale);
+  // Build synthetic combined FrettedScale: dedup by midi with positions on
+  // prev.lastNote.string preferred over off-string duplicates. This keeps the
+  // re-walked sequence on the same string for as long as the combined scale
+  // covers it (e.g. an ascending bridge after a descending E walk continues
+  // up the low E string through D shape's low-E notes rather than crossing
+  // to E shape's A-string positions at the same pitch).
+  const combinedNotes = dedupAndSortCombined(
+    prev.scale,
+    next.scale,
+    prev.lastNote.string,
+  );
   const combinedScale: FrettedScale = {
     ...next.scale,
     notes: combinedNotes,

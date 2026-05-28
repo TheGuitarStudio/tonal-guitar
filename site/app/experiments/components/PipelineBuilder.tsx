@@ -225,18 +225,25 @@ export function PipelineBuilder() {
         continue;
       }
       const lastNote = prevEntry.notes[prevEntry.notes.length - 1];
-      const result = connectSequences({
-        prev: {
-          scale: prevScale,
-          lastNote,
-          direction: prevEntry.recipe.direction,
+      // dedupSeam: false — the seam note repeating at the connector→nextNotes
+      // boundary is musically intentional (the "top" pivot for asc→desc, the
+      // "bottom" anchor for desc→asc). The library's default drops it; the
+      // lab keeps it so the bridged chain reads as one continuous walk.
+      const result = connectSequences(
+        {
+          prev: {
+            scale: prevScale,
+            lastNote,
+            direction: prevEntry.recipe.direction,
+          },
+          next: {
+            scale: nextScale,
+            motif: nextEntry.recipe.motif,
+            direction: nextEntry.recipe.direction,
+          },
         },
-        next: {
-          scale: nextScale,
-          motif: nextEntry.recipe.motif,
-          direction: nextEntry.recipe.direction,
-        },
-      });
+        { dedupSeam: false },
+      );
       out.push({
         connector: result.connector,
         nextNotes: result.nextNotes,

@@ -307,14 +307,14 @@ describe("Task Group 3: Extend Strategy", () => {
     ]);
   });
 
-  test("Scenario 1: connector fret positions are [[4,10], [5,9], [5,7], [5,10]]", () => {
+  test("Scenario 1: connector fret positions are [[5,5], [5,9], [5,7], [5,10]]", () => {
     const result = buildExtend(inputS1, true, motif);
-    // A4 dedup lands on D shape's [4,10] (E shape's [5,5] is a later
-    // duplicate key — combined dedup keeps insertion order, prev wins;
-    // here D's A4 occupies a different (string, fret) so both survive
-    // but the lower-numbered (string, fret) sorts first at midi 69).
+    // dedupAndSortCombined dedups by midi (prev wins). A4 occurs in both
+    // E shape ([s5,f5]) and D shape ([s4,f10]); the dedup keeps E's
+    // [s5,f5] so the motif walk stays on the high-E string through the
+    // seam, matching how a guitarist would naturally extend the run.
     expect(result.connector.map((n) => [n.string, n.fret])).toEqual([
-      [4, 10],
+      [5, 5],
       [5, 9],
       [5, 7],
       [5, 10],
