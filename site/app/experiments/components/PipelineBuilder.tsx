@@ -16,6 +16,7 @@ import { PresetLoader, type Preset } from "./PresetLoader";
 import type { PipelineRecipe } from "./codeGen";
 import {
   effectiveModeForSystem,
+  getMode,
   isModeCompatibleWithSystem,
 } from "fretboard-ui";
 
@@ -301,9 +302,19 @@ export function PipelineBuilder() {
     if (selection.kind === "chainEntry") {
       return `Chain · ${chain[selection.index]?.label ?? "?"}`;
     }
-    return chain.length > 0
-      ? `Whole chain · ${chain.length} entr${chain.length === 1 ? "y" : "ies"}`
-      : "Empty chain";
+    if (chain.length === 0) return "Empty chain";
+    // Whole-chain description: pull the root + mode from the first entry's
+    // recipe (chains typically share a key) and join each entry's shape +
+    // direction + motif. Example:
+    //   "A Major (Ionian) · E Shape ↑ Thirds (1,3), D Shape ↓ Thirds (1,3)"
+    const first = chain[0].recipe;
+    const firstModeName = getMode(first.modeId)?.name ?? first.modeId;
+    const scaleHeader = `${first.root} ${firstModeName}`;
+    const entryParts = chain.map((e) => {
+      const arrow = e.recipe.direction === "ascending" ? "↑" : "↓";
+      return `${e.recipe.shapeName} ${arrow} ${e.recipe.motifName}`;
+    });
+    return `${scaleHeader} · ${entryParts.join(", ")}`;
   }, [selection, chain]);
 
   const output: string = useMemo(() => {
@@ -336,9 +347,15 @@ export function PipelineBuilder() {
   }, []);
 
   // Chain handlers.
-  const chainLabel = `${root} ${shapeName} · ${motifName}${
-    direction === "descending" ? " ↓" : " ↑"
-  }${walkFullShape ? " · full shape" : ""}`;
+  // chainLabel reads like the user describes a chain in conversation:
+  //   "A Major · E Shape · Ascend in Thirds (1,3)"
+  // The mode name comes from MODES (e.g. "Major (Ionian)", "Minor (Aeolian)")
+  // and falls back to the raw modeId for non-standard modes.
+  const modeName = getMode(modeId)?.name ?? modeId;
+  const directionVerb = direction === "ascending" ? "Ascend" : "Descend";
+  const chainLabel = `${root} ${modeName} · ${shapeName} · ${directionVerb} in ${motifName}${
+    walkFullShape ? " · full shape" : ""
+  }`;
   const addToChain = useCallback(() => {
     if (!currentNotes || currentNotes.length === 0) return;
     setChain((prev) => [
