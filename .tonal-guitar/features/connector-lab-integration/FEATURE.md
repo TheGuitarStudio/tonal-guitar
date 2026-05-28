@@ -44,11 +44,11 @@ Research (Phase 1) should map these terms onto the current `site/app/experiments
 
 | Layer | Task Group                                                                                  | Status      | Agent | Notes |
 | ----- | ------------------------------------------------------------------------------------------- | ----------- | ----- | ----- |
-| 0     | TG1: chainUtils.ts — rebuildScale helper                                                    | pending     | -     | -     |
-| 1     | TG2: PipelineBuilder — bridgeEnabled state, connectorsAndNextNotes memo, selectedNotes      | pending     | -     | -     |
-| 2     | TG3: ChainSection — Bridge toggle and ConnectorSlot strategy display                        | pending     | -     | -     |
-| 2     | TG4: codeGen.ts — emit connectSequences calls                                               | pending     | -     | -     |
-| 3     | TG5: Manual acceptance verification (4 scenarios)                                           | pending     | -     | -     |
+| 0     | TG1: chainUtils.ts — rebuildScale helper                                                    | complete    | sonnet | -     |
+| 1     | TG2: PipelineBuilder — bridgeEnabled state, connectorsAndNextNotes memo, selectedNotes      | complete    | sonnet | -     |
+| 2     | TG3: ChainSection — Bridge toggle and ConnectorSlot strategy display                        | complete    | sonnet | -     |
+| 2     | TG4: codeGen.ts — emit connectSequences calls                                               | complete    | sonnet | -     |
+| 3     | TG5: Manual acceptance verification (4 scenarios)                                           | pending     | user  | requires browser interaction |
 
 ### Oversight Reports
 
