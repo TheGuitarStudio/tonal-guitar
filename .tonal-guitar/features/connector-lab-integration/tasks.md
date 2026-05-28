@@ -145,9 +145,9 @@ This is a site-only integration feature (`site/app/experiments/components/`). No
   - Toggle Bridge OFF: `ConnectorSlot` reverts to `no connector (TODO)`; code preview reverts to `const chain = [...notes1, ...notes2]`; no `connectSequences` in import
 - [ ] 5.2 Verify Scenario 2 — `E↓ → A↑` (reach-back strategy) (spec §"Acceptance Criteria", lines 250–255):
   - Build chain: entry 1 = E Shape · Thirds (1,3) descending, root A, Standard tuning; entry 2 = A Shape · Thirds (1,3) ascending, root A, Standard tuning
-  - Toggle Bridge ON: confirm `ConnectorSlot` text shows `reach-back · {N} notes` (reach-back returns an empty `connector` by design and folds the bridge into the re-walked `nextNotes`; `N` is `connectorsAndNextNotes[0].nextNotes.length`)
+  - Toggle Bridge ON: confirm `ConnectorSlot` text shows `connector · {N} notes (reach-back)` — same-string bridge model emits a non-empty connector for reach-back (pairs walked along `prev.lastNote.string`)
   - Confirm code preview comment reads `// seam 2: reach-back`; `direction` literals are `"descending"` for entry 1 and `"ascending"` for entry 2
-  - Confirm `selectedNotes` (output section note count) reflects the reach-back rewrite — `nextNotes` from `connectorsAndNextNotes[0]` is used, NOT the raw `chain[1].notes`
+  - Confirm `selectedNotes` (output section note count) reflects the reach-back rewrite — `connector` + `nextNotes` from `connectorsAndNextNotes[0]` are used, NOT the raw `chain[1].notes`
   - Toggle Bridge OFF: identical checks as Scenario 1 OFF case
 - [ ] 5.3 Verify Scenario 3 — same-direction empty connector (spec §"Acceptance Criteria", lines 257–264):
   - Build chain: entry 1 = E Shape · Thirds (1,3) ascending, root A; entry 2 = D Shape · Thirds (1,3) ascending, root A

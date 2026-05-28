@@ -195,33 +195,52 @@ export function dedupAndSortCombined(
 }
 
 /**
+ * Collect notes on `refString` from two scales, dedup by midi (prev wins),
+ * sorted by midi ascending. Used by the same-string bridge builder so the
+ * connector only contains pairs the user can finger on a single string.
+ *
+ * @internal
+ */
+function sameStringCombined(
+  prev: FrettedScale,
+  next: FrettedScale,
+  refString: number,
+): FrettedNote[] {
+  const seen = new Map<number, FrettedNote>();
+  for (const n of prev.notes) {
+    if (n.string === refString && !seen.has(n.midi)) seen.set(n.midi, n);
+  }
+  for (const n of next.notes) {
+    if (n.string === refString && !seen.has(n.midi)) seen.set(n.midi, n);
+  }
+  return [...seen.values()].sort((a, b) => a.midi - b.midi);
+}
+
+/** Two FrettedNotes are identical iff their (midi, string, fret) match. */
+function sameNote(a: FrettedNote, b: FrettedNote): boolean {
+  return a.midi === b.midi && a.string === b.string && a.fret === b.fret;
+}
+
+/**
  * Build the extend strategy result. The extend strategy applies when the
  * direction reverses and the next shape sits in a non-overlapping pitch range
- * (higher for asc→desc, lower for desc→asc). A motif-aware diatonic "pickup"
- * is inserted between prev's last note and next's extreme, then next is walked
- * normally with the duplicate pivot note optionally deduped.
+ * (higher for asc→desc, lower for desc→asc).
  *
- * Algorithm (motif-aware extend):
- *   seam     = prev.lastNote.midi
- *   target   = ascending → max(next.scale.notes[*].midi)
- *              descending → min(next.scale.notes[*].midi)
- *   combined = synthetic FrettedScale whose notes are prev.scale.notes ∪
- *              next.scale.notes, deduped by (string, fret), sorted ascending;
- *              metadata inherited from next.scale
- *   walked   = walkShapeMotif(combined, effectiveMotif, { direction: prev.direction })
+ * The bridge stays on `prev.lastNote.string` and uses only scale notes on
+ * that single string — both shapes contribute notes to the same-string pool.
+ * The motif walks those same-string notes in the bridge direction (toward
+ * next shape's natural starting pitch), and pairs whose final note lies past
+ * the seam are emitted as the `connector`. The `nextNotes` are then the
+ * unmodified natural walk of `next.scale`; if the bridge's final pair is
+ * byte-for-byte identical to `nextNotes`' first pair, the overlap is
+ * collapsed (no double-play).
  *
- *   The walk emits the motif at every starting position in the combined shape,
- *   producing groups of `effectiveMotif.length` notes per period. The connector
- *   is the suffix of `walked` covering the seam-to-target range, keeping ENTIRE
- *   motif periods whose final note lies past the seam and up to the target.
- *
- *   For motif `[1, 3]` (thirds) E↑ → D↓ in A major, this yields pairs like
- *   (A, C#) and (B, D) — matching how a guitarist would musically extend the
- *   pattern over the seam rather than just playing the in-between pitches.
- *
- *   nextNotes = walkShapeMotif(next.scale, effectiveMotif, { direction: next.direction })
- *   dedupSeam: drop nextNotes[0] if it matches connector.at(-1) on (string, fret);
- *              or, if connector is empty, drop nextNotes[0] if it matches prev.lastNote on (string, fret)
+ * Example — E↑ → D↓ thirds (1,3) in A major:
+ *   prev.lastNote = B4@[s5,f7], target = D5@[s5,f10]
+ *   same-string pool (high E) = G#4, A4, B4, C#5, D5
+ *   walked asc with [1,3] = (G#4, B4), (A4, C#5), (B4, D5)
+ *   connector = pairs past seam = (A4, C#5), (B4, D5)
+ *   nextNotes = D shape descending walk starting at D5
  *
  * @internal
  */
@@ -240,58 +259,59 @@ export function buildExtend(
     return { connector: [], nextNotes: [], strategy: "extend" };
   }
 
-  // Build synthetic combined FrettedScale: dedup by midi; positions on
-  // prev.lastNote.string win over off-string duplicates so the motif walk
-  // stays on the guitarist's current string through the seam.
-  const combinedNotes = dedupAndSortCombined(
+  const seam = prev.lastNote.midi;
+
+  // Build the same-string pool and walk it with the motif in prev's direction.
+  // The bridge stays on prev.lastNote.string, so only pairs the user can
+  // finger on a single string are emitted.
+  const stringNotes = sameStringCombined(
     prev.scale,
     next.scale,
     prev.lastNote.string,
   );
-  const combinedScale: FrettedScale = {
+  const stringScale: FrettedScale = {
     ...next.scale,
-    notes: combinedNotes,
-    empty: combinedNotes.length === 0,
+    notes: stringNotes,
+    empty: stringNotes.length === 0,
   };
-
-  const seam = prev.lastNote.midi;
-  const nextMidis = next.scale.notes.map((n) => n.midi);
-  const target =
-    prev.direction === "ascending"
-      ? Math.max(...nextMidis)
-      : Math.min(...nextMidis);
-
-  // Walk the combined scale with the motif in prev's direction. This produces
-  // the same kind of pair/triplet emissions a guitarist would play, just over
-  // the combined fretboard region rather than within a single shape.
-  const walked = walkShapeMotif(combinedScale, effectiveMotif, {
+  const walked = walkShapeMotif(stringScale, effectiveMotif, {
     direction: prev.direction,
   });
 
-  // Trim to whole motif periods whose final note lies past the seam and within
-  // the target. Iterating period-by-period keeps motif pairs intact (e.g. an
-  // ascending thirds period (A, C#) is kept even though A < seam, because C#
-  // > seam — dropping the A would break the musical pattern).
+  // Emit whole motif periods whose final note lies past the seam in the walk
+  // direction. The bridge naturally ends when the same-string pool runs out
+  // — no explicit "target" cutoff is needed.
   const period = effectiveMotif.length;
   const connector: FrettedNote[] = [];
   for (let i = 0; i + period <= walked.length; i += period) {
     const last = walked[i + period - 1];
-    const inRange =
-      prev.direction === "ascending"
-        ? last.midi > seam && last.midi <= target
-        : last.midi < seam && last.midi >= target;
-    if (inRange) {
+    const isPastSeam =
+      prev.direction === "ascending" ? last.midi > seam : last.midi < seam;
+    if (isPastSeam) {
       for (let j = 0; j < period; j++) connector.push(walked[i + j]);
     }
   }
 
-  // Walk next shape with the effective motif.
+  // Walk next shape naturally — positions inside next.scale are preserved.
   let nextNotes = walkShapeMotif(next.scale, effectiveMotif, {
     direction: next.direction,
   });
 
-  // Dedup seam: drop nextNotes[0] if it physically duplicates the bridge end.
-  // If the connector is empty, the "bridge end" is prev.lastNote itself.
+  // Overlap dedup: when the bridge's final pair (a same-string period the
+  // user just played) matches nextNotes' first pair note-for-note, drop the
+  // overlap. This happens when the natural next-walk starts on the same
+  // string-and-position the bridge just ended on (typical for desc→asc into
+  // a higher shape whose lowest notes ARE the bridge's top).
+  if (connector.length >= period && nextNotes.length >= period) {
+    const bridgeEnd = connector.slice(-period);
+    const overlap = bridgeEnd.every((n, idx) => sameNote(n, nextNotes[idx]));
+    if (overlap) nextNotes = nextNotes.slice(period);
+  }
+
+  // Legacy single-note dedup. dedupSeam: true (the library default) drops
+  // nextNotes[0] if its physical position equals the bridge end. The lab
+  // passes dedupSeam: false so the seam-pivot note repeats musically (e.g.
+  // the "top" D5 at the asc→desc turn).
   if (dedupSeam && nextNotes.length > 0) {
     const reference =
       connector.length > 0 ? connector[connector.length - 1] : prev.lastNote;
@@ -304,18 +324,24 @@ export function buildExtend(
 }
 
 /**
- * Build the reach-back strategy result. The reach-back strategy applies when
- * the direction reverses but the next shape's range overlaps or is on the
- * "wrong" side — so instead of bridging to the next shape's extreme, the
- * combined scale is re-walked from the seam point using next's motif.
+ * Build the reach-back strategy result. Reach-back applies when the direction
+ * reverses and the next shape's natural starting pitch sits on the "near"
+ * side of the seam (overlapping or further from the seam in next's direction).
  *
- * Algorithm (spec §3.3 reach-back):
- *   combined  = prev.scale.notes ∪ next.scale.notes, deduped by (string, fret),
- *               sorted by midi ascending; metadata inherited from next.scale
- *   walked    = walkShapeMotif(combined, effectiveMotif, { direction: next.direction })
- *   Trim ascending:  walked.filter(n => n.midi >= seamMidi)
- *   Trim descending: walked.filter(n => n.midi <= seamMidi)
- *   dedupSeam: drop trimmed[0] if it occupies the same (string, fret) as prev.lastNote
+ * Same shape of algorithm as buildExtend, with two differences:
+ *   1. The bridge walks in **next.direction** (preparing for next's run)
+ *      rather than prev.direction.
+ *   2. The bridge filter is **inclusive** of the seam pitch — the seam note
+ *      itself acts as the first note of the new ascending/descending run.
+ *
+ * Example — E↓ → D↑ thirds (1,3) in A major:
+ *   prev.lastNote = G#2@[s0,f4], next.naturalStart = B2@[s0,f7]
+ *   same-string pool (low E) = G#2, A2, B2, C#3, D3
+ *   walked asc with [1,3] = (G#2, B2), (A2, C#3), (B2, D3)
+ *   connector = (G#2, B2), (A2, C#3), (B2, D3) — all pairs from seam upward
+ *   nextNotes = D shape ascending walk, with first pair (B2, D3) dropped
+ *               because it duplicates the bridge's final pair note-for-note,
+ *               so next continues at (C#3, E3).
  *
  * @internal
  */
@@ -326,44 +352,65 @@ export function buildReachBack(
 ): ConnectSequencesResult {
   const { prev, next } = input;
 
-  // Build synthetic combined FrettedScale: dedup by midi with positions on
-  // prev.lastNote.string preferred over off-string duplicates. This keeps the
-  // re-walked sequence on the same string for as long as the combined scale
-  // covers it (e.g. an ascending bridge after a descending E walk continues
-  // up the low E string through D shape's low-E notes rather than crossing
-  // to E shape's A-string positions at the same pitch).
-  const combinedNotes = dedupAndSortCombined(
+  if (next.scale.notes.length === 0) {
+    return { connector: [], nextNotes: [], strategy: "reach-back" };
+  }
+
+  const seam = prev.lastNote.midi;
+
+  // Same-string bridge pool — only notes on prev.lastNote.string contribute.
+  const stringNotes = sameStringCombined(
     prev.scale,
     next.scale,
     prev.lastNote.string,
   );
-  const combinedScale: FrettedScale = {
+  const stringScale: FrettedScale = {
     ...next.scale,
-    notes: combinedNotes,
-    empty: combinedNotes.length === 0,
+    notes: stringNotes,
+    empty: stringNotes.length === 0,
   };
-
-  // Walk the combined scale using next's motif and direction.
-  const walked = walkShapeMotif(combinedScale, effectiveMotif, {
+  const walked = walkShapeMotif(stringScale, effectiveMotif, {
     direction: next.direction,
   });
 
-  // Trim: keep only notes at or past the seam in the walk direction.
-  const seamMidi = prev.lastNote.midi;
-  let trimmed: FrettedNote[];
-  if (next.direction === "ascending") {
-    trimmed = walked.filter((n) => n.midi >= seamMidi);
-  } else {
-    trimmed = walked.filter((n) => n.midi <= seamMidi);
+  // Emit whole motif periods whose **first** note is at-or-past the seam in
+  // the walk direction. Inclusive at the seam: the seam pitch repeats as the
+  // anchor of the new run (musically intentional pivot).
+  const period = effectiveMotif.length;
+  const connector: FrettedNote[] = [];
+  for (let i = 0; i + period <= walked.length; i += period) {
+    const first = walked[i];
+    const isAtOrPastSeam =
+      next.direction === "ascending" ? first.midi >= seam : first.midi <= seam;
+    if (isAtOrPastSeam) {
+      for (let j = 0; j < period; j++) connector.push(walked[i + j]);
+    }
   }
 
-  // Dedup seam: drop head if it physically matches prev.lastNote (string, fret).
-  let nextNotes = trimmed;
-  if (dedupSeam && nextNotes.length > 0 && samePosition(nextNotes[0], prev.lastNote)) {
-    nextNotes = nextNotes.slice(1);
+  // Walk next shape naturally.
+  let nextNotes = walkShapeMotif(next.scale, effectiveMotif, {
+    direction: next.direction,
+  });
+
+  // Overlap dedup: drop nextNotes' first pair when it equals the bridge's
+  // final pair (note-for-note).
+  if (connector.length >= period && nextNotes.length >= period) {
+    const bridgeEnd = connector.slice(-period);
+    const overlap = bridgeEnd.every((n, idx) => sameNote(n, nextNotes[idx]));
+    if (overlap) nextNotes = nextNotes.slice(period);
   }
 
-  return { connector: [], nextNotes, strategy: "reach-back" };
+  // Legacy single-note dedup (lab passes dedupSeam: false).
+  if (
+    dedupSeam &&
+    connector.length > 0 &&
+    samePosition(connector[0], prev.lastNote)
+  ) {
+    // Drop the leading seam repetition.
+    connector.shift();
+  }
+
+  return { connector, nextNotes, strategy: "reach-back" };
 }
 
 // ============================================================

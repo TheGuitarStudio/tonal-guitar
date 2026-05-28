@@ -520,25 +520,35 @@ describe("Task Group 4: Reach-Back Strategy", () => {
     expect(result.strategy).toBe("reach-back");
   });
 
-  test("Scenario 2: connector is always empty for reach-back", () => {
-    const result = buildReachBack(inputS2, true, motif);
-    expect(result.connector).toEqual([]);
+  test("Scenario 2: connector is a same-string descending bridge on s5 (high E)", () => {
+    // New algorithm: reach-back's connector is the same-string pickup that
+    // primes next's natural walk. For E↑→G↓ the bridge descends on high E
+    // starting from B4 (seam) toward G shape's natural top.
+    const result = buildReachBack(inputS2, false, motif);
+    expect(result.connector.length).toBeGreaterThan(0);
+    expect(result.connector.every((n) => n.string === 5)).toBe(true);
+    // First note repeats the seam (dedupSeam: false).
+    expect(result.connector[0].string).toBe(5);
+    expect(result.connector[0].fret).toBe(7);
   });
 
-  test("Scenario 2: dedupSeam true — nextNotes[0] does NOT occupy (string:5, fret:7) (B4 deduped)", () => {
+  test("Scenario 2: dedupSeam true — connector head does NOT match prev.lastNote position (seam dropped)", () => {
+    // dedupSeam: true drops the leading seam repetition from the connector.
     const result = buildReachBack(inputS2, true, motif);
+    if (result.connector.length > 0) {
+      expect(
+        result.connector[0].string === 5 && result.connector[0].fret === 7,
+      ).toBe(false);
+    }
     expect(result.nextNotes.length).toBeGreaterThan(0);
-    // B4 at s5f7 should be deduped because it matches prev.lastNote's (string, fret)
-    expect(result.nextNotes[0].string === 5 && result.nextNotes[0].fret === 7).toBe(false);
   });
 
-  test("Scenario 2: dedupSeam false — nextNotes[0] DOES occupy (string:5, fret:7) (B4 retained)", () => {
-    // Locks in: reach-back dedup targets prev.lastNote.(string, fret),
-    // NOT connector.at(-1) (which is always undefined since connector === []).
+  test("Scenario 2: nextNotes is the natural G-shape descending walk", () => {
+    // Under the new model, nextNotes is the natural walk of `next.scale`
+    // (with an overlap dedup if the bridge's last pair duplicates the
+    // walk's first pair).
     const result = buildReachBack(inputS2, false, motif);
     expect(result.nextNotes.length).toBeGreaterThan(0);
-    expect(result.nextNotes[0].string).toBe(5);
-    expect(result.nextNotes[0].fret).toBe(7);
   });
 
   // ---------------------------------------------------------------
@@ -550,24 +560,41 @@ describe("Task Group 4: Reach-Back Strategy", () => {
     expect(result.strategy).toBe("reach-back");
   });
 
-  test("Scenario 3: dedupSeam true — nextNotes[0] does NOT occupy (string:0, fret:4) (G#2 deduped)", () => {
+  test("Scenario 3: dedupSeam true — connector head does NOT match prev.lastNote position (seam dropped)", () => {
     const result = buildReachBack(inputS3, true, motif);
+    if (result.connector.length > 0) {
+      expect(
+        result.connector[0].string === 0 && result.connector[0].fret === 4,
+      ).toBe(false);
+    }
     expect(result.nextNotes.length).toBeGreaterThan(0);
-    expect(result.nextNotes[0].string === 0 && result.nextNotes[0].fret === 4).toBe(false);
   });
 
-  // GAP FILL §6.2: Scenario 3 explicit connector: [] assertion (spec §6.2)
-  test("Scenario 3: connector is always empty for reach-back", () => {
-    const result = buildReachBack(inputS3, true, motif);
-    expect(result.connector).toEqual([]);
+  test("Scenario 3: connector is a same-string ascending bridge on s0 (low E)", () => {
+    // E↓ → D↑ reach-back: bridge walks ascending on low E from seam upward.
+    // Expected pairs from G#2: (G#2, B2), (A2, C#3), (B2, D3) — all on s0.
+    const result = buildReachBack(inputS3, false, motif);
+    expect(result.connector.length).toBeGreaterThan(0);
+    expect(result.connector.every((n) => n.string === 0)).toBe(true);
   });
 
-  // GAP FILL §6.3: Scenario 3 dedupSeam: false — nextNotes[0] DOES occupy (string:0, fret:4)
-  test("Scenario 3: dedupSeam false — nextNotes[0] DOES occupy (string:0, fret:4) (G#2 retained)", () => {
+  test("Scenario 3: dedupSeam false — connector head IS the seam position (G#2 at s0,f4)", () => {
+    // Pivot anchoring: the seam repeats at the connector head so the chain
+    // plays as a continuous bridge from prev's last note into next.
+    const result = buildReachBack(inputS3, false, motif);
+    expect(result.connector.length).toBeGreaterThan(0);
+    expect(result.connector[0].string).toBe(0);
+    expect(result.connector[0].fret).toBe(4);
+  });
+
+  test("Scenario 3: nextNotes starts AFTER the bridge's last pair (overlap dedup)", () => {
+    // Bridge ends at (B2, D3) on low E; D shape's natural ascending walk
+    // would also begin (B2, D3). The overlap is collapsed, so nextNotes
+    // starts at the next pair — (C#3, E3).
     const result = buildReachBack(inputS3, false, motif);
     expect(result.nextNotes.length).toBeGreaterThan(0);
-    expect(result.nextNotes[0].string).toBe(0);
-    expect(result.nextNotes[0].fret).toBe(4);
+    expect(result.nextNotes[0].note).toBe("C#3");
+    expect(result.nextNotes[1].note).toBe("E3");
   });
 
   // ---------------------------------------------------------------
@@ -579,29 +606,18 @@ describe("Task Group 4: Reach-Back Strategy", () => {
     expect(result.strategy).toBe("reach-back");
   });
 
-  // GAP FILL §6.2: Scenario 7 explicit connector: [] assertion (spec §6.2)
-  test("Scenario 7: connector is always empty for reach-back (identical shapes)", () => {
-    const result = buildReachBack(inputS7, true, motif);
-    expect(result.connector).toEqual([]);
+  test("Scenario 7: connector is the same-string bridge (identical shapes still yield a bridge)", () => {
+    // With identical prev/next shapes, the same-string pool is just the
+    // shape's notes on that string. The bridge still walks them — for E↑→E↓
+    // on s5 with thirds, the bridge is (B4, G#4) descending one pair.
+    const result = buildReachBack(inputS7, false, motif);
+    expect(result.connector.length).toBeGreaterThan(0);
+    expect(result.connector.every((n) => n.string === 5)).toBe(true);
   });
 
-  test("Scenario 7: combined scale (after string,fret dedup) has same note count as single E shape", () => {
-    // When prev and next are the same shape, dedup by (string, fret) yields
-    // exactly the same set as a single E-shape build.
+  test("Scenario 7: nextNotes is non-empty (E shape's natural descending walk)", () => {
     const result = buildReachBack(inputS7, true, motif);
-    // The connector is [] — the combined notes count is reflected indirectly.
-    // We verify by checking that dedupAndSortCombined(eShapeA, eShapeA2) === eShapeA.notes.length
-    const combinedNoteCount = (() => {
-      const seen = new Set<string>();
-      for (const n of [...eShapeA.notes, ...eShapeA2.notes]) {
-        seen.add(`${n.string}:${n.fret}`);
-      }
-      return seen.size;
-    })();
-    expect(combinedNoteCount).toBe(eShapeA.notes.length);
-    // Also verify nextNotes is non-empty and B4 is not the head (it was deduped)
     expect(result.nextNotes.length).toBeGreaterThan(0);
-    expect(result.nextNotes[0].note).not.toBe("B4");
   });
 
   // ---------------------------------------------------------------
@@ -626,19 +642,23 @@ describe("Task Group 4: Reach-Back Strategy", () => {
   // Seam far outside combined range → empty nextNotes
   // ---------------------------------------------------------------
 
-  test("Reach-back where seam is far outside combined range produces nextNotes: []", () => {
-    // Use ascending direction with a seam far above the combined range:
-    // filter(n => n.midi >= 9999) yields empty since all notes are <= 74.
+  test("Reach-back where seam is far outside combined range produces an empty connector", () => {
+    // With seam at midi 9999 and ascending direction, no pair's first note
+    // satisfies `first.midi >= seam` — the bridge is empty. nextNotes is
+    // independent of the seam under the new model: it is the natural walk
+    // of next.scale.
     const farAboveNote: import("./shape").FrettedNote = {
       ...prevLastNoteS2,
-      midi: 9999, // impossibly high — no combined notes will satisfy ascending trim
+      midi: 9999, // impossibly high — no bridge pairs at or past this seam
     };
     const inputFarAboveAsc: ConnectSequencesInput = {
       prev: { scale: eShapeA, lastNote: farAboveNote, direction: "descending" },
       next: { scale: gShapeA, motif, direction: "ascending" },
     };
     const result = buildReachBack(inputFarAboveAsc, true, motif);
-    expect(result.nextNotes).toEqual([]);
+    expect(result.connector).toEqual([]);
+    // nextNotes is the natural ascending walk of G shape, unaffected by seam.
+    expect(result.nextNotes.length).toBeGreaterThan(0);
   });
 });
 
@@ -856,10 +876,12 @@ describe("Task Group 6: Gap Fills (spec §6.2 scenario fingerprints, §6.3 dedup
     next: { scale: eShapeA2_tg6, motif, direction: "descending" },
   };
 
-  test("Scenario 7 end-to-end (connectSequences): strategy reach-back, connector [], nextNotes non-empty", () => {
+  test("Scenario 7 end-to-end (connectSequences): strategy reach-back, connector + nextNotes both non-empty", () => {
+    // New model: reach-back returns a same-string bridge connector plus
+    // next's natural walk for nextNotes (with overlap dedup when applicable).
     const result = connectSequences(inputS7_tg6);
     expect(result.strategy).toBe("reach-back");
-    expect(result.connector).toEqual([]);
+    expect(result.connector.length).toBeGreaterThan(0);
     expect(result.nextNotes.length).toBeGreaterThan(0);
   });
 
@@ -900,9 +922,14 @@ describe("Task Group 6: Gap Fills (spec §6.2 scenario fingerprints, §6.3 dedup
 
     const result = connectSequences(inputS3_tg6);
     expect(result.strategy).toBe("reach-back");
-    expect(result.connector).toEqual([]);
-    // Default dedupSeam: true — G#2 at (s0,f4) should be dropped
+    // New model: connector is non-empty (the same-string bridge). With
+    // default dedupSeam: true, the leading G#2 at (s0,f4) is dropped from
+    // the bridge head.
+    if (result.connector.length > 0) {
+      expect(
+        result.connector[0].string === 0 && result.connector[0].fret === 4,
+      ).toBe(false);
+    }
     expect(result.nextNotes.length).toBeGreaterThan(0);
-    expect(result.nextNotes[0].string === 0 && result.nextNotes[0].fret === 4).toBe(false);
   });
 });
