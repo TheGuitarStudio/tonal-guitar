@@ -20,7 +20,8 @@ This project is a single-package npm library (`src/`) plus a Next.js site (`site
 - [x] Phase 5: Code Simplification Review
 - [x] Phase 6: Code Simplification Fix (5 of 6 applied, 1 deferred)
 - [x] Phase 7: Specialized Reviews
-- [ ] Phase 8: Specialized Fixes
+- [x] Phase 8: Specialized Fixes (4 of 5 applied, 1 deferred)
+- [x] Phase 9: Final Verification
 - [ ] Phase 4: Architecture Fix
 - [ ] Phase 5: Code Simplification Review
 - [ ] Phase 6: Code Simplification Fix
@@ -30,9 +31,20 @@ This project is a single-package npm library (`src/`) plus a Next.js site (`site
 
 ## Statistics
 
-- Critical: 0 fixed, 0 remaining | Important: 0 fixed, 4 open | Suggestions: 6 open
-- GitHub Issues Created: (none yet)
-- Total Commits: 0 | Total Fixes: 0 | Final Status: IN PROGRESS
+- **Critical**: 0 found
+- **Important**: 8 found, 8 fixed (CR-001, CR-002, CR-003, CR-004, CR-011, CR-012, CR-013, CR-017, CR-020)
+- **Suggestions**: 13 found, 9 fixed (CR-005, CR-006, CR-009, CR-010, CR-014, CR-015, CR-018, CR-021), 4 deferred (CR-007, CR-008, CR-016, CR-019)
+- **GitHub Issues Created**: (none — deferred items captured inline in this file)
+- **Total Commits during review**: 3 (Phase 4, Phase 6, Phase 8)
+- **Final Verification**: `npm run lint` ✓ | `cd site && npx tsc --noEmit` ✓ | `cd site && npm run build` ✓ | `npm test` ✓ (352/352)
+- **Final Status**: **PASS**
+
+## Deferred items (no GitHub issues filed — captured here for future follow-up)
+
+- **CR-007**: `rebuildScale` called 2*(N-1) times across N-entry seams. D-002 accepts the cost; revisit if perf becomes visible.
+- **CR-008**: `buildExtend`/`buildReachBack` exported for internal tests but not in `index.ts` barrel. Matches existing `@internal` JSDoc convention.
+- **CR-016**: `motifVar` emitted unconditionally in generated code (only used in bridge path). Cosmetic; changing risks AlphaTab/JSON regression.
+- **CR-019**: `unknown[]` in `CodeGenInput.connectorsAndNextNotes`. Intentional — keeps `codeGen.ts` free of `tonal-guitar` runtime imports.
 
 ## Phase 3: Architecture Review
 
