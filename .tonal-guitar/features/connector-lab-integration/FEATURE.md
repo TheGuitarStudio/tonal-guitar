@@ -7,7 +7,7 @@
 - [x] Phase 1: Research
 - [x] Phase 2: Shape
 - [x] Phase 3: Plan
-- [ ] Phase 4: Implement
+- [ ] Phase 4: Implement (in progress)
 
 ## Context
 
@@ -39,6 +39,20 @@ Spec §8 of the connector-algorithm sketches the integration plan:
 - Add a "bridge" toggle to `ChainSection` (header switch) — off by default to preserve the current beginner-friendly restart behavior; on enables the intermediate continuous-arc behavior.
 
 Research (Phase 1) should map these terms onto the current `site/app/experiments/` codebase and surface any drift since the spec was written.
+
+## Phase 4: Implement
+
+| Layer | Task Group                                                                                  | Status      | Agent | Notes |
+| ----- | ------------------------------------------------------------------------------------------- | ----------- | ----- | ----- |
+| 0     | TG1: chainUtils.ts — rebuildScale helper                                                    | pending     | -     | -     |
+| 1     | TG2: PipelineBuilder — bridgeEnabled state, connectorsAndNextNotes memo, selectedNotes      | pending     | -     | -     |
+| 2     | TG3: ChainSection — Bridge toggle and ConnectorSlot strategy display                        | pending     | -     | -     |
+| 2     | TG4: codeGen.ts — emit connectSequences calls                                               | pending     | -     | -     |
+| 3     | TG5: Manual acceptance verification (4 scenarios)                                           | pending     | -     | -     |
+
+### Oversight Reports
+
+### Spec Compliance
 
 ## Loop History
 
