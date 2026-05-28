@@ -1,6 +1,6 @@
 "use client";
 
-import type { FrettedNote } from "tonal-guitar";
+import type { ConnectorStrategy, FrettedNote } from "tonal-guitar";
 import type { PipelineRecipe } from "./codeGen";
 
 export interface ChainEntry {
@@ -40,6 +40,13 @@ interface ChainSectionProps {
   onSelectCurrent: () => void;
   onSelectChain: () => void;
   onSelectEntry: (index: number) => void;
+  bridgeEnabled: boolean;
+  onBridgeChange: (next: boolean) => void;
+  connectorsAndNextNotes: Array<{
+    connector: FrettedNote[];
+    nextNotes: FrettedNote[];
+    strategy: ConnectorStrategy;
+  }>;
 }
 
 export function ChainSection({
@@ -54,6 +61,9 @@ export function ChainSection({
   onSelectCurrent,
   onSelectChain,
   onSelectEntry,
+  bridgeEnabled,
+  onBridgeChange,
+  connectorsAndNextNotes,
 }: ChainSectionProps) {
   const totalNotes = entries.reduce((sum, e) => sum + e.notes.length, 0);
 
@@ -80,6 +90,17 @@ export function ChainSection({
           {entries.length} entr{entries.length === 1 ? "y" : "ies"} ·{" "}
           {totalNotes} total notes
         </span>
+        {entries.length >= 2 && (
+          <label className="inline-flex items-center gap-1.5 text-xs">
+            <input
+              type="checkbox"
+              checked={bridgeEnabled}
+              onChange={(e) => onBridgeChange(e.target.checked)}
+              className="accent-fd-primary"
+            />
+            Bridge
+          </label>
+        )}
       </div>
 
       <SelectableRow
@@ -107,7 +128,12 @@ export function ChainSection({
         <ol className="space-y-1">
           {entries.map((e, i) => (
             <li key={i}>
-              {i > 0 && <ConnectorSlot connector={e.connector} />}
+              {i > 0 && (
+                <ConnectorSlot
+                  connector={connectorsAndNextNotes[i - 1]?.connector}
+                  strategy={connectorsAndNextNotes[i - 1]?.strategy}
+                />
+              )}
               <div
                 className={`group flex items-center gap-2 rounded-md border bg-fd-card px-3 py-1.5 text-sm transition-colors ${
                   selection.kind === "chainEntry" && selection.index === i
@@ -196,22 +222,23 @@ function SelectableRow({
   );
 }
 
-interface ConnectorSlotProps {
+type ConnectorSlotProps = {
   connector?: FrettedNote[];
-}
+  strategy?: ConnectorStrategy;
+};
 
 /**
  * Placeholder for the bridge phrase between two chain entries. The
  * connector algorithm (transition / passing notes) isn't built yet —
  * the slot just shows the seam.
  */
-function ConnectorSlot({ connector }: ConnectorSlotProps) {
+function ConnectorSlot({ connector, strategy }: ConnectorSlotProps) {
   return (
     <div className="my-1 ml-8 flex items-center gap-2 text-xs text-fd-muted-foreground">
       <span className="h-px flex-1 bg-fd-border" />
-      {connector && connector.length > 0 ? (
+      {connector && connector.length > 0 && strategy !== "none" ? (
         <span>
-          connector · {connector.length} note{connector.length === 1 ? "" : "s"}
+          connector · {connector.length} note{connector.length === 1 ? "" : "s"} ({strategy})
         </span>
       ) : (
         <span className="italic">no connector (TODO)</span>

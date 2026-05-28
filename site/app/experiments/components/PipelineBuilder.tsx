@@ -474,6 +474,9 @@ export function PipelineBuilder() {
               onSelectEntry={(i) =>
                 setSelection({ kind: "chainEntry", index: i })
               }
+              bridgeEnabled={bridgeEnabled}
+              onBridgeChange={setBridgeEnabled}
+              connectorsAndNextNotes={connectorsAndNextNotes}
             />
           </StepCard>
         </div>
