@@ -6,7 +6,7 @@
 
 - [x] Phase 1: Research
 - [x] Phase 2: Shape
-- [ ] Phase 3: Plan
+- [x] Phase 3: Plan
 - [ ] Phase 4: Implement
 
 ## Context
@@ -24,7 +24,7 @@
 | --------- | ----------- | -------- | ----- | -------- |
 | Research  | research.md | complete | 0     | no       |
 | Shape     | spec.md     | complete | 0     | no       |
-| Plan      | tasks.md    | pending  | 0     | no       |
+| Plan      | tasks.md    | complete | 1     | yes      |
 | Implement | FEATURE.md  | pending  | 0     | no       |
 
 ## Pre-existing design notes
