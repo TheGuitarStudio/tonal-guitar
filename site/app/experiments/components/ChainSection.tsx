@@ -132,6 +132,9 @@ export function ChainSection({
                 <ConnectorSlot
                   connector={connectorsAndNextNotes[i - 1]?.connector}
                   strategy={connectorsAndNextNotes[i - 1]?.strategy}
+                  nextNotesCount={
+                    connectorsAndNextNotes[i - 1]?.nextNotes.length
+                  }
                 />
               )}
               <div
@@ -225,21 +228,42 @@ function SelectableRow({
 type ConnectorSlotProps = {
   connector?: FrettedNote[];
   strategy?: ConnectorStrategy;
+  nextNotesCount?: number;
 };
 
 /**
- * Placeholder for the bridge phrase between two chain entries. The
- * connector algorithm (transition / passing notes) isn't built yet —
- * the slot just shows the seam.
+ * Visualises the bridge between two adjacent chain entries. The library's
+ * `connectSequences` returns three strategies:
+ *
+ * - "extend"     → connector holds the bridge notes (non-empty in the
+ *                  typical case, empty when prev's last note is already
+ *                  at the next shape's extreme).
+ * - "reach-back" → connector is ALWAYS empty by design — the seam notes
+ *                  are folded into the re-walked `nextNotes` instead.
+ *                  We surface the strategy + re-walk size so the user
+ *                  knows reach-back fired.
+ * - "none"       → no bridge applied (same-direction chains, or degenerate
+ *                  inputs). Renders the "no connector" fallback.
  */
-function ConnectorSlot({ connector, strategy }: ConnectorSlotProps) {
+function ConnectorSlot({
+  connector,
+  strategy,
+  nextNotesCount,
+}: ConnectorSlotProps) {
   return (
     <div className="my-1 ml-8 flex items-center gap-2 text-xs text-fd-muted-foreground">
       <span className="h-px flex-1 bg-fd-border" />
-      {connector && connector.length > 0 && strategy !== "none" ? (
+      {strategy === "reach-back" ? (
+        <span>
+          reach-back · {nextNotesCount ?? 0} note
+          {nextNotesCount === 1 ? "" : "s"}
+        </span>
+      ) : connector && connector.length > 0 && strategy !== "none" ? (
         <span>
           connector · {connector.length} note{connector.length === 1 ? "" : "s"} ({strategy})
         </span>
+      ) : strategy === "extend" ? (
+        <span className="italic">no connector (extend)</span>
       ) : (
         <span className="italic">no connector (TODO)</span>
       )}
