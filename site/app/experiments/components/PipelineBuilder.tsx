@@ -252,7 +252,6 @@ export function PipelineBuilder() {
       });
     }
     return out;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chain]);
 
   // Snap selection back to "current" whenever the user tweaks an input.

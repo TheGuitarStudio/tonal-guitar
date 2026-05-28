@@ -246,7 +246,7 @@ function ConnectorSlot({ connector, strategy }: ConnectorSlotProps) {
       ) : strategy === "extend" || strategy === "reach-back" ? (
         <span className="italic">no connector ({strategy})</span>
       ) : (
-        <span className="italic">no connector (TODO)</span>
+        <span className="italic">no bridge (same direction)</span>
       )}
       <span className="h-px flex-1 bg-fd-border" />
     </div>

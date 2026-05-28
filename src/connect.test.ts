@@ -309,10 +309,11 @@ describe("Task Group 3: Extend Strategy", () => {
 
   test("Scenario 1: connector fret positions are [[5,5], [5,9], [5,7], [5,10]]", () => {
     const result = buildExtend(inputS1, true, motif);
-    // dedupAndSortCombined dedups by midi (prev wins). A4 occurs in both
-    // E shape ([s5,f5]) and D shape ([s4,f10]); the dedup keeps E's
-    // [s5,f5] so the motif walk stays on the high-E string through the
-    // seam, matching how a guitarist would naturally extend the run.
+    // sameStringCombined dedups by midi within prev.lastNote.string only.
+    // E shape has A4 at [s5,f5] (high E); D shape has A4 at [s4,f10]
+    // (B string). Both are A4 midi 69, but the same-string pool only
+    // accepts s5 positions, so [s5,f5] wins and the motif walk stays on
+    // the high E string through the seam.
     expect(result.connector.map((n) => [n.string, n.fret])).toEqual([
       [5, 5],
       [5, 9],
@@ -624,18 +625,22 @@ describe("Task Group 4: Reach-Back Strategy", () => {
   // Direction invariants
   // ---------------------------------------------------------------
 
-  test("Descending reach-back: nextNotes[0].midi <= prev.lastNote.midi (spec §6.4)", () => {
-    const result = buildReachBack(inputS2, true, motif);
-    expect(result.nextNotes.length).toBeGreaterThan(0);
-    // After dedup, head should still be at or below the seam midi
-    expect(result.nextNotes[0].midi).toBeLessThanOrEqual(prevLastNoteS2.midi);
+  // Under the same-string bridge model the seam-respect invariant lives on
+  // the **connector**, not on nextNotes. `connector[0]` is the seam-anchored
+  // head (or its successor if dedupSeam: true dropped the leading repetition).
+  // `nextNotes[0]` is the first note of next.scale's natural walk and is not
+  // seam-bounded — these tests pin the connector invariant directly.
+
+  test("Descending reach-back: connector head is at or below the seam midi", () => {
+    const result = buildReachBack(inputS2, false, motif);
+    expect(result.connector.length).toBeGreaterThan(0);
+    expect(result.connector[0].midi).toBeLessThanOrEqual(prevLastNoteS2.midi);
   });
 
-  test("Ascending reach-back: nextNotes[0].midi >= prev.lastNote.midi (spec §6.4)", () => {
-    const result = buildReachBack(inputS3, true, motif);
-    expect(result.nextNotes.length).toBeGreaterThan(0);
-    // After dedup, head should still be at or above the seam midi
-    expect(result.nextNotes[0].midi).toBeGreaterThanOrEqual(prevLastNoteS3.midi);
+  test("Ascending reach-back: connector head is at or above the seam midi", () => {
+    const result = buildReachBack(inputS3, false, motif);
+    expect(result.connector.length).toBeGreaterThan(0);
+    expect(result.connector[0].midi).toBeGreaterThanOrEqual(prevLastNoteS3.midi);
   });
 
   // ---------------------------------------------------------------

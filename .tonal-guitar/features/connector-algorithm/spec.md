@@ -88,6 +88,17 @@ contains the other (treated as "same" since neither end is clearly ahead).
 
 ### 3.3 Strategy semantics
 
+> **Superseded 2026-05-28 by the same-string bridge model** (see
+> `../connector-lab-integration/decisions.md` and the
+> `refactor(connect): same-string bridge model` commit on `feat/connector-lab-integration`).
+>
+> Both `extend` and `reach-back` now build the connector by walking only the
+> notes on `prev.lastNote.string` from the combined prev∪next scale, in the
+> direction that reaches next's natural starting pitch. `nextNotes` is the
+> unmodified natural walk of `next.scale`, with an overlap dedup that drops
+> the first pair when it duplicates the bridge's final pair note-for-note.
+> The original MVP semantics below are kept as historical context.
+
 #### `none`
 
 ```

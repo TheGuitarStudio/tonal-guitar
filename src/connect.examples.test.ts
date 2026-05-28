@@ -313,3 +313,126 @@ describe("Combined chain (prev + bridge + next)", () => {
     );
   });
 });
+
+// ============================================================
+// Library default: dedupSeam: true
+//
+// The lab call site passes { dedupSeam: false } intentionally (the seam
+// pivot is musically meaningful). Other consumers — including the library
+// default — get { dedupSeam: true }, which drops the leading seam
+// repetition from extend's nextNotes and from reach-back's connector head.
+// These tests pin that behavior for the new same-string algorithm so the
+// extend's pair-level overlap dedup AND the legacy single-note dedup
+// interaction is exercised under defaults.
+// ============================================================
+
+describe("Library default dedupSeam: true", () => {
+  /** Same as `chain()` but uses the library default options. */
+  function chainDefault(input: ChainInput): ChainResult {
+    const prevShapeDef = get(input.prevShape);
+    const nextShapeDef = get(input.nextShape);
+    if (!prevShapeDef) throw new Error(`Unknown shape: ${input.prevShape}`);
+    if (!nextShapeDef) throw new Error(`Unknown shape: ${input.nextShape}`);
+    const prevScale = buildFrettedScale(
+      prevShapeDef,
+      input.root,
+      input.tuning ?? STANDARD,
+    );
+    const nextScale = buildFrettedScale(
+      nextShapeDef,
+      input.root,
+      input.tuning ?? STANDARD,
+    );
+    const prevNotes = walkShapeMotif(prevScale, input.motif, {
+      direction: input.prevDir,
+    });
+    // No options arg — library defaults (dedupSeam: true).
+    const result = connectSequences({
+      prev: {
+        scale: prevScale,
+        lastNote: prevNotes[prevNotes.length - 1],
+        direction: input.prevDir,
+      },
+      next: {
+        scale: nextScale,
+        motif: input.motif,
+        direction: input.nextDir,
+      },
+    });
+    return {
+      strategy: result.strategy,
+      prevPattern: formatFrets(prevNotes),
+      bridge: formatFrets(result.connector),
+      nextPattern: formatFrets(result.nextNotes),
+      all: formatFrets([
+        ...prevNotes,
+        ...result.connector,
+        ...result.nextNotes,
+      ]),
+      prevScale,
+      nextScale,
+    };
+  }
+
+  test("extend (E↑ → D↓): dedupSeam true drops the duplicate D5 head from nextNotes", () => {
+    // With dedupSeam: false the bridge ends D5 and nextNotes starts D5
+    // (the asc→desc pivot repeats). With dedupSeam: true the legacy
+    // single-note dedup compares nextNotes[0] against connector's last
+    // position and drops the repetition.
+    const withDedup = chainDefault({
+      prevShape: "E Shape", prevDir: "ascending",
+      nextShape: "D Shape", nextDir: "descending",
+      motif: [1, 3], root: "A",
+    });
+    const withoutDedup = chain({
+      prevShape: "E Shape", prevDir: "ascending",
+      nextShape: "D Shape", nextDir: "descending",
+      motif: [1, 3], root: "A",
+    });
+
+    // Bridge is identical regardless of dedupSeam (it's the prev-side
+    // pickup, not affected by the next-side dedup).
+    expect(withDedup.bridge).toBe(withoutDedup.bridge);
+    // With dedup, nextNotes does NOT start with D5 (10.1) — the head was
+    // dropped because it matched the bridge's last position.
+    expect(withDedup.nextPattern.startsWith("10.1")).toBe(false);
+    // Without dedup, it does.
+    expect(withoutDedup.nextPattern.startsWith("10.1")).toBe(true);
+  });
+
+  test("reach-back (E↓ → D↑): dedupSeam true drops the leading seam G#2 from the bridge", () => {
+    // With dedupSeam: false the bridge starts with the seam G#2 (4.6).
+    // With dedupSeam: true the connector.shift() drops the head.
+    const withDedup = chainDefault({
+      prevShape: "E Shape", prevDir: "descending",
+      nextShape: "D Shape", nextDir: "ascending",
+      motif: [1, 3], root: "A",
+    });
+    const withoutDedup = chain({
+      prevShape: "E Shape", prevDir: "descending",
+      nextShape: "D Shape", nextDir: "ascending",
+      motif: [1, 3], root: "A",
+    });
+
+    expect(withoutDedup.bridge.startsWith("4.6")).toBe(true);
+    expect(withDedup.bridge.startsWith("4.6")).toBe(false);
+    // The first note past the seam is B2 (7.6).
+    expect(withDedup.bridge.startsWith("7.6")).toBe(true);
+    // nextNotes is unchanged by reach-back's seam dedup (which only
+    // touches the connector head, not the next walk).
+    expect(withDedup.nextPattern).toBe(withoutDedup.nextPattern);
+  });
+
+  test("Overlap dedup + legacy dedupSeam interaction: reach-back's nextNotes still drops the duplicate first pair", () => {
+    // Pair-level overlap dedup runs before the legacy single-note dedup
+    // and is independent of the dedupSeam option. For E↓ → D↑ the
+    // bridge's last pair (B2, D3) matches D shape's natural-walk first
+    // pair, so nextNotes starts at (C#3, E3) regardless of dedupSeam.
+    const r = chainDefault({
+      prevShape: "E Shape", prevDir: "descending",
+      nextShape: "D Shape", nextDir: "ascending",
+      motif: [1, 3], root: "A",
+    });
+    expect(r.nextPattern.startsWith("9.6 7.5")).toBe(true);
+  });
+});

@@ -2,9 +2,23 @@
 
 ## Overview
 
-Total Tasks: 5 Task Groups
+Total Tasks: 5 Task Groups (+ in-flight library refinement)
 
-This is a site-only integration feature (`site/app/experiments/components/`). No library code changes. The work wires the already-shipped `connectSequences` API into the Guitar Lab by adding a `Bridge` toggle to the chain section, computing connector phrases between adjacent chain entries, rendering strategy metadata in the `ConnectorSlot`, surfacing the bridged note sequence in the output view, and emitting faithful `connectSequences(...)` calls in the code preview. All five groups touch only `site/`; the library (`src/`) and its tests are read-only.
+This was planned as a site-only integration feature (`site/app/experiments/components/`). The work wires the already-shipped `connectSequences` API into the Guitar Lab by adding a `Bridge` toggle to the chain section, computing connector phrases between adjacent chain entries, rendering strategy metadata in the `ConnectorSlot`, surfacing the bridged note sequence in the output view, and emitting faithful `connectSequences(...)` calls in the code preview.
+
+> **Scope drift, captured 2026-05-28:** Manual acceptance testing in TG5 revealed
+> the library's original `connectSequences` algorithm (combined-walk extend +
+> empty-connector reach-back) did not produce the musically-coherent bridges
+> the lab needed. The user explicitly authorized expanding scope into the
+> library, and `src/connect.ts` was refactored to a same-string bridge model
+> shared by both `extend` and `reach-back`. `src/connect.test.ts` was updated
+> (8 reach-back assertions rewritten + 4 new tests added) and a new
+> `src/connect.examples.test.ts` was added with 12 example-driven scenarios.
+> The connector-algorithm spec (`../connector-algorithm/spec.md` §3.3) carries
+> a supersession note pointing back here. Task Groups 1–5 remain site-only as
+> originally planned; the library work is documented in the commit history
+> (`feat(connect): motif-aware extend connector` and
+> `refactor(connect): same-string bridge model for extend + reach-back`).
 
 ## Task List
 
@@ -142,7 +156,7 @@ This is a site-only integration feature (`site/app/experiments/components/`). No
   - Toggle Bridge ON: confirm `ConnectorSlot` text matches `connector · {N} notes (extend)` with `N >= 1` and strategy exactly `extend`
   - Select "Whole chain" output: confirm the ASCII tab / AlphaTeX note count is `chain[0].notes.length + connector.length + nextNotes.length`
   - Open Code preview: confirm one `connectSequences({ prev: { scale: scale1, lastNote: notes1[notes1.length - 1], direction: "ascending" }, next: { scale: scale2, motif: motif2, direction: "descending" } })` call is present; `connector2` and `nextNotes2` vars exist; final `const chain = [...notes1, ...connector2, ...nextNotes2]`; import line includes `connectSequences`
-  - Toggle Bridge OFF: `ConnectorSlot` reverts to `no connector (TODO)`; code preview reverts to `const chain = [...notes1, ...notes2]`; no `connectSequences` in import
+  - Toggle Bridge OFF: `ConnectorSlot` reverts to `no bridge (same direction)`; code preview reverts to `const chain = [...notes1, ...notes2]`; no `connectSequences` in import
 - [ ] 5.2 Verify Scenario 2 — `E↓ → A↑` (reach-back strategy) (spec §"Acceptance Criteria", lines 250–255):
   - Build chain: entry 1 = E Shape · Thirds (1,3) descending, root A, Standard tuning; entry 2 = A Shape · Thirds (1,3) ascending, root A, Standard tuning
   - Toggle Bridge ON: confirm `ConnectorSlot` text shows `connector · {N} notes (reach-back)` — same-string bridge model emits a non-empty connector for reach-back (pairs walked along `prev.lastNote.string`)
@@ -151,7 +165,7 @@ This is a site-only integration feature (`site/app/experiments/components/`). No
   - Toggle Bridge OFF: identical checks as Scenario 1 OFF case
 - [ ] 5.3 Verify Scenario 3 — same-direction empty connector (spec §"Acceptance Criteria", lines 257–264):
   - Build chain: entry 1 = E Shape · Thirds (1,3) ascending, root A; entry 2 = D Shape · Thirds (1,3) ascending, root A
-  - Toggle Bridge ON: confirm `ConnectorSlot` renders `no connector (TODO)` (strategy is `"none"`, connector is `[]`; the `(TODO)` label is reserved for the `"none"` strategy — the empty-`extend` edge case renders `no connector (extend)`)
+  - Toggle Bridge ON: confirm `ConnectorSlot` renders `no bridge (same direction)` (strategy is `"none"`, connector is `[]`; the `(same direction)` label is reserved for the `"none"` strategy — the empty-`extend` edge case renders `no connector (extend)`)
   - Confirm code preview still emits a `connectSequences(...)` call with `// seam 2: none` comment; `connector2` evaluates to `[]` at runtime
   - Confirm bridge-on and bridge-off produce the same note count in the output (musically identical because connector is empty)
 - [ ] 5.4 Verify Scenario 4 — single-entry chain with bridge toggle state (spec §"Acceptance Criteria", lines 266–272):

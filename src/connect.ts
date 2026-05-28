@@ -152,49 +152,6 @@ function samePosition(a: FrettedNote, b: FrettedNote): boolean {
 }
 
 /**
- * Build a deduplicated, midi-sorted combined note array from two scales.
- *
- * Notes are deduped by **midi**: a pitch occurring at two different physical
- * positions across the prev∪next scales collapses to a single representative.
- * Position selection:
- *
- *   1. If `referenceString` is provided AND ANY duplicate occurs on that
- *      string, the on-string occurrence wins. This keeps the motif walk on
- *      the user's "current string" through the seam — when the previous walk
- *      just played C#3@[s0,f9] (low E) and the next pair needs D3, the dedup
- *      picks D's D3@[s0,f10] rather than E's D3@[s1,f5] (A string).
- *   2. Otherwise, prev wins (first insertion).
- *
- * The default (no reference string) is plain "prev wins by midi" — used in
- * places like reach-back fixtures where the caller doesn't care about
- * single-string continuity.
- *
- * @internal
- */
-export function dedupAndSortCombined(
-  prevScale: FrettedScale,
-  nextScale: FrettedScale,
-  referenceString?: number,
-): FrettedNote[] {
-  const seen = new Map<number, FrettedNote>();
-  for (const n of [...prevScale.notes, ...nextScale.notes]) {
-    const existing = seen.get(n.midi);
-    if (!existing) {
-      seen.set(n.midi, n);
-    } else if (
-      referenceString !== undefined &&
-      n.string === referenceString &&
-      existing.string !== referenceString
-    ) {
-      // Reference-string promotion: override prev's off-string pick with the
-      // duplicate that lands on the reference string.
-      seen.set(n.midi, n);
-    }
-  }
-  return [...seen.values()].sort((a, b) => a.midi - b.midi);
-}
-
-/**
  * Collect notes on `refString` from two scales, dedup by midi (prev wins),
  * sorted by midi ascending. Used by the same-string bridge builder so the
  * connector only contains pairs the user can finger on a single string.
@@ -421,6 +378,33 @@ export function buildReachBack(
  * Given two adjacent chain entries, returns the bridge phrase that connects
  * them across the seam, so that exercises can chain across CAGED (or any
  * compatible) shapes and play as one continuous run.
+ *
+ * Output shape — `{ connector, nextNotes, strategy }`:
+ *
+ * - **`strategy: "none"`** — same-direction chains (asc→asc, desc→desc) and
+ *   degenerate inputs. `connector` is `[]`; `nextNotes` is the natural walk
+ *   of `next.scale` (or `[]` for degenerate inputs).
+ *
+ * - **`strategy: "extend"`** — direction reverses, next sits beyond prev in
+ *   the prev-walk direction (asc→desc with next higher, or desc→asc with
+ *   next lower). `connector` is a **same-string** pickup — motif periods
+ *   walked along `prev.lastNote.string` from the combined prev∪next scale,
+ *   in prev's direction, keeping pairs whose final note is past the seam.
+ *   `nextNotes` is the natural walk of `next.scale` with an overlap dedup
+ *   that drops the first pair when it duplicates the bridge's last pair.
+ *
+ * - **`strategy: "reach-back"`** — direction reverses, next sits "on the
+ *   wrong side" or overlaps prev (asc→desc with next not strictly higher,
+ *   or desc→asc with next not strictly lower). Same-string bridge as above,
+ *   but walked in `next.direction` and **inclusive** of the seam pitch —
+ *   the seam note anchors the new run (musical pivot). `nextNotes` and
+ *   overlap dedup work identically to `extend`.
+ *
+ * Both `extend` and `reach-back` now emit a non-empty `connector` in the
+ * typical case. The pre-2026-05 contract returned `connector: []` for
+ * reach-back; that semantics was superseded when lab integration testing
+ * showed it didn't produce coherent bridges. See `connect.test.ts` and
+ * `connect.examples.test.ts` for the worked scenarios.
  *
  * The function never throws. All degenerate inputs resolve to a graceful
  * return of `{ connector: [], nextNotes: [], strategy: "none" }`.
