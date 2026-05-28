@@ -515,6 +515,8 @@ export function PipelineBuilder() {
           outputFormat={outputFormat}
           tempo={tempo}
           duration={duration}
+          bridgeEnabled={bridgeEnabled}
+          connectorsAndNextNotes={connectorsAndNextNotes}
         />
       </StepCard>
     </div>

@@ -33,6 +33,12 @@ export interface CodeGenInput {
   outputFormat: "ascii" | "alphatex" | "json";
   tempo: number;
   duration: 4 | 8 | 16;
+  bridgeEnabled: boolean;
+  connectorsAndNextNotes: Array<{
+    connector: unknown[];
+    nextNotes: unknown[];
+    strategy: "none" | "extend" | "reach-back";
+  }>;
 }
 
 interface CodeGenResult {
@@ -61,7 +67,7 @@ function emitSegment(
   suffix: string,
   tonal: Set<string>,
   fretboardUi: Set<string>,
-): { lines: string[]; notesVar: string } {
+): { lines: string[]; notesVar: string; scaleVar: string; motifVar: string } {
   const lines: string[] = [];
   const shapeVar = `shape${suffix}`;
   const scaleVar = `scale${suffix}`;
@@ -106,6 +112,7 @@ function emitSegment(
 
   if (recipe.motif.length === 0) {
     // No motif — just play the scale's notes (possibly reversed for descending).
+    lines.push(`const ${motifVar} = [];`);
     if (descending) {
       lines.push(
         `const ${notesVar} = [...${scaleVar}.notes].sort((a, b) => b.midi - a.midi);`,
@@ -113,7 +120,7 @@ function emitSegment(
     } else {
       lines.push(`const ${notesVar} = ${scaleVar}.notes;`);
     }
-    return { lines, notesVar };
+    return { lines, notesVar, scaleVar, motifVar };
   }
 
   const motifLiteral = `[${recipe.motif.join(", ")}]`;
@@ -134,7 +141,7 @@ function emitSegment(
     }
   }
 
-  return { lines, notesVar };
+  return { lines, notesVar, scaleVar, motifVar };
 }
 
 function emitOutput(
@@ -176,19 +183,42 @@ export function generateCode(input: CodeGenInput): CodeGenResult {
   // Pick which recipe(s) to emit based on selection.
   if (input.selection.kind === "chain" && input.chain.length > 0) {
     // Multi-segment chain. Suffixed vars per entry, then concat.
-    const segmentVars: string[] = [];
+    const scaleVars: string[] = [];
+    const motifVars: string[] = [];
+    const notesVars: string[] = [];
     input.chain.forEach((entry, i) => {
       const suffix = String(i + 1);
       if (i > 0) lines.push("");
       lines.push(`// ${i + 1}. ${entry.label}`);
       const seg = emitSegment(entry.recipe, suffix, tonal, fretboardUi);
       lines.push(...seg.lines);
-      segmentVars.push(seg.notesVar);
+      scaleVars.push(seg.scaleVar);
+      motifVars.push(seg.motifVar);
+      notesVars.push(seg.notesVar);
     });
     lines.push("");
-    lines.push(
-      `const chain = [${segmentVars.map((v) => `...${v}`).join(", ")}];`,
-    );
+    if (input.bridgeEnabled && input.chain.length >= 2) {
+      tonal.add("connectSequences");
+      for (let k = 1; k < input.chain.length; k++) {
+        const strategy = input.connectorsAndNextNotes[k - 1].strategy;
+        lines.push(`// seam ${k + 1}: ${strategy}`);
+        lines.push(
+          `const seam${k + 1} = connectSequences({ prev: { scale: ${scaleVars[k - 1]}, lastNote: ${notesVars[k - 1]}[${notesVars[k - 1]}.length - 1], direction: ${JSON.stringify(input.chain[k - 1].recipe.direction)} }, next: { scale: ${scaleVars[k]}, motif: ${motifVars[k]}, direction: ${JSON.stringify(input.chain[k].recipe.direction)} } });`,
+        );
+        lines.push(`const connector${k + 1} = seam${k + 1}.connector;`);
+        lines.push(`const nextNotes${k + 1} = seam${k + 1}.nextNotes;`);
+      }
+      const concatParts: string[] = [`...${notesVars[0]}`];
+      for (let k = 1; k < input.chain.length; k++) {
+        concatParts.push(`...connector${k + 1}`);
+        concatParts.push(`...nextNotes${k + 1}`);
+      }
+      lines.push(`const chain = [${concatParts.join(", ")}];`);
+    } else {
+      lines.push(
+        `const chain = [${notesVars.map((v) => `...${v}`).join(", ")}];`,
+      );
+    }
     lines.push("");
     // Tuning/key for the rendering match the runtime: it uses the current
     // pipeline's tuning + root, even when entries differ (alphaTab tracks
