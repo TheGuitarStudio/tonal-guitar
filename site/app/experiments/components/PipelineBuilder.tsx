@@ -11,7 +11,11 @@ import { OutputStep } from "./OutputStep";
 import { FretboardDiagram } from "./FretboardDiagram";
 import { ModeStep } from "./ModeStep";
 import { CodePreview } from "./CodePreview";
-import { ChainSection, type ChainEntry } from "./ChainSection";
+import {
+  ChainSection,
+  type ChainEntry,
+  type SeamData,
+} from "./ChainSection";
 import { PresetLoader, type Preset } from "./PresetLoader";
 import type { PipelineRecipe } from "./codeGen";
 import {
@@ -35,7 +39,7 @@ import {
   toAsciiTab,
   connectSequences,
 } from "tonal-guitar";
-import type { FrettedNote, FrettedScale, ConnectorStrategy } from "tonal-guitar";
+import type { FrettedNote, FrettedScale } from "tonal-guitar";
 import { rebuildScale } from "./chainUtils";
 
 const TUNINGS: Record<string, string[]> = {
@@ -203,12 +207,6 @@ export function PipelineBuilder() {
     }
     return notes.length > 0 ? notes : scale.notes;
   }, [scale, motif, walkFullShape, direction]);
-
-  type SeamData = {
-    connector: FrettedNote[];
-    nextNotes: FrettedNote[];
-    strategy: ConnectorStrategy;
-  };
 
   const connectorsAndNextNotes: SeamData[] = useMemo(() => {
     const out: SeamData[] = [];

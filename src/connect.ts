@@ -334,13 +334,13 @@ export function buildReachBack(
   // the walk direction. Inclusive at the seam: the seam pitch repeats as the
   // anchor of the new run (musically intentional pivot).
   const period = effectiveMotif.length;
-  const connector: FrettedNote[] = [];
+  const builtConnector: FrettedNote[] = [];
   for (let i = 0; i + period <= walked.length; i += period) {
     const first = walked[i];
     const isAtOrPastSeam =
       next.direction === "ascending" ? first.midi >= seam : first.midi <= seam;
     if (isAtOrPastSeam) {
-      for (let j = 0; j < period; j++) connector.push(walked[i + j]);
+      for (let j = 0; j < period; j++) builtConnector.push(walked[i + j]);
     }
   }
 
@@ -351,21 +351,19 @@ export function buildReachBack(
 
   // Overlap dedup: drop nextNotes' first pair when it equals the bridge's
   // final pair (note-for-note).
-  if (connector.length >= period && nextNotes.length >= period) {
-    const bridgeEnd = connector.slice(-period);
+  if (builtConnector.length >= period && nextNotes.length >= period) {
+    const bridgeEnd = builtConnector.slice(-period);
     const overlap = bridgeEnd.every((n, idx) => sameNote(n, nextNotes[idx]));
     if (overlap) nextNotes = nextNotes.slice(period);
   }
 
   // Legacy single-note dedup (lab passes dedupSeam: false).
-  if (
+  const connector =
     dedupSeam &&
-    connector.length > 0 &&
-    samePosition(connector[0], prev.lastNote)
-  ) {
-    // Drop the leading seam repetition.
-    connector.shift();
-  }
+    builtConnector.length > 0 &&
+    samePosition(builtConnector[0], prev.lastNote)
+      ? builtConnector.slice(1)
+      : builtConnector;
 
   return { connector, nextNotes, strategy: "reach-back" };
 }
@@ -422,12 +420,9 @@ export function connectSequences(
   // "nothing to walk on either side" path, distinct from the `strategy ===
   // "none"` case below (same-direction chains) — that path returns the
   // natural walk of next, this one returns nothing.
-  if (
-    prev.scale.empty ||
-    next.scale.empty ||
-    prev.scale.notes.length === 0 ||
-    next.scale.notes.length === 0
-  ) {
+  // (`scale.empty: true` implies `notes: []` by the NoFrettedScale sentinel
+  // contract, so one check covers both conditions.)
+  if (prev.scale.empty || next.scale.empty) {
     return { connector: [], nextNotes: [], strategy: "none" };
   }
 

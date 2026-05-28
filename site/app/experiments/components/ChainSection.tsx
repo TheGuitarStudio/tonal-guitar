@@ -14,12 +14,21 @@ export interface ChainEntry {
    * live pipeline.
    */
   recipe: PipelineRecipe;
-  /**
-   * Optional connector phrase to play before this entry — used to bridge
-   * the previous entry's last note into this entry's first. Empty until
-   * the connector algorithm lands; the UI shows a placeholder slot.
-   */
-  connector?: FrettedNote[];
+}
+
+/**
+ * Connector + nextNotes pair for a single chain seam, plus the strategy
+ * chosen by `connectSequences`. The lab computes one `SeamData` per gap
+ * between adjacent chain entries (so a 3-entry chain has 2 seams).
+ *
+ * Note: `codeGen.ts` carries a structurally-equivalent type with
+ * `unknown[]` in place of `FrettedNote[]` — intentional, so codeGen
+ * stays free of any `tonal-guitar` runtime import.
+ */
+export interface SeamData {
+  connector: FrettedNote[];
+  nextNotes: FrettedNote[];
+  strategy: ConnectorStrategy;
 }
 
 type Selection =
@@ -42,11 +51,7 @@ interface ChainSectionProps {
   onSelectEntry: (index: number) => void;
   bridgeEnabled: boolean;
   onBridgeChange: (next: boolean) => void;
-  connectorsAndNextNotes: Array<{
-    connector: FrettedNote[];
-    nextNotes: FrettedNote[];
-    strategy: ConnectorStrategy;
-  }>;
+  connectorsAndNextNotes: SeamData[];
 }
 
 export function ChainSection({

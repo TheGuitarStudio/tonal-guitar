@@ -16,7 +16,9 @@ This project is a single-package npm library (`src/`) plus a Next.js site (`site
 - [x] Phase 1: Setup
 - [x] Phase 2: Lint/Test Fix (clean — 0 findings)
 - [x] Phase 3: Architecture Review
-- [ ] Phase 4: Architecture Fix
+- [x] Phase 4: Architecture Fix (8 of 10 applied, 2 deferred)
+- [x] Phase 5: Code Simplification Review
+- [ ] Phase 6: Code Simplification Fix
 - [ ] Phase 4: Architecture Fix
 - [ ] Phase 5: Code Simplification Review
 - [ ] Phase 6: Code Simplification Fix
@@ -66,6 +68,31 @@ This project is a single-package npm library (`src/`) plus a Next.js site (`site
 | CR-008 | Suggestion | Defer    | Existing @internal JSDoc is the project convention |
 | CR-009 | Suggestion | **Fix**  | Delete dead code |
 | CR-010 | Suggestion | **Fix**  | Rename test for clarity |
+
+## Phase 5: Code Simplification Review
+
+### Important
+
+- **CR-011**: `ChainEntry.connector?: FrettedNote[]` is never read — leftover scaffold from before the connector algorithm. (`ChainSection.tsx:22`)
+- **CR-012**: `buildReachBack` mutates with `connector.shift()` violating the "no mutation" convention; `buildExtend` already uses `.slice()` for the equivalent step. (`src/connect.ts:367`)
+- **CR-013**: Redundant `scale.empty || notes.length === 0` guard in `connectSequences` — `empty: true` implies empty notes by contract. (`src/connect.ts:425-430`)
+
+### Suggestions
+
+- **CR-014**: `SeamData` type is defined in 3 different files structurally — `PipelineBuilder.tsx:207`, `ChainSection.tsx`, `codeGen.ts`. Real drift risk; should be shared.
+- **CR-015**: `chainDefault` test helper duplicates `chain` modulo one option arg. (`src/connect.examples.test.ts:331`)
+- **CR-016**: Generated code emits `const motifN = [];` unconditionally; only the bridge path uses it. Minor cosmetic noise.
+
+### Triage decisions
+
+| ID     | Priority   | Action   | Notes |
+| ------ | ---------- | -------- | ----- |
+| CR-011 | Important  | **Fix**  | Remove dead field |
+| CR-012 | Important  | **Fix**  | One-liner; matches existing slice idiom |
+| CR-013 | Important  | **Fix**  | One-liner |
+| CR-014 | Suggestion | **Fix**  | Shared type prevents drift |
+| CR-015 | Suggestion | **Fix**  | Refactor helper with options param |
+| CR-016 | Suggestion | Defer    | Changing generated-code shape risks regressing AlphaTab/JSON expectations; cosmetic |
 
 ## Commands adapted for this project
 

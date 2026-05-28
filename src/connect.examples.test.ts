@@ -61,8 +61,18 @@ interface ChainResult {
   nextScale: FrettedScale;
 }
 
-/** Build a chain scenario and return fret-string artefacts. */
-function chain(input: ChainInput): ChainResult {
+/**
+ * Build a chain scenario and return fret-string artefacts.
+ *
+ * `options.dedupSeam` defaults to `false` (mirroring the lab's call site
+ * where the seam pivot repetition is musically intentional). Pass an
+ * options arg to exercise the library default (`{ dedupSeam: true }`)
+ * or any other future ConnectorOptions.
+ */
+function chain(
+  input: ChainInput,
+  options: { dedupSeam?: boolean } = { dedupSeam: false },
+): ChainResult {
   const tuning = input.tuning ?? STANDARD;
 
   const prevShapeDef = get(input.prevShape);
@@ -93,7 +103,7 @@ function chain(input: ChainInput): ChainResult {
         direction: input.nextDir,
       },
     },
-    { dedupSeam: false }, // mirror the lab's call site
+    options,
   );
 
   return {
@@ -327,68 +337,22 @@ describe("Combined chain (prev + bridge + next)", () => {
 // ============================================================
 
 describe("Library default dedupSeam: true", () => {
-  /** Same as `chain()` but uses the library default options. */
-  function chainDefault(input: ChainInput): ChainResult {
-    const prevShapeDef = get(input.prevShape);
-    const nextShapeDef = get(input.nextShape);
-    if (!prevShapeDef) throw new Error(`Unknown shape: ${input.prevShape}`);
-    if (!nextShapeDef) throw new Error(`Unknown shape: ${input.nextShape}`);
-    const prevScale = buildFrettedScale(
-      prevShapeDef,
-      input.root,
-      input.tuning ?? STANDARD,
-    );
-    const nextScale = buildFrettedScale(
-      nextShapeDef,
-      input.root,
-      input.tuning ?? STANDARD,
-    );
-    const prevNotes = walkShapeMotif(prevScale, input.motif, {
-      direction: input.prevDir,
-    });
-    // No options arg — library defaults (dedupSeam: true).
-    const result = connectSequences({
-      prev: {
-        scale: prevScale,
-        lastNote: prevNotes[prevNotes.length - 1],
-        direction: input.prevDir,
-      },
-      next: {
-        scale: nextScale,
-        motif: input.motif,
-        direction: input.nextDir,
-      },
-    });
-    return {
-      strategy: result.strategy,
-      prevPattern: formatFrets(prevNotes),
-      bridge: formatFrets(result.connector),
-      nextPattern: formatFrets(result.nextNotes),
-      all: formatFrets([
-        ...prevNotes,
-        ...result.connector,
-        ...result.nextNotes,
-      ]),
-      prevScale,
-      nextScale,
-    };
-  }
+  // Pass `{}` as the second arg to invoke connectSequences with no options
+  // (the library default — `dedupSeam: true`).
+  const libDefault = {} as const;
 
   test("extend (E↑ → D↓): dedupSeam true drops the duplicate D5 head from nextNotes", () => {
     // With dedupSeam: false the bridge ends D5 and nextNotes starts D5
     // (the asc→desc pivot repeats). With dedupSeam: true the legacy
     // single-note dedup compares nextNotes[0] against connector's last
     // position and drops the repetition.
-    const withDedup = chainDefault({
-      prevShape: "E Shape", prevDir: "ascending",
-      nextShape: "D Shape", nextDir: "descending",
+    const input = {
+      prevShape: "E Shape" as const, prevDir: "ascending" as const,
+      nextShape: "D Shape" as const, nextDir: "descending" as const,
       motif: [1, 3], root: "A",
-    });
-    const withoutDedup = chain({
-      prevShape: "E Shape", prevDir: "ascending",
-      nextShape: "D Shape", nextDir: "descending",
-      motif: [1, 3], root: "A",
-    });
+    };
+    const withDedup = chain(input, libDefault);
+    const withoutDedup = chain(input);
 
     // Bridge is identical regardless of dedupSeam (it's the prev-side
     // pickup, not affected by the next-side dedup).
@@ -402,17 +366,14 @@ describe("Library default dedupSeam: true", () => {
 
   test("reach-back (E↓ → D↑): dedupSeam true drops the leading seam G#2 from the bridge", () => {
     // With dedupSeam: false the bridge starts with the seam G#2 (4.6).
-    // With dedupSeam: true the connector.shift() drops the head.
-    const withDedup = chainDefault({
-      prevShape: "E Shape", prevDir: "descending",
-      nextShape: "D Shape", nextDir: "ascending",
+    // With dedupSeam: true the connector head is dropped.
+    const input = {
+      prevShape: "E Shape" as const, prevDir: "descending" as const,
+      nextShape: "D Shape" as const, nextDir: "ascending" as const,
       motif: [1, 3], root: "A",
-    });
-    const withoutDedup = chain({
-      prevShape: "E Shape", prevDir: "descending",
-      nextShape: "D Shape", nextDir: "ascending",
-      motif: [1, 3], root: "A",
-    });
+    };
+    const withDedup = chain(input, libDefault);
+    const withoutDedup = chain(input);
 
     expect(withoutDedup.bridge.startsWith("4.6")).toBe(true);
     expect(withDedup.bridge.startsWith("4.6")).toBe(false);
@@ -428,11 +389,14 @@ describe("Library default dedupSeam: true", () => {
     // and is independent of the dedupSeam option. For E↓ → D↑ the
     // bridge's last pair (B2, D3) matches D shape's natural-walk first
     // pair, so nextNotes starts at (C#3, E3) regardless of dedupSeam.
-    const r = chainDefault({
-      prevShape: "E Shape", prevDir: "descending",
-      nextShape: "D Shape", nextDir: "ascending",
-      motif: [1, 3], root: "A",
-    });
+    const r = chain(
+      {
+        prevShape: "E Shape", prevDir: "descending",
+        nextShape: "D Shape", nextDir: "ascending",
+        motif: [1, 3], root: "A",
+      },
+      libDefault,
+    );
     expect(r.nextPattern.startsWith("9.6 7.5")).toBe(true);
   });
 });
