@@ -17,7 +17,6 @@ import type { PipelineRecipe } from "./codeGen";
 import {
   effectiveModeForSystem,
   isModeCompatibleWithSystem,
-  parentRoot,
 } from "fretboard-ui";
 
 import {
@@ -136,10 +135,6 @@ export function PipelineBuilder() {
   const compatible = isModeCompatibleWithSystem(modeId, shapeSystem);
   const effectiveMode =
     effectiveModeForSystem(modeId, shapeSystem) ?? modeId;
-  const buildRoot = useMemo(
-    () => (compatible ? parentRoot(root, effectiveMode) ?? root : root),
-    [root, effectiveMode, compatible],
-  );
   const modalRootPc =
     !compatible || effectiveMode === "ionian" || effectiveMode === "major-pent"
       ? undefined
