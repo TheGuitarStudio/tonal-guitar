@@ -6,7 +6,7 @@
 
 - [x] Phase 1: Research
 - [x] Phase 2: Shape
-- [ ] Phase 3: Plan
+- [x] Phase 3: Plan
 - [ ] Phase 4: Implement
 
 ## Context
@@ -22,7 +22,7 @@
 | --------- | ----------- | ------- | ----- | -------- |
 | Research  | research.md | complete | 1     | no       |
 | Shape     | spec.md     | complete | 1     | yes      |
-| Plan      | tasks.md    | pending | 0     | no       |
+| Plan      | tasks.md    | complete | 1     | no       |
 | Implement | FEATURE.md  | pending | 0     | no       |
 
 ## Loop History
@@ -74,6 +74,26 @@ convention unification, fixture (e) artifact cleanup).
 (`codex exec --sandbox workspace-write`, ~92k tokens). Review found 4 real blockers (see
 Review History). Spec rev 2 resolves all 20 findings; D-011/D-012 capture the two design
 changes; deferred items 9-10 added.
+
+### Phase 3 · Loop 1 — 2026-06-12
+
+Task-planner agent (sonnet, feature-dev:code-architect) produced a 10-task-group breakdown
+from spec rev 2: Types (1) → Scaffold (2) → filterChordTones (3) ∥ Formatters (7) →
+scoreShapeMatch (4) → arpeggio builders (5) ∥ Curated data (8) → inferShapeContext (6) →
+Docs (9) → Test review (10). Plan-reviewer agent (sonnet, feature-dev:code-reviewer)
+verdict: NEEDS REVISION — 4 tracking-precision items, no architectural gaps (23/24
+requirements covered, all 9 fixtures, all edge cases). Lead fixed all 4 directly in
+tasks.md: `src/build.ts` added to Files to Modify (export `findShapeAnchorFret`, made the
+definitive approach over inlining); `src/integration.test.ts` moved to Files to Create
+("extend existing" was wrong — file doesn't exist); explicit stub-signature update step in
+Group 4 (`scoreShapeMatch` gains 5th param `builtAnchorFret`, deliberate spec-signature
+extension); barre-shape build-equivalence tests added to Group 8 (no `canonicalRoot` —
+hardcoded verification roots). Plus reviewer minors: probe script in Files to Create
+(temporary), caged-7th verification-root phrasing.
+
+Sub-issues #18–#27 created (one per task group, `task-group` label, parent #16). All 10
+deferred.md items filed as issues #28–#37 (enhancement label, Spark status on the project
+board) per D-008.
 
 ## Review History
 
