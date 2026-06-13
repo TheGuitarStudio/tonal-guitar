@@ -15,6 +15,8 @@ export type {
   ChordShape,
   Barre,
   FrettedScale,
+  VoicingFamily,
+  VoicingPatternDictionary,
 } from "./shape";
 
 // Shape registry
