@@ -110,3 +110,22 @@ under linear position distance (CAGED_A of A anchors at fret 11). Resolutions in
 rev 2 Review Changelog: API split with chroma membership (D-011), anchorFret/rootFret +
 mod-12 circular distance (D-012), corrected fixtures with probe-script gate, score
 breakdowns, min-evidence gate, omittedIntervals/canonicalRoot fields.
+
+## Phase 4: Implement
+
+| Layer | Task Group                          | Status  | Agent | Notes |
+| ----- | ----------------------------------- | ------- | ----- | ----- |
+| 0     | TG1: Type Extensions & Registry Query | pending | -     | -     |
+| 1     | TG2: arpeggio.ts Module Scaffold    | pending | -     | -     |
+| 1     | TG7: Grouped Formatter Rendering    | pending | -     | -     |
+| 1     | TG8: Curated Chord-Shape Data       | pending | -     | -     |
+| 2     | TG3: filterChordTones               | pending | -     | -     |
+| 3     | TG4: pcChroma & scoreShapeMatch     | pending | -     | -     |
+| 3     | TG5: arpeggio Builders              | pending | -     | -     |
+| 4     | TG6: inferShapeContext              | pending | -     | -     |
+| 5     | TG9: API Docs & README              | pending | -     | -     |
+| 6     | TG10: Test Review & Gap Analysis    | pending | -     | -     |
+
+### Oversight Reports
+
+### Spec Compliance
