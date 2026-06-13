@@ -105,8 +105,14 @@ export {
   modeShapes,
   arpeggioFromScale,
   arpeggioFromShape,
+  inferShapeContext,
 } from "./integration";
-export type { KeyAnalysis } from "./integration";
+export type {
+  KeyAnalysis,
+  InferenceInput,
+  InferenceOptions,
+  InferenceCandidate,
+} from "./integration";
 
 // Built-in shape data (import to register shapes)
 import "./data/caged-scales";

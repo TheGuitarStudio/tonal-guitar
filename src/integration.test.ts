@@ -1,20 +1,21 @@
 /**
- * Tests for arpeggioFromScale and arpeggioFromShape (chroma-based builders).
- * Task Group 5 — spec §A.2, R-3.1
+ * Tests for arpeggioFromScale, arpeggioFromShape (TG5), and inferShapeContext (TG6).
+ * Task Groups 5 & 6 — spec §A.2, §B, R-3.1, R-3.2
  */
 
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect, beforeAll, beforeEach, afterEach } from "vitest";
 import { chroma } from "@tonaljs/note";
 
-import { CAGED_G, CAGED_E } from "./data/caged-scales";
-import { NPS_PATTERN_1 } from "./data/three-nps";
+import { CAGED_G, CAGED_E, CAGED_A, CAGED_C, CAGED_D } from "./data/caged-scales";
+import { NPS_PATTERN_1, NPS_PATTERN_2, NPS_PATTERN_3, NPS_PATTERN_4, NPS_PATTERN_5, NPS_PATTERN_6, NPS_PATTERN_7 } from "./data/three-nps";
+import { PENTA_BOX_1, PENTA_BOX_2, PENTA_BOX_3, PENTA_BOX_4, PENTA_BOX_5 } from "./data/pentatonic";
 import { buildFrettedScale } from "./build";
-import { NoFrettedScale, type ScaleShape } from "./shape";
-import { arpeggioFromScale, arpeggioFromShape } from "./integration";
+import { NoFrettedScale, type ScaleShape, add, removeAll } from "./shape";
+import { arpeggioFromScale, arpeggioFromShape, inferShapeContext } from "./integration";
 import { walkShapeMotif } from "./walker";
 import { STANDARD } from "./tuning";
 
-// Side-effect imports to register shapes (mirroring index.ts)
+// Side-effect imports to register shapes at module load time (used by TG5 tests)
 import "./data/caged-scales";
 import "./data/three-nps";
 
@@ -244,8 +245,7 @@ describe("arpeggioFromShape — bare chord type 'm7' falls back to parent root",
   });
 });
 
-// Helper — import CAGED_A from data
-import { CAGED_A } from "./data/caged-scales";
+// Helper — CAGED_A is imported at the top of this file
 function CAGED_A_FIXTURE(): ScaleShape {
   return CAGED_A;
 }
@@ -385,5 +385,435 @@ describe("arpeggioFromScale — no mutation of parent", () => {
     const parent = buildFrettedScale(CAGED_G, "C");
     arpeggioFromScale(parent, "Am7");
     expect(parent.root).toBe("C");
+  });
+});
+
+// ===========================================================================
+// Task Group 6: inferShapeContext tests
+// Registry isolation: each inference test block uses beforeEach/afterEach
+// to pin the registry to exactly the built-in CAGED/3NPS/pentatonic sets.
+// N-19 / spec §B — tasks.md TG6.1
+// ===========================================================================
+
+/**
+ * Re-register all built-in shapes explicitly (no side-effect import reliance).
+ * Called in beforeEach for all inference test suites.
+ */
+function registerBuiltins(): void {
+  // CAGED (5 shapes)
+  add(CAGED_E);
+  add(CAGED_D);
+  add(CAGED_C);
+  add(CAGED_A);
+  add(CAGED_G);
+  // 3NPS (7 patterns)
+  add(NPS_PATTERN_1);
+  add(NPS_PATTERN_2);
+  add(NPS_PATTERN_3);
+  add(NPS_PATTERN_4);
+  add(NPS_PATTERN_5);
+  add(NPS_PATTERN_6);
+  add(NPS_PATTERN_7);
+  // Pentatonic (5 boxes)
+  add(PENTA_BOX_1);
+  add(PENTA_BOX_2);
+  add(PENTA_BOX_3);
+  add(PENTA_BOX_4);
+  add(PENTA_BOX_5);
+}
+
+// ---------------------------------------------------------------------------
+// Fixture (a): inferShapeContext(arpeggioFromShape(CAGED_G, "Am7", "C"), { system:"caged" })
+// Probe-confirmed: top = G Shape of C, anchorFret=5, rootFret=8
+// matchedIntervals=[6M,1P,3M,5P], positionAgreement=1
+// spec §B / tasks.md TG6.1 Fixture (a)
+// ---------------------------------------------------------------------------
+
+describe("inferShapeContext — Fixture (a): Am7 arpeggio in G-shape of C", () => {
+  beforeEach(() => { removeAll(); registerBuiltins(); });
+  afterEach(() => { removeAll(); registerBuiltins(); });
+
+  let result: ReturnType<typeof inferShapeContext>;
+
+  beforeAll(() => {
+    removeAll();
+    registerBuiltins();
+    const arp = arpeggioFromShape(CAGED_G, "Am7", "C");
+    result = inferShapeContext(arp, { system: "caged" });
+  });
+
+  it("returns at least one candidate", () => {
+    expect(result.length).toBeGreaterThan(0);
+  });
+
+  it("top candidate is G Shape of C", () => {
+    expect(result[0].shape.name).toBe("G Shape");
+    expect(result[0].shapeRoot).toBe("C");
+  });
+
+  it("top candidate anchorFret === 5", () => {
+    expect(result[0].anchorFret).toBe(5);
+  });
+
+  it("top candidate rootFret === 8", () => {
+    expect(result[0].rootFret).toBe(8);
+  });
+
+  it("top candidate positionAgreement === 1", () => {
+    expect(result[0].breakdown.positionAgreement).toBe(1);
+  });
+
+  it("matchedIntervals contains [6M,1P,3M,5P] in built-note order", () => {
+    expect(result[0].matchedIntervals).toEqual(["6M", "1P", "3M", "5P"]);
+  });
+
+  it("other C-rooted CAGED shapes are also present (ambiguity)", () => {
+    const cRooted = result.filter((c) => c.shapeRoot === "C");
+    expect(cRooted.length).toBeGreaterThan(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Fixture (b): inferShapeContext("x32010", { system: "caged" })
+// Probe-confirmed: top = C Shape of C, anchorFret=0, rootFret=3, anchorHit=true
+// Second = A Shape of C (lower score)
+// spec §B / tasks.md TG6.1 Fixture (b)
+// ---------------------------------------------------------------------------
+
+describe("inferShapeContext — Fixture (b): 'x32010' C major open grip", () => {
+  beforeEach(() => { removeAll(); registerBuiltins(); });
+  afterEach(() => { removeAll(); registerBuiltins(); });
+
+  let result: ReturnType<typeof inferShapeContext>;
+
+  beforeAll(() => {
+    removeAll();
+    registerBuiltins();
+    result = inferShapeContext("x32010", { system: "caged" });
+  });
+
+  it("returns at least two candidates", () => {
+    expect(result.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("top candidate is C Shape of C", () => {
+    expect(result[0].shape.name).toBe("C Shape");
+    expect(result[0].shapeRoot).toBe("C");
+  });
+
+  it("top candidate anchorFret === 0", () => {
+    expect(result[0].anchorFret).toBe(0);
+  });
+
+  it("top candidate rootFret === 3", () => {
+    expect(result[0].rootFret).toBe(3);
+  });
+
+  it("top candidate anchorHit === true", () => {
+    expect(result[0].breakdown.anchorHit).toBe(true);
+  });
+
+  it("second candidate is A Shape of C with lower score", () => {
+    expect(result[1].shape.name).toBe("A Shape");
+    expect(result[1].shapeRoot).toBe("C");
+    expect(result[1].score).toBeLessThan(result[0].score);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Fixture (c): inferShapeContext("133211", { system: "caged" }) — F major barre
+// Probe-confirmed: top = E Shape of F, anchorFret=0, rootFret=1, anchorHit=true
+// spec §B / tasks.md TG6.1 Fixture (c)
+// ---------------------------------------------------------------------------
+
+describe("inferShapeContext — Fixture (c): '133211' F major E-shape barre", () => {
+  beforeEach(() => { removeAll(); registerBuiltins(); });
+  afterEach(() => { removeAll(); registerBuiltins(); });
+
+  let result: ReturnType<typeof inferShapeContext>;
+
+  beforeAll(() => {
+    removeAll();
+    registerBuiltins();
+    result = inferShapeContext("133211", { system: "caged" });
+  });
+
+  it("top candidate is E Shape of F", () => {
+    expect(result[0].shape.name).toBe("E Shape");
+    expect(result[0].shapeRoot).toBe("F");
+  });
+
+  it("top candidate anchorFret === 0", () => {
+    expect(result[0].anchorFret).toBe(0);
+  });
+
+  it("top candidate rootFret === 1", () => {
+    expect(result[0].rootFret).toBe(1);
+  });
+
+  it("top candidate anchorHit === true", () => {
+    expect(result[0].breakdown.anchorHit).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Fixture (f): custom system inference
+// Register a custom ScaleShape with system:"myteacher"; verify it appears with
+// that system filter and does NOT include CAGED; without filter, both appear.
+// spec §B / tasks.md TG6.1 Fixture (f)
+// ---------------------------------------------------------------------------
+
+describe("inferShapeContext — Fixture (f): custom system isolation", () => {
+  // Minor-pentatonic-like shape: 1P 3m 4P 5P 7m on two strings (root on string 0)
+  const myTeacherShape: ScaleShape = {
+    name: "MyTeacher Box A",
+    system: "myteacher",
+    strings: [
+      ["1P", "3m"],   // low E: root and minor 3rd
+      ["4P", "5P"],   // A: 4th and 5th
+      ["7m", "1P"],   // D: 7th and root
+      null, null, null,
+    ],
+    rootString: 0,
+  };
+
+  beforeEach(() => {
+    removeAll();
+    registerBuiltins();
+    add(myTeacherShape);
+  });
+  afterEach(() => { removeAll(); registerBuiltins(); });
+
+  it("with system:'myteacher', only the custom shape appears (not CAGED)", () => {
+    // A minor pentatonic notes: A C D E G (frets on low E: A=5, C=8)
+    // Build grip from the custom shape rooted at A on standard tuning
+    const built = buildFrettedScale(myTeacherShape, "A");
+    const result = inferShapeContext(built, { system: "myteacher" });
+    expect(result.length).toBeGreaterThan(0);
+    for (const c of result) {
+      expect(c.shape.system).toBe("myteacher");
+      expect(c.shape.system).not.toBe("caged");
+    }
+  });
+
+  it("without system filter, both myteacher and covering CAGED shapes appear", () => {
+    const built = buildFrettedScale(myTeacherShape, "A");
+    const result = inferShapeContext(built);
+    const systems = new Set(result.map((c) => c.shape.system));
+    expect(systems.has("myteacher")).toBe(true);
+    // At minimum one caged shape covers these 5 pitch classes
+    expect(systems.has("caged")).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Fixture (g): inferShapeContext("x02220", { system: "caged" }) — A major open
+// Probe-confirmed: top = A Shape of A (anchorFret=11, circular distance=1)
+// 2nd = C Shape of A; both A-rooted CAGED shapes; determinism verified
+// spec §B / tasks.md TG6.1 Fixture (g)
+// ---------------------------------------------------------------------------
+
+describe("inferShapeContext — Fixture (g): 'x02220' A major open (anchor-octave artifact)", () => {
+  beforeEach(() => { removeAll(); registerBuiltins(); });
+  afterEach(() => { removeAll(); registerBuiltins(); });
+
+  let result: ReturnType<typeof inferShapeContext>;
+  let result2: ReturnType<typeof inferShapeContext>;
+
+  beforeAll(() => {
+    removeAll();
+    registerBuiltins();
+    result = inferShapeContext("x02220", { system: "caged" });
+    result2 = inferShapeContext("x02220", { system: "caged" });
+  });
+
+  it("top candidate is A Shape of A", () => {
+    expect(result[0].shape.name).toBe("A Shape");
+    expect(result[0].shapeRoot).toBe("A");
+  });
+
+  it("second candidate is C Shape of A", () => {
+    expect(result[1].shape.name).toBe("C Shape");
+    expect(result[1].shapeRoot).toBe("A");
+  });
+
+  it("A Shape scores higher than C Shape", () => {
+    expect(result[0].score).toBeGreaterThan(result[1].score);
+  });
+
+  it("all five A-rooted CAGED shapes are present", () => {
+    const aRooted = result.filter((c) => c.shapeRoot === "A");
+    expect(aRooted.length).toBe(5);
+  });
+
+  it("two consecutive calls return identically ordered results (determinism)", () => {
+    const order1 = result.map((c) => `${c.shape.name}|${c.shapeRoot}|${c.score}`);
+    const order2 = result2.map((c) => `${c.shape.name}|${c.shapeRoot}|${c.score}`);
+    expect(order1).toEqual(order2);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Fixture (h): no-match and edge cases
+// All-muted, high-fret (no coverage), min-evidence gate, includeWeak
+// spec §B / tasks.md TG6.1 Fixture (h)
+// ---------------------------------------------------------------------------
+
+describe("inferShapeContext — Fixture (h): no-match and edge cases", () => {
+  beforeEach(() => { removeAll(); registerBuiltins(); });
+  afterEach(() => { removeAll(); registerBuiltins(); });
+
+  it("array with no played notes → []", () => {
+    expect(inferShapeContext([null, 13, 14, 13, null, null])).toEqual([]);
+  });
+
+  it("all-muted string 'xxxxxx' → []", () => {
+    expect(inferShapeContext("xxxxxx")).toEqual([]);
+  });
+
+  it("two-PC grip 'x00xxx' → [] by min-evidence gate (A and D — only 2 distinct PCs)", () => {
+    // x00xxx: A-string fret 0 = A, D-string fret 0 = D — only 2 distinct PCs
+    expect(inferShapeContext("x00xxx")).toEqual([]);
+  });
+
+  it("same two-PC grip with includeWeak:true → non-empty (bypasses gate)", () => {
+    // With includeWeak, the gate is bypassed; many shapes cover {A,D}
+    const result = inferShapeContext("x00xxx", { includeWeak: true });
+    expect(result.length).toBeGreaterThan(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Min-evidence gate: 1 PC → [], 2 PC → [], 3 PC → candidates
+// spec §B.1 / tasks.md TG6.1
+// ---------------------------------------------------------------------------
+
+describe("inferShapeContext — min-evidence gate", () => {
+  beforeEach(() => { removeAll(); registerBuiltins(); });
+  afterEach(() => { removeAll(); registerBuiltins(); });
+
+  it("1 distinct PC → []", () => {
+    // "0-0-0-0-0-0" (all open strings) normalised: E2 B2 G3 D4 A4 E5 → 3 PCs (E,B,G)
+    // Use a single-string, single-note grip: string 0 fret 0 = E — 1 PC
+    // We can't do that with parseChordFrets easily on standard tuning,
+    // so use array form: [0,null,null,null,null,null] = E on low string only → 1 PC
+    expect(inferShapeContext([0, null, null, null, null, null])).toEqual([]);
+  });
+
+  it("2 distinct PCs → []", () => {
+    // 2 PCs: fret 0 and fret 7 on same string = E and B (strings 0 and 4)
+    expect(inferShapeContext([0, null, null, null, 0, null])).toEqual([]);
+  });
+
+  it("3 distinct PCs with some coverage → non-empty (CAGED covers them)", () => {
+    // x02220 has 3 distinct PCs (A, C#, E) and is covered by CAGED A shapes
+    const result = inferShapeContext("x02220", { system: "caged" });
+    expect(result.length).toBeGreaterThan(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// system filter and limit options
+// spec §B.4 / tasks.md TG6.1
+// ---------------------------------------------------------------------------
+
+describe("inferShapeContext — options.system filter", () => {
+  beforeEach(() => { removeAll(); registerBuiltins(); });
+  afterEach(() => { removeAll(); registerBuiltins(); });
+
+  it("system:'caged' returns only caged shapes", () => {
+    const result = inferShapeContext("x32010", { system: "caged" });
+    for (const c of result) {
+      expect(c.shape.system).toBe("caged");
+    }
+  });
+
+  it("non-matching system → []", () => {
+    const result = inferShapeContext("x32010", { system: "nonexistent" });
+    expect(result).toEqual([]);
+  });
+});
+
+describe("inferShapeContext — options.limit normalization", () => {
+  beforeEach(() => { removeAll(); registerBuiltins(); });
+  afterEach(() => { removeAll(); registerBuiltins(); });
+
+  it("limit=2 caps output at 2", () => {
+    const full = inferShapeContext("x32010", { system: "caged" });
+    const limited = inferShapeContext("x32010", { system: "caged", limit: 2 });
+    expect(limited.length).toBe(2);
+    expect(limited[0].shape.name).toBe(full[0].shape.name);
+    expect(limited[1].shape.name).toBe(full[1].shape.name);
+  });
+
+  it("limit=0 → no limit (all candidates)", () => {
+    const full = inferShapeContext("x32010", { system: "caged" });
+    const result = inferShapeContext("x32010", { system: "caged", limit: 0 });
+    expect(result.length).toBe(full.length);
+  });
+
+  it("limit=NaN → no limit", () => {
+    const full = inferShapeContext("x32010", { system: "caged" });
+    const result = inferShapeContext("x32010", { system: "caged", limit: NaN });
+    expect(result.length).toBe(full.length);
+  });
+
+  it("limit=1.7 → floor to 1 (returns 1 candidate)", () => {
+    const result = inferShapeContext("x32010", { system: "caged", limit: 1.7 });
+    expect(result.length).toBe(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Determinism: two identical calls → byte-identical ordered results
+// spec §B.4 / tasks.md TG6.1
+// ---------------------------------------------------------------------------
+
+describe("inferShapeContext — determinism", () => {
+  beforeEach(() => { removeAll(); registerBuiltins(); });
+  afterEach(() => { removeAll(); registerBuiltins(); });
+
+  it("identical input produces identical ordered output (grip form)", () => {
+    const r1 = inferShapeContext("x32010", { system: "caged" });
+    const r2 = inferShapeContext("x32010", { system: "caged" });
+    expect(r1.map((c) => `${c.shape.name}|${c.shapeRoot}|${c.score}`)).toEqual(
+      r2.map((c) => `${c.shape.name}|${c.shapeRoot}|${c.score}`)
+    );
+  });
+
+  it("identical input produces identical ordered output (FrettedScale form)", () => {
+    const arp = arpeggioFromShape(CAGED_G, "Am7", "C");
+    const r1 = inferShapeContext(arp, { system: "caged" });
+    const r2 = inferShapeContext(arp, { system: "caged" });
+    expect(r1.map((c) => `${c.shape.name}|${c.shapeRoot}|${c.score}`)).toEqual(
+      r2.map((c) => `${c.shape.name}|${c.shapeRoot}|${c.score}`)
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// FrettedScale input form works for all fixtures
+// spec §B.1 / tasks.md TG6.1
+// ---------------------------------------------------------------------------
+
+describe("inferShapeContext — FrettedScale input form", () => {
+  beforeEach(() => { removeAll(); registerBuiltins(); });
+  afterEach(() => { removeAll(); registerBuiltins(); });
+
+  it("FrettedScale input detects shape (Fixture a via arpeggio)", () => {
+    const arp = arpeggioFromShape(CAGED_G, "Am7", "C");
+    const result = inferShapeContext(arp, { system: "caged" });
+    expect(result.length).toBeGreaterThan(0);
+    expect(result[0].shape.name).toBe("G Shape");
+  });
+
+  it("empty FrettedScale → []", () => {
+    expect(inferShapeContext({ ...NoFrettedScale })).toEqual([]);
+  });
+
+  it("FrettedScale with notes → candidates found", () => {
+    const built = buildFrettedScale(CAGED_G, "C");
+    const result = inferShapeContext(built, { system: "caged" });
+    expect(result.length).toBeGreaterThan(0);
   });
 });
