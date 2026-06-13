@@ -115,7 +115,7 @@ breakdowns, min-evidence gate, omittedIntervals/canonicalRoot fields.
 
 | Layer | Task Group                          | Status  | Agent | Notes |
 | ----- | ----------------------------------- | ------- | ----- | ----- |
-| 0     | TG1: Type Extensions & Registry Query | pending | -     | -     |
+| 0     | TG1: Type Extensions & Registry Query | complete | sonnet | 360 tests pass |
 | 1     | TG2: arpeggio.ts Module Scaffold    | pending | -     | -     |
 | 1     | TG7: Grouped Formatter Rendering    | pending | -     | -     |
 | 1     | TG8: Curated Chord-Shape Data       | pending | -     | -     |
@@ -127,5 +127,7 @@ breakdowns, min-evidence gate, omittedIntervals/canonicalRoot fields.
 | 6     | TG10: Test Review & Gap Analysis    | pending | -     | -     |
 
 ### Oversight Reports
+
+- **Layer 0**: No concerns. Continued.
 
 ### Spec Compliance
