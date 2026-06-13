@@ -123,6 +123,9 @@ import "./data/caged-chords-7th";
 import "./data/open-chords";
 import "./data/jazz-shells";
 
+// Jazz shell voicing dictionary (public API)
+export { SHELL_DICTIONARY } from "./data/jazz-shells";
+
 // Built-in sequences
 export {
   ASCENDING_THIRDS,

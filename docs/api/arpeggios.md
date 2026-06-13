@@ -6,7 +6,7 @@ description: Arpeggio derivation, chord-shape inference, and curated voicing dat
 ```js
 import * as Guitar from "tonal-guitar";
 
-const arpeggio = Guitar.arpeggioFromShape(Guitar.get("CAGED G Shape"), "Am7", "C");
+const arpeggio = Guitar.arpeggioFromShape(Guitar.get("G Shape"), "Am7", "C");
 const candidates = Guitar.inferShapeContext("x32010");
 ```
 
@@ -40,7 +40,7 @@ import { buildFrettedScale, filterChordTones, get } from "tonal-guitar";
 
 // Am7 chord tones in C major, expressed in the PARENT frame (root = C):
 //   A = "6M", C = "1P", E = "3M", G = "5P"
-const cMajorScale = buildFrettedScale(get("CAGED G Shape"), "C");
+const cMajorScale = buildFrettedScale(get("G Shape"), "C");
 const arpeggio = filterChordTones(cMajorScale, ["6M", "1P", "3M", "5P"]);
 // => FrettedScale with 10 notes, all with interval in {"6M","1P","3M","5P"}
 // Each note still carries its C-major parent-frame interval and degree.
@@ -72,14 +72,14 @@ This approach is frame-safe — relative/diatonic arpeggios (Am7 inside C major)
 ```js
 import { buildFrettedScale, arpeggioFromScale, get } from "tonal-guitar";
 
-const cMajor = buildFrettedScale(get("CAGED G Shape"), "C");
+const cMajor = buildFrettedScale(get("G Shape"), "C");
 const am7Arp = arpeggioFromScale(cMajor, "Am7");
 // => FrettedScale {
 //      empty: false,
 //      root: "A",               // chord tonic
 //      scaleType: "minor seventh", // chord type label (not a scale claim)
 //      scaleName: "A minor seventh",
-//      shapeName: "CAGED G Shape",
+//      shapeName: "G Shape",
 //      notes: [/* 10 FrettedNotes with A, C, E, G chromas */]
 //    }
 
@@ -120,8 +120,8 @@ arpeggioFromScale(buildFrettedScale(shape, parentRoot, tuning), chordName)
 ```js
 import { arpeggioFromShape, get } from "tonal-guitar";
 
-const am7 = arpeggioFromShape(get("CAGED G Shape"), "Am7", "C");
-// Parent: C major in CAGED G Shape (14 notes across 6 strings)
+const am7 = arpeggioFromShape(get("G Shape"), "Am7", "C");
+// Parent: C major in G Shape (17 notes across 6 strings)
 // Filtered to: A, C, E, G chromas → 10 notes
 // am7.root === "A"
 // am7.scaleType === "minor seventh"
@@ -164,7 +164,7 @@ inferShapeContext("x32010");
 inferShapeContext([null, 3, 2, 0, 1, 0]);
 
 // From an arpeggio
-const arp = arpeggioFromShape(get("CAGED G Shape"), "Am7", "C");
+const arp = arpeggioFromShape(get("G Shape"), "Am7", "C");
 inferShapeContext(arp);
 ```
 
@@ -233,7 +233,7 @@ Returns `[]` when:
 inferShapeContext("xx0000"); // => [] (fewer than 3 distinct PCs by default)
 inferShapeContext("xx0000", { includeWeak: true }); // tries anyway
 
-// System filter
+// System filter (arp built above)
 inferShapeContext(arp, { system: "caged", limit: 3 });
 ```
 
@@ -403,16 +403,16 @@ const notes = voicing.positions; // FrettedNote[]
 // Render as a strummed chord (all notes simultaneous = one beat)
 const tex = toAlphaTeX([notes], { duration: 4 });
 // => header...
-//    :4 (0.1 3.2 2.3 0.4 1.5 0.6) |
+//    :4 (3.5 2.4 0.3 1.2 0.1) |
 
 // ASCII tab column view (R-5.4 chord-column path)
 const tab = toAsciiTab([notes]);
-// e| 0|
-// B| 1|
-// G| 0|
-// D| 2|
-// A| 3|
-// E| x|
+// e|0|
+// B|1|
+// G|0|
+// D|2|
+// A|3|
+// E|-|
 ```
 
 ### Option indexing under grouped input

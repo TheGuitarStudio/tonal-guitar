@@ -410,8 +410,8 @@ Derive a chord-tone arpeggio from a scale shape. Builds the parent scale, then f
 ```js
 import { arpeggioFromShape, get } from "tonal-guitar";
 
-// Am7 arpeggio from the CAGED G Shape in the key of C major
-const am7 = arpeggioFromShape(get("CAGED G Shape"), "Am7", "C");
+// Am7 arpeggio from the G Shape in the key of C major
+const am7 = arpeggioFromShape(get("G Shape"), "Am7", "C");
 // am7.root === "A"
 // am7.scaleType === "minor seventh"
 // am7.notes: 10 FrettedNotes, all with pc in {"A","C","E","G"}
@@ -425,7 +425,7 @@ The returned notes carry their **parent-scale** `interval` and `degree` fields u
 Same as `arpeggioFromShape` but takes an already-built parent `FrettedScale`. Use this when you want to reuse a scale you have already built:
 
 ```js
-const cMajor = buildFrettedScale(get("CAGED G Shape"), "C");
+const cMajor = buildFrettedScale(get("G Shape"), "C");
 const am7 = arpeggioFromScale(cMajor, "Am7");
 const em7 = arpeggioFromScale(cMajor, "Em7");
 ```
@@ -444,7 +444,7 @@ Low-level parent-frame filter. Retains notes whose `interval` field (relative to
 import { filterChordTones, buildFrettedScale, get } from "tonal-guitar";
 
 // Am7 in C major, parent-frame intervals: A=6M, C=1P, E=3M, G=5P
-const cMajor = buildFrettedScale(get("CAGED G Shape"), "C");
+const cMajor = buildFrettedScale(get("G Shape"), "C");
 filterChordTones(cMajor, ["6M", "1P", "3M", "5P"]);
 ```
 
@@ -463,7 +463,7 @@ const candidates = inferShapeContext("x32010");
 // candidates[0].breakdown   — transparent per-term breakdown
 
 // From an arpeggio, filtered to CAGED system, top 3
-const arp = arpeggioFromShape(get("CAGED G Shape"), "Am7", "C");
+const arp = arpeggioFromShape(get("G Shape"), "Am7", "C");
 inferShapeContext(arp, { system: "caged", limit: 3 });
 ```
 
@@ -480,15 +480,15 @@ const voicing = applyChordShape(chordShapes.get("C Major Open"), "C");
 
 // Render as strummed chord
 toAlphaTeX([voicing.positions], { duration: 4 });
-// => header + :4 (0.1 3.2 2.3 0.4 1.5 0.6) |
+// => header + :4 (3.5 2.4 0.3 1.2 0.1) |
 
 toAsciiTab([voicing.positions]);
-// e| 0|
-// B| 1|
-// G| 0|
-// D| 2|
-// A| 3|
-// E| x|
+// e|0|
+// B|1|
+// G|0|
+// D|2|
+// A|3|
+// E|-|
 ```
 
 Flat `FrettedNote[]` (original form) is still accepted and produces identical output.

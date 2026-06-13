@@ -6,7 +6,7 @@ description: Arpeggio derivation, chord-shape inference, and curated voicing dat
 ```js
 import * as Guitar from "tonal-guitar";
 
-const arpeggio = Guitar.arpeggioFromShape(Guitar.get("CAGED G Shape"), "Am7", "C");
+const arpeggio = Guitar.arpeggioFromShape(Guitar.get("G Shape"), "Am7", "C");
 const candidates = Guitar.inferShapeContext("x32010");
 ```
 
@@ -31,7 +31,7 @@ Filter a `FrettedScale` to notes whose `interval` (in the **parent-scale frame**
 
 ```js
 // Am7 in C major, parent-frame intervals: A=6M, C=1P, E=3M, G=5P
-const cMajorScale = buildFrettedScale(get("CAGED G Shape"), "C");
+const cMajorScale = buildFrettedScale(get("G Shape"), "C");
 const arpeggio = filterChordTones(cMajorScale, ["6M", "1P", "3M", "5P"]);
 // 10 notes, intervals only from {"6M","1P","3M","5P"}
 ```
@@ -45,7 +45,7 @@ Never throws. Empty or no-match input returns the `NoFrettedScale` sentinel (wit
 Derive a chord-tone arpeggio from an already-built parent `FrettedScale`. Filtering is chroma-based and frame-safe — diatonic arpeggios (Am7 inside C major) work without manual interval translation.
 
 ```js
-const cMajor = buildFrettedScale(get("CAGED G Shape"), "C");
+const cMajor = buildFrettedScale(get("G Shape"), "C");
 const am7Arp = arpeggioFromScale(cMajor, "Am7");
 // am7Arp.root === "A"
 // am7Arp.scaleType === "minor seventh"
@@ -61,7 +61,7 @@ Bare chord types (no tonic) fall back to `parent.root`. Returns `NoFrettedScale`
 Convenience composition: builds the parent scale then derives the arpeggio.
 
 ```js
-const am7 = arpeggioFromShape(get("CAGED G Shape"), "Am7", "C");
+const am7 = arpeggioFromShape(get("G Shape"), "Am7", "C");
 // am7.root === "A", 10 notes, A/C/E/G chromas
 ```
 
@@ -99,7 +99,7 @@ interface InferenceCandidate {
 inferShapeContext("x32010");
 
 // From an arpeggio, CAGED system only, top 3
-const arp = arpeggioFromShape(get("CAGED G Shape"), "Am7", "C");
+const arp = arpeggioFromShape(get("G Shape"), "Am7", "C");
 inferShapeContext(arp, { system: "caged", limit: 3 });
 ```
 
@@ -155,15 +155,15 @@ Both `toAlphaTeX` and `toAsciiTab` now accept `FrettedNote[][]`. Each inner arra
 // Strummed chord
 const voicing = applyChordShape(chordShapes.get("C Major Open"), "C");
 toAlphaTeX([voicing.positions], { duration: 4 });
-// => :4 (0.1 3.2 2.3 0.4 1.5 0.6) |
+// => :4 (3.5 2.4 0.3 1.2 0.1) |
 
 toAsciiTab([voicing.positions]);
-// e| 0|
-// B| 1|
-// G| 0|
-// D| 2|
-// A| 3|
-// E| x|
+// e|0|
+// B|1|
+// G|0|
+// D|2|
+// A|3|
+// E|-|
 ```
 
 Flat `FrettedNote[]` is still accepted and produces identical output. `notesPerBar`, `noteDurations`, and `rhythmPattern` index by **beat (group)** under grouped input, not by individual note.
