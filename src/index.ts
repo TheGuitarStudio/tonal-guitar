@@ -103,6 +103,8 @@ export {
   analyzeInKey,
   isShapeCompatible,
   modeShapes,
+  arpeggioFromScale,
+  arpeggioFromShape,
 } from "./integration";
 export type { KeyAnalysis } from "./integration";
 

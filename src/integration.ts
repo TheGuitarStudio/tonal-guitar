@@ -3,13 +3,111 @@
  */
 
 import { get as getScale, modeNames } from "@tonaljs/scale";
-import { detect as detectChord } from "@tonaljs/chord";
+import { get as getChord, detect as detectChord } from "@tonaljs/chord";
+import {
+  chroma as noteChroma,
+  transpose as noteTranspose,
+  pitchClass,
+} from "@tonaljs/note";
 import { majorKey } from "@tonaljs/key";
 
 import { FrettedScale, NoFrettedScale, ScaleShape, all } from "./shape";
 import { buildFrettedScale } from "./build";
 import { noteAt } from "./fretboard";
 import { STANDARD } from "./tuning";
+
+// ============================================================
+// arpeggioFromScale / arpeggioFromShape
+// ============================================================
+
+/**
+ * Strip octave from a note name or pitch-class string, returning the pitch class.
+ * e.g. "A4" → "A", "Bb" → "Bb", "C#3" → "C#"
+ */
+function pc(note: string): string {
+  return pitchClass(note) || note;
+}
+
+/**
+ * Derive a chord-tone arpeggio from an already-built parent `FrettedScale`.
+ *
+ * Filtering is chroma-based (frame-safe): chord membership is computed as the
+ * set of chromas produced by transposing the chord tonic by each of the chord's
+ * intervals (`Chord.get(chordName).intervals`). Notes are kept if their pitch
+ * class chroma falls in that set — so relative/diatonic arpeggios (Am7 inside
+ * C major) work without any parent-frame interval translation.
+ *
+ * The chord tonic comes from `Chord.get(chordName).tonic`; for bare types with
+ * no tonic (e.g. `"m7"`) it falls back to `parent.root`.
+ *
+ * Parent-frame `interval` and `degree` fields on each retained note are
+ * preserved as-is (per spec §A.2 "Two Interval Frames" invariant).
+ *
+ * Never throws. Returns `NoFrettedScale` for empty parent or unrecognised chord.
+ * Returns the all-absent sentinel (root/tuning/shapeName preserved, empty: true)
+ * if no chord tones land in the parent shape.
+ *
+ * R-3.1 / spec §A.2
+ */
+export function arpeggioFromScale(
+  parent: FrettedScale,
+  chordName: string,
+): FrettedScale {
+  if (parent.empty) return { ...NoFrettedScale };
+
+  const chord = getChord(chordName);
+  if (chord.empty || chord.intervals.length === 0) return { ...NoFrettedScale };
+
+  const tonic = chord.tonic || parent.root;
+  const chordChromas = new Set<number | null>(
+    chord.intervals.map((ivl) => noteChroma(noteTranspose(tonic, ivl))),
+  );
+  // Remove null (failed transpose) just in case
+  chordChromas.delete(null);
+
+  const kept = parent.notes.filter((n) => {
+    const c = noteChroma(n.pc);
+    return c !== null && c !== undefined && chordChromas.has(c);
+  });
+
+  const tonicPc = pc(tonic);
+
+  if (kept.length === 0) {
+    return {
+      ...NoFrettedScale,
+      root: tonicPc,
+      tuning: parent.tuning,
+      shapeName: parent.shapeName,
+    };
+  }
+
+  return {
+    empty: false,
+    root: tonicPc,
+    scaleType: chord.type,
+    scaleName: `${tonicPc} ${chord.type}`,
+    shapeName: parent.shapeName,
+    tuning: parent.tuning,
+    notes: kept,
+  };
+}
+
+/**
+ * Convenience composition: build the parent scale shape then derive the arpeggio.
+ *
+ * Equivalent to:
+ *   `arpeggioFromScale(buildFrettedScale(shape, parentRoot, tuning), chordName)`
+ *
+ * R-3.1 / spec §A.2
+ */
+export function arpeggioFromShape(
+  shape: ScaleShape,
+  chordName: string,
+  parentRoot: string,
+  tuning: string[] = STANDARD,
+): FrettedScale {
+  return arpeggioFromScale(buildFrettedScale(shape, parentRoot, tuning), chordName);
+}
 
 // ============================================================
 // buildFromScale
