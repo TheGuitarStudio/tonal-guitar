@@ -12,7 +12,9 @@ This is consistent with the experiment code. The question is whether `rootString
 
 ## Q2: ASCII tab column alignment with multi-digit frets
 
-When notes have different fret widths (e.g., fret 5 vs fret 10), the tab lines can become misaligned. A pre-calculated column width approach would fix this but adds complexity. Current output is functional but not pixel-perfect.
+**Status (chord-column path): RESOLVED (R-5.4)**. `toAsciiTab` now accepts `FrettedNote[][]` (grouped input). In the grouped path, each beat occupies one column whose width is `Math.max(1, max fret digit width in the group)`, so multi-digit frets (e.g. fret 10 alongside fret 5) align correctly across all string rows.
+
+**Status (sequential path): unchanged**. When a flat `FrettedNote[]` is passed and notes across different strings have different fret widths, the tab lines can still be misaligned because each note is emitted as its own column without cross-string width coordination. This case is uncommon in practice (sequential runs rarely span fret 10+ positions mid-phrase) and remains tracked for a future iteration.
 
 ## Q3: `analyzeInKey` chord matching limitations
 

@@ -399,6 +399,100 @@ toAsciiTab(notes);
 // E|-5------|
 ```
 
+### Arpeggios & Chord Detection
+
+These functions require `@tonaljs/chord` (optional peer dependency).
+
+#### `arpeggioFromShape(shape: ScaleShape, chordName: string, parentRoot: string, tuning?: string[]) => FrettedScale`
+
+Derive a chord-tone arpeggio from a scale shape. Builds the parent scale, then filters to notes whose pitch-class chroma belongs to the named chord.
+
+```js
+import { arpeggioFromShape, get } from "tonal-guitar";
+
+// Am7 arpeggio from the CAGED G Shape in the key of C major
+const am7 = arpeggioFromShape(get("CAGED G Shape"), "Am7", "C");
+// am7.root === "A"
+// am7.scaleType === "minor seventh"
+// am7.notes: 10 FrettedNotes, all with pc in {"A","C","E","G"}
+// Each note's .interval is in the C-major (parent) frame, e.g. "6M" for A
+```
+
+The returned notes carry their **parent-scale** `interval` and `degree` fields unchanged — the chord name determines which pitch classes are kept, but the notes still report their position within the parent scale.
+
+#### `arpeggioFromScale(parent: FrettedScale, chordName: string) => FrettedScale`
+
+Same as `arpeggioFromShape` but takes an already-built parent `FrettedScale`. Use this when you want to reuse a scale you have already built:
+
+```js
+const cMajor = buildFrettedScale(get("CAGED G Shape"), "C");
+const am7 = arpeggioFromScale(cMajor, "Am7");
+const em7 = arpeggioFromScale(cMajor, "Em7");
+```
+
+Bare chord types (no tonic) fall back to `parent.root`:
+
+```js
+arpeggioFromScale(cMajor, "m7"); // tonic = "C"
+```
+
+#### `filterChordTones(scale: FrettedScale, intervals: string[]) => FrettedScale`
+
+Low-level parent-frame filter. Retains notes whose `interval` field (relative to the parent root) is in the provided set. Use this when you have already translated intervals to the parent frame, or when you want zero Tonal dependencies:
+
+```js
+import { filterChordTones, buildFrettedScale, get } from "tonal-guitar";
+
+// Am7 in C major, parent-frame intervals: A=6M, C=1P, E=3M, G=5P
+const cMajor = buildFrettedScale(get("CAGED G Shape"), "C");
+filterChordTones(cMajor, ["6M", "1P", "3M", "5P"]);
+```
+
+#### `inferShapeContext(input: InferenceInput, options?: InferenceOptions) => InferenceCandidate[]`
+
+Detect which registered scale shapes cover a given grip or arpeggio. Accepts a compact fret string, a fret array, or a `FrettedScale`:
+
+```js
+import { inferShapeContext } from "tonal-guitar";
+
+// From a chord grip
+const candidates = inferShapeContext("x32010");
+// candidates[0].shape       — best matching ScaleShape
+// candidates[0].shapeRoot   — parent-scale root (e.g. "C")
+// candidates[0].score       — total weighted match score
+// candidates[0].breakdown   — transparent per-term breakdown
+
+// From an arpeggio, filtered to CAGED system, top 3
+const arp = arpeggioFromShape(get("CAGED G Shape"), "Am7", "C");
+inferShapeContext(arp, { system: "caged", limit: 3 });
+```
+
+Returns `[]` when fewer than 3 distinct pitch classes are present (use `{ includeWeak: true }` to override).
+
+#### Strummed voicing rendering
+
+Both `toAlphaTeX` and `toAsciiTab` now accept `FrettedNote[][]` — each inner array is one simultaneous beat (strum/chord):
+
+```js
+import { applyChordShape, chordShapes, toAlphaTeX, toAsciiTab } from "tonal-guitar";
+
+const voicing = applyChordShape(chordShapes.get("C Major Open"), "C");
+
+// Render as strummed chord
+toAlphaTeX([voicing.positions], { duration: 4 });
+// => header + :4 (0.1 3.2 2.3 0.4 1.5 0.6) |
+
+toAsciiTab([voicing.positions]);
+// e| 0|
+// B| 1|
+// G| 0|
+// D| 2|
+// A| 3|
+// E| x|
+```
+
+Flat `FrettedNote[]` (original form) is still accepted and produces identical output.
+
 ### Tonal.js Integration
 
 These functions require optional peer dependencies (`@tonaljs/scale`, `@tonaljs/chord`, `@tonaljs/key`).
@@ -479,10 +573,17 @@ The package exports these TypeScript interfaces:
 - `FrettedNote` — a note on the fretboard with position, pitch, and interval info
 - `FrettedScale` — a scale applied to the fretboard (with `empty` sentinel pattern)
 - `ScaleShape` — a scale shape definition (intervals per string)
-- `ChordShape` — a chord voicing definition (one interval per string + fingerings)
+- `ChordShape` — a chord voicing definition (one interval per string + fingerings + optional harmonic metadata)
 - `Barre` — barre chord finger placement
 - `Fingering` — chord shape applied to a specific root
 - `FretboardPosition` — absolute position on the fretboard (string, fret, note, midi)
+- `VoicingFamily` — voicing family enum (`"caged"`, `"shell"`, `"open"`, `"barre"`, etc.)
+- `VoicingPatternDictionary` — dictionary type for voicing patterns (used by jazz shells)
+- `InferenceInput` — input forms for `inferShapeContext`
+- `InferenceOptions` — options for `inferShapeContext`
+- `InferenceCandidate` — a ranked shape-detection result
+- `InferenceProbe` — normalised internal probe used by the scoring core
+- `ScoreBreakdown` — transparent per-term score breakdown on each `InferenceCandidate`
 - `WalkOptions` — options for `walkPattern`
 - `SequenceOptions` — options for `applySequence`
 - `AlphaTexOptions` — options for `toAlphaTeX`
