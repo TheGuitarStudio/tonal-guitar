@@ -116,9 +116,9 @@ breakdowns, min-evidence gate, omittedIntervals/canonicalRoot fields.
 | Layer | Task Group                          | Status  | Agent | Notes |
 | ----- | ----------------------------------- | ------- | ----- | ----- |
 | 0     | TG1: Type Extensions & Registry Query | complete | sonnet | 360 tests pass |
-| 1     | TG2: arpeggio.ts Module Scaffold    | pending | -     | -     |
-| 1     | TG7: Grouped Formatter Rendering    | pending | -     | -     |
-| 1     | TG8: Curated Chord-Shape Data       | pending | -     | -     |
+| 1     | TG2: arpeggio.ts Module Scaffold    | complete | sonnet | stubs throw; types exported |
+| 1     | TG7: Grouped Formatter Rendering    | complete | sonnet | byte-identical flat path kept |
+| 1     | TG8: Curated Chord-Shape Data       | complete | sonnet | 16 shells; see oversight note |
 | 2     | TG3: filterChordTones               | pending | -     | -     |
 | 3     | TG4: pcChroma & scoreShapeMatch     | pending | -     | -     |
 | 3     | TG5: arpeggio Builders              | pending | -     | -     |
@@ -129,5 +129,6 @@ breakdowns, min-evidence gate, omittedIntervals/canonicalRoot fields.
 ### Oversight Reports
 
 - **Layer 0**: No concerns. Continued.
+- **Layer 1**: Minor concern — `OPEN_G_DIM`/`OPEN_G_M7B5` in `open-chords.ts` use `baseFret:5` but are tagged `voicingFamily:"open"` (semantically barre, not open). Non-blocking; flagged for `/review`. Continued.
 
 ### Spec Compliance
