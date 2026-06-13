@@ -31,7 +31,7 @@
 - [x] Phase 6: Code Simplification Fix
 - [x] Phase 7: Specialized Reviews
 - [x] Phase 8: Specialized Fixes
-- [ ] Phase 9: Final Verification
+- [x] Phase 9: Final Verification
 
 ### Loop 2 findings (regression-focused over the Loop 1 fix diff)
 
@@ -46,9 +46,10 @@ Loop 2 focus: regression/verification pass over the code MODIFIED during Loop 1'
 
 ## Statistics
 
-- Critical: 1 fixed (CR-016), 0 remaining | Important: 4 fixed (CR-003/007/008/012), 5 deferred
-- GitHub Issues Created: #38 (perf), #39 (fingering metadata)
-- Total Commits: (running) | Total Fixes: 5 | Final Status: IN PROGRESS
+- Critical: 1 fixed (CR-016), 0 remaining | Important: 11 fixed, 0 remaining (3 deferred to issues)
+- Findings: 45 CR IDs across 2 loops. Fixed: 23. Deferred: 3 GitHub issues. Won't Fix: ~7. Positives/confirmations: remainder.
+- GitHub Issues Created: #38 (inferShapeContext perf), #39 (fingering metadata), #40 (pre-existing robustness)
+- Total review commits: 8 | Tests: 602 → 606 | Final Status: **PASS** (0 Critical remaining; lint + build + 606 tests green)
 
 ## Phase 2: Lint/Test Results
 
