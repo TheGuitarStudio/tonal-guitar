@@ -8,6 +8,7 @@
  */
 
 import type { FrettedNote, FrettedScale, ScaleShape } from "./shape";
+import { NoFrettedScale } from "./shape";
 
 // ============================================================
 // Exported types
@@ -105,10 +106,36 @@ void pcChroma;
  * R-2.1, R-2.2, R-2.3 — spec §A.1
  */
 export function filterChordTones(
-  _scale: FrettedScale,
-  _intervals: string[],
+  scale: FrettedScale,
+  intervals: string[],
 ): FrettedScale {
-  throw new Error("not implemented");
+  // Guard: empty/sentinel scale → return NoFrettedScale (R-2.3)
+  if (scale.empty) return { ...NoFrettedScale };
+
+  const wanted = new Set(intervals);
+  // Single-pass filter preserving order; FrettedNote objects reused (immutable references)
+  const kept = scale.notes.filter((n) => wanted.has(n.interval));
+
+  // Empty filter result: preserve root/tuning/shapeName (R-2.3)
+  if (kept.length === 0) {
+    return {
+      ...NoFrettedScale,
+      root: scale.root,
+      tuning: scale.tuning,
+      shapeName: scale.shapeName,
+    };
+  }
+
+  // Return a fresh FrettedScale with a fresh notes array (R-2.2)
+  return {
+    empty: false,
+    root: scale.root,
+    scaleType: "",   // callers may overwrite
+    scaleName: "",
+    shapeName: scale.shapeName,
+    tuning: scale.tuning,
+    notes: kept,
+  };
 }
 
 /**
