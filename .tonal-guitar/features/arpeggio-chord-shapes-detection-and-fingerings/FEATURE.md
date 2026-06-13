@@ -124,7 +124,7 @@ breakdowns, min-evidence gate, omittedIntervals/canonicalRoot fields.
 | 3     | TG5: arpeggio Builders              | complete | sonnet | chroma-membership, frame-safe |
 | 4     | TG6: inferShapeContext              | complete | sonnet | probe-confirmed rankings; 42 tests |
 | 5     | TG9: API Docs & README              | complete | sonnet | examples re-verified by running |
-| 6     | TG10: Test Review & Gap Analysis    | pending | -     | -     |
+| 6     | TG10: Test Review & Gap Analysis    | complete | sonnet | +13 tests; all 9 fixtures audited |
 
 ### Oversight Reports
 
