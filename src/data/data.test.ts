@@ -559,3 +559,50 @@ describe("chordShapes.query — cross-dataset queries", () => {
     expect(results.length).toBeGreaterThanOrEqual(2); // E-form and A-form at minimum
   });
 });
+
+// ─── TG10 Gap: Data integrity — chordShapes.all() count ──────────────────────
+//
+// Verifies that all three new curated data files registered the expected number
+// of shapes. The baseline 5 shapes come from caged-chords.ts (CAGED_CHORD_E/A/D/C/G).
+// New additions: caged-chords-7th (11) + open-chords (70) + jazz-shells (16) = 97.
+// Total after all imports = 5 + 97 = 102. (R-4.4)
+
+describe("TG10 — Data integrity: chordShapes.all() count after all curated imports", () => {
+  it("total registered shapes after all three new data files = 102 (5 base + 11 + 70 + 16)", () => {
+    // All three data files are imported at the top of this file for side effects.
+    // index.ts also imports caged-chords.ts (5 shapes).
+    // Expected breakdown:
+    //   caged-chords.ts:      5  (CAGED_CHORD_E/A/D/C/G)
+    //   caged-chords-7th.ts: 11  (maj7/m7/7/m7b5 E+A+D forms)
+    //   open-chords.ts:      70  (5 open families + 2 barre families × 10 chord types)
+    //   jazz-shells.ts:      16  (4 chord types × 2 string sets × 2 orderings)
+    const total = chordShapes.all().length;
+    expect(total).toBe(102);
+  });
+
+  it("caged-chords-7th adds exactly 11 shapes (validates R-4.1 registration)", () => {
+    // 4 chord types, but not all CAGED positions exist for each:
+    // maj7: E-shape + A-shape + D-shape = 3
+    // m7:  E-shape + A-shape + D-shape = 3
+    // 7:   E-shape + A-shape + D-shape = 3
+    // m7b5: E-shape + A-shape = 2
+    // Total = 11
+    const cagedSeventh = chordShapes.query({ voicingFamily: "caged" }).filter(
+      (s) => s.chordType !== undefined
+    );
+    expect(cagedSeventh.length).toBe(11);
+  });
+
+  it("open-chords adds exactly 70 shapes (validates R-4.2 registration)", () => {
+    // 5 open families × 10 types + 2 barre families × 10 types = 70
+    const openCount = chordShapes.query({ voicingFamily: "open" }).length;
+    const barreCount = chordShapes.query({ voicingFamily: "barre" }).length;
+    expect(openCount + barreCount).toBe(70);
+  });
+
+  it("jazz-shells adds exactly 16 shapes (validates R-4.3 registration)", () => {
+    // 4 chord types × 2 string sets × 2 orderings = 16
+    const shellCount = chordShapes.query({ voicingFamily: "shell" }).length;
+    expect(shellCount).toBe(16);
+  });
+});

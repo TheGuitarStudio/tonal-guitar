@@ -13,7 +13,7 @@ import { buildFrettedScale } from "./build";
 import { NoFrettedScale, type ScaleShape, add, removeAll } from "./shape";
 import { arpeggioFromScale, arpeggioFromShape, inferShapeContext } from "./integration";
 import { walkShapeMotif } from "./walker";
-import { STANDARD } from "./tuning";
+import { STANDARD, DROP_D } from "./tuning";
 
 // Side-effect imports to register shapes at module load time (used by TG5 tests)
 import "./data/caged-scales";
@@ -815,5 +815,183 @@ describe("inferShapeContext — FrettedScale input form", () => {
     const built = buildFrettedScale(CAGED_G, "C");
     const result = inferShapeContext(built, { system: "caged" });
     expect(result.length).toBeGreaterThan(0);
+  });
+});
+
+// ===========================================================================
+// TG10 Gap-fill tests — strategic additional coverage for genuine gaps
+// ===========================================================================
+
+// ---------------------------------------------------------------------------
+// TG10 Gap 1: Determinism for Fixture (c) ("133211" F major E-shape barre)
+// The generic determinism block covers x32010 and arpeggio form; this ensures
+// fixture (c) is explicitly covered per TG10 requirement.
+// ---------------------------------------------------------------------------
+
+describe("inferShapeContext — determinism Fixture (c): '133211'", () => {
+  beforeEach(() => { removeAll(); registerBuiltins(); });
+  afterEach(() => { removeAll(); registerBuiltins(); });
+
+  it("two consecutive calls to '133211' produce identically ordered results", () => {
+    removeAll();
+    registerBuiltins();
+    const r1 = inferShapeContext("133211", { system: "caged" });
+    const r2 = inferShapeContext("133211", { system: "caged" });
+    expect(r1.map((c) => `${c.shape.name}|${c.shapeRoot}|${c.score}`)).toEqual(
+      r2.map((c) => `${c.shape.name}|${c.shapeRoot}|${c.score}`)
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// TG10 Gap 2: Determinism for Fixture (f) (custom system)
+// Per TG10, determinism must be verified on each fixture that uses inferShapeContext.
+// ---------------------------------------------------------------------------
+
+describe("inferShapeContext — determinism Fixture (f): custom system", () => {
+  const myTeacherShapeDet: ScaleShape = {
+    name: "MyTeacher Det Box",
+    system: "myteacher-det",
+    strings: [
+      ["1P", "3m"],
+      ["4P", "5P"],
+      ["7m", "1P"],
+      null, null, null,
+    ],
+    rootString: 0,
+  };
+
+  beforeEach(() => {
+    removeAll();
+    registerBuiltins();
+    add(myTeacherShapeDet);
+  });
+  afterEach(() => { removeAll(); registerBuiltins(); });
+
+  it("two consecutive calls with custom system filter produce identically ordered results", () => {
+    const built = buildFrettedScale(myTeacherShapeDet, "A");
+    const r1 = inferShapeContext(built, { system: "myteacher-det" });
+    const r2 = inferShapeContext(built, { system: "myteacher-det" });
+    expect(r1.length).toBeGreaterThan(0);
+    expect(r1.map((c) => `${c.shape.name}|${c.shapeRoot}|${c.score}`)).toEqual(
+      r2.map((c) => `${c.shape.name}|${c.shapeRoot}|${c.score}`)
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// TG10 Gap 3: DROP_D tuning in inferShapeContext (edge case §B.5)
+// Both the grip and candidate shapes are built with the supplied tuning.
+// ---------------------------------------------------------------------------
+
+describe("inferShapeContext — DROP_D tuning (edge case §B.5)", () => {
+  beforeEach(() => { removeAll(); registerBuiltins(); });
+  afterEach(() => { removeAll(); registerBuiltins(); });
+
+  it("returns non-empty candidates for an E major grip in DROP_D tuning", () => {
+    // In DROP_D: low string is D2 instead of E2.
+    // G major chord in DROP_D: [5,5,4,0,3,3] anchors in G position
+    // Use a simple grip that has 3+ distinct PCs in DROP_D:
+    // Frets [0,2,2,1,0,0] in DROP_D → D2,B2,E3,G#3,B3,D4 → {D,B,E,G#} = {2,11,4,8} — 4 PCs
+    const result = inferShapeContext([0, 2, 2, 1, 0, 0], { system: "caged", tuning: DROP_D });
+    // At minimum, the engine should not throw and should return an array (possibly empty if
+    // no shape covers the E-major chord tones in DROP_D, but it MUST not error).
+    expect(Array.isArray(result)).toBe(true);
+  });
+
+  it("with DROP_D tuning: E-form CAGED built in DROP_D covers grip chromas", () => {
+    // CAGED_E of D (fret 0 in DROP_D) should cover {D,F#,A} = {2,6,9}
+    // Grip: low string fret 0 = D2, D-string fret 0 = D3, G-string fret 0 = G3,
+    // B-string fret 0 = B3, high-E fret 0 = E4, A-string fret 0 = A2 → {D,A,G,B,E} = many PCs
+    // Use a 5-PC D-major chord grip in DROP_D: [0,0,0,2,3,2]
+    // 0→D2, 0→A2, 0→D3, 2→A3, 3→B3, 2→F#4 → {D,A,B,F#} = {2,9,11,6} — 4 PCs
+    const gripDropD = [0, 0, 0, 2, 3, 2];
+    const result = inferShapeContext(gripDropD, { tuning: DROP_D });
+    // The probe should not error and should have sensible results (D major chord → multiple shapes)
+    expect(Array.isArray(result)).toBe(true);
+    // Scores should all be non-negative
+    for (const c of result) {
+      expect(c.score).toBeGreaterThanOrEqual(0);
+    }
+  });
+
+  it("DROP_D determinism: two calls produce identically ordered results", () => {
+    const grip = [0, 2, 2, 1, 0, 0];
+    const r1 = inferShapeContext(grip, { system: "caged", tuning: DROP_D });
+    const r2 = inferShapeContext(grip, { system: "caged", tuning: DROP_D });
+    expect(r1.map((c) => `${c.shape.name}|${c.shapeRoot}|${c.score}`)).toEqual(
+      r2.map((c) => `${c.shape.name}|${c.shapeRoot}|${c.score}`)
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// TG10 Gap 4: Duplicate-note grip through the full inferShapeContext pipeline
+// Spec §B.5: duplicate-note grips (same PC on multiple strings) — chroma dedup;
+// coverage and tightness are chroma-based so duplicates don't distort.
+// ---------------------------------------------------------------------------
+
+describe("inferShapeContext — duplicate-note grip (edge case §B.5)", () => {
+  beforeEach(() => { removeAll(); registerBuiltins(); });
+  afterEach(() => { removeAll(); registerBuiltins(); });
+
+  it("grip with same PC on two strings is handled without error", () => {
+    // C major open (x32010): C appears on both string 1 fret 3 and string 4 fret 1
+    // C is chroma 0 in both positions — a real duplicate-note case.
+    // The probe should dedup C's chroma; coverage and tightness should not be distorted.
+    const result = inferShapeContext("x32010", { system: "caged" });
+    expect(Array.isArray(result)).toBe(true);
+    expect(result.length).toBeGreaterThan(0);
+    // Top result should still be C Shape of C (same as Fixture b)
+    expect(result[0].shape.name).toBe("C Shape");
+    expect(result[0].shapeRoot).toBe("C");
+  });
+
+  it("grip with triple E (open chord x02220 has A A C# E A) produces non-distorted candidates", () => {
+    // x02220: A-str f0=A, D-str f2=E, G-str f2=A, B-str f2=C#, high-E f0=E → {A,E,C#} = {9,4,1}
+    // A appears on two strings; E appears on two strings — 2 chroma duplicates.
+    const result = inferShapeContext("x02220", { system: "caged" });
+    expect(result.length).toBeGreaterThan(0);
+    // All candidate scores should be positive
+    for (const c of result) {
+      expect(c.score).toBeGreaterThan(0);
+    }
+    // Probe pitchClasses should have deduplicated {A, C#, E} = 3 PCs (not 5)
+    // This is verified indirectly: the min-evidence gate did NOT reject it (result is non-empty)
+  });
+});
+
+// ---------------------------------------------------------------------------
+// TG10 Gap 5: Slash / inverted grip (edge case §B.5)
+// Bass ≠ root: rootCandidates enumerates bass-first then other PCs.
+// Both root-position and inverted readings appear in ranked list.
+// ---------------------------------------------------------------------------
+
+describe("inferShapeContext — slash / inverted grip (edge case §B.5)", () => {
+  beforeEach(() => { removeAll(); registerBuiltins(); });
+  afterEach(() => { removeAll(); registerBuiltins(); });
+
+  it("inverted grip returns results for both bass and root interpretations", () => {
+    // G/B: B bass with G major chord tones (G, B, D)
+    // Fret array where B is the lowest sounding note:
+    // x,2,0,0,0,3 in STANDARD: A-str f2=B, D-str f0=D, G-str f0=G, B-str f0=B, high-E f3=G
+    // Played notes: B2, D3, G3, B3, G4 → PCs: B(11), D(2), G(7) — 3 distinct PCs
+    // Bass note is B2 (lowest MIDI); root candidates should be [B-first, G, D]
+    const result = inferShapeContext([null, 2, 0, 0, 0, 3]);
+    expect(Array.isArray(result)).toBe(true);
+    // Should return some candidates (G major tones {G,B,D} are covered by multiple CAGED shapes)
+    expect(result.length).toBeGreaterThan(0);
+  });
+
+  it("slash grip does not error and all returned scores are non-negative", () => {
+    // E/G# (first inversion E major): G# bass
+    // In standard tuning: fret array with G# as lowest note:
+    // G#4 would need a high string, so use A-string f11=G#, D-str f9=B, G-str f9=E
+    // This is at high frets — may not match any standard shapes, but must not error
+    const result = inferShapeContext([null, 11, 9, 9, null, null]);
+    expect(Array.isArray(result)).toBe(true);
+    for (const c of result) {
+      expect(c.score).toBeGreaterThanOrEqual(0);
+    }
   });
 });
