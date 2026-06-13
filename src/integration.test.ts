@@ -672,7 +672,10 @@ describe("inferShapeContext — Fixture (h): no-match and edge cases", () => {
   });
 
   it("two-PC grip 'x00xxx' → [] by min-evidence gate (A and D — only 2 distinct PCs)", () => {
-    // x00xxx: A-string fret 0 = A, D-string fret 0 = D — only 2 distinct PCs
+    // x00xxx: A-string fret 0 = A, D-string fret 0 = D — only 2 distinct PCs.
+    // NOTE: the spec text named "x033xx" as the 2-PC example, but that grip is
+    // actually A/F/Bb = 3 distinct PCs (it passes the min-evidence gate), so it
+    // cannot test the <3 path. "x00xxx" (A, D) is the genuine 2-PC fixture.
     expect(inferShapeContext("x00xxx")).toEqual([]);
   });
 
