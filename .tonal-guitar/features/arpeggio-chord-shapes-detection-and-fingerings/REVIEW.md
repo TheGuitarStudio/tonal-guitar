@@ -19,7 +19,7 @@
 - [x] Phase 2: Lint/Test Fix
 - [x] Phase 3: Architecture Review
 - [x] Phase 4: Architecture Fix
-- [ ] Phase 5: Code Simplification Review
+- [x] Phase 5: Code Simplification Review
 - [ ] Phase 6: Code Simplification Fix
 - [ ] Phase 7: Specialized Reviews
 - [ ] Phase 8: Specialized Fixes
@@ -86,6 +86,29 @@ Positives confirmed: registration pattern consistent + wired into `index.ts`; mo
 ### Won't Fix
 
 - CR-004: CAGED-7th barre+fingers pattern mirrors the established `caged-chords.ts` convention for movable barre forms; `strings`/frets verified correct; `fingers`/`barres` are non-functional annotation.
+
+## Phase 5: Code Simplification Review
+
+### Core logic (arpeggio.ts, integration.ts, shape.ts, build.ts)
+
+- CR-017: [Important] `src/integration.ts:377` inline `import("./arpeggio").ScoreBreakdown` type — add to the existing named import on line 19 instead.
+- CR-018: [Suggestion] `src/arpeggio.ts:114` stale banner comment "Exported stubs (implemented in later task groups)" — functions are implemented now.
+- CR-019: [Suggestion] `src/arpeggio.ts:82` `!pc || pc.length === 0` — `!pc` already covers empty string.
+- CR-020: [Suggestion] `src/arpeggio.ts:291-292` `(anchorHit ? 1 : 0)` → `+anchorHit` (booleans). Style churn — skip.
+- CR-021: [Suggestion] `src/arpeggio.ts:260-263` repeated `pcChroma(n.pc)` calls — minor.
+- CR-022: [Suggestion] `src/integration.ts:406` redundant alias `const scale = input` after narrowing.
+- CR-023: [Suggestion] `src/integration.ts:73,414,449,487,498` five `c !== null && c !== undefined` guards → extract `isValidChroma(c): c is number` (`c != null`).
+- CR-024: [Suggestion] `src/integration.ts` inconsistent dedup-set naming (`seen`/`seenRoots`/`seenChromas`). Churn — skip.
+- CR-025: [Suggestion] `src/integration.ts:538-540` `options?.system ? s.system === options.system : true` → `!options?.system || s.system === options.system`.
+- CR-026: [Suggestion] `src/integration.ts:589-594` two-var limit computation — current form is readable; skip.
+- CR-027: [Won't Fix] `src/shape.ts:160-163` `JSON.stringify` stringSet comparison — spec R-1.4 EXPLICITLY mandates `JSON.stringify` order-sensitive equality. Keep as-is.
+- CR-028: [Won't Fix] `src/shape.ts:40` `VoicingPatternDictionary` alias — public exported type per spec R-1.3. Keep.
+
+### Formatters (alphatex.ts, ascii-tab.ts)
+
+- CR-010: [Important] Duplicated `normalizeGroups` block in both formatters — extract a shared helper into `src/output/util.ts`.
+- CR-029: [Suggestion] `src/output/alphatex.ts:125-165` duration-prefix logic triplicated across the three group-size branches — extract an `applyDuration(content, dur)` closure. Best-effort (must keep flat-path byte-identical).
+- CR-030: [Won't Fix] `src/output/ascii-tab.ts` two-loop consolidation — reviewer concluded the restructure isn't worth the line savings.
 
 ## Pre-seeded findings (from /implement oversight, to validate during review)
 
