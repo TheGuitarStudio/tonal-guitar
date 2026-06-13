@@ -107,6 +107,9 @@ import "./data/caged-scales";
 import "./data/caged-chords";
 import "./data/three-nps";
 import "./data/pentatonic";
+import "./data/caged-chords-7th";
+import "./data/open-chords";
+import "./data/jazz-shells";
 
 // Built-in sequences
 export {
