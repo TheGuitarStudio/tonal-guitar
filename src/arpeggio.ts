@@ -79,7 +79,7 @@ export interface ScoreBreakdown {
  * Not exported from this module or from src/index — internal to arpeggio.ts only.
  */
 function pcChroma(pc: string): number {
-  if (!pc || pc.length === 0) return -1;
+  if (!pc) return -1;
 
   const letter = pc[0].toUpperCase();
   const letterChromas: Record<string, number> = {
@@ -111,7 +111,7 @@ function pcChroma(pc: string): number {
 }
 
 // ============================================================
-// Exported stubs (implemented in later task groups)
+// Exported functions
 // ============================================================
 
 /**

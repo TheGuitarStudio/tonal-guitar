@@ -20,7 +20,7 @@
 - [x] Phase 3: Architecture Review
 - [x] Phase 4: Architecture Fix
 - [x] Phase 5: Code Simplification Review
-- [ ] Phase 6: Code Simplification Fix
+- [x] Phase 6: Code Simplification Fix
 - [ ] Phase 7: Specialized Reviews
 - [ ] Phase 8: Specialized Fixes
 - [ ] Phase 9: Final Verification
@@ -109,6 +109,24 @@ Positives confirmed: registration pattern consistent + wired into `index.ts`; mo
 - CR-010: [Important] Duplicated `normalizeGroups` block in both formatters — extract a shared helper into `src/output/util.ts`.
 - CR-029: [Suggestion] `src/output/alphatex.ts:125-165` duration-prefix logic triplicated across the three group-size branches — extract an `applyDuration(content, dur)` closure. Best-effort (must keep flat-path byte-identical).
 - CR-030: [Won't Fix] `src/output/ascii-tab.ts` two-loop consolidation — reviewer concluded the restructure isn't worth the line savings.
+
+## Phase 6: Code Simplification Fixes
+
+### Fixed (all verified, 606 tests pass)
+
+- CR-010: Extracted `normalizeGroups` into new `src/output/util.ts`; both formatters now import it.
+- CR-017: `ScoreBreakdown` added to the named `./arpeggio` import; inline `import()` type removed.
+- CR-018: Stale "Exported stubs" banner → "Exported functions".
+- CR-019: `pcChroma` empty-check simplified to `if (!pc)`.
+- CR-022: Removed redundant `const scale = input` alias.
+- CR-023: Added `isValidChroma(c): c is number` helper; replaced 7 null/undefined chroma guards.
+- CR-025: `system` filter simplified to `!options?.system || s.system === options.system`.
+- CR-029: Extracted `applyDuration` closure in `alphatex.ts`; collapsed the triplicated duration-prefix logic; output verified byte-identical.
+
+### Won't Fix / Skipped
+
+- CR-020, CR-024, CR-026: style churn, no clear improvement — skipped.
+- CR-027, CR-028, CR-030: see Phase 5 (spec-mandated / public type / not worth restructure).
 
 ## Pre-seeded findings (from /implement oversight, to validate during review)
 

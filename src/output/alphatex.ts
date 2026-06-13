@@ -1,6 +1,7 @@
 import { FrettedNote } from "../shape";
 import { STANDARD } from "../tuning";
 import { pitchClass } from "@tonaljs/note";
+import { normalizeGroups } from "./util";
 
 export interface AlphaTexOptions {
   title?: string;
@@ -87,9 +88,7 @@ export function toAlphaTeX(notes: FrettedNote[] | FrettedNote[][], options?: Alp
   // Normalise input: flat FrettedNote[] → FrettedNote[][] of singletons so the
   // bar/beat loop runs once for both paths. Grouped detection: Array.isArray of
   // the first element. An empty outer array produces [] groups → flat path.
-  const groups: FrettedNote[][] = Array.isArray(notes[0])
-    ? (notes as FrettedNote[][])
-    : (notes as FrettedNote[]).map((n) => [n]);
+  const groups: FrettedNote[][] = normalizeGroups(notes);
 
   // Determine notesPerBar
   const notesPerBar = options?.notesPerBar ?? (duration === 4 ? 4 : 8);
@@ -115,6 +114,16 @@ export function toAlphaTeX(notes: FrettedNote[] | FrettedNote[][], options?: Alp
   const hasVariableDurations = !!(noteDurations || rhythmPattern);
   let barCount = 0;
 
+  // Apply duration prefix when variable durations are active. Mutates prevDuration.
+  const applyDuration = (content: string, dur: number): string => {
+    if (!hasVariableDurations) return content;
+    if (prevDuration === null || dur !== prevDuration) {
+      prevDuration = dur;
+      return `:${dur} ${content}`;
+    }
+    return content;
+  };
+
   for (let i = 0; i < groups.length; i++) {
     const group = groups[i];
     const dur = getDuration(i);
@@ -122,47 +131,19 @@ export function toAlphaTeX(notes: FrettedNote[] | FrettedNote[][], options?: Alp
     let beatStr: string;
     if (group.length === 0) {
       // Empty group → rest beat
-      if (hasVariableDurations) {
-        if (prevDuration === null || dur !== prevDuration) {
-          beatStr = `:${dur} r`;
-          prevDuration = dur;
-        } else {
-          beatStr = `r`;
-        }
-      } else {
-        beatStr = `r`;
-      }
+      beatStr = applyDuration(`r`, dur);
     } else if (group.length === 1) {
       // Single note — no parentheses (same as sequential format)
       const n = group[0];
       const atString = stringCount - n.string;
-      if (hasVariableDurations) {
-        if (prevDuration === null || dur !== prevDuration) {
-          beatStr = `:${dur} ${n.fret}.${atString}`;
-          prevDuration = dur;
-        } else {
-          beatStr = `${n.fret}.${atString}`;
-        }
-      } else {
-        beatStr = `${n.fret}.${atString}`;
-      }
+      beatStr = applyDuration(`${n.fret}.${atString}`, dur);
     } else {
       // Multiple notes → parenthesised simultaneous-beat syntax
       const noteParts = group.map((n) => {
         const atString = stringCount - n.string;
         return `${n.fret}.${atString}`;
       });
-      const chord = `(${noteParts.join(" ")})`;
-      if (hasVariableDurations) {
-        if (prevDuration === null || dur !== prevDuration) {
-          beatStr = `:${dur} ${chord}`;
-          prevDuration = dur;
-        } else {
-          beatStr = chord;
-        }
-      } else {
-        beatStr = chord;
-      }
+      beatStr = applyDuration(`(${noteParts.join(" ")})`, dur);
     }
 
     currentBar.push(beatStr);

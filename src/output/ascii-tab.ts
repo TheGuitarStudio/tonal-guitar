@@ -1,6 +1,7 @@
 import { FrettedNote } from "../shape";
 import { STANDARD } from "../tuning";
 import { pitchClass } from "@tonaljs/note";
+import { normalizeGroups } from "./util";
 
 export interface AsciiTabOptions {
   tuning?: string[];
@@ -43,9 +44,7 @@ export function toAsciiTab(notes: FrettedNote[] | FrettedNote[][], options?: Asc
   // Normalise input: flat FrettedNote[] → FrettedNote[][] of singletons so the
   // column loop runs once for both paths. Grouped detection: Array.isArray of
   // the first element. An empty outer array produces [] groups → flat path.
-  const groups: FrettedNote[][] = Array.isArray(notes[0])
-    ? (notes as FrettedNote[][])
-    : (notes as FrettedNote[]).map((n) => [n]);
+  const groups: FrettedNote[][] = normalizeGroups(notes);
 
   // Build per-string row arrays. Display high string first (standard tab convention):
   // displayIndex 0 = highest string = stringCount - 1

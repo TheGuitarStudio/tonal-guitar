@@ -16,7 +16,7 @@ import { FrettedNote, FrettedScale, NoFrettedScale, ScaleShape, all } from "./sh
 import { buildFrettedScale, findShapeAnchorFret } from "./build";
 import { noteAt } from "./fretboard";
 import { STANDARD } from "./tuning";
-import { scoreShapeMatch, InferenceProbe } from "./arpeggio";
+import { scoreShapeMatch, InferenceProbe, ScoreBreakdown } from "./arpeggio";
 import { parseChordFrets } from "./notation";
 
 // ============================================================
@@ -29,6 +29,11 @@ import { parseChordFrets } from "./notation";
  */
 function pc(note: string): string {
   return pitchClass(note) || note;
+}
+
+/** Guard: true when `c` is a valid chroma number (not null/undefined). */
+function isValidChroma(c: number | null | undefined): c is number {
+  return c != null;
 }
 
 /**
@@ -70,7 +75,7 @@ export function arpeggioFromScale(
 
   const kept = parent.notes.filter((n) => {
     const c = noteChroma(n.pc);
-    return c !== null && c !== undefined && chordChromas.has(c);
+    return isValidChroma(c) && chordChromas.has(c);
   });
 
   const tonicPc = pc(tonic);
@@ -374,7 +379,7 @@ export interface InferenceCandidate {
   /** Total score (sum of all weighted sub-scores). */
   score: number;
   /** Transparent score breakdown for all ranking terms. */
-  breakdown: import("./arpeggio").ScoreBreakdown;
+  breakdown: ScoreBreakdown;
 }
 
 /**
@@ -403,56 +408,47 @@ function extractProbe(
 ): InferenceProbe | null {
   if (isFrettedScale(input)) {
     // FrettedScale / arpeggio path (spec §B.1 FrettedScale form)
-    const scale = input;
-    if (scale.empty || scale.notes.length === 0) return null;
+    if (input.empty || input.notes.length === 0) return null;
 
     // Collect distinct pitch classes by chroma (dedup)
     const seenChromas = new Set<number>();
     const pitchClasses: number[] = [];
-    for (const n of scale.notes) {
+    for (const n of input.notes) {
       const c = noteChroma(n.pc);
-      if (c !== null && c !== undefined && !seenChromas.has(c)) {
+      if (isValidChroma(c) && !seenChromas.has(c)) {
         seenChromas.add(c);
         pitchClasses.push(c);
       }
     }
 
     // bassNote = min-by-midi
-    const bassNote = scale.notes.reduce((a, b) => (a.midi <= b.midi ? a : b));
+    const bassNote = input.notes.reduce((a, b) => (a.midi <= b.midi ? a : b));
 
     // rootCandidates: declared root first, deduped, order preserved
-    const declaredRootChroma = noteChroma(scale.root);
+    const declaredRootChroma = noteChroma(input.root);
     const seen = new Set<number>();
     const rootCandidates: { pc: string; chroma: number }[] = [];
 
-    if (
-      declaredRootChroma !== null &&
-      declaredRootChroma !== undefined &&
-      !seen.has(declaredRootChroma)
-    ) {
+    if (isValidChroma(declaredRootChroma) && !seen.has(declaredRootChroma)) {
       seen.add(declaredRootChroma);
-      rootCandidates.push({ pc: pc(scale.root), chroma: declaredRootChroma });
+      rootCandidates.push({ pc: pc(input.root), chroma: declaredRootChroma });
     }
     // Then bass note
     const bassChroma = noteChroma(bassNote.pc);
-    if (
-      bassChroma !== null &&
-      bassChroma !== undefined &&
-      !seen.has(bassChroma)
-    ) {
+    if (isValidChroma(bassChroma) && !seen.has(bassChroma)) {
       seen.add(bassChroma);
       rootCandidates.push({ pc: bassNote.pc, chroma: bassChroma });
     }
     // Then other pitch classes in note order
-    for (const n of scale.notes) {
+    for (const n of input.notes) {
       const c = noteChroma(n.pc);
-      if (c !== null && c !== undefined && !seen.has(c)) {
+      if (isValidChroma(c) && !seen.has(c)) {
         seen.add(c);
         rootCandidates.push({ pc: n.pc, chroma: c });
       }
     }
 
-    const anchorFret = Math.min(...scale.notes.map((n) => n.fret));
+    const anchorFret = Math.min(...input.notes.map((n) => n.fret));
     const anchorString = bassNote.string;
 
     return { pitchClasses, rootCandidates, anchorFret, anchorString };
@@ -484,7 +480,7 @@ function extractProbe(
   const pitchClasses: number[] = [];
   for (const p of played) {
     const c = noteChroma(p.noteName);
-    if (c !== null && c !== undefined && !seenChromas.has(c)) {
+    if (isValidChroma(c) && !seenChromas.has(c)) {
       seenChromas.add(c);
       pitchClasses.push(c);
     }
@@ -495,7 +491,7 @@ function extractProbe(
   const rootCandidates: { pc: string; chroma: number }[] = [];
   for (const p of played) {
     const c = noteChroma(p.noteName);
-    if (c !== null && c !== undefined && !seenRoots.has(c)) {
+    if (isValidChroma(c) && !seenRoots.has(c)) {
       seenRoots.add(c);
       const notePc = pitchClass(p.noteName) || p.noteName;
       rootCandidates.push({ pc: notePc, chroma: c });
@@ -536,7 +532,7 @@ export function inferShapeContext(
 
   // Candidate enumeration (spec §B.2)
   const shapes = all().filter((s) =>
-    options?.system ? s.system === options.system : true,
+    !options?.system || s.system === options.system,
   );
 
   const candidates: InferenceCandidate[] = [];
