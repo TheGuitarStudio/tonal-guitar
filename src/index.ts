@@ -91,6 +91,10 @@ export {
 export { toAlphaTeX, toAsciiTab } from "./output";
 export type { AlphaTexOptions, AsciiTabOptions } from "./output";
 
+// Arpeggio (pure tier — zero Tonal peer deps)
+export { filterChordTones, scoreShapeMatch } from "./arpeggio";
+export type { InferenceProbe, ScoreBreakdown } from "./arpeggio";
+
 // Tonal integration
 export {
   buildFromScale,
