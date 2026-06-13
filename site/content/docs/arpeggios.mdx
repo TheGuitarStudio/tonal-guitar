@@ -1,0 +1,171 @@
+---
+title: Arpeggios & Chord Detection
+description: Arpeggio derivation, chord-shape inference, and curated voicing data
+---
+
+```js
+import * as Guitar from "tonal-guitar";
+
+const arpeggio = Guitar.arpeggioFromShape(Guitar.get("G Shape"), "Am7", "C");
+const candidates = Guitar.inferShapeContext("x32010");
+```
+
+This module adds arpeggio derivation from scale shapes, registry-driven shape inference, and curated chord-shape data (7th-chord CAGED, open/barre chords, and jazz shell voicings).
+
+## Two Interval Frames
+
+Every `FrettedNote` carries its interval in the **parent-scale frame**, not the chord frame. The two frames use different tonic references:
+
+| Frame | Tonic | Example (Am7 inside C major) |
+|-------|-------|------------------------------|
+| **Parent frame** | Parent scale root (C) | A=6M, C=1P, E=3M, G=5P |
+| **Chord frame** | Chord tonic (A) | A=1P, C=3m, E=5P, G=7m |
+
+When `arpeggioFromScale` filters C-major notes to the Am7 chord tones, the retained notes still carry their C-major `interval` and `degree` fields. The `scaleType` field on an arpeggio result is a source/type label (e.g. `"minor seventh"`) — not a claim of scale-hood or complete coverage.
+
+## filterChordTones
+
+`filterChordTones(scale: FrettedScale, intervals: string[]) => FrettedScale`
+
+Filter a `FrettedScale` to notes whose `interval` (in the **parent-scale frame**) appears in the provided set. Zero Tonal peer dependencies — pure filter, no chord name resolution.
+
+```js
+// Am7 in C major, parent-frame intervals: A=6M, C=1P, E=3M, G=5P
+const cMajorScale = buildFrettedScale(get("G Shape"), "C");
+const arpeggio = filterChordTones(cMajorScale, ["6M", "1P", "3M", "5P"]);
+// 10 notes, intervals only from {"6M","1P","3M","5P"}
+```
+
+Never throws. Empty or no-match input returns the `NoFrettedScale` sentinel (with `root`, `tuning`, `shapeName` preserved for the no-match case).
+
+## arpeggioFromScale
+
+`arpeggioFromScale(parent: FrettedScale, chordName: string) => FrettedScale`
+
+Derive a chord-tone arpeggio from an already-built parent `FrettedScale`. Filtering is chroma-based and frame-safe — diatonic arpeggios (Am7 inside C major) work without manual interval translation.
+
+```js
+const cMajor = buildFrettedScale(get("G Shape"), "C");
+const am7Arp = arpeggioFromScale(cMajor, "Am7");
+// am7Arp.root === "A"
+// am7Arp.scaleType === "minor seventh"
+// 10 notes with pc in {"A","C","E","G"}; .interval still in C-major frame
+```
+
+Bare chord types (no tonic) fall back to `parent.root`. Returns `NoFrettedScale` for empty parent or unrecognised chord name.
+
+## arpeggioFromShape
+
+`arpeggioFromShape(shape: ScaleShape, chordName: string, parentRoot: string, tuning?: string[]) => FrettedScale`
+
+Convenience composition: builds the parent scale then derives the arpeggio.
+
+```js
+const am7 = arpeggioFromShape(get("G Shape"), "Am7", "C");
+// am7.root === "A", 10 notes, A/C/E/G chromas
+```
+
+## inferShapeContext
+
+`inferShapeContext(input: InferenceInput, options?: InferenceOptions) => InferenceCandidate[]`
+
+Detect which registered scale shapes cover a given grip or arpeggio. Returns a ranked list of candidates.
+
+```ts
+type InferenceInput = string | (number | null)[] | FrettedScale;
+
+interface InferenceOptions {
+  system?: string;       // e.g. "caged" — filter registry to one system
+  tuning?: string[];     // for grip inputs (default: STANDARD)
+  limit?: number;        // cap on returned candidates
+  includeWeak?: boolean; // allow <3 distinct pitch classes (default: false)
+}
+
+interface InferenceCandidate {
+  shape: ScaleShape;
+  system: string;
+  shapeRoot: string;          // parent-scale root (e.g. "C", not chord root "A")
+  anchorFret: number;
+  rootFret?: number;
+  matchedIntervals: string[]; // parent-frame, deduped by chroma
+  matchedNotes: FrettedNote[];
+  score: number;
+  breakdown: ScoreBreakdown;  // tightness, anchorHit, rootOnAnchorString, positionAgreement, rootPreference
+}
+```
+
+```js
+// From a grip string
+inferShapeContext("x32010");
+
+// From an arpeggio, CAGED system only, top 3
+const arp = arpeggioFromShape(get("G Shape"), "Am7", "C");
+inferShapeContext(arp, { system: "caged", limit: 3 });
+```
+
+Returns `[]` for empty input, all-muted input, or fewer than 3 distinct pitch classes (override with `includeWeak: true`). Only candidates with full coverage (all probe pitch classes present in the built scale) are included.
+
+Candidates are ranked by descending score, then shape name, then shapeRoot, then anchorFret.
+
+## ChordShape Harmonic Metadata
+
+`ChordShape` carries optional fields for harmonic context:
+
+```ts
+interface ChordShape {
+  // ...existing fields...
+  chordType?: string;            // e.g. "maj7", "m7", "M"
+  inversion?: number;            // 0 = root position
+  voicingFamily?: VoicingFamily; // "caged"|"shell"|"open"|"barre"|"drop2"|...
+  stringSet?: number[];          // played string indices, e.g. [0,1,2]
+  omittedIntervals?: string[];   // e.g. ["5P"] for shell voicings
+  canonicalRoot?: string;        // documented key for open shapes (informational)
+  baseFret?: number;             // lowest fretted fret in source diagram
+}
+```
+
+`canonicalRoot` on open shapes is informational — it does not restrict `applyChordShape`. Apply any shape to any root; the transposed fingering is returned.
+
+Query with the `chordShapes.query` method (conjunctive filter):
+
+```js
+chordShapes.query({ chordType: "maj7" });
+chordShapes.query({ system: "shell", stringSet: [0, 1, 2] });
+chordShapes.query({ voicingFamily: "open", chordType: "m7" });
+```
+
+## Curated Data Sets
+
+Three new chord-shape sets are registered at import time:
+
+- **caged-chords-7th** — movable E/A/D-form shapes for maj7, m7, 7, m7b5. No `canonicalRoot` set.
+- **open-chords** — open-position and barre shapes from tombatossals/chords-db (MIT). Covers M, m, 7, maj7, m7, dim, aug, sus2, sus4, m7b5.
+- **jazz-shells** — 3-note shell voicings (root + 3rd + 7th, 5th omitted) for maj7, m7, 7, m7b5. Two string sets (654 and 543), two orderings (R37 and R73) each.
+
+```js
+import { SHELL_DICTIONARY } from "tonal-guitar";
+// { maj7: ["1P 3M 7M", "1P 7M 10M"], m7: [...], "7": [...], m7b5: [...] }
+```
+
+## Grouped Formatter Input
+
+Both `toAlphaTeX` and `toAsciiTab` now accept `FrettedNote[][]`. Each inner array is one simultaneous beat (strum/chord).
+
+```js
+// Strummed chord
+const voicing = applyChordShape(chordShapes.get("C Major Open"), "C");
+toAlphaTeX([voicing.positions], { duration: 4 });
+// => :4 (3.5 2.4 0.3 1.2 0.1) |
+
+toAsciiTab([voicing.positions]);
+// e|0|
+// B|1|
+// G|0|
+// D|2|
+// A|3|
+// E|-|
+```
+
+Flat `FrettedNote[]` is still accepted and produces identical output. `notesPerBar`, `noteDurations`, and `rhythmPattern` index by **beat (group)** under grouped input, not by individual note.
+
+In the grouped path, ASCII tab uses column-width alignment based on the widest fret in each beat group, so multi-digit frets (e.g. fret 10) stay aligned across all string rows.

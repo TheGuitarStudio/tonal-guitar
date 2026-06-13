@@ -15,6 +15,8 @@ export type {
   ChordShape,
   Barre,
   FrettedScale,
+  VoicingFamily,
+  VoicingPatternDictionary,
 } from "./shape";
 
 // Shape registry
@@ -89,6 +91,10 @@ export {
 export { toAlphaTeX, toAsciiTab } from "./output";
 export type { AlphaTexOptions, AsciiTabOptions } from "./output";
 
+// Arpeggio (pure tier — zero Tonal peer deps)
+export { filterChordTones, scoreShapeMatch } from "./arpeggio";
+export type { InferenceProbe, ScoreBreakdown } from "./arpeggio";
+
 // Tonal integration
 export {
   buildFromScale,
@@ -97,14 +103,28 @@ export {
   analyzeInKey,
   isShapeCompatible,
   modeShapes,
+  arpeggioFromScale,
+  arpeggioFromShape,
+  inferShapeContext,
 } from "./integration";
-export type { KeyAnalysis } from "./integration";
+export type {
+  KeyAnalysis,
+  InferenceInput,
+  InferenceOptions,
+  InferenceCandidate,
+} from "./integration";
 
 // Built-in shape data (import to register shapes)
 import "./data/caged-scales";
 import "./data/caged-chords";
 import "./data/three-nps";
 import "./data/pentatonic";
+import "./data/caged-chords-7th";
+import "./data/open-chords";
+import "./data/jazz-shells";
+
+// Jazz shell voicing dictionary (public API)
+export { SHELL_DICTIONARY } from "./data/jazz-shells";
 
 // Built-in sequences
 export {
