@@ -22,7 +22,7 @@
 - [x] Phase 5: Code Simplification Review
 - [x] Phase 6: Code Simplification Fix
 - [x] Phase 7: Specialized Reviews
-- [ ] Phase 8: Specialized Fixes
+- [x] Phase 8: Specialized Fixes
 - [ ] Phase 9: Final Verification
 
 ## Statistics
@@ -149,6 +149,21 @@ No Critical. No `eval`/`Function`/dynamic require/fs/network.
 - CR-037: [Deferred] `src/connect.ts:102-105` identical `Math.max/min(...)` spread DoS — PRE-EXISTING connector feature, NOT on this branch's diff.
 - CR-038: [Deferred] `src/shape.ts:108,136` registry `add()` keys a plain `{}` by untrusted `shape.name`; `"__proto__"`/`"constructor"` corrupt the registry (not global pollution). PRE-EXISTING registry pattern; harden with `Object.create(null)`.
 - CR-039: [Deferred] `src/output/alphatex.ts:80` `title`/`tempo`/`key` options interpolated unsanitized → output corruption (not execution). PRE-EXISTING formatter options.
+
+## Phase 8: Specialized Fixes
+
+### Fixed (all verified, 606 tests pass; CR-036 regression-checked with a 300k-note input → returns [], no throw)
+
+- CR-031: Fixed — `arpeggioFromScale` now builds `Set<number>` filtering `NaN` (failed transposes); removed the no-op `delete(null)`.
+- CR-032: Fixed — `isValidChroma` now `c != null && !Number.isNaN(c)`.
+- CR-034: Fixed — `findRootString` throws a clear build-time error if a shell pattern lacks `1P` (guards future edits).
+- CR-035: Fixed — removed redundant `as` cast (TS narrows correctly).
+- CR-036: Fixed — `extractProbe` uses `.reduce()` instead of `Math.min(...spread)` over caller-supplied notes → no `RangeError` on oversized input.
+- CR-040: Fixed — `extractProbe` grip path caps iteration at `tuning.length`.
+
+### Deferred → GitHub issue #40
+
+- CR-033, CR-037, CR-038, CR-039 (pre-existing robustness/hardening, outside this branch's diff).
 
 ## Pre-seeded findings (from /implement oversight, to validate during review)
 

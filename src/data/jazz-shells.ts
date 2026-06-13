@@ -100,9 +100,11 @@ function toSimpleInterval(ivl: string): string {
 /**
  * Determine the root string index within a string set given a pattern.
  * The root is the string carrying "1P".
+ * Throws at module-build time if "1P" is absent — surfaces authoring mistakes early.
  */
 function findRootString(pattern: string[], stringSet: number[]): number {
   const idx = pattern.indexOf("1P");
+  if (idx === -1) throw new Error(`shell pattern missing 1P: ${pattern.join(" ")}`);
   return stringSet[idx];
 }
 

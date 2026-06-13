@@ -31,9 +31,9 @@ function pc(note: string): string {
   return pitchClass(note) || note;
 }
 
-/** Guard: true when `c` is a valid chroma number (not null/undefined). */
+/** Guard: true when `c` is a valid chroma number (not null/undefined/NaN). */
 function isValidChroma(c: number | null | undefined): c is number {
-  return c != null;
+  return c != null && !Number.isNaN(c);
 }
 
 /**
@@ -67,11 +67,11 @@ export function arpeggioFromScale(
   if (chord.empty || chord.intervals.length === 0) return { ...NoFrettedScale };
 
   const tonic = chord.tonic || parent.root;
-  const chordChromas = new Set<number | null>(
-    chord.intervals.map((ivl) => noteChroma(noteTranspose(tonic, ivl))),
+  const chordChromas = new Set<number>(
+    chord.intervals
+      .map((ivl) => noteChroma(noteTranspose(tonic, ivl)))
+      .filter((c): c is number => !Number.isNaN(c)),
   );
-  // Remove null (failed transpose) just in case
-  chordChromas.delete(null);
 
   const kept = parent.notes.filter((n) => {
     const c = noteChroma(n.pc);
@@ -448,20 +448,21 @@ function extractProbe(
       }
     }
 
-    const anchorFret = Math.min(...input.notes.map((n) => n.fret));
+    const anchorFret = input.notes.reduce((m, n) => Math.min(m, n.fret), Infinity);
     const anchorString = bassNote.string;
 
     return { pitchClasses, rootCandidates, anchorFret, anchorString };
   }
 
   // Grip path (string or array) — spec §B.1 Grip form
-  const frets = parseChordFrets(input as string | (number | null)[]);
+  const frets = parseChordFrets(input);
   const played: { string: number; fret: number; midi: number; noteName: string }[] = [];
 
-  for (let s = 0; s < frets.length; s++) {
+  // Cap loop to tuning length to avoid iterating a pathologically large frets array (CR-040)
+  const fretLimit = Math.min(frets.length, tuning.length);
+  for (let s = 0; s < fretLimit; s++) {
     const fret = frets[s];
     if (fret === null) continue;
-    if (s >= tuning.length) continue;
     const noteName = noteAt(tuning, s, fret);
     if (!noteName) continue;
     const midi = toMidi(noteName);
@@ -498,7 +499,7 @@ function extractProbe(
     }
   }
 
-  const anchorFret = Math.min(...played.map((p) => p.fret));
+  const anchorFret = played.reduce((m, p) => Math.min(m, p.fret), Infinity);
   const anchorString = bassPlayed.string;
 
   return { pitchClasses, rootCandidates, anchorFret, anchorString };
