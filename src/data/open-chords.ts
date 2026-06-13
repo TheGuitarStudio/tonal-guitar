@@ -794,7 +794,7 @@ export const OPEN_E_SUS4: ChordShape = {
  * E half-diminished (m7b5) open (0120xx = 0,1,2,0,x,x)
  * Notes: E Bb D G → intervals: 1P 5d 7m 3m
  * Same voicing as Edim but with m7b5 chordType — this shape is Em7b5's root voicing.
- * Note: Edim uses the same frets but with "dim" chordType (no 7th, uses 7d).
+ * Note: Edim uses the same frets but with "dim" chordType (a diminished triad: 1P 3m 5d — no 7th).
  * Em7b5 = E,G,Bb,D and this voicing has E,Bb,D,G all four tones.
  */
 export const OPEN_E_M7B5: ChordShape = {

@@ -70,7 +70,7 @@ export function arpeggioFromScale(
   const chordChromas = new Set<number>(
     chord.intervals
       .map((ivl) => noteChroma(noteTranspose(tonic, ivl)))
-      .filter((c): c is number => !Number.isNaN(c)),
+      .filter((c) => !Number.isNaN(c)),
   );
 
   const kept = parent.notes.filter((n) => {

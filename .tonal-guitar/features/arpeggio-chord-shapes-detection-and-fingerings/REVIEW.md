@@ -24,14 +24,23 @@
 ## Review Progress (Loop 2)
 
 - [x] Phase 1: Setup
-- [ ] Phase 2: Lint/Test Fix
-- [ ] Phase 3: Architecture Review
-- [ ] Phase 4: Architecture Fix
-- [ ] Phase 5: Code Simplification Review
-- [ ] Phase 6: Code Simplification Fix
-- [ ] Phase 7: Specialized Reviews
-- [ ] Phase 8: Specialized Fixes
+- [x] Phase 2: Lint/Test Fix (0 issues — 606 pass)
+- [x] Phase 3: Architecture Review
+- [x] Phase 4: Architecture Fix
+- [x] Phase 5: Code Simplification Review
+- [x] Phase 6: Code Simplification Fix
+- [x] Phase 7: Specialized Reviews
+- [x] Phase 8: Specialized Fixes
 - [ ] Phase 9: Final Verification
+
+### Loop 2 findings (regression-focused over the Loop 1 fix diff)
+
+Three re-review agents (architecture/correctness [opus], simplification, type-safety/robustness). Architecture verdict: "No actionable correctness or layering regressions — the loop-1 fixes are correct." Findings:
+
+- CR-044: [Important] FIXED — `jazz-shells.ts` `findRootString` threw at module-import time (introduced by the Loop 1 CR-034 fix). For a published library an uncatchable import-time throw is unsafe; replaced with a graceful fallback (`stringSet[0]` for a rootless voicing).
+- CR-042: [Suggestion] FIXED — corrected a misleading comment in `open-chords.ts` that said a dim chord "uses 7d" (a dim triad has no 7th).
+- CR-041/CR-045: [Suggestion] FIXED — removed a redundant `c is number` type predicate on the `chordChromas` filter in `integration.ts`.
+- CR-043: [Won't Fix] `OPEN_G_DIM`/`OPEN_G_M7B5` keep `name:"...Open"`/`OPEN_*` identifiers though now tagged `barre` — cosmetic, names are not load-bearing; renaming exported data constants is churn.
 
 Loop 2 focus: regression/verification pass over the code MODIFIED during Loop 1's fixes (the new helpers `normalizeGroups`/`applyDuration`/`isValidChroma`, NaN-filtering, reduce-not-spread, corrected dim shapes, retagged voicings) plus a holistic second look — catching anything the fixes introduced or that Loop 1 missed.
 
