@@ -21,7 +21,7 @@
 - [x] Phase 4: Architecture Fix
 - [x] Phase 5: Code Simplification Review
 - [x] Phase 6: Code Simplification Fix
-- [ ] Phase 7: Specialized Reviews
+- [x] Phase 7: Specialized Reviews
 - [ ] Phase 8: Specialized Fixes
 - [ ] Phase 9: Final Verification
 
@@ -127,6 +127,28 @@ Positives confirmed: registration pattern consistent + wired into `index.ts`; mo
 
 - CR-020, CR-024, CR-026: style churn, no clear improvement — skipped.
 - CR-027, CR-028, CR-030: see Phase 5 (spec-mandated / public type / not worth restructure).
+
+## Phase 7: Specialized Reviews
+
+Accessibility: N/A (no UI in the library `src`). No `any`, no unguarded non-null assertions, all exported functions have explicit return types.
+
+### Type Safety
+
+- CR-031: [Important] `src/integration.ts:70-74` `arpeggioFromScale` — `@tonaljs` `chroma` returns `number` (NaN on failure, never `null`); `chordChromas.delete(null)` is a no-op and `Set<number|null>` mis-models it. Filter `NaN` instead. (Latent — valid chords never produce NaN — but the null-model is wrong.) FIX.
+- CR-032: [Important] `src/integration.ts:34-36` `isValidChroma` uses `c != null`, which accepts `NaN`. Should be `c != null && !Number.isNaN(c)`. Compounds CR-031. FIX.
+- CR-033: [Deferred] `src/build.ts:59-60` dead `== null` checks on `chroma` results (NaN is the real sentinel, already handled). PRE-EXISTING code (not feature-introduced).
+- CR-034: [Important] `src/data/jazz-shells.ts:105-106` `findRootString` returns `stringSet[-1]` → `undefined` (typed `number`) if `"1P"` absent. Safe today; add a guard. FIX. (Same as CR-014.)
+- CR-035: [Suggestion] `src/integration.ts:458` redundant `as` cast after `isFrettedScale` narrowing. FIX (trivial, fold in).
+
+### Security / Input-Robustness
+
+No Critical. No `eval`/`Function`/dynamic require/fs/network.
+
+- CR-036: [Important] `src/integration.ts:451` `extractProbe` does `Math.min(...input.notes.map(...))` on a caller-supplied `FrettedScale` — a crafted oversized `notes` array (100k+) throws `RangeError` (stack overflow), violating the "never throws" contract. Use `.reduce()`. FIX (feature code).
+- CR-040: [Important→fold] `extractProbe` grip path / `parseChordFrets` iterate the full parsed array before the `tuning.length` guard — low-grade O(n) DoS on huge grip strings. Add an input cap in `extractProbe`. FIX (fold with CR-036).
+- CR-037: [Deferred] `src/connect.ts:102-105` identical `Math.max/min(...)` spread DoS — PRE-EXISTING connector feature, NOT on this branch's diff.
+- CR-038: [Deferred] `src/shape.ts:108,136` registry `add()` keys a plain `{}` by untrusted `shape.name`; `"__proto__"`/`"constructor"` corrupt the registry (not global pollution). PRE-EXISTING registry pattern; harden with `Object.create(null)`.
+- CR-039: [Deferred] `src/output/alphatex.ts:80` `title`/`tempo`/`key` options interpolated unsanitized → output corruption (not execution). PRE-EXISTING formatter options.
 
 ## Pre-seeded findings (from /implement oversight, to validate during review)
 
