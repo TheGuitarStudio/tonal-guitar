@@ -53,6 +53,8 @@ import {
   OPEN_E_M7,
   OPEN_E_M7B5,
   OPEN_D_M7B5,
+  OPEN_E_DIM,
+  BARRE_E_DIM,
   BARRE_E_MAJOR,
   BARRE_A_MAJOR,
   BARRE_E_M7,
@@ -307,6 +309,32 @@ describe("open-chords: build-equivalence tests", () => {
       expect(intervals).toContain("5d");
       expect(intervals).toContain("7m");
       expect(intervals).toContain("3m");
+    });
+
+    it("E Diminished Open applied to E produces frets 0,1,2,0,x,x (true dim triad)", () => {
+      expect(buildFrets(OPEN_E_DIM, "E")).toEqual([0, 1, 2, 0, null, null]);
+    });
+
+    it("E Diminished Open has only dim triad intervals — no 7m", () => {
+      const dimIntervals = new Set(["1P", "3m", "5d"]);
+      const positions = buildPositions(OPEN_E_DIM, "E");
+      expect(positions.length).toBeGreaterThan(0);
+      for (const p of positions) {
+        expect(dimIntervals.has(p.interval), `OPEN_E_DIM: unexpected interval ${p.interval}`).toBe(true);
+      }
+    });
+
+    it("E-form dim barre applied to E produces frets 0,1,2,0,x,x (true dim triad)", () => {
+      expect(buildFrets(BARRE_E_DIM, "E")).toEqual([0, 1, 2, 0, null, null]);
+    });
+
+    it("E-form dim barre has only dim triad intervals — no 7m", () => {
+      const dimIntervals = new Set(["1P", "3m", "5d"]);
+      const positions = buildPositions(BARRE_E_DIM, "F");
+      expect(positions.length).toBeGreaterThan(0);
+      for (const p of positions) {
+        expect(dimIntervals.has(p.interval), `BARRE_E_DIM: unexpected interval ${p.interval}`).toBe(true);
+      }
     });
   });
 

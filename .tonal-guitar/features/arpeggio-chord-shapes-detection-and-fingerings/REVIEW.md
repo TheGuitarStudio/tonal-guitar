@@ -18,7 +18,7 @@
 - [x] Phase 1: Setup
 - [x] Phase 2: Lint/Test Fix
 - [x] Phase 3: Architecture Review
-- [ ] Phase 4: Architecture Fix
+- [x] Phase 4: Architecture Fix
 - [ ] Phase 5: Code Simplification Review
 - [ ] Phase 6: Code Simplification Fix
 - [ ] Phase 7: Specialized Reviews
@@ -27,9 +27,9 @@
 
 ## Statistics
 
-- Critical: 0 fixed, 0 remaining | Important: 0 fixed, 0 deferred
-- GitHub Issues Created: (none yet)
-- Total Commits: 0 | Total Fixes: 0 | Final Status: IN PROGRESS
+- Critical: 1 fixed (CR-016), 0 remaining | Important: 4 fixed (CR-003/007/008/012), 5 deferred
+- GitHub Issues Created: #38 (perf), #39 (fingering metadata)
+- Total Commits: (running) | Total Fixes: 5 | Final Status: IN PROGRESS
 
 ## Phase 2: Lint/Test Results
 
@@ -61,6 +61,31 @@ No Critical. Dependency-layer invariant (arpeggio.ts zero-Tonal), no-throw/senti
 - CR-014: [Suggestion] `findRootString` (`jazz-shells.ts:103-106`) assumes `"1P"` present; guard for future rootless voicings.
 
 Positives confirmed: registration pattern consistent + wired into `index.ts`; movable shapes correctly omit `canonicalRoot`; `SHELL_DICTIONARY` 16-shape generation coherent; chords-db MIT attribution present; formatter overload seam clean + flat-path backward-compat byte-identical; no `any`.
+
+### CR-016 (new finding, surfaced by Phase 4 fix agent)
+
+- CR-016: [Critical] `OPEN_E_DIM`/`BARRE_E_DIM` declared `chordType:"dim"` but their `strings` contained `7m` → actually m7b5 voicings (E/Bb/D/G), duplicating the separate `OPEN_E_M7B5`/`BARRE_E_M7B5` and leaving NO true E dim. `query({chordType:"dim"})` would return wrong shapes. FIXED.
+
+## Phase 4: Architecture Fixes
+
+### Fixed
+
+- CR-003: Fixed in Phase 4 — `OPEN_G_DIM`/`OPEN_G_M7B5` retagged `voicingFamily:"barre"`/`system:"barre"`, `canonicalRoot` removed (barre convention).
+- CR-007: Fixed — removed scratch/exploratory comments from `open-chords.ts`, replaced with concise factual one-liners.
+- CR-008: Fixed — audited all 70 open/barre shapes; `OPEN_C_DOM7` was the only one genuinely missing a tone (`5P`) → set `omittedIntervals:["5P"]`. (The flagged `OPEN_G_M7B5` actually had all four m7b5 tones after the CR-003 cleanup, so no omission needed.)
+- CR-012: Fixed — added clarifying comment on the intentional `m7b5`≡`m7` shell pattern in `jazz-shells.ts`.
+- CR-016: Fixed — `OPEN_E_DIM`/`BARRE_E_DIM` converted to true diminished triads ({1P,3m,5d}); verified by building (E dim → E/G/Bb, no D; F barre → F/Ab/Cb). Added 4 build-equivalence assertions in `data.test.ts` (now 606 tests).
+
+### Deferred
+
+- CR-001, CR-002, CR-015: GitHub issue #38 (inferShapeContext perf — double anchor computation + post-hoc coverage gate).
+- CR-005, CR-006, CR-009: GitHub issue #39 (fingering/voicingFamily metadata cleanup, codebase-wide).
+- CR-010: routed to Phase 6 (formatter normalization DRY).
+- CR-011, CR-013, CR-014: minor robustness/comment suggestions — noted, not individually filed.
+
+### Won't Fix
+
+- CR-004: CAGED-7th barre+fingers pattern mirrors the established `caged-chords.ts` convention for movable barre forms; `strings`/frets verified correct; `fingers`/`barres` are non-functional annotation.
 
 ## Pre-seeded findings (from /implement oversight, to validate during review)
 

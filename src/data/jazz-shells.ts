@@ -41,6 +41,7 @@ export const SHELL_DICTIONARY: VoicingPatternDictionary = {
   maj7: ["1P 3M 7M", "1P 7M 10M"],
   m7: ["1P 3m 7m", "1P 7m 10m"],
   "7": ["1P 3M 7m", "1P 7m 10M"],
+  // m7b5 shares the same 3rd/7th voicing as m7 (shells omit the 5th, so only the omitted interval differs — 5d vs 5P)
   m7b5: ["1P 3m 7m", "1P 7m 10m"],
 };
 

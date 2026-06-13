@@ -87,6 +87,7 @@ export const OPEN_C_DOM7: ChordShape = {
   voicingFamily: "open",
   stringSet: [1, 2, 3, 4, 5],
   inversion: 0,
+  omittedIntervals: ["5P"],
   canonicalRoot: "C",
   baseFret: 1,
 };
@@ -520,32 +521,27 @@ export const OPEN_G_M7: ChordShape = {
 };
 
 /**
- * G diminished (xx5656 at fret 5)
+ * G diminished movable grip (xx5656 at fret 5)
  * Notes: G Db G Bb → intervals: 1P 5d 1P 3m
  * baseFret=5 means frets[i]+4 for non-zero
  */
 export const OPEN_G_DIM: ChordShape = {
   name: "G Diminished Open",
-  system: "open",
+  system: "barre",
   strings: [null, null, "1P", "5d", "1P", "3m"],
   fingers: [null, null, 1, 2, 3, 4],
   barres: [],
   rootString: 2,
   chordType: "dim",
-  voicingFamily: "open",
+  voicingFamily: "barre",
   stringSet: [2, 3, 4, 5],
   inversion: 0,
-  canonicalRoot: "G",
   baseFret: 5,
 };
 
 /**
- * G augmented (3x2110 = 3,x,2,1,1,0)
- * Notes: G x D# G B E
- * Check: G=1P, D#=5A? D# is 8 semitones from G = augmented 5th ✓, G=1P, B=3M, E=6M
- * Actually this gives G D# G B E - only strings 0,2,3,4,5
- * Better voicing for Gaug: use 3x2113
- * G D# G B D# G = 1P 5A 1P 3M 5A 1P
+ * G augmented (3x2113)
+ * Notes: G D# G B D# G → intervals: 1P 5A 1P 3M 5A 1P (strings 0,2,3,4,5)
  */
 export const OPEN_G_AUG: ChordShape = {
   name: "G Augmented Open",
@@ -601,31 +597,20 @@ export const OPEN_G_SUS4: ChordShape = {
 };
 
 /**
- * G half-diminished (m7b5) (3x010x = 3,x,0,1,0,x)
- * Notes: G x D Ab C x → intervals: 1P x 5P 2m 3m x
- * Actually Ab is 2m (Aug2nd) from G; not a clean m7b5 voicing.
- * Use xx5656 voicing at fret 5 for Gm7b5: D Ab C F = 5P 2m 4P 7m of G
- * Better: use a proper 4-string Gm7b5 without problem intervals.
- * Gm7b5 = G Bb Db F. On strings 2-5: D Ab Db F = 5P b2 b5 7m
- * Use movable grip on D string rootString=2: x,x,0,1,0,1
- * D str (0)=G=1P, G str (1)=Ab=2m WRONG
- * Actually 3x0101: G=1P, D=5P, Ab=2m, Db=5d (Db is 6 semitones from G = 5d?
- * G to Db: G=7, Db=1, diff=(1-7+12)%12=6=dim5=5d ✓)
- * And F: G to F = 10 semitones = 7m ✓
- * So: G,D,Db,F = 1P,5P,5d,7m - that's 4 voices but missing 3m (Bb)
+ * G half-diminished (m7b5) movable grip at fret 5 (xx5678)
+ * Notes: G Db Bb F → intervals: 1P 5d 3m 7m; omits 3m on lower strings but all four tones present.
  */
 export const OPEN_G_M7B5: ChordShape = {
   name: "G m7b5 Open",
-  system: "open",
+  system: "barre",
   strings: [null, null, "1P", "5d", "3m", "7m"],
   fingers: [null, null, 1, 2, 3, 4],
   barres: [],
   rootString: 2,
   chordType: "m7b5",
-  voicingFamily: "open",
+  voicingFamily: "barre",
   stringSet: [2, 3, 4, 5],
   inversion: 0,
-  canonicalRoot: "G",
   baseFret: 5,
 };
 
@@ -730,12 +715,12 @@ export const OPEN_E_M7: ChordShape = {
 
 /**
  * E diminished open (0120xx = 0,1,2,0,x,x)
- * Notes: E Bb D G → intervals: 1P 5d 7m 3m
+ * Notes: E Bb E G → intervals: 1P 5d 1P 3m
  */
 export const OPEN_E_DIM: ChordShape = {
   name: "E Diminished Open",
   system: "open",
-  strings: ["1P", "5d", "7m", "3m", null, null],
+  strings: ["1P", "5d", "1P", "3m", null, null],
   fingers: [0, 1, 2, 0, null, null],
   barres: [],
   rootString: 0,
@@ -748,15 +733,9 @@ export const OPEN_E_DIM: ChordShape = {
 };
 
 /**
- * E augmented (032110 = 0,3,2,1,1,0)
- * Notes: E C G# E G# E (C = 5A+octave of E? No: E to C = minor 6th = 6m)
- * Actually E aug = E G# B# (C enharmonic). B#=C (5A).
- * E string fret 0=E=1P, A string fret 3=C=6m... that's not 5A from E.
- * Better: use 0,2,2,1,1,0 wait no...
- * Standard Eaug 032110: E, C, G#, E, G#, E
- * C from E = minor 6th (6m) not 5A. But 5A of E = B# = C enharmonically.
- * In Tonal, aug 5th = "5A". E to C = 6m interval string, but enharmonically = 5A.
- * We store "5A" as the interval since that names the aug 5th quality.
+ * E augmented open (032110)
+ * Notes: E C G# E G# E → intervals: 1P 5A 3M 1P 3M 1P
+ * C is enharmonic to B# (aug 5th of E); stored as "5A" per Tonal convention.
  */
 export const OPEN_E_AUG: ChordShape = {
   name: "E Augmented Open",
@@ -774,10 +753,8 @@ export const OPEN_E_AUG: ChordShape = {
 };
 
 /**
- * E sus2 open (022400 = 0,2,2,4,0,0)
- * Notes: E B E B B E → intervals: 1P 5P 1P 5P 5P 1P — that's just sus2?
- * Actually Esus2 = E F# B. Let's use 024400:
- * E B F# B B E → 1P 5P 2M 5P 5P 1P ← has the 2M (sus2)
+ * E sus2 open (024400)
+ * Notes: E B F# B B E → intervals: 1P 5P 2M 5P 5P 1P
  */
 export const OPEN_E_SUS2: ChordShape = {
   name: "E Sus2 Open",
@@ -1110,13 +1087,13 @@ export const BARRE_E_M7: ChordShape = {
   baseFret: 1,
 };
 
-/** E-form diminished barre (mirrors Edim open 4-string shape) */
+/** E-form diminished barre (mirrors Edim open 4-string shape — true dim triad: 1P 5d 1P 3m) */
 export const BARRE_E_DIM: ChordShape = {
   name: "E Form dim Barre",
   system: "barre",
-  strings: ["1P", "5d", "7m", "3m", null, null],
-  fingers: [1, 2, 3, 4, null, null],
-  barres: [],
+  strings: ["1P", "5d", "1P", "3m", null, null],
+  fingers: [1, 2, 3, 1, null, null],
+  barres: [{ fret: 0, fromString: 0, toString: 3, finger: 1 }],
   rootString: 0,
   chordType: "dim",
   voicingFamily: "barre",
