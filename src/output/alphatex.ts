@@ -7,14 +7,52 @@ export interface AlphaTexOptions {
   tempo?: number;
   duration?: number;           // default note duration: 4, 8, 16
   tuning?: string[];
+  /**
+   * Number of beats (groups) per bar.
+   * Under grouped input (`FrettedNote[][]`), this counts beats (groups), not
+   * individual notes. Under flat input (`FrettedNote[]`), each note is its own
+   * beat (unchanged behaviour — R-5.3).
+   */
   notesPerBar?: number;
   key?: string;
   timeSignature?: [number, number];
-  noteDurations?: number[];    // per-note duration override
-  rhythmPattern?: number[];    // repeating duration pattern
+  /**
+   * Per-beat duration override array.
+   * Indexed by beat (group) index. Under grouped input, one entry covers the
+   * entire simultaneous strum. Under flat input, each note is its own beat
+   * (unchanged behaviour — R-5.3).
+   */
+  noteDurations?: number[];
+  /**
+   * Repeating duration pattern, indexed by beat (group) index.
+   * Under grouped input, one pattern entry applies to the whole strum.
+   * Under flat input, each note is its own beat (unchanged behaviour — R-5.3).
+   */
+  rhythmPattern?: number[];
 }
 
-export function toAlphaTeX(notes: FrettedNote[], options?: AlphaTexOptions): string {
+/**
+ * Render a sequence of fretted notes as an AlphaTeX string.
+ *
+ * **Input forms:**
+ * - `FrettedNote[]` — flat sequential notes (original behaviour, unchanged).
+ * - `FrettedNote[][]` — grouped notes where each inner array is one simultaneous
+ *   beat (strum). Detection: `Array.isArray(notes[0])` → grouped path.
+ *   An empty outer array (`[]`) takes the flat path and produces the same
+ *   empty-ish output as before (R-5.2).
+ *
+ * **Beat emission (grouped path):**
+ * - Group length 1 → `fret.string` (no parentheses, same as sequential).
+ * - Group length ≥ 2 → `(fret.string fret.string …)` (AlphaTeX simultaneous-beat
+ *   syntax). String numbers use the existing `stringCount - n.string` mapping
+ *   (high string = 1).
+ * - Empty group → `r` (rest beat).
+ *
+ * **Option semantics under grouped input (R-5.3):**
+ * `notesPerBar`, `noteDurations`, and `rhythmPattern` all index by *beat (group)*,
+ * not by individual note. A single `rhythmPattern` entry applies to the whole strum.
+ */
+export function toAlphaTeX(notes: FrettedNote[] | FrettedNote[][], options?: AlphaTexOptions): string {
   const {
     title = "Exercise",
     tempo = 120,
@@ -46,16 +84,23 @@ export function toAlphaTeX(notes: FrettedNote[], options?: AlphaTexOptions): str
     `\\ts ${tsNum} ${tsDen} \\ks ${key}`,
   ];
 
+  // Normalise input: flat FrettedNote[] → FrettedNote[][] of singletons so the
+  // bar/beat loop runs once for both paths. Grouped detection: Array.isArray of
+  // the first element. An empty outer array produces [] groups → flat path.
+  const groups: FrettedNote[][] = Array.isArray(notes[0])
+    ? (notes as FrettedNote[][])
+    : (notes as FrettedNote[]).map((n) => [n]);
+
   // Determine notesPerBar
   const notesPerBar = options?.notesPerBar ?? (duration === 4 ? 4 : 8);
 
-  // Determine the duration to use for each note
-  const getDuration = (index: number): number => {
+  // Determine the duration to use for each beat (group index)
+  const getDuration = (beatIndex: number): number => {
     if (noteDurations) {
-      return noteDurations[index] ?? duration;
+      return noteDurations[beatIndex] ?? duration;
     }
     if (rhythmPattern && rhythmPattern.length > 0) {
-      return rhythmPattern[index % rhythmPattern.length];
+      return rhythmPattern[beatIndex % rhythmPattern.length];
     }
     return duration;
   };
@@ -70,26 +115,59 @@ export function toAlphaTeX(notes: FrettedNote[], options?: AlphaTexOptions): str
   const hasVariableDurations = !!(noteDurations || rhythmPattern);
   let barCount = 0;
 
-  for (let i = 0; i < notes.length; i++) {
-    const n = notes[i];
-    const atString = stringCount - n.string; // 0→6, 5→1
+  for (let i = 0; i < groups.length; i++) {
+    const group = groups[i];
     const dur = getDuration(i);
 
-    let noteStr: string;
-    if (hasVariableDurations) {
-      if (prevDuration === null || dur !== prevDuration) {
-        noteStr = `:${dur} ${n.fret}.${atString}`;
-        prevDuration = dur;
+    let beatStr: string;
+    if (group.length === 0) {
+      // Empty group → rest beat
+      if (hasVariableDurations) {
+        if (prevDuration === null || dur !== prevDuration) {
+          beatStr = `:${dur} r`;
+          prevDuration = dur;
+        } else {
+          beatStr = `r`;
+        }
       } else {
-        noteStr = `${n.fret}.${atString}`;
+        beatStr = `r`;
+      }
+    } else if (group.length === 1) {
+      // Single note — no parentheses (same as sequential format)
+      const n = group[0];
+      const atString = stringCount - n.string;
+      if (hasVariableDurations) {
+        if (prevDuration === null || dur !== prevDuration) {
+          beatStr = `:${dur} ${n.fret}.${atString}`;
+          prevDuration = dur;
+        } else {
+          beatStr = `${n.fret}.${atString}`;
+        }
+      } else {
+        beatStr = `${n.fret}.${atString}`;
       }
     } else {
-      noteStr = `${n.fret}.${atString}`;
+      // Multiple notes → parenthesised simultaneous-beat syntax
+      const noteParts = group.map((n) => {
+        const atString = stringCount - n.string;
+        return `${n.fret}.${atString}`;
+      });
+      const chord = `(${noteParts.join(" ")})`;
+      if (hasVariableDurations) {
+        if (prevDuration === null || dur !== prevDuration) {
+          beatStr = `:${dur} ${chord}`;
+          prevDuration = dur;
+        } else {
+          beatStr = chord;
+        }
+      } else {
+        beatStr = chord;
+      }
     }
 
-    currentBar.push(noteStr);
+    currentBar.push(beatStr);
 
-    if (currentBar.length === notesPerBar || i === notes.length - 1) {
+    if (currentBar.length === notesPerBar || i === groups.length - 1) {
       const isFirst = barCount === 0;
       const prefix = isFirst && !hasVariableDurations ? `:${duration} ` : "";
       barLines.push(`${prefix}${currentBar.join(" ")} |`);
