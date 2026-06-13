@@ -70,18 +70,45 @@ export interface ScoreBreakdown {
  * Convert a pitch-class name (e.g. "C", "Bb", "F#") to its chroma (0–11)
  * using letter + accidental arithmetic.  No Tonal peer dep.
  *
- * Reference: A = 9.
+ * Reference: A = 9 (chromatic scale starting from C = 0).
+ * Letter base chromas: C=0, D=2, E=4, F=5, G=7, A=9, B=11.
+ * Each '#' adds 1, each 'b' subtracts 1 (modulo 12).
+ *
  * Returns -1 for unrecognisable input (empty string, bad letter, etc.).
  *
- * Note: this is intentionally a stub for Task Group 2; the full implementation
- * is provided in Task Group 4.
+ * Not exported from this module or from src/index — internal to arpeggio.ts only.
  */
-function pcChroma(_pc: string): number {
-  throw new Error("not implemented");
-}
+function pcChroma(pc: string): number {
+  if (!pc || pc.length === 0) return -1;
 
-// Suppress unused-variable lint warning on the stub until TG4 replaces it.
-void pcChroma;
+  const letter = pc[0].toUpperCase();
+  const letterChromas: Record<string, number> = {
+    C: 0,
+    D: 2,
+    E: 4,
+    F: 5,
+    G: 7,
+    A: 9,
+    B: 11,
+  };
+
+  const base = letterChromas[letter];
+  if (base === undefined) return -1;
+
+  let chroma = base;
+  for (let i = 1; i < pc.length; i++) {
+    if (pc[i] === "#") {
+      chroma += 1;
+    } else if (pc[i] === "b") {
+      chroma -= 1;
+    } else {
+      // Unrecognised accidental character
+      return -1;
+    }
+  }
+
+  return ((chroma % 12) + 12) % 12;
+}
 
 // ============================================================
 // Exported stubs (implemented in later task groups)
@@ -145,26 +172,32 @@ export function filterChordTones(
  *   total = 100*coverage + 40*tightness + 30*anchorHit + 10*rootOnAnchorString
  *         + 20*positionAgreement + 15*rootPreference
  *
- * @param probe          Normalised inference probe (chromas + root candidates).
- * @param shape          The ScaleShape candidate being scored.
- * @param root           The root the shape was built on (pc + chroma).
- * @param built          The FrettedScale produced by buildFrettedScale(shape, root.pc, tuning).
+ * @param probe            Normalised inference probe (chromas + root candidates).
+ * @param shape            The ScaleShape candidate being scored.
+ * @param root             The root the shape was built on (pc + chroma).
+ * @param built            The FrettedScale produced by buildFrettedScale(shape, root.pc, tuning).
+ * @param builtAnchorFret  The fret at which the built scale is anchored, as computed
+ *                         by findShapeAnchorFret (the fret of the FIRST interval in
+ *                         shape.strings[shape.rootString]).  This is passed as a separate
+ *                         parameter because FrettedScale carries no anchorFret field.
+ *                         The integration tier (inferShapeContext, TG6) computes this via
+ *                         findShapeAnchorFret from build.ts before calling scoreShapeMatch.
  *
- * Note: the spec's formal API surface lists 4 parameters.  The integration
- * tier (inferShapeContext) computes builtAnchorFret separately (via
- * findShapeAnchorFret from build.ts) and will pass it as a fifth parameter
- * in Task Group 4.  The stub here matches the 4-parameter form; the
- * signature will be extended in TG4 to add `builtAnchorFret: number`.
+ * Divergence from spec's formal 4-parameter signature (spec §Exact API surface):
+ * The spec lists scoreShapeMatch(probe, shape, root, built) but FrettedScale has no
+ * anchorFret field.  A fifth parameter is required; the integration tier computes it
+ * and passes it here.  The pure tier never calls build.ts.
  *
  * Pure: zero Tonal deps, no mutation.
  *
- * R-2.4 — spec §B.3
+ * R-2.4 — spec §B.3 / tasks.md TG4.2
  */
 export function scoreShapeMatch(
-  _probe: InferenceProbe,
+  probe: InferenceProbe,
   _shape: ScaleShape,
-  _root: { pc: string; chroma: number },
-  _built: FrettedScale,
+  root: { pc: string; chroma: number },
+  built: FrettedScale,
+  builtAnchorFret: number,
 ): {
   total: number;
   coverage: number;
@@ -172,5 +205,105 @@ export function scoreShapeMatch(
   matchedNotes: FrettedNote[];
   breakdown: ScoreBreakdown;
 } {
-  throw new Error("not implemented");
+  // Build the set of chromas present in the built scale
+  const builtChromas = new Set<number>(
+    built.notes.map((n) => pcChroma(n.pc)).filter((c) => c !== -1),
+  );
+
+  // --- coverage ---
+  // Count how many probe chromas are present in the built scale
+  const matchedProbeCount = probe.pitchClasses.filter((c) =>
+    builtChromas.has(c),
+  ).length;
+  const coverage =
+    probe.pitchClasses.length > 0
+      ? matchedProbeCount / probe.pitchClasses.length
+      : 0;
+
+  // --- tightness ---
+  // probe.pitchClasses.length / distinctChromaCount(built)
+  const distinctBuiltCount = builtChromas.size;
+  const tightness =
+    distinctBuiltCount > 0 ? probe.pitchClasses.length / distinctBuiltCount : 0;
+
+  // --- matchedIntervals and matchedNotes (review S-8) ---
+  // Build Map<chroma, interval> in built-note order; first-match-wins (dedup by chroma).
+  // Also collect matchedNotes: all built notes whose chroma is in the probe set.
+  const probeChromaSet = new Set<number>(probe.pitchClasses);
+  const chromaToInterval = new Map<number, string>();
+  const matchedNotes: FrettedNote[] = [];
+
+  for (const n of built.notes) {
+    const chroma = pcChroma(n.pc);
+    if (chroma === -1) continue;
+
+    if (probeChromaSet.has(chroma)) {
+      // Collect matchedNotes (all built notes whose chroma is in probe)
+      matchedNotes.push(n);
+
+      // First-match-wins for matchedIntervals (dedup by chroma)
+      if (!chromaToInterval.has(chroma)) {
+        chromaToInterval.set(chroma, n.interval);
+      }
+    }
+  }
+
+  // matchedIntervals in the order chromas were first encountered (built-note order)
+  const matchedIntervals = Array.from(chromaToInterval.values());
+
+  // --- anchorHit and rootOnAnchorString ---
+  // rootNotesInBuilt: all built notes with interval "1P"
+  const rootNotesInBuilt = built.notes.filter((n) => n.interval === "1P");
+  const bassChroma =
+    probe.rootCandidates.length > 0 ? probe.rootCandidates[0].chroma : -1;
+
+  const anchorHit = rootNotesInBuilt.some(
+    (n) =>
+      n.string === probe.anchorString && pcChroma(n.pc) === bassChroma,
+  );
+
+  const rootOnAnchorString = rootNotesInBuilt.some(
+    (n) => n.string === probe.anchorString,
+  );
+
+  // --- positionAgreement (circular mod-12) ---
+  // d = abs(builtAnchorFret - probe.anchorFret) % 12
+  // circularDelta = min(d, 12 - d)  — in [0, 6]
+  // positionAgreement = 1 - circularDelta / 12  — in [0.5, 1]
+  const d = Math.abs(builtAnchorFret - probe.anchorFret) % 12;
+  const circularDelta = Math.min(d, 12 - d);
+  const positionAgreement = 1 - circularDelta / 12;
+
+  // --- rootPreference ---
+  // indexOf(root in probe.rootCandidates) — 0 = bass/declared
+  // rootPreference = 1 / (1 + rootRank)
+  const rootRank = probe.rootCandidates.findIndex(
+    (rc) => rc.chroma === root.chroma,
+  );
+  // If not found, treat as the last possible rank (lowest preference)
+  const effectiveRank = rootRank === -1 ? probe.rootCandidates.length : rootRank;
+  const rootPreference = 1 / (1 + effectiveRank);
+
+  // --- total score ---
+  const total =
+    100 * coverage +
+    40 * tightness +
+    30 * (anchorHit ? 1 : 0) +
+    10 * (rootOnAnchorString ? 1 : 0) +
+    20 * positionAgreement +
+    15 * rootPreference;
+
+  return {
+    total,
+    coverage,
+    matchedIntervals,
+    matchedNotes,
+    breakdown: {
+      tightness,
+      anchorHit,
+      rootOnAnchorString,
+      positionAgreement,
+      rootPreference,
+    },
+  };
 }
