@@ -123,7 +123,7 @@ breakdowns, min-evidence gate, omittedIntervals/canonicalRoot fields.
 | 3     | TG4: pcChroma & scoreShapeMatch     | complete | sonnet | 5th param builtAnchorFret |
 | 3     | TG5: arpeggio Builders              | complete | sonnet | chroma-membership, frame-safe |
 | 4     | TG6: inferShapeContext              | complete | sonnet | probe-confirmed rankings; 42 tests |
-| 5     | TG9: API Docs & README              | pending | -     | -     |
+| 5     | TG9: API Docs & README              | complete | sonnet | examples re-verified by running |
 | 6     | TG10: Test Review & Gap Analysis    | pending | -     | -     |
 
 ### Oversight Reports
@@ -133,5 +133,6 @@ breakdowns, min-evidence gate, omittedIntervals/canonicalRoot fields.
 - **Layer 2**: No concerns. Continued.
 - **Layer 3**: No concerns. Continued.
 - **Layer 4**: No concerns (the `scoreShapeMatch` 5th-param `builtAnchorFret` is the intended documented spec extension per tasks.md). Also: spec fixture `"x033xx"` was wrong (3 PCs, not 2); implementer substituted a valid 2-PC grip for the min-evidence test. Continued.
+- **Layer 5**: Concerns found in docs (wrong `get("CAGED G Shape")` lookups → `"G Shape"`; `SHELL_DICTIONARY` not re-exported; wrong `toAsciiTab`/`toAlphaTeX` example outputs). Fixed via a follow-up fix agent that re-verified every example by running it; `SHELL_DICTIONARY` now re-exported from `index.ts`. NOTE: pre-existing non-arpeggio README sections still use the broken `get("CAGED X Shape")` pattern (out of scope; flag for `/review`).
 
 ### Spec Compliance
