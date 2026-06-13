@@ -1,7 +1,7 @@
 # Code Review: feat/arpeggio-chord-shapes-detection-and-fingerings
 
 **Date:** 2026-06-13 | **Base:** main | **Scope:** full
-**Commits:** 28 | **Files Changed:** 18 | **Loop:** 1/2
+**Commits:** 28 | **Files Changed:** 18 | **Loop:** 2/2
 
 ## Affected Packages
 
@@ -13,17 +13,27 @@
 - Tests: `src/*.test.ts`, `src/data/data.test.ts`, `src/output/output.test.ts`
 - Docs: `README.md`, `docs/QUESTIONS.md`, `docs/api/arpeggios.md`
 
-## Review Progress
+## Loop 1 Summary
+
+- Findings: 40 CR IDs (incl. positives/confirmations). Severities of actionable items: 1 Critical (CR-016), ~10 Important, rest Suggestion.
+- **Fixed: 19** — CR-003, 007, 008, 012, 016 (arch/data); CR-010, 017, 018, 019, 022, 023, 025, 029 (simplification); CR-031, 032, 034, 035, 036, 040 (type-safety/robustness).
+- **Deferred: GitHub issues #38** (inferShapeContext perf — CR-001/002/015), **#39** (fingering metadata — CR-005/006/009), **#40** (pre-existing robustness — CR-033/037/038/039).
+- **Won't Fix: 6** — CR-004 (mirrors convention), CR-020/024/026 (style churn), CR-027 (spec-mandated JSON.stringify), CR-028 (public type), CR-030 (not worth restructure).
+- Commits: 6 (phases 3–8). Tests: 602 → 606 (added dim-correctness assertions). All green.
+
+## Review Progress (Loop 2)
 
 - [x] Phase 1: Setup
-- [x] Phase 2: Lint/Test Fix
-- [x] Phase 3: Architecture Review
-- [x] Phase 4: Architecture Fix
-- [x] Phase 5: Code Simplification Review
-- [x] Phase 6: Code Simplification Fix
-- [x] Phase 7: Specialized Reviews
-- [x] Phase 8: Specialized Fixes
+- [ ] Phase 2: Lint/Test Fix
+- [ ] Phase 3: Architecture Review
+- [ ] Phase 4: Architecture Fix
+- [ ] Phase 5: Code Simplification Review
+- [ ] Phase 6: Code Simplification Fix
+- [ ] Phase 7: Specialized Reviews
+- [ ] Phase 8: Specialized Fixes
 - [ ] Phase 9: Final Verification
+
+Loop 2 focus: regression/verification pass over the code MODIFIED during Loop 1's fixes (the new helpers `normalizeGroups`/`applyDuration`/`isValidChroma`, NaN-filtering, reduce-not-spread, corrected dim shapes, retagged voicings) plus a holistic second look — catching anything the fixes introduced or that Loop 1 missed.
 
 ## Statistics
 
