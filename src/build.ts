@@ -112,7 +112,7 @@ function shapeFitsAtAnchor(
  * open strings), shift the anchor up by 12 and retry.
  */
 const MAX_FRET = 24;
-function findShapeAnchorFret(
+export function findShapeAnchorFret(
   tuning: string[],
   shape: ScaleShape,
   pc: string,

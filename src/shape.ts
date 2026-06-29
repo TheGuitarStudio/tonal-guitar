@@ -27,6 +27,18 @@ export interface ScaleShape {
   span?: number; // optional fret span hint
 }
 
+export type VoicingFamily =
+  | "caged"
+  | "shell"
+  | "open"
+  | "barre"
+  | "drop2"
+  | "drop3"
+  | "drop2+4"
+  | "sweep";
+
+export type VoicingPatternDictionary = Record<string, string[]>;
+
 export interface ChordShape {
   name: string;
   system: string;
@@ -34,6 +46,14 @@ export interface ChordShape {
   fingers: (number | null)[];
   barres: Barre[];
   rootString: number;
+  // --- optional harmonic metadata (R-1.1) ---
+  chordType?: string;
+  inversion?: number;
+  voicingFamily?: VoicingFamily;
+  stringSet?: number[];
+  omittedIntervals?: string[];
+  canonicalRoot?: string;
+  baseFret?: number;
 }
 
 export interface Barre {
@@ -119,5 +139,29 @@ export const chordShapes = {
   removeAll(): void {
     chordDictionary = [];
     chordIndex = {};
+  },
+  query(filter: {
+    chordType?: string;
+    system?: string;
+    voicingFamily?: VoicingFamily;
+    stringSet?: number[];
+  }): ChordShape[] {
+    return chordDictionary.filter((shape) => {
+      if (filter.chordType !== undefined && shape.chordType !== filter.chordType) {
+        return false;
+      }
+      if (filter.system !== undefined && shape.system !== filter.system) {
+        return false;
+      }
+      if (filter.voicingFamily !== undefined && shape.voicingFamily !== filter.voicingFamily) {
+        return false;
+      }
+      if (filter.stringSet !== undefined) {
+        if (JSON.stringify(shape.stringSet) !== JSON.stringify(filter.stringSet)) {
+          return false;
+        }
+      }
+      return true;
+    });
   },
 };
