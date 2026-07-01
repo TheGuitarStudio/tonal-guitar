@@ -48,3 +48,17 @@ package (`reviews/spec-review.md`). Six findings, all incorporated:
 6. **Tuning scope (D-008)** — standard six-string; alternate/7-8-string best-effort, documented.
 
 Added decisions D-007, D-008. Added risks (partial-voicing detect, math-valid-but-unplayable rows).
+
+## Phase 4: Implement
+
+| Layer | Task Group                                          | Status  | Agent | Notes |
+| ----- | --------------------------------------------------- | ------- | ----- | ----- |
+| 0     | TG1: Scaffold + parametrized test harness           | pending | -     | -     |
+| 1     | TG2: Tier 1 — Essential shapes                      | pending | -     | -     |
+| 2     | TG3: Tier 2 — Jazz core shapes                      | pending | -     | -     |
+| 3     | TG4: Tier 3 — Altered dominant shapes               | pending | -     | -     |
+| 4     | TG5: Cross-cutting interop + final verification     | pending | -     | -     |
+
+### Oversight Reports
+
+### Spec Compliance
