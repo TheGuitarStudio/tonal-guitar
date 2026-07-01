@@ -157,7 +157,7 @@ exactly what the `strings` rows must use to round-trip:
 | `7b9`  | `C7b9`   | 1P 3M 5P 7m 9m    | `C7b9` | clean (5 tones) |
 | `7#9`  | `C7#9`   | 1P 3M 5P 7m 9A    | `C7#9` | clean ("Hendrix") |
 | `7#5`  | `C7#5`   | 1P 3M 5A 7m       | `C7#5` (also `C7b13`) | `type`=""; alias of `aug7` |
-| `aug7` | **`C7#5`** | 1P 3M 5A 7m     | `C7#5` | ⚠ `get("Caug7").symbol` normalizes to `C7#5` |
+| `aug7` | `Caug7` | 1P 3M 5A 7m     | `C7#5` | ⚠ **same chord** as `7#5` (identical intervals + shared aliases); `get("Caug7").symbol`=`Caug7` (NOT normalized), but `detect` prefers `C7#5`. Register `7#5` only. |
 | `7b5`  | `C7b5`   | 1P 3M 5d 7m       | `C7b5` | `type`="" |
 
 **Interval vocabulary the data must use** (all valid Tonal/`transpose` inputs, all build-engine
@@ -271,7 +271,9 @@ Shape:
 
 | Risk/Dependency | Severity | Mitigation |
 |-----------------|----------|------------|
-| `chordType` string ≠ Tonal `detect` output (`add9`→`CMadd9`, `mMaj7`→`Cm/ma7`, `6/9`→`C6add9`, `aug7`→`7#5`) | Medium | Catalog every mismatch (table above); decide canonical `chordType` per suffix in Shape (prefer the `Chord.get` symbol); add round-trip tests asserting the *chosen* mapping, accepting alias differences explicitly. |
+| `chordType` string ≠ Tonal `detect` output (`add9`→`CMadd9`, `mMaj7`→`Cm/ma7`, `6/9`→`C6add9`; `aug7`/`7#5` are the same chord, `detect` prefers `C7#5`) | Medium | Catalog every mismatch (table above); decide canonical `chordType` per suffix in Shape (prefer the `Chord.get` symbol); add round-trip tests asserting the *chosen* mapping, accepting alias differences explicitly. |
+| Partial (omitted-tone) voicings do not `detect` as the full chord (e.g. a C13 shell `C E Bb A` returns no chord; `C E Bb D` → `C9no5`, not `C9`) | Medium | Do NOT require `identifyChord`/`detect` to name the full chord for partials; assert built notes are a chroma-subset of `Chord.get(symbol).intervals`. Split tests: full voicings → exact/alias detect; partials → subset only. |
+| Mathematically valid interval rows that are not real, playable guitar grips | Medium | Derive every shape from a concrete 6-string prototype fret pattern (JSDoc), then convert to intervals; test fret-span/finger plausibility, not only interval membership. |
 | Incomplete voicings (esp. `13`, shells) make `identifyChord` detect a different/partial chord | Medium | Populate `omittedIntervals`; in tests assert chord-tone **membership** (chroma subset) rather than exact `detect` equality where tones are dropped. |
 | Hand-curated fret/finger errors (no `node_modules`-vendored chords-db in repo — frets must be authored by hand from chords-db references) | Medium | Derive each shape's interval row from a named open voicing in JSDoc (as the 7th file does); test `applyChordShape` builds the expected interval set for a sample root. |
 | Fret-window (12-fret) note dropping for wide grips | Low | Test built `frets` non-null count == `stringSet` length for each shape at a representative root. |

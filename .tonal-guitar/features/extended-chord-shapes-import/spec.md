@@ -2,7 +2,7 @@
 
 ## Goal
 
-Add a curated, high-value set of ~16 extended chord types (sixths, ninths, jazz core, and altered
+Add a curated, high-value set of 15 extended chord types (sixths, ninths, jazz core, and altered
 dominants) to the chord-shape registry as a new `src/data/extended-chords.ts`, each with a movable
 E-form and A-form voicing in the established `ChordShape` format. Every type is verified to
 round-trip cleanly through Tonal.js (`@tonaljs/chord`) so chord ↔ scale ↔ arpeggio relationships
@@ -33,7 +33,8 @@ a named open/movable voicing; a single `[...].forEach(chordShapes.add.bind(chord
 bottom. `import { chordShapes, ChordShape } from "../shape";`. Zero Tonal imports at module load
 (pure data, like every other `data/*` file).
 
-**Chord set (16 `chordType`s, all verified to resolve in `@tonaljs/chord`).** `chordType` MUST equal
+**Chord set (15 canonical `chordType`s, all verified to resolve in `@tonaljs/chord`; `aug7` is an
+alias of `7#5`, not a separate key).** `chordType` MUST equal
 Tonal's `Chord.get` symbol suffix. Interval rows MUST use Tonal compound-interval vocabulary and be a
 subset of `Chord.get(symbol).intervals` (a voicing may omit tones but MUST NOT add tones outside the
 chord). Reference chord-tone sets (the canonical full chord; voicings draw from these):
@@ -42,7 +43,7 @@ chord). Reference chord-tone sets (the canonical full chord; voicings draw from 
 | ---- | ----------- | ----------------------------------------- | ----- |
 | 1 | `6`     | `1P 3M 5P 6M`           | |
 | 1 | `m6`    | `1P 3m 5P 6M`           | |
-| 1 | `9`     | `1P 3M 5P 7m 9M`        | 5 tones → partial grip |
+| 1 | `9`     | `1P 3M 5P 7m 9M`        | 5 tones (may be complete on a 5-string grip) |
 | 1 | `maj9`  | `1P 3M 5P 7M 9M`        | 5 tones |
 | 1 | `m9`    | `1P 3m 5P 7m 9M`        | 5 tones |
 | 1 | `add9`  | `1P 3M 5P 9M`           | no 7th |
@@ -95,25 +96,29 @@ export const EXT_CHORD_E_6: ChordShape = {
   // no omittedIntervals — all of 1P 3M 5P 6M present
 };
 
-// A-form dominant 13 — 6-tone chord, omit the 5th (priority 1)
+// A-form dominant 13 — 6-tone chord, omit only the 5th (priority 1)
+// Prototype: standard movable C13 A-root grip → x 3 2 3 3 5 (C E Bb D A)
 export const EXT_CHORD_A_13: ChordShape = {
   name: "A Shape 13",
   system: "caged",
-  strings: [null, "1P", "7m", "3M", "13M", null], // root–b7–3–13 on the A/D/G/B set
-  fingers: [null, 1, 1, 2, 4, null],
+  strings: [null, "1P", "3M", "7m", "9M", "13M"], // A/D/G/B/e set: C E Bb D A for root C
+  fingers: [null, 2, 1, 3, 4, 4], // illustrative — finalized in implementation
   barres: [],
   rootString: 1,
   chordType: "13",
   voicingFamily: "caged",
   inversion: 0,
-  stringSet: [1, 2, 3, 4],
-  omittedIntervals: ["5P", "9M"], // 5th then 9th dropped to fit a 4-string grip
+  stringSet: [1, 2, 3, 4, 5],
+  omittedIntervals: ["5P"], // only the 5th dropped; 9 and 13 retained
 };
 ```
 
-> The exact frets are derived at apply-time from these interval rows; implementation must verify each
-> grip is playable and builds correctly (see Testing). Interval rows above are illustrative of the
-> *format and omission policy* — implementation finalizes the precise voicing per type.
+> **The interval `strings` row is the normative part; `fingers`/`barres` in these examples are
+> illustrative and are finalized during implementation.** Frets are derived at apply-time from the
+> interval row: `EXT_CHORD_A_13` applied to C builds to `x 3 2 3 3 5` (a real, playable C13);
+> `EXT_CHORD_E_6` applied to F builds to `1 3 3 2 3 x`. Implementation MUST derive each shape from a
+> concrete six-string prototype grip (in JSDoc) and verify it is playable — correct fret span and a
+> plausible fingering — not merely that the intervals build to *some* fret.
 
 ### Integration Layer — interop verification (no code change, verification only)
 
@@ -125,9 +130,14 @@ The new data must satisfy these Tonal round-trips using the **existing** `src/in
 - **Arpeggio derivability:** `arpeggioFromShape(parentScaleShape, "C"+S, "C")` and
   `arpeggioFromScale` keep exactly the chord tones present in the parent (chroma membership) — i.e.
   the chord is usable as an arpeggio source.
-- **Identification (chroma, not string-equality):** building the shape via `applyChordShape` then
-  `identifyChord(frets)` returns a chord whose tones are consistent with the type; assertions use
-  chord-tone chroma membership, not exact symbol equality, where `detect` diverges (below).
+- **Identification — split by completeness (D-007):** building the shape via `applyChordShape` then
+  `identifyChord(frets)`:
+  - **Full voicings** (no `omittedIntervals`): `detect` returns a non-empty result whose first entry
+    is the exact symbol or a documented alias.
+  - **Partial voicings** (has `omittedIntervals`): assert only that the built notes are a **chroma
+    subset** of `Chord.get(root+symbol).intervals` and that `Chord.get` resolves. Do **NOT** require
+    `detect` to name the full chord — omitted-tone grips frequently return `[]` or an incomplete
+    label (e.g. a C13 shell `C E Bb A` detects nothing; `C E Bb D` → `C9no5`, not `C9`).
 - **Key analysis (documented limit):** `analyzeInKey` returns an empty numeral/degree for
   non-diatonic extensions — assert this is the case for a representative extension, documenting it as
   expected behavior.
@@ -140,7 +150,8 @@ The new data must satisfy these Tonal round-trips using the **existing** `src/in
 | `add9` | `Madd9` (e.g. `CMadd9`) | key stays `add9`; tests assert chroma membership |
 | `mMaj7` | `m/ma7` (e.g. `Cm/ma7`) | key stays `mMaj7`; documented alias |
 | `6/9` | `6add9` (e.g. `C6add9`) | key stays `6/9`; documented alias |
-| `aug7` | `7#5` | register `7#5` only; `aug7` noted as the alias |
+| `7#5` | also `C7b13` after `C7#5` | first `detect` = `C7#5` (our key); note the alternate |
+| `aug7` (not registered) | `C7#5` | `aug7`/`7#5` are the **same chord**; `Chord.get("Caug7").symbol` = `Caug7` (NOT normalized), `detect` prefers `C7#5`. We register `7#5`; `aug7` documented as an alias. `chordShapes.query({chordType:"aug7"})` will NOT match — exact-string registry. |
 
 ### Module / Public API
 
@@ -155,18 +166,24 @@ The new data must satisfy these Tonal round-trips using the **existing** `src/in
 Mirror chord-shape test patterns from `src/data/data.test.ts`. For **every** registered shape:
 1. **Registered & queryable:** `chordShapes.query({ chordType })` includes the shape; its `name` is
    unique across the whole registry.
-2. **Builds correctly:** `applyChordShape(shape, root)` at a representative root produces a
+2. **Builds correctly & is playable:** `applyChordShape(shape, root)` at a representative root
+   (STANDARD tuning; use a root such as F or C that avoids open-string edge cases) produces a
    `Fingering` whose non-null `frets` count equals `stringSet.length` (no notes dropped by the
-   12-fret window), and whose built intervals equal `strings` minus `null`s.
+   12-fret window), whose built intervals equal `strings` minus `null`s, and whose fretted span is
+   playable (fretted frets within ~4 of each other; a plausible ≤4-finger grip).
 3. **Interop — resolution & subset:** `Chord.get("<root><chordType>")` is non-empty and the shape's
    interval chromas are a subset of the chord's interval chromas.
 4. **Interop — arpeggio membership:** chord tones are derivable via `arpeggioFromScale` /
    `arpeggioFromShape` (chroma membership).
 5. **Omission integrity:** if `omittedIntervals` is set, those intervals are absent from `strings`
    and present in the full `Chord.get` chord; if unset, the shape contains all chord tones.
-6. **Divergence cases:** explicit assertions documenting the 4 catalog rows behave as specified.
+6. **Identification split (D-007):** full voicings → `detect` first entry is exact/alias; partial
+   voicings → built notes are a chroma subset of the full chord (no full-chord `detect` required).
+7. **Divergence cases:** explicit assertions documenting the catalog rows behave as specified,
+   including that `chordShapes.query({ chordType: "aug7" })` returns nothing (exact-string registry).
 
-Aggregate sanity: total new shape count is ~30; all 16 `chordType`s are present; no duplicate names.
+Aggregate sanity: total new shape count is ~30; all 15 canonical `chordType`s are present; no
+duplicate names.
 
 ## Visual Design
 
@@ -209,14 +226,24 @@ house style (per-shape derivation comment + interval annotation) so the file rea
   explicitly future; the schemas here are designed to *allow* it later without reshaping.
 - Changes to `ChordShape`, the registry, `applyChordShape`, or `integration.ts` — this feature adds
   data and tests only.
+- **Non-standard tunings (D-008):** these are **standard six-string** shapes. Alternate tunings and
+  7/8-string tunings are best-effort — `applyChordShape` maps a six-slot shape onto the lowest six
+  strings of a longer tuning, which is not a guitarist's top-six placement. Not guaranteed or tested
+  here; documented in the data-file header.
 
 ## Acceptance Criteria (rollup)
 
-- [ ] `src/data/extended-chords.ts` exists, registers ~30 shapes covering all 16 `chordType`s, and
-      follows the `caged-chords-7th.ts` format.
+- [ ] `src/data/extended-chords.ts` exists, registers ~30 shapes covering all 15 canonical
+      `chordType`s (`aug7` documented as an alias of `7#5`), and follows the `caged-chords-7th.ts`
+      format.
 - [ ] Every `chordType` equals its Tonal `Chord.get` symbol; `7#5` (not `aug7`) is the altered-aug
       entry; interval rows use compound vocabulary and are chord-tone subsets.
 - [ ] Every partial voicing sets `omittedIntervals` per the omission-priority rule.
+- [ ] Every shape is derived from a concrete six-string prototype grip (in JSDoc) and builds to a
+      **playable** grip in STANDARD tuning (fret span + plausible fingering), not merely a valid
+      interval build.
+- [ ] Identification tests are split full-vs-partial (D-007); partials are not required to `detect`
+      as the full chord. Standard-tuning scope is documented (D-008).
 - [ ] One side-effect import added to `src/index.ts`; no other public-API change.
 - [ ] `src/data/extended-chords.test.ts` passes all per-shape build + interop assertions; the
       divergence catalog is covered.

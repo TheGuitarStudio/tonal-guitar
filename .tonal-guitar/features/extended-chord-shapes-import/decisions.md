@@ -42,7 +42,11 @@ track Tonal exactly, or use guitar-friendly names?
 | Guitar-friendly names + simple intervals (`2M`,`6M`) | Familiar to players | Breaks the "one shared vocabulary" user story; needs a translator for Tonal joins |
 
 **Decision:** **Match `Chord.get` symbol; write extensions as compound intervals.** Register `7#5`
-(not `aug7`) since `Chord.get("Caug7").symbol === "C7#5"`.
+(not `aug7`) because it is the clearer altered-dominant symbol and the one `detect` prefers for the
+pitch set. (Correction after external review: `aug7` and `7#5` are the **same Tonal chord** —
+identical intervals `1P 3M 5A 7m` and shared aliases — but `Chord.get("Caug7").symbol` returns
+`"Caug7"`, it does **not** normalize to `C7#5`. The choice is a canonical-key decision, not a
+normalization fact. `aug7` is documented as an alias.)
 
 **Rationale:** The whole point of user story 3 is one vocabulary across both libraries with no
 translation layer. Compound intervals match `Chord.get(symbol).intervals` and keep `degree`/
@@ -102,8 +106,9 @@ Tier 3 `7b9 7#9 7#5 7b5`). Defer `11`/`m11`/`maj11`.
 
 **Rationale:** Every suffix is high-value, resolves in Tonal, and is a real guitar voicing. The full
 set delivers a credible publish-ready vocabulary in one pass. 11ths voice poorly and are usually
-implied — correctly deferred to #28. Note: `7#5` and `aug7` collapse to one Tonal chord, so the
-altered tier yields 4 distinct `chordType`s (15–16 types total).
+implied — correctly deferred to #28. Note: `7#5` and `aug7` are one Tonal chord, so the altered tier
+yields 4 distinct `chordType`s and the feature registers **15 canonical `chordType`s** (`aug7`
+documented as an alias of `7#5`, not a separate registry key).
 
 ---
 
@@ -119,3 +124,38 @@ the existing data imports. **No** new re-exports — consumers use existing `cho
 **Rationale:** Mirrors `caged-chords-7th.ts` exactly (which also adds no re-exports). Keeps the
 public API stable; the feature is purely additive data. Separate test file keeps the already-large
 `data.test.ts` focused.
+
+---
+
+## D-007: Identification tests — full voicings vs partial voicings (external-review finding)
+
+**Context:** The external review showed that omitted-tone partial voicings do **not** round-trip
+through Tonal `detect` as the full chord (e.g. a C13 shell `C E Bb A` returns no detected chord;
+`C E Bb D` → `C9no5`, not `C9`). The original spec required `identifyChord` to return a chord
+"consistent with the type" for every shape — too strong for partials.
+
+**Decision:** Split the identification acceptance tests by completeness:
+- **Full voicings** (no `omittedIntervals`): `identifyChord`/`detect` returns a non-empty result
+  whose first entry is the exact symbol or a documented alias.
+- **Partial voicings** (has `omittedIntervals`): assert only that the built notes are a **chroma
+  subset** of `Chord.get(root + chordType).intervals`, and that `Chord.get` resolves. Do **not**
+  require `detect` to name the intended full chord.
+
+**Rationale:** Matches how Tonal actually behaves; keeps the chord↔arpeggio relationship queryable
+via `omittedIntervals` without asserting something false. Consistent with D-004.
+
+---
+
+## D-008: Tuning scope — standard six-string; alternate/extended-range best-effort (external-review finding)
+
+**Context:** `applyChordShape`/`buildFrettedScale` iterate over the shorter of shape strings and
+tuning and size `frets` from the tuning (`src/build.ts:185`, `:267`). On 7/8-string tunings, a
+six-slot shape maps to the **lowest** six strings, not a guitarist's top six.
+
+**Decision:** These curated grips are **standard six-string** shapes. Alternate tunings and
+7/8-string tunings are **best-effort / out of scope** for this feature's guarantees. State this in
+the data file header and test only STANDARD tuning (with representative roots such as F/C that avoid
+open-string special cases).
+
+**Rationale:** Sets an honest, testable boundary; avoids implying coverage the shapes don't provide.
+Aligns with the library's existing standard-tuning-first data.
