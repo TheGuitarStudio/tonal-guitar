@@ -53,12 +53,14 @@ Added decisions D-007, D-008. Added risks (partial-voicing detect, math-valid-bu
 
 | Layer | Task Group                                          | Status  | Agent | Notes |
 | ----- | --------------------------------------------------- | ------- | ----- | ----- |
-| 0     | TG1: Scaffold + parametrized test harness           | pending | -     | -     |
+| 0     | TG1: Scaffold + parametrized test harness           | complete | sonnet | -     |
 | 1     | TG2: Tier 1 — Essential shapes                      | pending | -     | -     |
 | 2     | TG3: Tier 2 — Jazz core shapes                      | pending | -     | -     |
 | 3     | TG4: Tier 3 — Altered dominant shapes               | pending | -     | -     |
 | 4     | TG5: Cross-cutting interop + final verification     | pending | -     | -     |
 
 ### Oversight Reports
+
+- **Layer 0**: No concerns. Continued.
 
 ### Spec Compliance
