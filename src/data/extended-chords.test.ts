@@ -1,11 +1,10 @@
 /**
  * Test harness for src/data/extended-chords.ts.
  *
- * TG1 (this file's origin) only scaffolds the harness: `EXTENDED_CHORD_SHAPES`
- * is empty, so the parametrized `describe.each` block below generates zero
- * per-shape suites. Later task groups (Tier 1 / Tier 2 / Tier 3) push shape
- * entries onto `SHAPES_UNDER_TEST` — the assertion helpers themselves do not
- * change.
+ * TG1 scaffolded this harness with `EXTENDED_CHORD_SHAPES` empty. TG2 (Tier
+ * 1 — `6 m6 9 maj9 m9 add9`) populates `SHAPES_UNDER_TEST` with the first 12
+ * shapes; later task groups (Tier 2 / Tier 3) push further entries — the
+ * assertion helpers themselves do not change.
  *
  * Each helper mirrors one bullet from the feature spec
  * (.tonal-guitar/features/extended-chord-shapes-import/spec.md §Testing):
@@ -26,7 +25,21 @@ import { applyChordShape } from "../build";
 import { arpeggioFromShape, identifyChord } from "../integration";
 import { STANDARD } from "../tuning";
 
-import { EXTENDED_CHORD_SHAPES } from "./extended-chords";
+import {
+  EXTENDED_CHORD_SHAPES,
+  EXT_CHORD_E_6,
+  EXT_CHORD_A_6,
+  EXT_CHORD_E_M6,
+  EXT_CHORD_A_M6,
+  EXT_CHORD_E_9,
+  EXT_CHORD_A_9,
+  EXT_CHORD_E_MAJ9,
+  EXT_CHORD_A_MAJ9,
+  EXT_CHORD_E_M9,
+  EXT_CHORD_A_M9,
+  EXT_CHORD_E_ADD9,
+  EXT_CHORD_A_ADD9,
+} from "./extended-chords";
 
 // ============================================================
 // Shared helpers
@@ -203,10 +216,44 @@ interface ShapeCase {
 
 /**
  * Populated by later task groups (Tier 1/2/3): each entry is one registered
- * shape plus the representative root it should build against. Empty here —
- * TG1 only proves the harness compiles and runs green with zero cases.
+ * shape plus the representative root it should build against.
+ *
+ * Tier 1 (this task group) uses root F for E-form shapes and root C for
+ * A-form shapes — both avoid the open-string edge case (F is a uniform
+ * +1-semitone shift off each E-form's open-E prototype; C is the exact
+ * reference root the A-form shells are conventionally taught at).
+ *
+ * `add9` full voicings pass `aliases: ["${root}Madd9"]` — the empirically
+ * verified `detect` alias for `add9` (see the divergence catalog in this
+ * file's header JSDoc). All other Tier 1 full voicings (`6`, `m6`, `9`,
+ * `maj9`, `m9` E-form) detect cleanly with no alias needed. The A-form
+ * `9`/`maj9`/`m9` shells are partial (5th omitted) and skip the detect
+ * requirement entirely per D-007.
  */
-const SHAPES_UNDER_TEST: ShapeCase[] = [];
+const SHAPES_UNDER_TEST: ShapeCase[] = [
+  { name: "E Shape 6", shape: EXT_CHORD_E_6, root: "F" },
+  { name: "A Shape 6", shape: EXT_CHORD_A_6, root: "C" },
+  { name: "E Shape m6", shape: EXT_CHORD_E_M6, root: "F" },
+  { name: "A Shape m6", shape: EXT_CHORD_A_M6, root: "C" },
+  { name: "E Shape 9", shape: EXT_CHORD_E_9, root: "F" },
+  { name: "A Shape 9", shape: EXT_CHORD_A_9, root: "C" },
+  { name: "E Shape maj9", shape: EXT_CHORD_E_MAJ9, root: "F" },
+  { name: "A Shape maj9", shape: EXT_CHORD_A_MAJ9, root: "C" },
+  { name: "E Shape m9", shape: EXT_CHORD_E_M9, root: "F" },
+  { name: "A Shape m9", shape: EXT_CHORD_A_M9, root: "C" },
+  {
+    name: "E Shape add9",
+    shape: EXT_CHORD_E_ADD9,
+    root: "F",
+    aliases: ["FMadd9"],
+  },
+  {
+    name: "A Shape add9",
+    shape: EXT_CHORD_A_ADD9,
+    root: "C",
+    aliases: ["CMadd9"],
+  },
+];
 
 describe.each(SHAPES_UNDER_TEST)("$name — root $root", ({ shape, root, aliases }) => {
   it("is registered and queryable by chordType, with a unique name", () => {
@@ -235,17 +282,41 @@ describe.each(SHAPES_UNDER_TEST)("$name — root $root", ({ shape, root, aliases
 });
 
 // ============================================================
-// Scaffold-level sanity (TG1 acceptance criteria)
+// Aggregate sanity (TG2 — Tier 1 acceptance criteria)
 // ============================================================
 
-describe("extended-chords: TG1 scaffold", () => {
-  it("registers zero shapes for the empty tier scaffold", () => {
-    expect(EXTENDED_CHORD_SHAPES.length).toBe(0);
-    expect(chordShapes.all().length).toBe(0);
+describe("extended-chords: Tier 1 aggregate sanity", () => {
+  it("registers exactly the 12 Tier 1 shapes (6 types x E/A-form)", () => {
+    expect(EXTENDED_CHORD_SHAPES.length).toBe(12);
+    expect(chordShapes.all().length).toBe(12);
+  });
+
+  it("covers all 6 Tier 1 chordTypes", () => {
+    const tier1Types = ["6", "m6", "9", "maj9", "m9", "add9"];
+    for (const chordType of tier1Types) {
+      expect(chordShapes.query({ chordType }).length).toBe(2);
+    }
   });
 
   it("importing the module does not throw and produces no duplicate names", () => {
     const names = chordShapes.names();
     expect(new Set(names).size).toBe(names.length);
+  });
+});
+
+// ============================================================
+// Divergence catalog assertions (D-007 — add9)
+// ============================================================
+
+describe("extended-chords: divergence catalog", () => {
+  it("add9 full voicing detects as the Madd9 alias, not the Chord.get symbol", () => {
+    const result = applyChordShape(EXT_CHORD_E_ADD9, "F", STANDARD);
+    const detected = identifyChord(result.frets, STANDARD);
+    expect(detected[0]).toBe("FMadd9");
+    expect(detected[0]).not.toBe("Fadd9");
+
+    const chord = getChord("Fadd9");
+    expect(chord.empty).toBe(false);
+    expect(chord.symbol).toBe("Fadd9");
   });
 });
