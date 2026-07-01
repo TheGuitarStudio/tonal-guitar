@@ -24,6 +24,7 @@ import { STANDARD } from "../tuning";
 import "../data/caged-chords-7th";
 import "../data/open-chords";
 import "../data/jazz-shells";
+import { EXTENDED_CHORD_SHAPES } from "../data/extended-chords";
 
 // Named imports for direct shape references in tests
 import {
@@ -604,8 +605,9 @@ describe("TG10 — Data integrity: chordShapes.all() count after all curated imp
     //   caged-chords-7th.ts: 11  (maj7/m7/7/m7b5 E+A+D forms)
     //   open-chords.ts:      70  (5 open families + 2 barre families × 10 chord types)
     //   jazz-shells.ts:      16  (4 chord types × 2 string sets × 2 orderings)
+    //   extended-chords.ts:  EXTENDED_CHORD_SHAPES.length (grows per curation tier)
     const total = chordShapes.all().length;
-    expect(total).toBe(102);
+    expect(total).toBe(102 + EXTENDED_CHORD_SHAPES.length);
   });
 
   it("caged-chords-7th adds exactly 11 shapes (validates R-4.1 registration)", () => {
@@ -615,8 +617,11 @@ describe("TG10 — Data integrity: chordShapes.all() count after all curated imp
     // 7:   E-shape + A-shape + D-shape = 3
     // m7b5: E-shape + A-shape = 2
     // Total = 11
+    // extended-chords.ts also registers caged-family shapes with chordType set,
+    // so exclude them by name to isolate the caged-chords-7th contribution.
+    const extendedNames = new Set(EXTENDED_CHORD_SHAPES.map((s) => s.name));
     const cagedSeventh = chordShapes.query({ voicingFamily: "caged" }).filter(
-      (s) => s.chordType !== undefined
+      (s) => s.chordType !== undefined && !extendedNames.has(s.name)
     );
     expect(cagedSeventh.length).toBe(11);
   });
