@@ -122,6 +122,7 @@ import "./data/pentatonic";
 import "./data/caged-chords-7th";
 import "./data/open-chords";
 import "./data/jazz-shells";
+import "./data/extended-chords";
 
 // Jazz shell voicing dictionary (public API)
 export { SHELL_DICTIONARY } from "./data/jazz-shells";
