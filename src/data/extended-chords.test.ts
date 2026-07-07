@@ -39,6 +39,16 @@ import {
   EXT_CHORD_A_M9,
   EXT_CHORD_E_ADD9,
   EXT_CHORD_A_ADD9,
+  EXT_CHORD_E_13,
+  EXT_CHORD_A_13,
+  EXT_CHORD_E_DIM7,
+  EXT_CHORD_A_DIM7,
+  EXT_CHORD_E_MMAJ7,
+  EXT_CHORD_A_MMAJ7,
+  EXT_CHORD_E_7SUS4,
+  EXT_CHORD_A_7SUS4,
+  EXT_CHORD_E_69,
+  EXT_CHORD_A_69,
 } from "./extended-chords";
 
 // ============================================================
@@ -253,6 +263,42 @@ const SHAPES_UNDER_TEST: ShapeCase[] = [
     root: "C",
     aliases: ["CMadd9"],
   },
+  // --- Tier 2 (TG3). Same root convention: F for E-forms, C for A-forms
+  // (E Shape 6/9 uses G — its cited prototype grip is the classic G6/9
+  // 3,2,2,2,3,x, and G keeps the movable build fully fretted).
+  // Full voicings that need an alias per the divergence catalog: mMaj7
+  // (`m/ma7`) and 6/9 (`6add9`). `13`/`dim7`/`7sus4` detect exactly. The
+  // A-form 13 is partial (5th omitted) and skips detect per D-007.
+  { name: "E Shape 13", shape: EXT_CHORD_E_13, root: "F" },
+  { name: "A Shape 13", shape: EXT_CHORD_A_13, root: "C" },
+  { name: "E Shape dim7", shape: EXT_CHORD_E_DIM7, root: "F" },
+  { name: "A Shape dim7", shape: EXT_CHORD_A_DIM7, root: "C" },
+  {
+    name: "E Shape mMaj7",
+    shape: EXT_CHORD_E_MMAJ7,
+    root: "F",
+    aliases: ["Fm/ma7"],
+  },
+  {
+    name: "A Shape mMaj7",
+    shape: EXT_CHORD_A_MMAJ7,
+    root: "C",
+    aliases: ["Cm/ma7"],
+  },
+  { name: "E Shape 7sus4", shape: EXT_CHORD_E_7SUS4, root: "F" },
+  { name: "A Shape 7sus4", shape: EXT_CHORD_A_7SUS4, root: "C" },
+  {
+    name: "E Shape 6/9",
+    shape: EXT_CHORD_E_69,
+    root: "G",
+    aliases: ["G6add9"],
+  },
+  {
+    name: "A Shape 6/9",
+    shape: EXT_CHORD_A_69,
+    root: "C",
+    aliases: ["C6add9"],
+  },
 ];
 
 describe.each(SHAPES_UNDER_TEST)("$name — root $root", ({ shape, root, aliases }) => {
@@ -282,19 +328,45 @@ describe.each(SHAPES_UNDER_TEST)("$name — root $root", ({ shape, root, aliases
 });
 
 // ============================================================
-// Aggregate sanity (TG2 — Tier 1 acceptance criteria)
+// Aggregate sanity (TG2 Tier 1 + TG3 Tier 2 acceptance criteria)
 // ============================================================
 
-describe("extended-chords: Tier 1 aggregate sanity", () => {
-  it("registers exactly the 12 Tier 1 shapes (6 types x E/A-form)", () => {
-    expect(EXTENDED_CHORD_SHAPES.length).toBe(12);
-    expect(chordShapes.all().length).toBe(12);
+describe("extended-chords: Tier 1 + Tier 2 aggregate sanity", () => {
+  it("registers exactly the 22 Tier 1+2 shapes (11 types x E/A-form)", () => {
+    expect(EXTENDED_CHORD_SHAPES.length).toBe(22);
+    expect(chordShapes.all().length).toBe(22);
   });
 
   it("covers all 6 Tier 1 chordTypes", () => {
     const tier1Types = ["6", "m6", "9", "maj9", "m9", "add9"];
     for (const chordType of tier1Types) {
       expect(chordShapes.query({ chordType }).length).toBe(2);
+    }
+  });
+
+  it("covers all 5 Tier 2 chordTypes", () => {
+    const tier2Types = ["13", "dim7", "mMaj7", "7sus4", "6/9"];
+    for (const chordType of tier2Types) {
+      expect(chordShapes.query({ chordType }).length).toBe(2);
+    }
+  });
+
+  it("13 voicings retain root, 3rd, b7, and the 13th", () => {
+    for (const shape of chordShapes.query({ chordType: "13" })) {
+      const played = shape.strings.filter((s): s is string => s != null);
+      for (const required of ["1P", "3M", "7m", "13M"]) {
+        expect(played).toContain(required);
+      }
+    }
+  });
+
+  it("7sus4 shapes contain no 3rd and never omit the 4th", () => {
+    for (const shape of chordShapes.query({ chordType: "7sus4" })) {
+      const played = shape.strings.filter((s): s is string => s != null);
+      expect(played).toContain("4P");
+      expect(played).not.toContain("3M");
+      expect(played).not.toContain("3m");
+      expect(shape.omittedIntervals ?? []).not.toContain("4P");
     }
   });
 
@@ -305,7 +377,7 @@ describe("extended-chords: Tier 1 aggregate sanity", () => {
 });
 
 // ============================================================
-// Divergence catalog assertions (D-007 — add9)
+// Divergence catalog assertions (D-007 — add9, mMaj7, 6/9)
 // ============================================================
 
 describe("extended-chords: divergence catalog", () => {
@@ -318,5 +390,27 @@ describe("extended-chords: divergence catalog", () => {
     const chord = getChord("Fadd9");
     expect(chord.empty).toBe(false);
     expect(chord.symbol).toBe("Fadd9");
+  });
+
+  it("mMaj7 full voicing detects as the m/ma7 alias, not the Chord.get symbol", () => {
+    const result = applyChordShape(EXT_CHORD_E_MMAJ7, "F", STANDARD);
+    const detected = identifyChord(result.frets, STANDARD);
+    expect(detected[0]).toBe("Fm/ma7");
+    expect(detected[0]).not.toBe("FmMaj7");
+
+    const chord = getChord("FmMaj7");
+    expect(chord.empty).toBe(false);
+    expect(chord.symbol).toBe("FmMaj7");
+  });
+
+  it("6/9 full voicing detects as the 6add9 alias while Chord.get keeps the 6/9 symbol", () => {
+    const result = applyChordShape(EXT_CHORD_A_69, "C", STANDARD);
+    const detected = identifyChord(result.frets, STANDARD);
+    expect(detected[0]).toBe("C6add9");
+    expect(detected[0]).not.toBe("C6/9");
+
+    const chord = getChord("C6/9");
+    expect(chord.empty).toBe(false);
+    expect(chord.symbol).toBe("C6/9");
   });
 });
