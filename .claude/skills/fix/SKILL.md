@@ -113,8 +113,11 @@ See [../references/shared-conventions.md](../references/shared-conventions.md).
      git checkout -b {prefix}/{slug}
      ```
    - **M:** Worktree:
+
+     herdr worktree commands must run against the main checkout; `git rev-parse --show-toplevel` returns the linked worktree when run inside one and herdr fails with `linked_worktree_source`.
+
      ```bash
-     REPO=$(git rev-parse --show-toplevel)
+     REPO=$(git worktree list --porcelain | head -1 | sed 's/^worktree //')  # main checkout — herdr rejects linked worktrees
      PANE=$(herdr worktree create --cwd "$REPO" --branch {prefix}/{slug} --base origin/main --no-focus --json \
        | python3 -c 'import sys,json;print(json.load(sys.stdin)["result"]["root_pane"]["pane_id"])')
      herdr pane run "$PANE" "claude" && herdr wait output "$PANE" --match ">" --timeout 20000
@@ -204,7 +207,7 @@ For each selected issue (max **5 concurrent**, queue the rest):
 1. Create worktree:
 
    ```bash
-   REPO=$(git rev-parse --show-toplevel)
+   REPO=$(git worktree list --porcelain | head -1 | sed 's/^worktree //')  # main checkout — herdr rejects linked worktrees
    PANE=$(herdr worktree create --cwd "$REPO" --branch {prefix}/{slug} --base origin/main --no-focus --json \
      | python3 -c 'import sys,json;print(json.load(sys.stdin)["result"]["root_pane"]["pane_id"])')
    herdr pane run "$PANE" "claude" && herdr wait output "$PANE" --match ">" --timeout 20000

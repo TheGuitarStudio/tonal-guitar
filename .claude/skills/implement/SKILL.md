@@ -227,8 +227,10 @@ For each layer (sequentially), execute the 12-step lifecycle:
 
 **Step 5.2 — Worktree creation**: For each task group in this layer, create a worktree with herdr. Record the worktree path (pass it to the Task agent in Step 5.3) and the workspace id (for cleanup in Step 5.6):
 
+herdr worktree commands must run against the main checkout; `git rev-parse --show-toplevel` returns the linked worktree when run inside one and herdr fails with `linked_worktree_source`.
+
 ```bash
-REPO=$(git rev-parse --show-toplevel)
+REPO=$(git worktree list --porcelain | head -1 | sed 's/^worktree //')  # main checkout — herdr rejects linked worktrees
 OUT=$(herdr worktree create --cwd "$REPO" --branch impl/{slug}/tg{N}-{group-name-slug} --base feat/{slug} --no-focus --json)
 WTPATH=$(echo "$OUT" | python3 -c 'import sys,json;print(json.load(sys.stdin)["result"]["worktree"]["path"])')
 WS=$(echo "$OUT"     | python3 -c 'import sys,json;print(json.load(sys.stdin)["result"]["workspace"]["workspace_id"])')
@@ -275,22 +277,15 @@ herdr worktree remove --workspace "$WS" --force --json
 Always run dependency install (agents may have added packages):
 
 ```bash
-pnpm install
+npm install
 ```
 
-Additionally, if this layer contained database or validation task groups, run DB setup:
-
-```bash
-pnpm db:generate
-dotenv -e .env -- pnpm db:push
-```
-
-See [references/conventions.md](references/conventions.md) (Setup Re-Run Triggers) for how to detect DB/validation layers.
+tonal-guitar is a single-package library — no DB setup exists; see conventions.md.
 
 **Step 5.8 — Post-merge verification**: Run verification on the merged feature branch:
 
 ```bash
-turbo run lint typecheck test --affected
+npm run lint && npm run build && npm test
 ```
 
 If verification fails, apply the post-merge error handling policy (see Step 6).
@@ -329,7 +324,7 @@ git commit -m "docs(tooling): implement progress - layer {N} complete"
 
 #### Agent Verification Failure
 
-1. Agent runs verification in its worktree: `turbo run lint typecheck test --filter=<packages>`
+1. Agent runs verification in its worktree: `npm run lint && npm run build && npm test`
 2. If failure, agent retries once — attempts to fix issues and re-runs verification.
 3. If second attempt fails, agent reports failure with details.
 4. Lead pauses the layer and presents error to user:
@@ -339,7 +334,7 @@ git commit -m "docs(tooling): implement progress - layer {N} complete"
 
 #### Post-Merge Verification Failure
 
-1. After merging all sub-branches, `turbo run lint typecheck test --affected` fails.
+1. After merging all sub-branches, `npm run lint && npm run build && npm test` fails.
 2. Lead analyzes failure output to identify the likely cause.
 3. Lead attempts one direct fix (lint fixes, import corrections, etc.).
 4. If fix succeeds, continue. If fails, present retry/skip/manual options to user.
@@ -376,7 +371,7 @@ Runs after ALL layers complete successfully and the final full verification pass
 4. **Gap dispatch**: For each "Missing" or "Partial" gap:
 
    ```bash
-   REPO=$(git rev-parse --show-toplevel)
+   REPO=$(git worktree list --porcelain | head -1 | sed 's/^worktree //')  # main checkout — herdr rejects linked worktrees
    OUT=$(herdr worktree create --cwd "$REPO" --branch impl/{slug}/gap-{N} --base feat/{slug} --no-focus --json)
    WTPATH=$(echo "$OUT" | python3 -c 'import sys,json;print(json.load(sys.stdin)["result"]["worktree"]["path"])')
    WS=$(echo "$OUT"     | python3 -c 'import sys,json;print(json.load(sys.stdin)["result"]["workspace"]["workspace_id"])')
@@ -398,7 +393,7 @@ When all layers complete (and all `--loop` iterations if applicable):
 1. **Final full-suite verification**:
 
    ```bash
-   turbo run lint && turbo run typecheck && turbo run test
+   npm run lint && npm run build && npm test
    ```
 
 2. **Code simplification pass** (optional): If all verification passes, run `code-simplifier:code-simplifier` on the changed files to clean up implementation artifacts before PR. This is a non-breaking refinement pass that preserves all functionality.
@@ -509,7 +504,7 @@ Key scenarios to verify when testing `/implement`:
 | Agent verification failure           | Agent retries once, then escalates to user                    |
 | Merge conflict on sub-branch         | Abort, surface conflicting files, instruct --resume           |
 | 6+ task groups in one layer          | First 5 dispatch, 6th queued, dispatched when slot opens      |
-| Missing `.env` file                  | Workmux handles `.env` copy via config; no manual step needed |
+| Missing `.env` file                  | n/a — no .env needed for the library                          |
 
 ---
 

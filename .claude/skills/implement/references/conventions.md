@@ -232,8 +232,10 @@ After a sub-branch is successfully merged, immediately remove its worktree and d
 branch. Do not defer cleanup to end-of-layer — clean up each sub-branch right after its
 individual merge succeeds. Remove by the workspace id recorded when the worktree was created (`$WS`), or look it up by branch:
 
+herdr worktree commands must run against the main checkout; `git rev-parse --show-toplevel` returns the linked worktree when run inside one and herdr fails with `linked_worktree_source`.
+
 ```bash
-WS=$(herdr worktree list --cwd "$(git rev-parse --show-toplevel)" --json \
+WS=$(herdr worktree list --cwd "$(git worktree list --porcelain | head -1 | sed 's/^worktree //')" --json \
   | python3 -c 'import sys,json;b="impl/{slug}/tg{N}-{group-name-slug}";print(next((w["open_workspace_id"] for w in json.load(sys.stdin)["result"]["worktrees"] if w["branch"]==b and w.get("open_workspace_id")),""))')
 [ -n "$WS" ] && herdr worktree remove --workspace "$WS" --force --json
 ```
@@ -241,7 +243,7 @@ WS=$(herdr worktree list --cwd "$(git rev-parse --show-toplevel)" --json \
 For gap-fix branches (look up by branch `impl/{slug}/gap-{N}`):
 
 ```bash
-WS=$(herdr worktree list --cwd "$(git rev-parse --show-toplevel)" --json \
+WS=$(herdr worktree list --cwd "$(git worktree list --porcelain | head -1 | sed 's/^worktree //')" --json \
   | python3 -c 'import sys,json;b="impl/{slug}/gap-{N}";print(next((w["open_workspace_id"] for w in json.load(sys.stdin)["result"]["worktrees"] if w["branch"]==b and w.get("open_workspace_id")),""))')
 [ -n "$WS" ] && herdr worktree remove --workspace "$WS" --force --json
 ```
@@ -252,7 +254,7 @@ If an agent fails and the sub-branch was not merged:
 
 1. Remove the worktree immediately (it holds no unmerged value):
    ```bash
-   WS=$(herdr worktree list --cwd "$(git rev-parse --show-toplevel)" --json \
+   WS=$(herdr worktree list --cwd "$(git worktree list --porcelain | head -1 | sed 's/^worktree //')" --json \
      | python3 -c 'import sys,json;b="impl/{slug}/tg{N}-{group-name-slug}";print(next((w["open_workspace_id"] for w in json.load(sys.stdin)["result"]["worktrees"] if w["branch"]==b and w.get("open_workspace_id")),""))')
    [ -n "$WS" ] && herdr worktree remove --workspace "$WS" --force --json
    ```
@@ -260,7 +262,7 @@ If an agent fails and the sub-branch was not merged:
 2. On user-initiated **retry**: delete the old sub-branch and create a fresh worktree:
    ```bash
    git branch -D impl/{slug}/tg{N}-{group-name-slug}
-   herdr worktree create --cwd "$(git rev-parse --show-toplevel)" --branch impl/{slug}/tg{N}-{group-name-slug} --base feat/{slug} --no-focus --json
+   herdr worktree create --cwd "$(git worktree list --porcelain | head -1 | sed 's/^worktree //')" --branch impl/{slug}/tg{N}-{group-name-slug} --base feat/{slug} --no-focus --json
    ```
 3. On user-initiated **skip**: delete the sub-branch (it will not be merged):
    ```bash
