@@ -7,7 +7,7 @@
 - [x] Phase 1: Research
 - [x] Phase 2: Shape
 - [x] Phase 3: Plan
-- [ ] Phase 4: Implement
+- [x] Phase 4: Implement
 
 ## Context
 
@@ -23,7 +23,7 @@
 | Research  | research.md | complete | 1     | no       |
 | Shape     | spec.md     | complete | 1     | yes      |
 | Plan      | tasks.md    | complete | 1     | no       |
-| Implement | FEATURE.md  | pending | 0     | no       |
+| Implement | FEATURE.md  | complete | 1     | no       |
 
 ## Loop History
 
@@ -68,3 +68,6 @@ Added decisions D-007, D-008. Added risks (partial-voicing detect, math-valid-bu
 - **Layer 4**: No concerns. Continued.
 
 ### Spec Compliance
+
+- **Loop 1**: 1 gap found (EXT_CHORD_E_6 diverged from the spec's normative worked-example interval row), 1 fixed.
+- **Loop 2**: 0 gaps remaining.
