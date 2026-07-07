@@ -15,8 +15,8 @@
 - [x] Phase 4: Architecture Fix
 - [x] Phase 5: Code Simplification Review
 - [x] Phase 6: Code Simplification Fix
-- [ ] Phase 7: Specialized Reviews
-- [ ] Phase 8: Specialized Fixes
+- [x] Phase 7: Specialized Reviews
+- [x] Phase 8: Specialized Fixes
 - [ ] Phase 9: Final Verification
 
 ## Phase 2: Lint/Test Results
@@ -73,6 +73,24 @@ No Critical findings. Registry wiring, registration block, ChordShape field usag
 ### Won't Fix
 
 - CR-006: Divergence-catalog assertions on `Chord.get`/`detect` behavior are spec-mandated (task 5.1) regression canaries — they pin the peer-dependency behaviors the naming contract depends on, so a Tonal upgrade that changes them fails loudly.
+
+## Phase 7: Specialized Reviews
+
+### Security
+
+No findings. No new dependencies, no dynamic code execution, no user-input parsing, static string-literal registry keys, static dynamic-import specifiers in tests.
+
+### Type Safety
+
+No findings. All 30 consts explicitly `: ChordShape`; no `any`, no `as` assertions, no non-null assertions in new code; test callback params fully inferred from typed arrays. Observation (pre-existing infra, not this diff): no `tsc --noEmit` step covers test files in CI — tsup only typechecks the public entry graph.
+
+### Accessibility
+
+Skipped — no UI package affected (library + docs changes only).
+
+## Phase 8: Specialized Fixes
+
+No findings to fix.
 
 ## Statistics
 
