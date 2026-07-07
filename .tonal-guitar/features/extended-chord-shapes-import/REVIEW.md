@@ -12,7 +12,7 @@
 - [x] Phase 1: Setup
 - [x] Phase 2: Lint/Test Fix
 - [x] Phase 3: Architecture Review
-- [ ] Phase 4: Architecture Fix
+- [x] Phase 4: Architecture Fix
 - [ ] Phase 5: Code Simplification Review
 - [ ] Phase 6: Code Simplification Fix
 - [ ] Phase 7: Specialized Reviews
@@ -32,6 +32,22 @@ All clean on entry — lint pass, build (tsup + DTS) pass, 803/803 tests pass. 0
 - CR-003: [Suggestion] `src/data/extended-chords.test.ts:544` asserts `names.length > EXTENDED_CHORD_SHAPES.length` after dynamically importing four data files — holds even if 3 of 4 side-effect imports silently fail. Assert the known contribution or a specific non-extended name.
 
 No Critical findings. Registry wiring, registration block, ChordShape field usage, and data.test.ts parameterization confirmed correct.
+
+## Phase 4: Architecture Fixes
+
+### Fixed
+
+- (none — no fixable findings)
+
+### Deferred
+
+- CR-001: GitHub issue #47 — VoicingFamily design question; conflicts with documented spec decision (D-002)
+- CR-002: GitHub issue #48 — test order/isolation robustness
+- CR-003: GitHub issue #49 — stronger cross-registry import assertion
+
+### Won't Fix
+
+- (none)
 
 ## Statistics
 
