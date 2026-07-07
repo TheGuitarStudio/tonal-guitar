@@ -121,8 +121,11 @@ Based on the mode, determine the active feature:
 2. Read product context: `docs/product/roadmap.md`, `docs/product/mission.md`.
 3. Derive a slug from the feature title.
 4. Create worktree + branch. herdr opens a plain shell workspace (no agent), so nothing reads `FEATURE.md` before it exists:
+
+   herdr worktree commands must run against the main checkout; `git rev-parse --show-toplevel` returns the linked worktree when run inside one and herdr fails with `linked_worktree_source`.
+
    ```bash
-   REPO=$(git rev-parse --show-toplevel)
+   REPO=$(git worktree list --porcelain | head -1 | sed 's/^worktree //')  # main checkout — herdr rejects linked worktrees
    herdr worktree create --cwd "$REPO" --branch feat/{slug} --base origin/main --no-focus --json
    ```
    Capture the path from the JSON (`result.worktree.path`) and reuse it as `<worktree-path>` below.
@@ -156,7 +159,7 @@ Based on the mode, determine the active feature:
    - Check if a local worktree exists for this branch. If not, create one from the remote. `FEATURE.md` already exists on the remote branch, so it's safe to launch the agent immediately:
      ```bash
      git fetch origin feat/{slug}
-     REPO=$(git rev-parse --show-toplevel)
+     REPO=$(git worktree list --porcelain | head -1 | sed 's/^worktree //')  # main checkout — herdr rejects linked worktrees
      PANE=$(herdr worktree create --cwd "$REPO" --branch feat/{slug} --base origin/feat/{slug} --no-focus --json \
        | python3 -c 'import sys,json;print(json.load(sys.stdin)["result"]["root_pane"]["pane_id"])')
      herdr pane run "$PANE" "claude" && herdr wait output "$PANE" --match ">" --timeout 20000
@@ -167,7 +170,7 @@ Based on the mode, determine the active feature:
    - Derive slug from issue title.
    - Create worktree + branch (no agent until FEATURE.md is written — same race as in `/idea --shape`):
      ```bash
-     REPO=$(git rev-parse --show-toplevel)
+     REPO=$(git worktree list --porcelain | head -1 | sed 's/^worktree //')  # main checkout — herdr rejects linked worktrees
      herdr worktree create --cwd "$REPO" --branch feat/{slug} --base origin/main --no-focus --json
      ```
      Capture the worktree path from the JSON (`result.worktree.path`) as `<worktree-path>`.

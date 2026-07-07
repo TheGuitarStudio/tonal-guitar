@@ -4,7 +4,7 @@
 
 tonal-guitar is a standalone TypeScript library for guitar fretboard math, shapes, patterns, and sequences. It uses [Tonal.js](https://github.com/tonaljs/tonal) primitives as peer dependencies for note/interval operations, with optional deeper integration for scale/chord/key analysis.
 
-**Status:** v0.1.0 — core implementation complete, 227 tests passing. Needs README and documentation before publishing.
+**Status:** v0.1.0 — core implementation complete, 815 tests passing across 9 test files. Needs README and documentation before publishing.
 
 ## Commands
 
@@ -29,33 +29,48 @@ npx vitest run src/index.test.ts -t "test name"
 
 ```
 src/
-├── index.ts              # Public API re-exports + data registration side-effects
-├── index.test.ts         # 227 tests
-├── tuning.ts             # Tuning constants (STANDARD, DROP_D, etc.)
-├── fretboard.ts          # Core fretboard math (noteAt, fretFor, findNote, fretboard)
-├── shape.ts              # Types (FrettedNote, ScaleShape, etc.) + registries
-├── build.ts              # buildFrettedScale, applyChordShape
-├── walker.ts             # Bidirectional pattern walker
-├── pattern.ts            # Pattern generators (intervals, groupings)
-├── sequence.ts           # Sequence engine (incremental, bounded)
-├── notation.ts           # parseChordFrets, formatChordFrets, parseScalePattern
-├── integration.ts        # Tonal Scale/Chord/Key integration (optional deps)
+├── index.ts                  # Public API re-exports + data registration side-effects
+├── index.test.ts             # 272 tests
+├── tuning.ts                 # Tuning constants (STANDARD, DROP_D, etc.)
+├── fretboard.ts              # Core fretboard math (noteAt, fretFor, findNote, fretboard)
+├── shape.ts                  # Types (FrettedNote, ScaleShape, etc.) + registries
+├── shape.test.ts             # 8 tests (VoicingFamily, VoicingPatternDictionary, chordShapes.query)
+├── build.ts                  # buildFrettedScale, applyChordShape
+├── walker.ts                 # Bidirectional pattern walker
+├── pattern.ts                # Pattern generators (intervals, groupings)
+├── sequence.ts                # Sequence engine (incremental, bounded)
+├── notation.ts                # parseChordFrets, formatChordFrets, parseScalePattern
+├── arpeggio.ts                # Arpeggio extraction/scoring from scales & shapes
+├── arpeggio.test.ts           # 63 tests
+├── connect.ts                 # Shape connector — bridges adjacent CAGED/compatible shapes
+├── connect.test.ts            # 65 tests
+├── connect.examples.test.ts   # 15 example-driven connector tests
+├── integration.ts             # Tonal Scale/Chord/Key integration (optional deps)
+├── integration.test.ts        # 90 tests
 ├── output/
-│   ├── alphatex.ts       # AlphaTeX formatter (with rhythm support)
-│   ├── ascii-tab.ts      # ASCII tab formatter
-│   └── index.ts          # Re-exports
+│   ├── alphatex.ts            # AlphaTeX formatter (with rhythm support)
+│   ├── ascii-tab.ts           # ASCII tab formatter
+│   ├── util.ts                # Shared grouped-note normalization helper
+│   ├── output.test.ts         # 23 tests
+│   └── index.ts               # Re-exports
 └── data/
-    ├── caged-scales.ts   # 5 CAGED major scale shapes
-    ├── caged-chords.ts   # 5 CAGED major chord shapes
-    ├── three-nps.ts      # 7 three-notes-per-string patterns
-    ├── pentatonic.ts     # 5 pentatonic boxes
-    └── sequences.ts      # Named sequence constants
+    ├── caged-scales.ts        # 5 CAGED major scale shapes
+    ├── caged-chords.ts        # 5 CAGED major chord shapes
+    ├── caged-chords-7th.ts    # CAGED 7th-chord shapes (maj7, m7, 7, m7b5)
+    ├── open-chords.ts         # Open-position + barre chord shapes (curated from chords-db)
+    ├── jazz-shells.ts         # Jazz shell voicings (root-3rd-7th, two string sets)
+    ├── extended-chords.ts     # 30 extended chord shapes (15 types, E/A forms)
+    ├── three-nps.ts           # 7 three-notes-per-string patterns
+    ├── pentatonic.ts          # 5 pentatonic boxes
+    ├── sequences.ts           # Named sequence constants
+    ├── data.test.ts           # 70 tests (build-equivalence: 7th/open/jazz shapes)
+    └── extended-chords.test.ts # 209 tests
 ```
 
 ### Dependency layers
 
 **Zero Tonal deps** (pure TypeScript):
-`tuning.ts`, `shape.ts`, `pattern.ts`, `notation.ts`, `walker.ts`, `sequence.ts`, `data/*`
+`tuning.ts`, `shape.ts`, `pattern.ts`, `notation.ts`, `walker.ts`, `sequence.ts`, `arpeggio.ts`, `connect.ts`, `data/*`
 
 **Required peer deps** (`@tonaljs/note`, `@tonaljs/interval`):
 `fretboard.ts`, `build.ts`, `output/alphatex.ts`, `output/ascii-tab.ts`
@@ -89,7 +104,9 @@ fretboard.ts         ← tuning
 build.ts             ← fretboard, shape, tuning
 walker.ts            ← shape (types only)
 sequence.ts          ← walker, shape
-integration.ts       ← build, fretboard, shape, tuning
+arpeggio.ts          ← shape
+connect.ts           ← shape, walker
+integration.ts       ← build, fretboard, shape, tuning, arpeggio, notation
 output/*             ← shape, tuning
 index.ts             ← re-exports everything
 ```
@@ -108,6 +125,7 @@ index.ts             ← re-exports everything
 - [x] API docs pages (docs/api/ — 7 markdown files)
 - [x] Interactive experiments page (site/ — Guitar Lab)
 - [ ] Deploy site to GitHub Pages
+- [ ] Site deploy failing since fretboard-ui landed — tracked in #51, fix in PR #52 (preserveSymlinks)
 - [ ] Task 2.5: 7/8-string rootString auto-adjustment logic
 - [ ] ASCII tab column alignment for multi-digit frets (QUESTIONS.md Q2)
 - [ ] Consider `analyzeInKey` chord name normalization (QUESTIONS.md Q3)

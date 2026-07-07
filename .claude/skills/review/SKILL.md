@@ -108,22 +108,13 @@ Determine the run mode from the arguments:
    git rev-list main..HEAD --count
    ```
 
-5. Determine **affected packages** by mapping changed file paths to packages:
-   - `apps/web/` → `apps/web`
-   - `apps/server/` → `apps/server`
-   - `apps/audio-playground/` → `apps/audio-playground`
-   - `apps/tool-lab/` → `apps/tool-lab`
-   - `packages/api/` → `packages/api`
-   - `packages/db/` → `packages/db`
-   - `packages/ui/` → `packages/ui`
-   - `packages/validation/` → `packages/validation`
-   - `packages/storage/` → `packages/storage`
-   - `packages/audio-core/` → `packages/audio-core`
-   - `packages/audio-web/` → `packages/audio-web`
-   - `packages/types/` → `packages/types`
-   - `packages/theory/` → `packages/theory`
+5. Determine **affected areas** by mapping changed file paths to areas:
+   - `src/` → `library`
+   - `site/` → `site` (Next.js)
+   - `packages/fretboard-ui/` → `fretboard-ui` (React components)
+   - `docs/` → `docs`
 
-6. If `scope` is not `"all"`, filter affected packages to only those in scope.
+6. If `scope` is not `"all"`, filter affected areas to only those in scope.
 
 7. Check for existing REVIEW.md at `.tonal-guitar/features/{BRANCH_NAME}/REVIEW.md`.
    - If it exists, parse `## Review Progress` for the first unchecked phase and resume from there (see [Resumption](#resumption)).
@@ -140,25 +131,25 @@ Determine the run mode from the arguments:
 
 1. Update REVIEW.md: Phase 2 → in-progress.
 
-2. Run lint, typecheck, and tests (capture output):
+2. Run lint, build (typecheck), and tests (capture output):
 
    ```bash
-   turbo run lint --affected 2>&1 || true
-   turbo run typecheck --affected 2>&1 || true
-   turbo run test --affected 2>&1 || true
+   npm run lint && npm run build && npm test
    ```
+
+   If `site/` or `packages/fretboard-ui` changed, also run their own `npm run build`.
 
 3. If all pass, update REVIEW.md: Phase 2 → complete (0 issues), skip to next phase.
 
 4. If there are failures, fix them directly:
-   - Lint: `turbo run lint -- --fix`, then manually fix remaining
-   - Type errors: read failing files and fix
+   - Lint: `npm run lint:fix`, then manually fix remaining
+   - Type errors: read failing files and fix (build performs typechecking via tsup --dts)
    - Test failures: read test files and fix
 
 5. Re-run verification:
 
    ```bash
-   turbo run lint --affected && turbo run typecheck --affected && turbo run test --affected
+   npm run lint && npm run build && npm test
    ```
 
 6. Assign CR-NNN IDs to each fixed issue. Record in REVIEW.md under `## Phase 2: Lint/Test Results`. See [conventions.md](references/conventions.md) for finding format.
@@ -210,10 +201,10 @@ Determine the run mode from the arguments:
 6. Verify:
 
    ```bash
-   turbo run lint --affected && turbo run typecheck --affected && turbo run test --affected
+   npm run lint && npm run build && npm test
    ```
 
-   Fix regressions before proceeding.
+   If `site/` or `packages/fretboard-ui` changed, also run their own `npm run build`. Fix regressions before proceeding.
 
 7. Shut down the team. Update REVIEW.md: Phase 4 → complete. Commit and push.
 
@@ -274,7 +265,7 @@ Determine the run mode from the arguments:
    - Criteria: No `any`, Zod/TS alignment, return types, null safety, type assertions
 
    **Accessibility Review** — `superpowers:code-reviewer` agent:
-   - Scope: apps/web, packages/ui (only if affected)
+   - Scope: site/, packages/fretboard-ui (only if affected)
    - Criteria: Semantic HTML, keyboard nav, ARIA labels, color contrast, screen reader
 
 5. Collect findings, assign CR-NNN IDs, write to REVIEW.md grouped by review type.
@@ -306,8 +297,10 @@ Determine the run mode from the arguments:
 2. Run full verification:
 
    ```bash
-   turbo run lint && turbo run typecheck && turbo run test
+   npm run lint && npm run build && npm test
    ```
+
+   If `site/` or `packages/fretboard-ui` changed, also run their own `npm run build`.
 
 3. If any failures, fix them and re-verify.
 

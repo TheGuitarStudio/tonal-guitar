@@ -1,6 +1,6 @@
 ---
 name: reflect
-description: Analyze code changes and update tooling (skills, agents, hooks, CLAUDE.md, review skill-map, workflow map) to stay current. Use this skill after completing features, when workflows feel outdated, or when the review skill-map or workflow map needs updating.
+description: Analyze code changes and update tooling (skills, agents, hooks, CLAUDE.md, review skill-map) to stay current. Use this skill after completing features, when workflows feel outdated, or when the review skill-map needs updating.
 argument-hint: '[<description>] | --update'
 ---
 
@@ -92,7 +92,6 @@ Read all of these to understand the current tooling state:
 - **CLAUDE.md:** Skill routing table, conventions, project structure sections
 - **Skill map:** `.claude/skills/review/references/skill-map.md`
 - **Shared conventions:** `.claude/skills/references/shared-conventions.md`
-- **Workflow map:** `docs/workflow-map.html` — the `SKILLS` and `PIPELINES` arrays in the DATA SECTION at the top of the `<script>` block
 
 ### Step 4: Analyze Gaps
 
@@ -131,14 +130,6 @@ For each category, compare what changed against what the tooling knows about:
 
 - Do branch naming, PR format, or commit patterns need updates?
 - Are scope assessment rules still accurate?
-
-**Workflow Map** (`docs/workflow-map.html`):
-
-- Does the `SKILLS` array reflect all current workflow skills (name, synopsis, flags, connections, invokedSkills)?
-- Are pipeline assignments correct? Any skills moved between pipelines?
-- Are cross-skill connections accurate? Any new handoffs or removed links?
-- Does the `invokedSkills` field on each entry match current guidance/plugin skill usage?
-- Any new skills to add or removed skills to delete from the array?
 
 ### Step 4b: CLAUDE.md Audit (Optional)
 
@@ -181,8 +172,10 @@ Wait for user to approve all or select specific items.
 
 Before making any changes, create an isolated worktree off main:
 
+herdr worktree commands must run against the main checkout; `git rev-parse --show-toplevel` returns the linked worktree when run inside one and herdr fails with `linked_worktree_source`.
+
 ```bash
-REPO=$(git rev-parse --show-toplevel)
+REPO=$(git worktree list --porcelain | head -1 | sed 's/^worktree //')  # main checkout — herdr rejects linked worktrees
 PANE=$(herdr worktree create --cwd "$REPO" --branch chore/reflect-{YYYY-MM-DD} --base origin/main --no-focus --json \
   | python3 -c 'import sys,json;print(json.load(sys.stdin)["result"]["root_pane"]["pane_id"])')
 herdr pane run "$PANE" "claude" && herdr wait output "$PANE" --match ">" --timeout 20000
@@ -203,7 +196,6 @@ Working in the worktree created in Step 6, for each approved change:
 - **CLAUDE.md audit:** Reference `claude-md-management:claude-md-improver` patterns
 - **Skill map updates:** Edit `.claude/skills/review/references/skill-map.md`
 - **Shared conventions:** Edit `.claude/skills/references/shared-conventions.md`
-- **Workflow map updates:** Edit the `SKILLS` and `PIPELINES` arrays in the DATA SECTION of `docs/workflow-map.html`. Only modify the data block between the `// DATA SECTION` and `// RENDERER` comments. For each skill, update: `id`, `name`, `pipeline`, `synopsis`, `capabilities`, `flags`, `artifacts`, `models`, `connections`, and `invokedSkills`. Do not touch the renderer code below the data section.
 
 ### Step 8: Ship
 
@@ -227,9 +219,9 @@ Working in the worktree created in Step 6, for each approved change:
 
 ## Update Workflow (`--update`)
 
-Focused mode for maintaining the review skill-map and the workflow map. Moved from `/review --update`.
+Focused mode for maintaining the review skill-map. Moved from `/review --update`.
 
-### Part 1: Review Skill-Map
+### Review Skill-Map
 
 1. **Scan available skills:**
    - Read all local skill names from `.claude/skills/*/SKILL.md` (parse `name` from YAML frontmatter)
@@ -252,30 +244,11 @@ Focused mode for maintaining the review skill-map and the workflow map. Moved fr
    - Update `.claude/skills/review/references/skill-map.md`
    - Optionally update `.claude/skills/review/references/review-criteria.md` if new domains needed
 
-### Part 2: Workflow Map
-
-6. **Scan workflow skills** against the `SKILLS` array in `docs/workflow-map.html`:
-   - Read all workflow skill files: `.claude/skills/{idea,feature,implement,review,task,fix,bug,tree,release,dev,reflect}/SKILL.md`
-   - For each, extract: name, description/synopsis, argument-hint (flags), referenced skills (connections + invokedSkills)
-   - Compare against the existing entries in the `SKILLS` array in the DATA SECTION of `docs/workflow-map.html`
-
-7. **Identify workflow map gaps:**
-   - New workflow skills not yet in the map
-   - Skills in the map that no longer exist
-   - Changed flags, connections, or invokedSkills that need updating
-   - Stale synopses that no longer match the SKILL.md description
-
-8. **Apply approved changes:**
-   - Edit only the DATA SECTION of `docs/workflow-map.html` (between `// DATA SECTION` and `// RENDERER` comments)
-   - Update `SKILLS` entries: `synopsis`, `flags`, `connections`, `invokedSkills`, `capabilities`
-   - Update `PIPELINES` if pipeline structure changed
-   - Never modify the renderer code below the data section
-
 ### Commit
 
 ```bash
-git add .claude/skills/review/references/skill-map.md docs/workflow-map.html
-git commit -m "chore(tooling): update skill-map and workflow map"
+git add .claude/skills/review/references/skill-map.md
+git commit -m "chore(tooling): update skill-map"
 ```
 
 ---
@@ -285,6 +258,4 @@ git commit -m "chore(tooling): update skill-map and workflow map"
 - `/reflect` is for system/tooling work only. Product features use `/idea` and `/feature`.
 - Always run from `main` — analyzes commits since last reflect, creates worktree for changes.
 - Changes go through PR workflow — never committed directly to main.
-- `/reflect --update` maintains both the review skill-map and the workflow map.
-- Workflow map (`docs/workflow-map.html`) has a DATA SECTION at the top of `<script>` — only edit that block, never the renderer below it.
 - The commit message `chore(tooling): reflect - ...` is used as a marker to detect the last reflect run.

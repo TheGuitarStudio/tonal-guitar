@@ -57,13 +57,12 @@ Details: {explanation}" --label "code-review"
 ## Package Dependency Order
 
 Used for `blockedBy` when creating fix tasks. Lower levels must complete before higher levels.
-Tasks at higher levels are blocked by tasks at lower levels **only if both packages are affected**.
+Tasks at higher levels are blocked by tasks at lower levels **only if both areas are affected**.
 
 ```
-Level 0: packages/types, packages/audio-core
-Level 1: packages/validation, packages/db, packages/ui, packages/audio-web
-Level 2: packages/storage, packages/api
-Level 3: apps/server, apps/web, apps/audio-playground, apps/tool-lab
+Level 0: src/ (library)
+Level 1: packages/fretboard-ui
+Level 2: site/
 ```
 
 ---
@@ -71,14 +70,14 @@ Level 3: apps/server, apps/web, apps/audio-playground, apps/tool-lab
 ## Domain Grouping
 
 Used for fix phases to group findings into parallel fix tasks.
-Fix tasks are ordered: shared → backend/audio (parallel) → frontend.
+Fix tasks are ordered: library → ui (parallel with docs) → site.
 
-| Domain   | Packages                                                                      |
-| -------- | ----------------------------------------------------------------------------- |
-| shared   | packages/types, packages/theory                                               |
-| backend  | apps/server, packages/api, packages/db, packages/validation, packages/storage |
-| audio    | packages/audio-core, packages/audio-web                                       |
-| frontend | apps/web, packages/ui                                                         |
+| Domain  | Path                    |
+| ------- | ----------------------- |
+| library | `src/`                  |
+| ui      | `packages/fretboard-ui` |
+| site    | `site/`                 |
+| docs    | `docs/`                 |
 
 ---
 
