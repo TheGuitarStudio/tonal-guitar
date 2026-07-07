@@ -312,7 +312,7 @@ chordShapes.query({ system: "caged", voicingFamily: "caged" });
 
 ## Curated Data Sets
 
-Three additional chord-shape data sets are registered at import time (alongside the original 5 CAGED chord shapes):
+Four additional chord-shape data sets are registered at import time (alongside the original 5 CAGED chord shapes):
 
 ### caged-chords-7th
 
@@ -372,6 +372,24 @@ const shape = chordShapes.get("Shell maj7 R37 012");
 import { applyChordShape } from "tonal-guitar";
 const fingering = applyChordShape(shape, "G");
 ```
+
+### extended-chords
+
+Sixths, ninths, jazz-core, and altered-dominant movable shapes: `6`, `m6`, `9`, `maj9`, `m9`, `add9`, `13`, `dim7`, `mMaj7`, `7sus4`, `6/9`, `7b9`, `7#9`, `7#5`, `7b5` — 15 canonical chord types, each with an **E-form** (`rootString: 0`) and/or **A-form** (`rootString: 1`) movable shape (`system: "caged"`, `voicingFamily: "caged"`). Every `chordType` string equals the symbol `@tonaljs/chord`'s `Chord.get` accepts, so these shapes need no translation layer to work with `identifyChord`, `arpeggioFromShape`/`arpeggioFromScale`, or plain `Chord.get`/`detect` calls. Voicings that omit a chord tone (5th first, then the 9th for `13`) set `omittedIntervals` accordingly.
+
+```js
+import { chordShapes } from "tonal-guitar";
+
+// All maj9 shapes
+chordShapes.query({ chordType: "maj9" });
+
+// E-shape 7#9 ("Hendrix chord")
+chordShapes.get("E Shape 7#9");
+```
+
+**`aug7` / `7#5` alias:** `aug7` and `7#5` are the same Tonal chord (`Chord.get("Caug7").intervals` equals `Chord.get("C7#5").intervals`), but Tonal does not normalize the symbol and `detect()` prefers the `7#5` spelling. Only `7#5` is registered here — `chordShapes.query({ chordType: "aug7" })` intentionally returns `[]` (the registry is an exact-string index, not alias-aware).
+
+A few other chord types also diverge between the registered `chordType` (= `Chord.get` symbol) and what `identifyChord`/`detect()` returns for a built voicing — `add9` detects as `Madd9`, `mMaj7` detects as `m/ma7`, and `6/9` detects as `6add9`. The `chordType` key always stays the `Chord.get` symbol; see `src/data/extended-chords.ts` for the full divergence catalog.
 
 ---
 

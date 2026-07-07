@@ -24,6 +24,7 @@ import { STANDARD } from "../tuning";
 import "../data/caged-chords-7th";
 import "../data/open-chords";
 import "../data/jazz-shells";
+import { EXTENDED_CHORD_SHAPES } from "../data/extended-chords";
 
 // Named imports for direct shape references in tests
 import {
@@ -80,15 +81,24 @@ describe("caged-chords-7th: build-equivalence tests", () => {
 
   it("every CAGED 7th shape has chordType, system, voicingFamily populated", () => {
     const shapes = [
-      CAGED_CHORD_E_MAJ7, CAGED_CHORD_A_MAJ7, CAGED_CHORD_D_MAJ7,
-      CAGED_CHORD_E_M7, CAGED_CHORD_A_M7, CAGED_CHORD_D_M7,
-      CAGED_CHORD_E_DOM7, CAGED_CHORD_A_DOM7, CAGED_CHORD_D_DOM7,
-      CAGED_CHORD_E_M7B5, CAGED_CHORD_A_M7B5,
+      CAGED_CHORD_E_MAJ7,
+      CAGED_CHORD_A_MAJ7,
+      CAGED_CHORD_D_MAJ7,
+      CAGED_CHORD_E_M7,
+      CAGED_CHORD_A_M7,
+      CAGED_CHORD_D_M7,
+      CAGED_CHORD_E_DOM7,
+      CAGED_CHORD_A_DOM7,
+      CAGED_CHORD_D_DOM7,
+      CAGED_CHORD_E_M7B5,
+      CAGED_CHORD_A_M7B5,
     ];
     for (const shape of shapes) {
       expect(shape.chordType, `${shape.name} missing chordType`).toBeTruthy();
       expect(shape.system, `${shape.name} missing system`).toBe("caged");
-      expect(shape.voicingFamily, `${shape.name} missing voicingFamily`).toBe("caged");
+      expect(shape.voicingFamily, `${shape.name} missing voicingFamily`).toBe(
+        "caged",
+      );
       expect(shape.stringSet, `${shape.name} missing stringSet`).toBeDefined();
       expect(shape.inversion, `${shape.name} missing inversion`).toBe(0);
     }
@@ -96,11 +106,18 @@ describe("caged-chords-7th: build-equivalence tests", () => {
 
   it("CAGED 7th shapes have no canonicalRoot (movable shapes)", () => {
     const shapes = [
-      CAGED_CHORD_E_MAJ7, CAGED_CHORD_A_MAJ7, CAGED_CHORD_E_M7,
-      CAGED_CHORD_A_M7, CAGED_CHORD_E_DOM7, CAGED_CHORD_A_DOM7,
+      CAGED_CHORD_E_MAJ7,
+      CAGED_CHORD_A_MAJ7,
+      CAGED_CHORD_E_M7,
+      CAGED_CHORD_A_M7,
+      CAGED_CHORD_E_DOM7,
+      CAGED_CHORD_A_DOM7,
     ];
     for (const shape of shapes) {
-      expect(shape.canonicalRoot, `${shape.name} should not have canonicalRoot`).toBeUndefined();
+      expect(
+        shape.canonicalRoot,
+        `${shape.name} should not have canonicalRoot`,
+      ).toBeUndefined();
     }
   });
 
@@ -135,10 +152,17 @@ describe("caged-chords-7th: build-equivalence tests", () => {
 
     it("all maj7 CAGED shapes produce only maj7 intervals", () => {
       const maj7Intervals = new Set(["1P", "3M", "5P", "7M"]);
-      for (const shape of [CAGED_CHORD_E_MAJ7, CAGED_CHORD_A_MAJ7, CAGED_CHORD_D_MAJ7]) {
+      for (const shape of [
+        CAGED_CHORD_E_MAJ7,
+        CAGED_CHORD_A_MAJ7,
+        CAGED_CHORD_D_MAJ7,
+      ]) {
         const positions = buildPositions(shape, "G");
         for (const p of positions) {
-          expect(maj7Intervals.has(p.interval), `${shape.name}: unexpected interval ${p.interval}`).toBe(true);
+          expect(
+            maj7Intervals.has(p.interval),
+            `${shape.name}: unexpected interval ${p.interval}`,
+          ).toBe(true);
         }
       }
     });
@@ -164,10 +188,17 @@ describe("caged-chords-7th: build-equivalence tests", () => {
 
     it("all m7 CAGED shapes produce only m7 intervals", () => {
       const m7Intervals = new Set(["1P", "3m", "5P", "7m"]);
-      for (const shape of [CAGED_CHORD_E_M7, CAGED_CHORD_A_M7, CAGED_CHORD_D_M7]) {
+      for (const shape of [
+        CAGED_CHORD_E_M7,
+        CAGED_CHORD_A_M7,
+        CAGED_CHORD_D_M7,
+      ]) {
         const positions = buildPositions(shape, "G");
         for (const p of positions) {
-          expect(m7Intervals.has(p.interval), `${shape.name}: unexpected interval ${p.interval}`).toBe(true);
+          expect(
+            m7Intervals.has(p.interval),
+            `${shape.name}: unexpected interval ${p.interval}`,
+          ).toBe(true);
         }
       }
     });
@@ -193,10 +224,17 @@ describe("caged-chords-7th: build-equivalence tests", () => {
 
     it("all dom7 CAGED shapes produce only dom7 intervals", () => {
       const dom7Intervals = new Set(["1P", "3M", "5P", "7m"]);
-      for (const shape of [CAGED_CHORD_E_DOM7, CAGED_CHORD_A_DOM7, CAGED_CHORD_D_DOM7]) {
+      for (const shape of [
+        CAGED_CHORD_E_DOM7,
+        CAGED_CHORD_A_DOM7,
+        CAGED_CHORD_D_DOM7,
+      ]) {
         const positions = buildPositions(shape, "G");
         for (const p of positions) {
-          expect(dom7Intervals.has(p.interval), `${shape.name}: unexpected interval ${p.interval}`).toBe(true);
+          expect(
+            dom7Intervals.has(p.interval),
+            `${shape.name}: unexpected interval ${p.interval}`,
+          ).toBe(true);
         }
       }
     });
@@ -243,7 +281,9 @@ describe("open-chords: build-equivalence tests", () => {
   it("open shapes have canonicalRoot set and voicingFamily === 'open'", () => {
     const openShapes = chordShapes.query({ voicingFamily: "open" });
     expect(openShapes.length).toBeGreaterThan(0);
-    const withCanonicalRoot = openShapes.filter((s) => s.canonicalRoot !== undefined);
+    const withCanonicalRoot = openShapes.filter(
+      (s) => s.canonicalRoot !== undefined,
+    );
     expect(withCanonicalRoot.length).toBe(openShapes.length);
   });
 
@@ -251,7 +291,10 @@ describe("open-chords: build-equivalence tests", () => {
     const barreShapes = chordShapes.query({ voicingFamily: "barre" });
     expect(barreShapes.length).toBeGreaterThan(0);
     for (const shape of barreShapes) {
-      expect(shape.canonicalRoot, `${shape.name} should not have canonicalRoot`).toBeUndefined();
+      expect(
+        shape.canonicalRoot,
+        `${shape.name} should not have canonicalRoot`,
+      ).toBeUndefined();
       expect(shape.system).toBe("barre");
     }
   });
@@ -320,7 +363,10 @@ describe("open-chords: build-equivalence tests", () => {
       const positions = buildPositions(OPEN_E_DIM, "E");
       expect(positions.length).toBeGreaterThan(0);
       for (const p of positions) {
-        expect(dimIntervals.has(p.interval), `OPEN_E_DIM: unexpected interval ${p.interval}`).toBe(true);
+        expect(
+          dimIntervals.has(p.interval),
+          `OPEN_E_DIM: unexpected interval ${p.interval}`,
+        ).toBe(true);
       }
     });
 
@@ -333,7 +379,10 @@ describe("open-chords: build-equivalence tests", () => {
       const positions = buildPositions(BARRE_E_DIM, "F");
       expect(positions.length).toBeGreaterThan(0);
       for (const p of positions) {
-        expect(dimIntervals.has(p.interval), `BARRE_E_DIM: unexpected interval ${p.interval}`).toBe(true);
+        expect(
+          dimIntervals.has(p.interval),
+          `BARRE_E_DIM: unexpected interval ${p.interval}`,
+        ).toBe(true);
       }
     });
   });
@@ -433,10 +482,15 @@ describe("jazz-shells: build tests and SHELL_DICTIONARY", () => {
 
   it("all shell shapes have voicingFamily 'shell' and system 'shell'", () => {
     for (const shape of SHELL_SHAPES) {
-      expect(shape.voicingFamily, `${shape.name} missing voicingFamily`).toBe("shell");
+      expect(shape.voicingFamily, `${shape.name} missing voicingFamily`).toBe(
+        "shell",
+      );
       expect(shape.system, `${shape.name} missing system`).toBe("shell");
       expect(shape.stringSet, `${shape.name} missing stringSet`).toBeDefined();
-      expect(shape.omittedIntervals, `${shape.name} missing omittedIntervals`).toBeDefined();
+      expect(
+        shape.omittedIntervals,
+        `${shape.name} missing omittedIntervals`,
+      ).toBeDefined();
       expect(shape.inversion, `${shape.name} missing inversion`).toBe(0);
     }
   });
@@ -465,7 +519,10 @@ describe("jazz-shells: build tests and SHELL_DICTIONARY", () => {
 
   it("maj7 R37 shell on [0,1,2] applied to C produces 1P 3M 7M notes", () => {
     const shape = SHELL_SHAPES.find(
-      (s) => s.chordType === "maj7" && s.name.includes("R37") && JSON.stringify(s.stringSet) === "[0,1,2]",
+      (s) =>
+        s.chordType === "maj7" &&
+        s.name.includes("R37") &&
+        JSON.stringify(s.stringSet) === "[0,1,2]",
     );
     expect(shape).toBeDefined();
     const positions = buildPositions(shape!, "C");
@@ -479,7 +536,10 @@ describe("jazz-shells: build tests and SHELL_DICTIONARY", () => {
 
   it("maj7 R73 shell on [0,1,2] applied to C produces 1P 7M 3M notes (compound 3M voiced above 7M)", () => {
     const shape = SHELL_SHAPES.find(
-      (s) => s.chordType === "maj7" && s.name.includes("R73") && JSON.stringify(s.stringSet) === "[0,1,2]",
+      (s) =>
+        s.chordType === "maj7" &&
+        s.name.includes("R73") &&
+        JSON.stringify(s.stringSet) === "[0,1,2]",
     );
     expect(shape).toBeDefined();
     const positions = buildPositions(shape!, "C");
@@ -492,7 +552,10 @@ describe("jazz-shells: build tests and SHELL_DICTIONARY", () => {
 
   it("m7 shell applied to C produces correct intervals", () => {
     const shape = SHELL_SHAPES.find(
-      (s) => s.chordType === "m7" && s.name.includes("R37") && JSON.stringify(s.stringSet) === "[0,1,2]",
+      (s) =>
+        s.chordType === "m7" &&
+        s.name.includes("R37") &&
+        JSON.stringify(s.stringSet) === "[0,1,2]",
     );
     expect(shape).toBeDefined();
     const positions = buildPositions(shape!, "C");
@@ -505,7 +568,10 @@ describe("jazz-shells: build tests and SHELL_DICTIONARY", () => {
 
   it("m7b5 shell applied to C produces 1P 3m 7m intervals (5d omitted)", () => {
     const shape = SHELL_SHAPES.find(
-      (s) => s.chordType === "m7b5" && s.name.includes("R37") && JSON.stringify(s.stringSet) === "[0,1,2]",
+      (s) =>
+        s.chordType === "m7b5" &&
+        s.name.includes("R37") &&
+        JSON.stringify(s.stringSet) === "[0,1,2]",
     );
     expect(shape).toBeDefined();
     const positions = buildPositions(shape!, "C");
@@ -519,7 +585,10 @@ describe("jazz-shells: build tests and SHELL_DICTIONARY", () => {
 
   it("shell on [1,2,3] (543) applied to C builds 3 notes", () => {
     const shape = SHELL_SHAPES.find(
-      (s) => s.chordType === "maj7" && s.name.includes("R37") && JSON.stringify(s.stringSet) === "[1,2,3]",
+      (s) =>
+        s.chordType === "maj7" &&
+        s.name.includes("R37") &&
+        JSON.stringify(s.stringSet) === "[1,2,3]",
     );
     expect(shape).toBeDefined();
     const positions = buildPositions(shape!, "C");
@@ -535,7 +604,10 @@ describe("jazz-shells: build tests and SHELL_DICTIONARY", () => {
 
 describe("chordShapes.query — cross-dataset queries", () => {
   it("query({ chordType: 'maj7', voicingFamily: 'caged' }) returns ≥2 shapes (E and A forms)", () => {
-    const results = chordShapes.query({ chordType: "maj7", voicingFamily: "caged" });
+    const results = chordShapes.query({
+      chordType: "maj7",
+      voicingFamily: "caged",
+    });
     expect(results.length).toBeGreaterThanOrEqual(2);
     const names = results.map((s) => s.name);
     expect(names.some((n) => n.includes("E Shape"))).toBe(true);
@@ -543,24 +615,35 @@ describe("chordShapes.query — cross-dataset queries", () => {
   });
 
   it("query({ voicingFamily: 'shell', stringSet: [0,1,2] }) returns 8 shell shapes (2 orderings × 4 types)", () => {
-    const results = chordShapes.query({ voicingFamily: "shell", stringSet: [0, 1, 2] });
+    const results = chordShapes.query({
+      voicingFamily: "shell",
+      stringSet: [0, 1, 2],
+    });
     // 4 chord types × 2 orderings = 8 shapes for string set [0,1,2]
     expect(results.length).toBe(8);
   });
 
   it("query({ voicingFamily: 'shell', stringSet: [1,2,3] }) returns 8 shell shapes", () => {
-    const results = chordShapes.query({ voicingFamily: "shell", stringSet: [1, 2, 3] });
+    const results = chordShapes.query({
+      voicingFamily: "shell",
+      stringSet: [1, 2, 3],
+    });
     expect(results.length).toBe(8);
   });
 
   it("after importing open-chords, ≥1 shape has canonicalRoot set and voicingFamily === 'open'", () => {
     const openShapes = chordShapes.query({ voicingFamily: "open" });
-    const withCanonicalRoot = openShapes.filter((s) => s.canonicalRoot !== undefined);
+    const withCanonicalRoot = openShapes.filter(
+      (s) => s.canonicalRoot !== undefined,
+    );
     expect(withCanonicalRoot.length).toBeGreaterThanOrEqual(1);
   });
 
   it("query({ chordType: 'm7', voicingFamily: 'caged' }) returns m7 CAGED shapes", () => {
-    const results = chordShapes.query({ chordType: "m7", voicingFamily: "caged" });
+    const results = chordShapes.query({
+      chordType: "m7",
+      voicingFamily: "caged",
+    });
     expect(results.length).toBeGreaterThanOrEqual(2); // E-shape and A-shape at minimum
     for (const shape of results) {
       expect(shape.chordType).toBe("m7");
@@ -569,7 +652,10 @@ describe("chordShapes.query — cross-dataset queries", () => {
   });
 
   it("query({ chordType: '7', voicingFamily: 'shell' }) returns 4 dom7 shell shapes (2 string sets × 2 orderings)", () => {
-    const results = chordShapes.query({ chordType: "7", voicingFamily: "shell" });
+    const results = chordShapes.query({
+      chordType: "7",
+      voicingFamily: "shell",
+    });
     expect(results.length).toBe(4);
     for (const shape of results) {
       expect(shape.chordType).toBe("7");
@@ -578,12 +664,18 @@ describe("chordShapes.query — cross-dataset queries", () => {
   });
 
   it("query({ chordType: 'M', voicingFamily: 'open' }) returns open major shapes from C/A/G/E/D families", () => {
-    const results = chordShapes.query({ chordType: "M", voicingFamily: "open" });
+    const results = chordShapes.query({
+      chordType: "M",
+      voicingFamily: "open",
+    });
     expect(results.length).toBeGreaterThanOrEqual(5); // 5 families
   });
 
   it("query({ chordType: 'M', voicingFamily: 'barre' }) returns barre major shapes", () => {
-    const results = chordShapes.query({ chordType: "M", voicingFamily: "barre" });
+    const results = chordShapes.query({
+      chordType: "M",
+      voicingFamily: "barre",
+    });
     expect(results.length).toBeGreaterThanOrEqual(2); // E-form and A-form at minimum
   });
 });
@@ -604,8 +696,9 @@ describe("TG10 — Data integrity: chordShapes.all() count after all curated imp
     //   caged-chords-7th.ts: 11  (maj7/m7/7/m7b5 E+A+D forms)
     //   open-chords.ts:      70  (5 open families + 2 barre families × 10 chord types)
     //   jazz-shells.ts:      16  (4 chord types × 2 string sets × 2 orderings)
+    //   extended-chords.ts:  EXTENDED_CHORD_SHAPES.length (grows per curation tier)
     const total = chordShapes.all().length;
-    expect(total).toBe(102);
+    expect(total).toBe(102 + EXTENDED_CHORD_SHAPES.length);
   });
 
   it("caged-chords-7th adds exactly 11 shapes (validates R-4.1 registration)", () => {
@@ -615,9 +708,12 @@ describe("TG10 — Data integrity: chordShapes.all() count after all curated imp
     // 7:   E-shape + A-shape + D-shape = 3
     // m7b5: E-shape + A-shape = 2
     // Total = 11
-    const cagedSeventh = chordShapes.query({ voicingFamily: "caged" }).filter(
-      (s) => s.chordType !== undefined
-    );
+    // extended-chords.ts also registers caged-family shapes with chordType set,
+    // so exclude them by name to isolate the caged-chords-7th contribution.
+    const extendedNames = new Set(EXTENDED_CHORD_SHAPES.map((s) => s.name));
+    const cagedSeventh = chordShapes
+      .query({ voicingFamily: "caged" })
+      .filter((s) => s.chordType !== undefined && !extendedNames.has(s.name));
     expect(cagedSeventh.length).toBe(11);
   });
 
