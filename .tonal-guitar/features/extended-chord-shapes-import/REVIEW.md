@@ -13,7 +13,7 @@
 - [x] Phase 2: Lint/Test Fix
 - [x] Phase 3: Architecture Review
 - [x] Phase 4: Architecture Fix
-- [ ] Phase 5: Code Simplification Review
+- [x] Phase 5: Code Simplification Review
 - [ ] Phase 6: Code Simplification Fix
 - [ ] Phase 7: Specialized Reviews
 - [ ] Phase 8: Specialized Fixes
@@ -48,6 +48,15 @@ No Critical findings. Registry wiring, registration block, ChordShape field usag
 ### Won't Fix
 
 - (none)
+
+## Phase 5: Code Simplification Review
+
+### tonal-guitar
+
+- CR-004: [Important] Three near-identical tier-coverage `it` blocks in `src/data/extended-chords.test.ts:370-388` (Tier 1/2/3 each loop a chordType array asserting query count === 2) — collapse into one parametrized test.
+- CR-005: [Important] Duplicated assertions in `src/data/extended-chords.test.ts` — aug7 registry-emptiness asserted at :392-398 AND :479-494; `detected[0] === "C7#5"` duplicated between the divergence-catalog test and the per-shape harness. Keep one home (divergence catalog), drop redundant copies.
+- CR-006: [Suggestion] Divergence-catalog tests assert third-party `Chord.get` behavior (`.symbol`/`.intervals`/`.empty`) — flagged as testing library-not-repo behavior.
+- CR-007: [Important] New test code fails `prettier --check` — `src/data/extended-chords.test.ts` (several lines) and `src/data/data.test.ts:623-625` weren't run through `npm run format`.
 
 ## Statistics
 
