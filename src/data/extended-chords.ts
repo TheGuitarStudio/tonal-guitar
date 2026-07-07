@@ -137,25 +137,25 @@ import { chordShapes, ChordShape } from "../shape";
 
 /**
  * E-shape 6
- * Prototype: open E6 → 0,2,2,1,2,0 → E B E G# C# E
- * Intervals:            1P 5P 1P 3M 6M 1P
- * Applied to F (avoids the open-string edge case): 1 3 3 2 3 1 (span 2).
- * Complete 4-tone chord (1P 3M 5P 6M, root doubled) — no omission.
+ * Prototype: open E6 → 0,2,2,1,2,x → E B E G# C# (top string muted)
+ * Intervals:            1P 5P 1P 3M 6M x
+ * Applied to F (avoids the open-string edge case): 1 3 3 2 3 x (span 2).
+ * Complete 4-tone chord (1P 3M 5P 6M) — no omission.
  */
 export const EXT_CHORD_E_6: ChordShape = {
   name: "E Shape 6",
   system: "caged",
-  strings: ["1P", "5P", "1P", "3M", "6M", "1P"],
-  fingers: [1, 3, 3, 2, 4, 1],
+  strings: ["1P", "5P", "1P", "3M", "6M", null],
+  fingers: [1, 3, 3, 2, 4, null],
   barres: [
-    { fret: 0, fromString: 0, toString: 5, finger: 1 },
+    { fret: 0, fromString: 0, toString: 4, finger: 1 },
     { fret: 2, fromString: 1, toString: 2, finger: 3 },
   ],
   rootString: 0,
   chordType: "6",
   voicingFamily: "caged",
   inversion: 0,
-  stringSet: [0, 1, 2, 3, 4, 5],
+  stringSet: [0, 1, 2, 3, 4],
 };
 
 /**
