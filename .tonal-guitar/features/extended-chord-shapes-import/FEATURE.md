@@ -57,7 +57,7 @@ Added decisions D-007, D-008. Added risks (partial-voicing detect, math-valid-bu
 | 1     | TG2: Tier 1 — Essential shapes                      | complete | sonnet | Lead fixed hardcoded registry counts in data.test.ts |
 | 2     | TG3: Tier 2 — Jazz core shapes                      | complete | sonnet | Agent stalled once; resumed and completed |
 | 3     | TG4: Tier 3 — Altered dominant shapes               | complete | sonnet | -     |
-| 4     | TG5: Cross-cutting interop + final verification     | pending | -     | -     |
+| 4     | TG5: Cross-cutting interop + final verification     | complete | sonnet | Docs listing updated in docs/api/arpeggios.md |
 
 ### Oversight Reports
 
@@ -65,5 +65,6 @@ Added decisions D-007, D-008. Added risks (partial-voicing detect, math-valid-bu
 - **Layer 1**: No concerns. Continued. (Post-merge fix: data.test.ts registry counts parameterized over EXTENDED_CHORD_SHAPES.length.)
 - **Layer 2**: No concerns. Continued.
 - **Layer 3**: No concerns. Continued.
+- **Layer 4**: No concerns. Continued.
 
 ### Spec Compliance
