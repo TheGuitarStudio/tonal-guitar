@@ -128,7 +128,7 @@ Never use `git add -A` — only stage specific files.
 Graduation creates a worktree + branch using herdr. **Do not launch an agent here** — herdr opens the worktree's root pane as a plain shell, so nothing tries to read `FEATURE.md` before it's written (no race):
 
 ```bash
-REPO=$(git rev-parse --show-toplevel)
+REPO=$(git worktree list --porcelain | head -1 | sed 's/^worktree //')  # main checkout — herdr rejects linked worktrees
 herdr worktree create --cwd "$REPO" --branch feat/{slug} --base origin/main --no-focus --json
 ```
 

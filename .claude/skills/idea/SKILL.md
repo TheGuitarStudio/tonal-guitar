@@ -209,7 +209,7 @@ Interactive brainstorming session to refine a captured idea into a structured sp
 5. Create worktree + branch. herdr opens a plain shell workspace (no agent fires), so there's no race with `FEATURE.md` not existing until step 7:
 
    ```bash
-   REPO=$(git rev-parse --show-toplevel)
+   REPO=$(git worktree list --porcelain | head -1 | sed 's/^worktree //')  # main checkout — herdr rejects linked worktrees
    herdr worktree create --cwd "$REPO" --branch feat/{slug} --base origin/main --no-focus --json
    ```
 
