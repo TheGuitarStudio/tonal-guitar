@@ -72,11 +72,11 @@ import { chordShapes, ChordShape } from "../shape";
 // ============================================================
 // Shape definitions
 //
-// Populated tier-by-tier by subsequent task groups per
+// Populated tier-by-tier per
 // .tonal-guitar/features/extended-chord-shapes-import/tasks.md:
-//   Tier 1 — 6, m6, 9, maj9, m9, add9   (this task group)
+//   Tier 1 — 6, m6, 9, maj9, m9, add9
 //   Tier 2 — 13, dim7, mMaj7, 7sus4, 6/9
-//   Tier 3 — 7b9, 7#9, 7#5, 7b5
+//   Tier 3 — 7b9, 7#9, 7#5, 7b5   (this task group)
 //
 // Tier 1 identification note (empirically verified against the installed
 // Tonal version, `@tonaljs/chord` `detect`):
@@ -107,6 +107,28 @@ import { chordShapes, ChordShape } from "../shape";
 //   - `6/9` full voicings detect as `${root}6add9` (e.g. `G6add9`) — the
 //     documented alias. `Chord.get("C6/9")` resolves non-empty with symbol
 //     `C6/9`, so the `chordType` key stays `6/9` per the naming contract.
+//
+// Tier 3 identification note (empirically verified the same way):
+//   - `7b9` E-form is a FULL 5-tone voicing (open-E7b9-style grip, root/5th
+//     doubled) and detects cleanly (`F7b9` first). The A-form `7b9` is the
+//     classic movable "diminished-shape" shell (5th omitted, priority 1) —
+//     `detect` on it returns `Calt7` (a partial/alternate label, not `C7b9`
+//     or a documented alias); expected per D-007, asserted only as a
+//     chroma subset, never a full-chord `detect` match.
+//   - `7#9` E-form is a FULL 5-tone voicing (the open "E7#9" grip — same
+//     skeleton as the Tier 1 `E Shape 9`, with the top string raised a
+//     semitone) and detects cleanly (`F7#9`). The A-form `7#9` is the
+//     famous "Hendrix chord" shell (5th omitted) — `detect` returns `[]`
+//     for the incomplete grip (expected, D-007; chroma-subset only).
+//   - `7#5` is a 4-tone chord (`1P 3M 5A 7m`) with no 5th to omit — the
+//     augmented 5th itself is the (only) 5th present, so both forms are
+//     FULL voicings. `detect` on both forms returns the exact symbol first
+//     (`F7#5` / `C7#5`), with `F7b13`/`C7b13` as a secondary, non-divergent
+//     alias — matching the divergence-catalog row above. Registered as
+//     `7#5`, never `aug7`.
+//   - `7b5` is likewise a 4-tone chord (`1P 3M 5d 7m`) with no extra 5th to
+//     omit — both forms are FULL voicings and `detect` returns the exact
+//     symbol first (`F7b5` / `C7b5`).
 // ============================================================
 
 // ============================================================
@@ -633,6 +655,216 @@ export const EXT_CHORD_A_69: ChordShape = {
   stringSet: [1, 2, 3, 4, 5],
 };
 
+// ============================================================
+// 7b9 (dominant seventh flat nine) shapes
+// ============================================================
+
+/**
+ * E-shape 7b9
+ * Prototype: the open E7 shape (0,2,0,1,0,0 → E B D G# B E) with the high e
+ * string raised a semitone to fret 1 → 0,2,0,1,0,1 → E B D G# B F.
+ * Intervals:                            1P 5P 7m 3M 5P 9m
+ * Applied to F: 1 3 1 2 1 2 (span 2). Complete 5-tone chord (1P 3M 5P 7m
+ * 9m, root/5th doubled) — no omission; `detect` returns the exact name
+ * first (`F7b9`).
+ */
+export const EXT_CHORD_E_7B9: ChordShape = {
+  name: "E Shape 7b9",
+  system: "caged",
+  strings: ["1P", "5P", "7m", "3M", "5P", "9m"],
+  fingers: [0, 3, 0, 1, 0, 2],
+  barres: [],
+  rootString: 0,
+  chordType: "7b9",
+  voicingFamily: "caged",
+  inversion: 0,
+  stringSet: [0, 1, 2, 3, 4, 5],
+};
+
+/**
+ * A-shape 7b9
+ * Prototype: the classic movable "diminished-shape" 7b9 shell (built from
+ * a dim7 grip a major third above the root), commonly taught rooted at
+ * C: x,3,2,3,2,x → C E Bb Db
+ * Intervals:          1P 3M 7m 9m
+ * Applied to C directly (this *is* the reference root/fret): x 3 2 3 2 x
+ * (span 1). Omits the 5th (priority 1) — the classic 4-string voicing;
+ * `detect` on this shell returns `Calt7` (a partial/alternate label, not
+ * `C7b9`) — expected for a partial voicing (D-007), asserted only as a
+ * chroma subset.
+ */
+export const EXT_CHORD_A_7B9: ChordShape = {
+  name: "A Shape 7b9",
+  system: "caged",
+  strings: [null, "1P", "3M", "7m", "9m", null],
+  fingers: [null, 2, 1, 4, 3, null],
+  barres: [],
+  rootString: 1,
+  chordType: "7b9",
+  voicingFamily: "caged",
+  inversion: 0,
+  stringSet: [1, 2, 3, 4],
+  omittedIntervals: ["5P"],
+};
+
+// ============================================================
+// 7#9 (dominant seventh sharp nine, "Hendrix chord") shapes
+// ============================================================
+
+/**
+ * E-shape 7#9
+ * Prototype: the open "E7#9" grip — the same skeleton as the Tier 1
+ * `E Shape 9` (0,2,0,1,0,2 → E B D G# B F#) with the high e string raised
+ * one further semitone → 0,2,0,1,0,3 → E B D G# B G.
+ * Intervals:               1P 5P 7m 3M 5P 9A
+ * Applied to F: 1 3 1 2 1 4 (span 3). Complete 5-tone chord (1P 3M 5P 7m
+ * 9A, root/5th doubled) — no omission; `detect` returns the exact name
+ * first (`F7#9`).
+ */
+export const EXT_CHORD_E_7SHARP9: ChordShape = {
+  name: "E Shape 7#9",
+  system: "caged",
+  strings: ["1P", "5P", "7m", "3M", "5P", "9A"],
+  fingers: [1, 3, 1, 2, 1, 4],
+  barres: [{ fret: 0, fromString: 0, toString: 4, finger: 1 }],
+  rootString: 0,
+  chordType: "7#9",
+  voicingFamily: "caged",
+  inversion: 0,
+  stringSet: [0, 1, 2, 3, 4, 5],
+};
+
+/**
+ * A-shape 7#9
+ * Prototype: the famous "Hendrix chord" shell, commonly taught rooted at
+ * C: x,3,2,3,4,x → C E Bb D#
+ * Intervals:          1P 3M 7m 9A
+ * Applied to C directly (this *is* the reference root/fret): x 3 2 3 4 x
+ * (span 2). Omits the 5th (priority 1) — the canonical 4-string voicing
+ * (real-world "Hendrix chord" voicings never include the 5th); `detect` on
+ * this shell returns `[]` (expected for a partial voicing, D-007 — no
+ * full-chord label for the incomplete grip).
+ */
+export const EXT_CHORD_A_7SHARP9: ChordShape = {
+  name: "A Shape 7#9",
+  system: "caged",
+  strings: [null, "1P", "3M", "7m", "9A", null],
+  fingers: [null, 2, 1, 3, 4, null],
+  barres: [],
+  rootString: 1,
+  chordType: "7#9",
+  voicingFamily: "caged",
+  inversion: 0,
+  stringSet: [1, 2, 3, 4],
+  omittedIntervals: ["5P"],
+};
+
+// ============================================================
+// 7#5 (dominant seventh sharp five / altered-aug) shapes
+//
+// Registered as `7#5` (the `Chord.get` symbol) — NOT `aug7`. `aug7` and
+// `7#5` are the same Tonal chord (identical intervals `1P 3M 5A 7m`), but
+// `Chord.get("Caug7").symbol` is `"Caug7"` (Tonal does not normalize it),
+// while `detect` prefers `C7#5`. Only `7#5` is registered here; see the
+// divergence catalog in the file header. This is a 4-tone chord with no
+// natural 5th to drop — the augmented 5th is the only (and defining) 5th,
+// so neither form has `omittedIntervals`.
+// ============================================================
+
+/**
+ * E-shape 7#5
+ * Prototype: the open "E7#5"/"Eaug7" grip → 0,x,0,1,1,0 → E x D G# C E
+ * Intervals:                                  1P x 7m 3M 5A 1P
+ * Applied to F: 1 x 1 2 2 1 (span 1). Complete 4-tone chord (1P 3M 5A 7m,
+ * root doubled) — no omission; `detect` returns the exact name first
+ * (`F7#5`, with `F7b13` as a secondary, non-divergent alias).
+ */
+export const EXT_CHORD_E_7SHARP5: ChordShape = {
+  name: "E Shape 7#5",
+  system: "caged",
+  strings: ["1P", null, "7m", "3M", "5A", "1P"],
+  fingers: [0, null, 0, 1, 1, 0],
+  barres: [{ fret: 1, fromString: 3, toString: 4, finger: 1 }],
+  rootString: 0,
+  chordType: "7#5",
+  voicingFamily: "caged",
+  inversion: 0,
+  stringSet: [0, 2, 3, 4, 5],
+};
+
+/**
+ * A-shape 7#5
+ * Prototype: a compact movable altered-dominant grip, commonly taught
+ * rooted at C: x,3,x,3,5,4 → C x Bb E G#
+ * Intervals:      1P x 7m 3M 5A
+ * Applied to C directly (this *is* the reference root/fret): x 3 x 3 5 4
+ * (span 2). Complete 4-tone chord — no omission; `detect` returns the
+ * exact name first (`C7#5`, with `C7b13` as a secondary, non-divergent
+ * alias).
+ */
+export const EXT_CHORD_A_7SHARP5: ChordShape = {
+  name: "A Shape 7#5",
+  system: "caged",
+  strings: [null, "1P", null, "7m", "3M", "5A"],
+  fingers: [null, 1, null, 2, 4, 3],
+  barres: [],
+  rootString: 1,
+  chordType: "7#5",
+  voicingFamily: "caged",
+  inversion: 0,
+  stringSet: [1, 3, 4, 5],
+};
+
+// ============================================================
+// 7b5 (dominant seventh flat five) shapes
+//
+// A 4-tone chord (1P 3M 5d 7m) with no natural (perfect) 5th to drop — the
+// diminished 5th is the only (and defining) 5th, so neither form has
+// `omittedIntervals`.
+// ============================================================
+
+/**
+ * E-shape 7b5
+ * Prototype: a compact 4-string E-form grip → 0,1,0,1,x,x → E Bb D G# x x
+ * Intervals:                                     1P 5d 7m 3M  x x
+ * Applied to F: 1 2 1 2 x x (span 1). Complete 4-tone chord — no
+ * omission; `detect` returns the exact name first (`F7b5`).
+ */
+export const EXT_CHORD_E_7B5: ChordShape = {
+  name: "E Shape 7b5",
+  system: "caged",
+  strings: ["1P", "5d", "7m", "3M", null, null],
+  fingers: [0, 1, 0, 2, null, null],
+  barres: [],
+  rootString: 0,
+  chordType: "7b5",
+  voicingFamily: "caged",
+  inversion: 0,
+  stringSet: [0, 1, 2, 3],
+};
+
+/**
+ * A-shape 7b5
+ * Prototype: a compact movable A-form grip, commonly taught rooted at
+ * C: x,3,2,3,x,2 → C x E Bb x Gb
+ * Intervals:          1P x 3M 7m x 5d
+ * Applied to C directly (this *is* the reference root/fret): x 3 2 3 x 2
+ * (span 1). Complete 4-tone chord — no omission; `detect` returns the
+ * exact name first (`C7b5`).
+ */
+export const EXT_CHORD_A_7B5: ChordShape = {
+  name: "A Shape 7b5",
+  system: "caged",
+  strings: [null, "1P", "3M", "7m", null, "5d"],
+  fingers: [null, 3, 1, 4, null, 2],
+  barres: [],
+  rootString: 1,
+  chordType: "7b5",
+  voicingFamily: "caged",
+  inversion: 0,
+  stringSet: [1, 2, 3, 5],
+};
+
 export const EXTENDED_CHORD_SHAPES: ChordShape[] = [
   EXT_CHORD_E_6,
   EXT_CHORD_A_6,
@@ -656,6 +888,14 @@ export const EXTENDED_CHORD_SHAPES: ChordShape[] = [
   EXT_CHORD_A_7SUS4,
   EXT_CHORD_E_69,
   EXT_CHORD_A_69,
+  EXT_CHORD_E_7B9,
+  EXT_CHORD_A_7B9,
+  EXT_CHORD_E_7SHARP9,
+  EXT_CHORD_A_7SHARP9,
+  EXT_CHORD_E_7SHARP5,
+  EXT_CHORD_A_7SHARP5,
+  EXT_CHORD_E_7B5,
+  EXT_CHORD_A_7B5,
 ];
 
 // Register all extended chord shapes

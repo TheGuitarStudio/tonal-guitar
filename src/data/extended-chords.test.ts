@@ -49,6 +49,14 @@ import {
   EXT_CHORD_A_7SUS4,
   EXT_CHORD_E_69,
   EXT_CHORD_A_69,
+  EXT_CHORD_E_7B9,
+  EXT_CHORD_A_7B9,
+  EXT_CHORD_E_7SHARP9,
+  EXT_CHORD_A_7SHARP9,
+  EXT_CHORD_E_7SHARP5,
+  EXT_CHORD_A_7SHARP5,
+  EXT_CHORD_E_7B5,
+  EXT_CHORD_A_7B5,
 } from "./extended-chords";
 
 // ============================================================
@@ -299,6 +307,20 @@ const SHAPES_UNDER_TEST: ShapeCase[] = [
     root: "C",
     aliases: ["C6add9"],
   },
+  // --- Tier 3 (TG4). Same root convention: F for E-forms, C for A-forms.
+  // Full voicings detect exactly for all four Tier 3 types (no alias
+  // needed) — `7b9`/`7#9` E-forms and both `7#5`/`7b5` forms. The A-form
+  // `7b9`/`7#9` shells are partial (5th omitted) and skip the detect
+  // requirement per D-007 (`7b9` shell detects `Calt7`; the Hendrix-chord
+  // `7#9` shell detects `[]`).
+  { name: "E Shape 7b9", shape: EXT_CHORD_E_7B9, root: "F" },
+  { name: "A Shape 7b9", shape: EXT_CHORD_A_7B9, root: "C" },
+  { name: "E Shape 7#9", shape: EXT_CHORD_E_7SHARP9, root: "F" },
+  { name: "A Shape 7#9", shape: EXT_CHORD_A_7SHARP9, root: "C" },
+  { name: "E Shape 7#5", shape: EXT_CHORD_E_7SHARP5, root: "F" },
+  { name: "A Shape 7#5", shape: EXT_CHORD_A_7SHARP5, root: "C" },
+  { name: "E Shape 7b5", shape: EXT_CHORD_E_7B5, root: "F" },
+  { name: "A Shape 7b5", shape: EXT_CHORD_A_7B5, root: "C" },
 ];
 
 describe.each(SHAPES_UNDER_TEST)("$name — root $root", ({ shape, root, aliases }) => {
@@ -331,10 +353,10 @@ describe.each(SHAPES_UNDER_TEST)("$name — root $root", ({ shape, root, aliases
 // Aggregate sanity (TG2 Tier 1 + TG3 Tier 2 acceptance criteria)
 // ============================================================
 
-describe("extended-chords: Tier 1 + Tier 2 aggregate sanity", () => {
-  it("registers exactly the 22 Tier 1+2 shapes (11 types x E/A-form)", () => {
-    expect(EXTENDED_CHORD_SHAPES.length).toBe(22);
-    expect(chordShapes.all().length).toBe(22);
+describe("extended-chords: Tier 1 + Tier 2 + Tier 3 aggregate sanity", () => {
+  it("registers exactly the 30 Tier 1+2+3 shapes (15 types x E/A-form)", () => {
+    expect(EXTENDED_CHORD_SHAPES.length).toBe(30);
+    expect(chordShapes.all().length).toBe(30);
   });
 
   it("covers all 6 Tier 1 chordTypes", () => {
@@ -348,6 +370,30 @@ describe("extended-chords: Tier 1 + Tier 2 aggregate sanity", () => {
     const tier2Types = ["13", "dim7", "mMaj7", "7sus4", "6/9"];
     for (const chordType of tier2Types) {
       expect(chordShapes.query({ chordType }).length).toBe(2);
+    }
+  });
+
+  it("covers all 4 Tier 3 chordTypes", () => {
+    const tier3Types = ["7b9", "7#9", "7#5", "7b5"];
+    for (const chordType of tier3Types) {
+      expect(chordShapes.query({ chordType }).length).toBe(2);
+    }
+  });
+
+  it("registers 7#5 (not aug7) as the altered-aug entry", () => {
+    expect(chordShapes.query({ chordType: "aug7" }).length).toBe(0);
+    expect(chordShapes.query({ chordType: "7#5" }).length).toBe(2);
+    for (const shape of chordShapes.query({ chordType: "7#5" })) {
+      expect(shape.chordType).toBe("7#5");
+    }
+  });
+
+  it("7#5/7b5 shapes never omit the altered 5th (it is the defining tone)", () => {
+    for (const shape of [
+      ...chordShapes.query({ chordType: "7#5" }),
+      ...chordShapes.query({ chordType: "7b5" }),
+    ]) {
+      expect(shape.omittedIntervals ?? []).toEqual([]);
     }
   });
 
@@ -412,5 +458,29 @@ describe("extended-chords: divergence catalog", () => {
     const chord = getChord("C6/9");
     expect(chord.empty).toBe(false);
     expect(chord.symbol).toBe("C6/9");
+  });
+
+  it("7#5 full voicing detects itself first, with 7b13 as a secondary alias", () => {
+    const result = applyChordShape(EXT_CHORD_A_7SHARP5, "C", STANDARD);
+    const detected = identifyChord(result.frets, STANDARD);
+    expect(detected[0]).toBe("C7#5");
+    expect(detected).toContain("C7b13");
+  });
+
+  it("aug7 and 7#5 are the same Tonal chord, but only 7#5 is registered", () => {
+    const aug7 = getChord("Caug7");
+    const sharp5 = getChord("C7#5");
+    expect(aug7.empty).toBe(false);
+    expect(sharp5.empty).toBe(false);
+    expect(aug7.symbol).toBe("Caug7");
+    expect(aug7.intervals).toEqual(sharp5.intervals);
+
+    // detect() for the shared pitch-class set prefers the 7#5 spelling.
+    const result = applyChordShape(EXT_CHORD_A_7SHARP5, "C", STANDARD);
+    const detected = identifyChord(result.frets, STANDARD);
+    expect(detected[0]).toBe("C7#5");
+
+    // Exact-string registry: querying by the aug7 alias returns nothing.
+    expect(chordShapes.query({ chordType: "aug7" })).toEqual([]);
   });
 });
