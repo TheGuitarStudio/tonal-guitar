@@ -55,7 +55,7 @@ Added decisions D-007, D-008. Added risks (partial-voicing detect, math-valid-bu
 | ----- | --------------------------------------------------- | ------- | ----- | ----- |
 | 0     | TG1: Scaffold + parametrized test harness           | complete | sonnet | -     |
 | 1     | TG2: Tier 1 — Essential shapes                      | complete | sonnet | Lead fixed hardcoded registry counts in data.test.ts |
-| 2     | TG3: Tier 2 — Jazz core shapes                      | pending | -     | -     |
+| 2     | TG3: Tier 2 — Jazz core shapes                      | complete | sonnet | Agent stalled once; resumed and completed |
 | 3     | TG4: Tier 3 — Altered dominant shapes               | pending | -     | -     |
 | 4     | TG5: Cross-cutting interop + final verification     | pending | -     | -     |
 
@@ -63,5 +63,6 @@ Added decisions D-007, D-008. Added risks (partial-voicing detect, math-valid-bu
 
 - **Layer 0**: No concerns. Continued.
 - **Layer 1**: No concerns. Continued. (Post-merge fix: data.test.ts registry counts parameterized over EXTENDED_CHORD_SHAPES.length.)
+- **Layer 2**: No concerns. Continued.
 
 ### Spec Compliance
