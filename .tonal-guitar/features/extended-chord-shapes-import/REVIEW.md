@@ -14,7 +14,7 @@
 - [x] Phase 3: Architecture Review
 - [x] Phase 4: Architecture Fix
 - [x] Phase 5: Code Simplification Review
-- [ ] Phase 6: Code Simplification Fix
+- [x] Phase 6: Code Simplification Fix
 - [ ] Phase 7: Specialized Reviews
 - [ ] Phase 8: Specialized Fixes
 - [ ] Phase 9: Final Verification
@@ -57,6 +57,22 @@ No Critical findings. Registry wiring, registration block, ChordShape field usag
 - CR-005: [Important] Duplicated assertions in `src/data/extended-chords.test.ts` — aug7 registry-emptiness asserted at :392-398 AND :479-494; `detected[0] === "C7#5"` duplicated between the divergence-catalog test and the per-shape harness. Keep one home (divergence catalog), drop redundant copies.
 - CR-006: [Suggestion] Divergence-catalog tests assert third-party `Chord.get` behavior (`.symbol`/`.intervals`/`.empty`) — flagged as testing library-not-repo behavior.
 - CR-007: [Important] New test code fails `prettier --check` — `src/data/extended-chords.test.ts` (several lines) and `src/data/data.test.ts:623-625` weren't run through `npm run format`.
+
+## Phase 6: Code Simplification Fixes
+
+### Fixed
+
+- CR-004: Fixed — three tier-coverage tests collapsed into one `it.each` over all 15 chordTypes (coverage preserved; test count 803→815 from parametrization)
+- CR-005: Fixed — aug7 registry-emptiness kept only in the divergence-catalog test; redundant 7#5 build/detect duplication removed
+- CR-007: Fixed — prettier applied to changed test files; `prettier --check` now passes
+
+### Deferred
+
+- (none)
+
+### Won't Fix
+
+- CR-006: Divergence-catalog assertions on `Chord.get`/`detect` behavior are spec-mandated (task 5.1) regression canaries — they pin the peer-dependency behaviors the naming contract depends on, so a Tonal upgrade that changes them fails loudly.
 
 ## Statistics
 

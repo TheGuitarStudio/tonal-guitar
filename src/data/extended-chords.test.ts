@@ -18,7 +18,10 @@
 
 import { describe, it, expect } from "vitest";
 import { get as getChord } from "@tonaljs/chord";
-import { chroma as noteChroma, transpose as noteTranspose } from "@tonaljs/note";
+import {
+  chroma as noteChroma,
+  transpose as noteTranspose,
+} from "@tonaljs/note";
 
 import { chordShapes, ChordShape, ScaleShape } from "../shape";
 import { applyChordShape } from "../build";
@@ -104,7 +107,9 @@ function assertRegistered(shape: ChordShape): void {
   const matches = chordShapes.query({ chordType: shape.chordType });
   expect(matches.some((s) => s.name === shape.name)).toBe(true);
 
-  const occurrences = chordShapes.names().filter((n) => n === shape.name).length;
+  const occurrences = chordShapes
+    .names()
+    .filter((n) => n === shape.name).length;
   expect(occurrences).toBe(1);
 }
 
@@ -113,7 +118,11 @@ function assertRegistered(shape: ChordShape): void {
  * dropped by the fret window, built intervals match the interval row, the
  * fretted span is playable, and the implied finger count is plausible.
  */
-function assertBuildsPlayable(shape: ChordShape, root: string, maxSpan = 4): void {
+function assertBuildsPlayable(
+  shape: ChordShape,
+  root: string,
+  maxSpan = 4,
+): void {
   const result = applyChordShape(shape, root, STANDARD);
 
   const nonNullFrets = result.frets.filter((f): f is number => f != null);
@@ -123,7 +132,9 @@ function assertBuildsPlayable(shape: ChordShape, root: string, maxSpan = 4): voi
     .slice()
     .sort((a, b) => a.string - b.string)
     .map((p) => p.interval);
-  expect(builtIntervals.slice().sort()).toEqual(playedIntervals(shape).slice().sort());
+  expect(builtIntervals.slice().sort()).toEqual(
+    playedIntervals(shape).slice().sort(),
+  );
 
   if (nonNullFrets.length > 0) {
     const span = Math.max(...nonNullFrets) - Math.min(...nonNullFrets);
@@ -155,7 +166,12 @@ function assertResolutionSubset(shape: ChordShape, root: string): void {
  */
 function assertArpeggioMembership(shape: ChordShape, root: string): void {
   const parentShape = asParentScaleShape(shape);
-  const result = arpeggioFromShape(parentShape, `${root}${shape.chordType}`, root, STANDARD);
+  const result = arpeggioFromShape(
+    parentShape,
+    `${root}${shape.chordType}`,
+    root,
+    STANDARD,
+  );
 
   expect(result.empty).toBe(false);
   expect(result.notes.length).toBe(playedIntervals(shape).length);
@@ -323,31 +339,34 @@ const SHAPES_UNDER_TEST: ShapeCase[] = [
   { name: "A Shape 7b5", shape: EXT_CHORD_A_7B5, root: "C" },
 ];
 
-describe.each(SHAPES_UNDER_TEST)("$name — root $root", ({ shape, root, aliases }) => {
-  it("is registered and queryable by chordType, with a unique name", () => {
-    assertRegistered(shape);
-  });
+describe.each(SHAPES_UNDER_TEST)(
+  "$name — root $root",
+  ({ shape, root, aliases }) => {
+    it("is registered and queryable by chordType, with a unique name", () => {
+      assertRegistered(shape);
+    });
 
-  it("builds a playable fingering", () => {
-    assertBuildsPlayable(shape, root);
-  });
+    it("builds a playable fingering", () => {
+      assertBuildsPlayable(shape, root);
+    });
 
-  it("resolves as a chroma-subset of the Tonal chord", () => {
-    assertResolutionSubset(shape, root);
-  });
+    it("resolves as a chroma-subset of the Tonal chord", () => {
+      assertResolutionSubset(shape, root);
+    });
 
-  it("chord tones are arpeggio-derivable", () => {
-    assertArpeggioMembership(shape, root);
-  });
+    it("chord tones are arpeggio-derivable", () => {
+      assertArpeggioMembership(shape, root);
+    });
 
-  it("has correct omission bookkeeping", () => {
-    assertOmissionIntegrity(shape, root);
-  });
+    it("has correct omission bookkeeping", () => {
+      assertOmissionIntegrity(shape, root);
+    });
 
-  it("identifies per the full/partial split (D-007)", () => {
-    assertIdentification(shape, root, { aliases });
-  });
-});
+    it("identifies per the full/partial split (D-007)", () => {
+      assertIdentification(shape, root, { aliases });
+    });
+  },
+);
 
 // ============================================================
 // Aggregate sanity (TG2 Tier 1 + TG3 Tier 2 acceptance criteria)
@@ -368,29 +387,33 @@ describe("extended-chords: Tier 1 + Tier 2 + Tier 3 aggregate sanity", () => {
     expect(distinctTypes.size).toBe(15);
   });
 
-  it("covers all 6 Tier 1 chordTypes", () => {
-    const tier1Types = ["6", "m6", "9", "maj9", "m9", "add9"];
-    for (const chordType of tier1Types) {
+  it.each([
+    // Tier 1 (6 types)
+    "6",
+    "m6",
+    "9",
+    "maj9",
+    "m9",
+    "add9",
+    // Tier 2 (5 types)
+    "13",
+    "dim7",
+    "mMaj7",
+    "7sus4",
+    "6/9",
+    // Tier 3 (4 types)
+    "7b9",
+    "7#9",
+    "7#5",
+    "7b5",
+  ])(
+    "covers chordType %s with exactly 2 shapes (E-form + A-form)",
+    (chordType) => {
       expect(chordShapes.query({ chordType }).length).toBe(2);
-    }
-  });
-
-  it("covers all 5 Tier 2 chordTypes", () => {
-    const tier2Types = ["13", "dim7", "mMaj7", "7sus4", "6/9"];
-    for (const chordType of tier2Types) {
-      expect(chordShapes.query({ chordType }).length).toBe(2);
-    }
-  });
-
-  it("covers all 4 Tier 3 chordTypes", () => {
-    const tier3Types = ["7b9", "7#9", "7#5", "7b5"];
-    for (const chordType of tier3Types) {
-      expect(chordShapes.query({ chordType }).length).toBe(2);
-    }
-  });
+    },
+  );
 
   it("registers 7#5 (not aug7) as the altered-aug entry", () => {
-    expect(chordShapes.query({ chordType: "aug7" }).length).toBe(0);
     expect(chordShapes.query({ chordType: "7#5" }).length).toBe(2);
     for (const shape of chordShapes.query({ chordType: "7#5" })) {
       expect(shape.chordType).toBe("7#5");
@@ -484,10 +507,9 @@ describe("extended-chords: divergence catalog", () => {
     expect(aug7.symbol).toBe("Caug7");
     expect(aug7.intervals).toEqual(sharp5.intervals);
 
-    // detect() for the shared pitch-class set prefers the 7#5 spelling.
-    const result = applyChordShape(EXT_CHORD_A_7SHARP5, "C", STANDARD);
-    const detected = identifyChord(result.frets, STANDARD);
-    expect(detected[0]).toBe("C7#5");
+    // detect() for the shared pitch-class set prefers the 7#5 spelling —
+    // see the "7#5 full voicing detects itself first" test above for the
+    // build+detect assertion.
 
     // Exact-string registry: querying by the aug7 alias returns nothing.
     expect(chordShapes.query({ chordType: "aug7" })).toEqual([]);
