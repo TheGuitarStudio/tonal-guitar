@@ -22,7 +22,7 @@ import { chroma as noteChroma, transpose as noteTranspose } from "@tonaljs/note"
 
 import { chordShapes, ChordShape, ScaleShape } from "../shape";
 import { applyChordShape } from "../build";
-import { arpeggioFromShape, identifyChord } from "../integration";
+import { analyzeInKey, arpeggioFromShape, identifyChord } from "../integration";
 import { STANDARD } from "../tuning";
 
 import {
@@ -359,6 +359,15 @@ describe("extended-chords: Tier 1 + Tier 2 + Tier 3 aggregate sanity", () => {
     expect(chordShapes.all().length).toBe(30);
   });
 
+  it("registers exactly 15 distinct canonical chordTypes (TG5 5.3)", () => {
+    const distinctTypes = new Set(
+      EXTENDED_CHORD_SHAPES.map((s) => s.chordType).filter(
+        (t): t is string => t !== undefined,
+      ),
+    );
+    expect(distinctTypes.size).toBe(15);
+  });
+
   it("covers all 6 Tier 1 chordTypes", () => {
     const tier1Types = ["6", "m6", "9", "maj9", "m9", "add9"];
     for (const chordType of tier1Types) {
@@ -482,5 +491,56 @@ describe("extended-chords: divergence catalog", () => {
 
     // Exact-string registry: querying by the aug7 alias returns nothing.
     expect(chordShapes.query({ chordType: "aug7" })).toEqual([]);
+  });
+});
+
+// ============================================================
+// analyzeInKey documented limit (TG5 5.2)
+// ============================================================
+
+describe("extended-chords: analyzeInKey documented limit", () => {
+  it("Cmaj9 (a representative extension) returns an empty numeral/degree — analyzeInKey only looks up diatonic 7ths", () => {
+    const result = applyChordShape(EXT_CHORD_E_MAJ9, "C", STANDARD);
+    const analysis = analyzeInKey(result.frets, "C", STANDARD);
+
+    // The chord itself is still identified (detect() finds *a* label)...
+    expect(identifyChord(result.frets, STANDARD).length).toBeGreaterThan(0);
+    // ...but analyzeInKey's key.chords table only enumerates the seven
+    // diatonic *7th* chords (e.g. "Cmaj7"), never 9th/6th/altered
+    // extensions, so a maj9 voicing can never match an entry and always
+    // resolves to the empty analysis. This is expected/documented behavior,
+    // not a bug — see spec.md "Key analysis (documented limit)".
+    expect(analysis.empty).toBe(true);
+    expect(analysis.numeral).toBe("");
+    expect(analysis.degree).toBe(0);
+  });
+});
+
+// ============================================================
+// Whole-registry aggregate checks (TG5 5.3)
+//
+// The tests above (and TG2-4's) only assert uniqueness/counts within this
+// file's own module realm, where extended-chords.ts is the only chord data
+// file imported (vitest gives each test file an isolated module registry,
+// so chordShapes here starts empty). This block additionally pulls in every
+// other chord-bearing data file via dynamic import so we can assert name
+// uniqueness across the *whole* registry, not just the extended set. It is
+// intentionally the last describe block in this file: the dynamic imports
+// mutate the shared chordShapes singleton for the remainder of this file's
+// module realm, which would invalidate the exact "30 shapes" counts the
+// aggregate-sanity block above depends on if it ran any earlier.
+// ============================================================
+
+describe("extended-chords: name uniqueness across the whole chord-shape registry", () => {
+  it("no extended-chord shape name collides with caged/open/jazz-shell chord data", async () => {
+    await import("../data/caged-chords");
+    await import("../data/caged-chords-7th");
+    await import("../data/open-chords");
+    await import("../data/jazz-shells");
+
+    const names = chordShapes.names();
+    expect(new Set(names).size).toBe(names.length);
+    // Sanity: the merge actually happened (more than just the 30 extended shapes).
+    expect(names.length).toBeGreaterThan(EXTENDED_CHORD_SHAPES.length);
   });
 });
