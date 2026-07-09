@@ -90,12 +90,19 @@ function buildImportBlock(pkg: string, symbols: Set<string>): string {
  * When `suffix` is empty, vars are unsuffixed (`shape`, `scale`, `notes`) so
  * a one-shot preview reads naturally. With a suffix, vars become `shape1`,
  * `scale1`, `notes1` so multiple segments can coexist.
+ *
+ * `emitMotifDecl` controls whether a standalone `const motifN = [];` is
+ * emitted when the recipe has no motif. When the motif is non-empty the
+ * declaration is always emitted because the walk functions reference it inline.
+ * Pass `true` only in the bridge-enabled chain path where `connectSequences`
+ * consumes `motifN` for the next-segment seam.
  */
 function emitSegment(
   recipe: PipelineRecipe,
   suffix: string,
   tonal: Set<string>,
   fretboardUi: Set<string>,
+  emitMotifDecl: boolean,
 ): { lines: string[]; notesVar: string; scaleVar: string; motifVar: string } {
   const lines: string[] = [];
   const shapeVar = `shape${suffix}`;
@@ -144,7 +151,10 @@ function emitSegment(
 
   if (recipe.motif.length === 0) {
     // No motif — just play the scale's notes (possibly reversed for descending).
-    lines.push(`const ${motifVar} = [];`);
+    // Only emit the motif declaration when it will be referenced (bridge path).
+    if (emitMotifDecl) {
+      lines.push(`const ${motifVar} = [];`);
+    }
     if (descending) {
       lines.push(
         `const ${notesVar} = [...${scaleVar}.notes].sort((a, b) => b.midi - a.midi);`,
@@ -222,7 +232,10 @@ export function generateCode(input: CodeGenInput): CodeGenResult {
       const suffix = String(i + 1);
       if (i > 0) lines.push("");
       lines.push(safeComment(`// ${i + 1}. ${entry.label}`));
-      const seg = emitSegment(entry.recipe, suffix, tonal, fretboardUi);
+      // Only emit the motifN declaration when the bridge path will reference it
+      // (connectSequences consumes motif for next-segment seams, i.e. i >= 1).
+      const needsMotifDecl = input.bridgeEnabled && input.chain.length >= 2 && i >= 1;
+      const seg = emitSegment(entry.recipe, suffix, tonal, fretboardUi, needsMotifDecl);
       lines.push(...seg.lines);
       scaleVars.push(seg.scaleVar);
       motifVars.push(seg.motifVar);
@@ -281,7 +294,7 @@ export function generateCode(input: CodeGenInput): CodeGenResult {
       recipe = entry.recipe;
       title = entry.label;
     }
-    const seg = emitSegment(recipe, "", tonal, fretboardUi);
+    const seg = emitSegment(recipe, "", tonal, fretboardUi, false);
     lines.push(...seg.lines);
     lines.push("");
     lines.push(
