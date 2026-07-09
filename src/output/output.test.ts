@@ -176,6 +176,45 @@ describe("toAlphaTeX — backward compatibility (R-5.2)", () => {
 });
 
 // ============================================================
+// AlphaTeX sanitization (CR-039)
+// ============================================================
+
+describe("toAlphaTeX — input sanitization (CR-039)", () => {
+  test("double-quote in title is escaped, not passed through raw", () => {
+    const result = toAlphaTeX([], { title: 'He said "hello"' });
+    // The raw string with un-escaped quotes would break the AlphaTeX quoted field.
+    expect(result).not.toContain('\\title "He said "hello""');
+    expect(result).toContain('\\title "He said \\"hello\\""');
+  });
+
+  test("key with spaces falls back to 'C'", () => {
+    const result = toAlphaTeX([], { key: "F# major" });
+    expect(result).toContain("\\ks C");
+    expect(result).not.toContain("\\ks F# major");
+  });
+
+  test("invalid key falls back to 'C'", () => {
+    const result = toAlphaTeX([], { key: "Xlarge" });
+    expect(result).toContain("\\ks C");
+  });
+
+  test("valid single-char key passes through unchanged", () => {
+    const result = toAlphaTeX([], { key: "G" });
+    expect(result).toContain("\\ks G");
+  });
+
+  test("valid key with accidental passes through unchanged", () => {
+    const result = toAlphaTeX([], { key: "Bb" });
+    expect(result).toContain("\\ks Bb");
+  });
+
+  test("title without quotes passes through unchanged", () => {
+    const result = toAlphaTeX([], { title: "My Exercise" });
+    expect(result).toContain('\\title "My Exercise"');
+  });
+});
+
+// ============================================================
 // ASCII tab grouped tests
 // ============================================================
 
