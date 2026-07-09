@@ -1,0 +1,75 @@
+name: Reconcile sub-issues
+
+# Closes task-group sub-issues whose parent issue is already closed.
+#
+# Complements pr-merged.yml: that workflow only fires on PR *merge* and infers
+# the parent from `Closes #N` keywords in the PR body. This one fires on ANY
+# issue close (GitHub UI, `gh issue close`, API, or a PR) — the closed issue IS
+# the parent, so no keyword parsing is needed. It also supports a manual
+# `workflow_dispatch` sweep that reconciles every closed parent at once, for
+# retroactive cleanup (e.g. parents closed before this automation existed).
+#
+# Sub-issues are identified by a `**Parent:** #<n>` line in their body, the
+# same convention the /feature skill writes and pr-merged.yml matches.
+
+on:
+  issues:
+    types: [closed]
+  workflow_dispatch:
+
+permissions:
+  issues: write
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      REPO: ${{ github.repository }}
+      EVENT_NAME: ${{ github.event_name }}
+      CLOSED_ISSUE: ${{ github.event.issue.number }}
+    steps:
+      - name: Close sub-issues of closed parent(s)
+        run: |
+          set -euo pipefail
+
+          # close_subs <parent-number>
+          # Closes every OPEN issue whose body carries "**Parent:** #<parent>",
+          # mirroring the parent's close reason (not-planned vs completed).
+          close_subs() {
+            parent="$1"
+            reason_raw=$(gh issue view "$parent" --repo "$REPO" --json stateReason --jq '.stateReason // ""')
+            case "$reason_raw" in
+              NOT_PLANNED) reason="not planned" ;;
+              *)           reason="completed" ;;
+            esac
+            gh issue list --repo "$REPO" --state open --limit 200 --json number,body \
+              --jq ".[] | select(.body | test(\"\\\\*\\\\*Parent:\\\\*\\\\* #${parent}\\\\b\")) | .number" |
+            while read -r sub; do
+              [ -n "$sub" ] || continue
+              echo "Closing sub-issue #${sub} (parent #${parent}, reason: ${reason})"
+              gh issue close "$sub" --repo "$REPO" --reason "$reason" \
+                --comment "Closed automatically: parent #${parent} is closed."
+            done
+          }
+
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            echo "Manual reconcile: scanning all open sub-issues for closed parents."
+            parents=$(gh issue list --repo "$REPO" --state open --limit 500 --json body --jq '.[].body' \
+              | grep -oiE '\*\*Parent:\*\* #[0-9]+' | grep -oE '[0-9]+' | sort -u || true)
+            if [ -z "$parents" ]; then
+              echo "No open sub-issues with a **Parent:** reference."
+              exit 0
+            fi
+            for p in $parents; do
+              state=$(gh issue view "$p" --repo "$REPO" --json state --jq '.state')
+              if [ "$state" = "CLOSED" ]; then
+                close_subs "$p"
+              else
+                echo "Parent #${p} still open — leaving its sub-issues."
+              fi
+            done
+          else
+            echo "Issue #${CLOSED_ISSUE} closed; reconciling its sub-issues."
+            close_subs "$CLOSED_ISSUE"
+          fi
