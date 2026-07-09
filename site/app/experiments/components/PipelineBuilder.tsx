@@ -209,12 +209,17 @@ export function PipelineBuilder() {
   }, [scale, motif, walkFullShape, direction]);
 
   const connectorsAndNextNotes: SeamData[] = useMemo(() => {
+    // Precompute one FrettedScale per chain entry so interior entries are not
+    // rebuilt twice (once as prevScale and once as nextScale at adjacent seams).
+    const scales = chain.map((entry) =>
+      rebuildScale(entry.recipe, TUNINGS[entry.recipe.tuningName] ?? STANDARD),
+    );
     const out: SeamData[] = [];
     for (let i = 1; i < chain.length; i++) {
       const prevEntry = chain[i - 1];
       const nextEntry = chain[i];
-      const prevScale = rebuildScale(prevEntry.recipe, TUNINGS[prevEntry.recipe.tuningName] ?? STANDARD);
-      const nextScale = rebuildScale(nextEntry.recipe, TUNINGS[nextEntry.recipe.tuningName] ?? STANDARD);
+      const prevScale = scales[i - 1];
+      const nextScale = scales[i];
       if (
         !prevScale ||
         !nextScale ||
