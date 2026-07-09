@@ -16,7 +16,7 @@
  *   - assertIdentification        — split by completeness (D-007)
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { get as getChord } from "@tonaljs/chord";
 import {
   chroma as noteChroma,
@@ -373,6 +373,26 @@ describe.each(SHAPES_UNDER_TEST)(
 // ============================================================
 
 describe("extended-chords: Tier 1 + Tier 2 + Tier 3 aggregate sanity", () => {
+  /**
+   * Reset the chord-shape registry to exactly the 30 extended-chord shapes
+   * before each run of this block. This makes count assertions
+   * (`.all().length` and per-tier `.query().length`) order- and
+   * isolation-independent: they produce the same result regardless of whether
+   * other data files have already registered shapes (e.g. under
+   * `isolate:false` or future config changes).
+   *
+   * The `afterAll` mirror restores the same clean state so the final
+   * cross-registry describe block that follows this one always begins with
+   * exactly the 30 extended shapes in the registry (dynamic imports in that
+   * block then add the remaining chord data files on top).
+   */
+  function resetToExtendedOnly(): void {
+    chordShapes.removeAll();
+    EXTENDED_CHORD_SHAPES.forEach(chordShapes.add.bind(chordShapes));
+  }
+  beforeAll(resetToExtendedOnly);
+  afterAll(resetToExtendedOnly);
+
   it("registers exactly the 30 Tier 1+2+3 shapes (15 types x E/A-form)", () => {
     expect(EXTENDED_CHORD_SHAPES.length).toBe(30);
     expect(chordShapes.all().length).toBe(30);
