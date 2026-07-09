@@ -30,7 +30,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsup src/index.ts --sourcemap --dts --format esm,cjs",
+    "build": "tsup src/index.ts --sourcemap --format esm,cjs && tsup src/index.ts --dts-only --format esm,cjs && node scripts/check-dts.mjs",
     "dev": "tsup src/index.ts --watch --sourcemap --dts --format esm,cjs",
     "test": "vitest run",
     "test:watch": "vitest",
