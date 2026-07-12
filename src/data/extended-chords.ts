@@ -48,13 +48,13 @@
  * ## Standard-tuning scope (D-008)
  *
  * These are **standard six-string** shapes — `strings`/`fingers` arrays are
- * six slots wide, matching `STANDARD` tuning. Alternate tunings and 7/8-string
- * tunings are best-effort only: `applyChordShape` maps a six-slot shape onto
- * the *lowest* six strings of a longer tuning, which is not where a
- * guitarist would actually place the grip on a 7/8-string instrument. This
- * is not guaranteed or tested for extended shapes here (see
- * `docs/PLAN.md` / CLAUDE.md "Remaining work" — 7/8-string rootString
- * auto-adjustment is tracked separately).
+ * six slots wide, matching `STANDARD` tuning. When applied to a 7/8-string
+ * tuning via `applyChordShape`, the build engine automatically shifts the
+ * shape onto the standard-equivalent high-side strings (e.g. strings 1–6 on
+ * a 7-string, strings 2–7 on an 8-string), leaving the added low string(s)
+ * muted (`null`). This mirrors exactly where a guitarist would place the grip
+ * on an extended-range instrument. See `src/build.ts` `stringOffset()` and
+ * the Task 2.5 tests in `src/index.test.ts`.
  *
  * ## Registration
  *

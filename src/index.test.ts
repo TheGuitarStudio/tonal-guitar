@@ -697,6 +697,142 @@ describe("buildFrettedScale — all 5 CAGED shapes for A major", () => {
 });
 
 // ============================================================
+// 6b. 7/8-string rootString auto-adjustment (Task 2.5 / Issue #62)
+// ============================================================
+
+describe("buildFrettedScale — 6-string shape on STANDARD_7 (7-string)", () => {
+  // CAGED_E on STANDARD has rootString:0 → shape strings map to tuning[0..5]
+  // CAGED_E on STANDARD_7 (7 strings) → strOffset=1 → shape maps to tuning[1..6]
+  // String index 0 (low B) must produce NO notes for a 6-string shape.
+  const scale7 = buildFrettedScale(CAGED_E, "A", STANDARD_7);
+  const scale6 = buildFrettedScale(CAGED_E, "A", STANDARD);
+
+  test("produces notes (not empty)", () => {
+    expect(scale7.empty).toBe(false);
+    expect(scale7.notes.length).toBeGreaterThan(0);
+  });
+
+  test("added low-B string (index 0) has no notes", () => {
+    const onString0 = scale7.notes.filter((n) => n.string === 0);
+    expect(onString0).toHaveLength(0);
+  });
+
+  test("notes are on strings 1-6 (the standard-equivalent strings)", () => {
+    const usedStrings = new Set(scale7.notes.map((n) => n.string));
+    expect(usedStrings.has(0)).toBe(false);
+    for (const s of [1, 2, 3, 4, 5, 6]) {
+      expect(usedStrings.has(s)).toBe(true);
+    }
+  });
+
+  test("note count equals the 6-string build", () => {
+    expect(scale7.notes.length).toBe(scale6.notes.length);
+  });
+
+  test("pitch classes are the same as the 6-string build", () => {
+    const pcs7 = [...new Set(scale7.notes.map((n) => n.pc))].sort();
+    const pcs6 = [...new Set(scale6.notes.map((n) => n.pc))].sort();
+    expect(pcs7).toEqual(pcs6);
+  });
+
+  test("frets on each shifted string match the 6-string build", () => {
+    // For each note on string s (6-string), the same fret should appear on
+    // string s+1 in the 7-string build.
+    for (const note6 of scale6.notes) {
+      const matching = scale7.notes.find(
+        (n) => n.string === note6.string + 1 && n.fret === note6.fret,
+      );
+      expect(matching).toBeDefined();
+    }
+  });
+
+  test("all notes are A major scale tones", () => {
+    const aMajor = ["A", "B", "C#", "D", "E", "F#", "G#"];
+    scale7.notes.forEach((n) => {
+      expect(aMajor).toContain(n.pc);
+    });
+  });
+
+  test("tuning stored on result is STANDARD_7", () => {
+    expect(scale7.tuning).toEqual(STANDARD_7);
+  });
+});
+
+describe("buildFrettedScale — 6-string shape on STANDARD_8 (8-string)", () => {
+  // strOffset = 8 - 6 = 2 → shape maps to tuning[2..7]
+  // Strings 0 (low F#) and 1 (low B) must produce NO notes.
+  const scale8 = buildFrettedScale(CAGED_E, "A", STANDARD_8);
+  const scale6 = buildFrettedScale(CAGED_E, "A", STANDARD);
+
+  test("produces notes (not empty)", () => {
+    expect(scale8.empty).toBe(false);
+    expect(scale8.notes.length).toBeGreaterThan(0);
+  });
+
+  test("added low strings (index 0 and 1) have no notes", () => {
+    const onLowStrings = scale8.notes.filter((n) => n.string <= 1);
+    expect(onLowStrings).toHaveLength(0);
+  });
+
+  test("notes are on strings 2-7 (the standard-equivalent strings)", () => {
+    const usedStrings = new Set(scale8.notes.map((n) => n.string));
+    expect(usedStrings.has(0)).toBe(false);
+    expect(usedStrings.has(1)).toBe(false);
+    for (const s of [2, 3, 4, 5, 6, 7]) {
+      expect(usedStrings.has(s)).toBe(true);
+    }
+  });
+
+  test("note count equals the 6-string build", () => {
+    expect(scale8.notes.length).toBe(scale6.notes.length);
+  });
+
+  test("frets on each shifted string match the 6-string build", () => {
+    for (const note6 of scale6.notes) {
+      const matching = scale8.notes.find(
+        (n) => n.string === note6.string + 2 && n.fret === note6.fret,
+      );
+      expect(matching).toBeDefined();
+    }
+  });
+
+  test("all notes are A major scale tones", () => {
+    const aMajor = ["A", "B", "C#", "D", "E", "F#", "G#"];
+    scale8.notes.forEach((n) => {
+      expect(aMajor).toContain(n.pc);
+    });
+  });
+});
+
+describe("applyChordShape — 6-string chord on STANDARD_7 (7-string)", () => {
+  // CAGED_CHORD_E (E Shape Major, rootString:0) on STANDARD_7
+  // Expected: frets[0] === null (low B unused), frets[1..6] == frets[0..5] on STANDARD
+  const result7 = applyChordShape(CAGED_CHORD_E, "A", STANDARD_7);
+  const result6 = applyChordShape(CAGED_CHORD_E, "A", STANDARD);
+
+  test("returns a 7-element frets array", () => {
+    expect(result7.frets).toHaveLength(7);
+  });
+
+  test("added low-B string (frets[0]) is null (muted)", () => {
+    expect(result7.frets[0]).toBeNull();
+  });
+
+  test("frets[1..6] match the 6-string result frets[0..5]", () => {
+    for (let i = 0; i < 6; i++) {
+      expect(result7.frets[i + 1]).toBe(result6.frets[i]);
+    }
+  });
+
+  test("pitch classes contain A, C#, E", () => {
+    const pcs = result7.positions.map((p) => p.pc);
+    expect(pcs).toContain("A");
+    expect(pcs).toContain("C#");
+    expect(pcs).toContain("E");
+  });
+});
+
+// ============================================================
 // 7. 3NPS patterns
 // ============================================================
 

@@ -213,13 +213,15 @@ const myShapes = { ...Guitar.caged, E: { ...Guitar.caged.E, strings: [...] } };
 buildFrettedScale(myShapes.E, "A");
 ```
 
-**Task 2.5 — 7/8-string support** (FIX #9)
+**Task 2.5 — 7/8-string support** (FIX #9) ✅ COMPLETE
 
-Adapt `rootString` to tuning length:
-```typescript
-const adjustedRootString = shape.rootString + (tuning.length - shape.strings.length);
-```
-Pad `shape.strings` with `null` for extra low strings.
+Implemented via `stringOffset()` in `src/build.ts`. When `tuning.length > shape.strings.length`,
+all shape string indices are shifted by `tuning.length - shape.strings.length` so the shape maps
+onto the standard-equivalent high-side strings (e.g. strings 1–6 on a 7-string tuning, strings 2–7
+on an 8-string tuning). Applied consistently across `findShapeAnchorFret`, `shapeFitsAtAnchor`,
+and `buildFrettedScale`. `applyChordShape` inherits the fix via delegation to `buildFrettedScale`.
+When `tuning.length < shape.strings.length`, the existing loop guard truncates extra shape strings
+(deliberate behavior, no change). Tests in `src/index.test.ts` — see Task 2.5 describe blocks.
 
 **Task 2.6 — Tests for Epic 2**
 
