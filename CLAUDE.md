@@ -4,7 +4,7 @@
 
 tonal-guitar is a standalone TypeScript library for guitar fretboard math, shapes, patterns, and sequences. It uses [Tonal.js](https://github.com/tonaljs/tonal) primitives as peer dependencies for note/interval operations, with optional deeper integration for scale/chord/key analysis.
 
-**Status:** v0.1.0 — core implementation complete, 815 tests passing across 9 test files. Needs README and documentation before publishing.
+**Status:** v0.1.0 — published to npm ([tonal-guitar](https://www.npmjs.com/package/tonal-guitar)). 845 tests passing across 9 test files.
 
 ## Commands
 
@@ -16,6 +16,7 @@ tonal-guitar is a standalone TypeScript library for guitar fretboard math, shape
 | `npm run test:coverage` | Tests with coverage |
 | `npm run lint` | ESLint check |
 | `npm run format` | Prettier format |
+| `npm run release` | Publish to npm (sources .env for NPM_TOKEN; see .env.example) |
 
 ### Running a single test
 
@@ -30,28 +31,28 @@ npx vitest run src/index.test.ts -t "test name"
 ```
 src/
 ├── index.ts                  # Public API re-exports + data registration side-effects
-├── index.test.ts             # 272 tests
+├── index.test.ts             # Core API tests
 ├── tuning.ts                 # Tuning constants (STANDARD, DROP_D, etc.)
 ├── fretboard.ts              # Core fretboard math (noteAt, fretFor, findNote, fretboard)
 ├── shape.ts                  # Types (FrettedNote, ScaleShape, etc.) + registries
-├── shape.test.ts             # 8 tests (VoicingFamily, VoicingPatternDictionary, chordShapes.query)
+├── shape.test.ts             # VoicingFamily, VoicingPatternDictionary, chordShapes.query tests
 ├── build.ts                  # buildFrettedScale, applyChordShape
 ├── walker.ts                 # Bidirectional pattern walker
 ├── pattern.ts                # Pattern generators (intervals, groupings)
 ├── sequence.ts                # Sequence engine (incremental, bounded)
 ├── notation.ts                # parseChordFrets, formatChordFrets, parseScalePattern
 ├── arpeggio.ts                # Arpeggio extraction/scoring from scales & shapes
-├── arpeggio.test.ts           # 63 tests
+├── arpeggio.test.ts           # Arpeggio tests
 ├── connect.ts                 # Shape connector — bridges adjacent CAGED/compatible shapes
-├── connect.test.ts            # 65 tests
-├── connect.examples.test.ts   # 15 example-driven connector tests
+├── connect.test.ts            # Connector tests
+├── connect.examples.test.ts   # Example-driven connector tests
 ├── integration.ts             # Tonal Scale/Chord/Key integration (optional deps)
-├── integration.test.ts        # 90 tests
+├── integration.test.ts        # Integration tests
 ├── output/
 │   ├── alphatex.ts            # AlphaTeX formatter (with rhythm support)
 │   ├── ascii-tab.ts           # ASCII tab formatter
 │   ├── util.ts                # Shared grouped-note normalization helper
-│   ├── output.test.ts         # 23 tests
+│   ├── output.test.ts         # Formatter tests
 │   └── index.ts               # Re-exports
 └── data/
     ├── caged-scales.ts        # 5 CAGED major scale shapes
@@ -63,8 +64,8 @@ src/
     ├── three-nps.ts           # 7 three-notes-per-string patterns
     ├── pentatonic.ts          # 5 pentatonic boxes
     ├── sequences.ts           # Named sequence constants
-    ├── data.test.ts           # 70 tests (build-equivalence: 7th/open/jazz shapes)
-    └── extended-chords.test.ts # 209 tests
+    ├── data.test.ts           # Build-equivalence tests (7th/open/jazz shapes)
+    └── extended-chords.test.ts # Extended chord shape tests
 ```
 
 ### Dependency layers
@@ -124,8 +125,7 @@ index.ts             ← re-exports everything
 - [x] README.md with API documentation and examples
 - [x] API docs pages (docs/api/ — 7 markdown files)
 - [x] Interactive experiments page (site/ — Guitar Lab)
-- [ ] Deploy site to GitHub Pages
-- [ ] Site deploy failing since fretboard-ui landed — tracked in #51, fix in PR #52 (preserveSymlinks)
+- [x] Deploy site to GitHub Pages
 - [x] Task 2.5: 7/8-string rootString auto-adjustment logic
 - [ ] ASCII tab column alignment for multi-digit frets (QUESTIONS.md Q2)
-- [ ] Consider `analyzeInKey` chord name normalization (QUESTIONS.md Q3)
+- [x] Consider `analyzeInKey` chord name normalization (QUESTIONS.md Q3)

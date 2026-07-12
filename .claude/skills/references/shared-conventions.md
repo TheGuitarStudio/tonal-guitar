@@ -33,8 +33,8 @@ Used by `/task` and `/fix` to determine how much ceremony a task needs.
 When reading the issue/description, look for scope signals:
 
 - **S signals:** "typo", "rename", single component/file mentioned, "add X to Y"
-- **M signals:** "refactor", multiple components mentioned, "update the flow", cross-package
-- **L signals:** "redesign", "new system", "add auth", touches 3+ packages, major dependency upgrades
+- **M signals:** "refactor", multiple components mentioned, "update the flow", spans two areas (e.g., library `src/` + `site/`)
+- **L signals:** "redesign", "new system", "add auth", touches all three areas (library `src/`, `site/`, `packages/fretboard-ui`), major dependency upgrades
 
 ---
 
@@ -120,9 +120,9 @@ Closes #{issueNumber}
 
 ## Verification
 
-- [ ] `turbo run lint --filter=<pkg>` passes
-- [ ] `turbo run typecheck --filter=<pkg>` passes
-- [ ] `turbo run test --filter=<pkg>` passes
+- [ ] `npm run lint` passes
+- [ ] `npm test` passes
+- [ ] `npx tsc --noEmit` in `site/` passes (only if site files changed)
 - [Additional verification specific to the change]
 
 ## Confidence
@@ -134,11 +134,19 @@ Closes #{issueNumber}
 
 ## Verification Checklist
 
-Before shipping (commit + push + PR), always run:
+Before shipping (commit + push + PR), always run at the repo root:
 
 ```bash
-turbo run lint typecheck test --filter=<affected packages>
+npm run lint && npm test
 ```
+
+If files under `site/` changed, also run (from `site/`):
+
+```bash
+npx tsc --noEmit
+```
+
+There is no root `typecheck` script — `npm run build` (tsup + dts) covers type emission, and `site/` has no test script.
 
 If any check fails:
 
@@ -155,6 +163,15 @@ If any check fails:
 - Commit after each logical unit of work
 - Push the branch after committing
 - Create the PR after pushing
+
+---
+
+## Release Conventions
+
+- Publish with `npm run release` — it sources the gitignored `.env` (`NPM_TOKEN`, a granular npm publish token; stub committed as `.env.example`). The gitignored `.npmrc` maps `//registry.npmjs.org/:_authToken=${NPM_TOKEN}`. `prepublishOnly` runs the build.
+- The git tag `vX.Y.Z` MUST point at the exact commit the npm tarball was built from.
+- Every published version gets a corresponding GitHub release.
+- Version bumps land via PR before publishing — never bump directly on main.
 
 ---
 

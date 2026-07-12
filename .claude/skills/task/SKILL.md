@@ -118,12 +118,12 @@ Follow the resume detection procedure from [references/conventions.md](reference
 3. Explore relevant code:
    - Grep for key terms across the codebase
    - Read files mentioned in the issue or likely affected
-   - Identify which packages are involved
+   - Identify which areas are involved (library `src/`, `site/`, `packages/fretboard-ui`)
 4. **Document investigation findings** (used for TASK.md in M/L):
    - List of files that need changes with brief description of each change
    - Approach chosen and rationale
    - Any risks or open questions
-   - Packages affected
+   - Areas affected (library `src/`, `site/`, `packages/fretboard-ui`)
 5. Assess scope per [shared conventions](../references/shared-conventions.md#scope-assessment):
    - **S (1-3 files):** Proceed to Step 5-S (immediate execution)
    - **M (4-8 files):** Proceed to Step 4 (Gate with persistence)
@@ -216,7 +216,7 @@ gh project item-edit --project-id {projectId} --id {itemId} \
 **For M-sized tasks:**
 
 ```
-Scope: M (~{N} files across {packages})
+Scope: M (~{N} files across {areas})
 
 Plan:
 1. {change description}
@@ -233,7 +233,7 @@ Wait for user approval before continuing to Step 6.
 **For L-sized tasks:**
 
 ```
-Scope: L (~{N} files across {packages})
+Scope: L (~{N} files across {areas})
 
 Plan saved to .tonal-guitar/tasks/{slug}/TASK.md
 Task breakdown saved to .tonal-guitar/tasks/{slug}/tasks.md
@@ -296,8 +296,10 @@ If the session is interrupted at any point, the TASK.md captures the current sta
 Run verification per [shared conventions](../references/shared-conventions.md#verification-checklist):
 
 ```bash
-turbo run lint typecheck test --filter=<affected packages>
+npm run lint && npm test
 ```
+
+If files under `site/` changed, also run `npx tsc --noEmit` from `site/`.
 
 If checks fail, attempt to fix. If still failing, note in PR description.
 
