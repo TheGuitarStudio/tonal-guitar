@@ -47,9 +47,11 @@ const dShapeA = buildFrettedScale(CAGED_D, "A", STANDARD);
 const gShapeA = buildFrettedScale(CAGED_G, "A", STANDARD);
 
 describe("Task Group 1: Module Scaffolding", () => {
-  test("connectSequences is importable from src/connect.ts without throwing at import time", () => {
-    // Verify the import resolved to a function value
+  test("connectSequences is importable from both src/connect.ts and src/index.ts and refers to the same function", () => {
+    // Verify the import resolved to a function value from both entry points
     expect(typeof connectSequences).toBe("function");
+    expect(typeof connectSequencesFromIndex).toBe("function");
+    expect(connectSequencesFromIndex).toBe(connectSequences);
   });
 
   test("all five types compile when imported from src/connect.ts", () => {
@@ -78,12 +80,6 @@ describe("Task Group 1: Module Scaffolding", () => {
     expect(_strategy).toBe("none");
     expect(_opts.strategy).toBe("auto");
     expect(_result.strategy).toBe("none");
-  });
-
-  test("connectSequences is re-exported from src/index.ts", () => {
-    expect(typeof connectSequencesFromIndex).toBe("function");
-    // Verify they are the same function reference
-    expect(connectSequencesFromIndex).toBe(connectSequences);
   });
 
   test("all five types are re-exported from src/index.ts", () => {
@@ -289,80 +285,53 @@ describe("Task Group 3: Extend Strategy", () => {
   };
 
   // ---------------------------------------------------------------
-  // Scenario 1 tests
+  // Scenario 1: E asc → D desc (next higher → extend)
+  // Fingerprint: strategy, connector size, first note, last note, dedup
   // ---------------------------------------------------------------
 
-  test("Scenario 1: strategy === extend (E asc → D desc, next higher)", () => {
+  test("Scenario 1 fingerprint: strategy=extend, connector=[A4,C#5,B4,D5], nextNotes dedup", () => {
     const result = buildExtend(inputS1, true, motif);
     expect(result.strategy).toBe("extend");
-  });
-
-  test("Scenario 1: connector note names are [A4, C#5, B4, D5]", () => {
-    const result = buildExtend(inputS1, true, motif);
-    expect(result.connector.map((n) => n.note)).toEqual([
-      "A4",
-      "C#5",
-      "B4",
-      "D5",
-    ]);
-  });
-
-  test("Scenario 1: connector fret positions are [[5,5], [5,9], [5,7], [5,10]]", () => {
-    const result = buildExtend(inputS1, true, motif);
-    // sameStringCombined dedups by midi within prev.lastNote.string only.
-    // E shape has A4 at [s5,f5] (high E); D shape has A4 at [s4,f10]
-    // (B string). Both are A4 midi 69, but the same-string pool only
-    // accepts s5 positions, so [s5,f5] wins and the motif walk stays on
-    // the high E string through the seam.
+    // connector: 4 notes (2 thirds-pairs), first=A4, last=D5
+    // sameStringCombined dedups by midi within prev.lastNote.string only —
+    // E shape A4 at [s5,f5] wins over D shape A4 at [s4,f10] (different string).
+    expect(result.connector.length).toBe(4);
+    expect(result.connector[0].note).toBe("A4");
+    expect(result.connector[result.connector.length - 1].note).toBe("D5");
     expect(result.connector.map((n) => [n.string, n.fret])).toEqual([
       [5, 5],
       [5, 9],
       [5, 7],
       [5, 10],
     ]);
-  });
-
-  test("Scenario 1: dedupSeam true — nextNotes[0] is not D5 and nextNotes is non-empty", () => {
-    const result = buildExtend(inputS1, true, motif);
+    // dedupSeam=true drops D5 from nextNotes head; dedupSeam=false keeps it
     expect(result.nextNotes.length).toBeGreaterThan(0);
     expect(result.nextNotes[0].note).not.toBe("D5");
-  });
-
-  test("Scenario 1: dedupSeam false — nextNotes[0] IS D5 (head kept)", () => {
-    const result = buildExtend(inputS1, false, motif);
-    expect(result.nextNotes[0].note).toBe("D5");
+    expect(buildExtend(inputS1, false, motif).nextNotes[0].note).toBe("D5");
   });
 
   // ---------------------------------------------------------------
-  // Scenario 4 tests
+  // Scenario 4: E desc → G asc (next lower → extend)
+  // Fingerprint: strategy, connector size, first note, last note, dedup
   // ---------------------------------------------------------------
 
-  test("Scenario 4: strategy === extend (E desc → G asc, next lower)", () => {
+  test("Scenario 4 fingerprint: strategy=extend, connector=[A2,F#2] at [[0,5],[0,2]], nextNotes dedup", () => {
     const result = buildExtend(inputS4, true, motif);
     expect(result.strategy).toBe("extend");
-  });
-
-  test("Scenario 4: connector note names are [A2, F#2] at [[0,5], [0,2]]", () => {
-    const result = buildExtend(inputS4, true, motif);
-    expect(result.connector.map((n) => n.note)).toEqual(["A2", "F#2"]);
-    // A2 occurs at both [0,5] (low E + 5) and [1,0] (A string open).
-    // Combined dedup keeps both (different keys); descending sort by midi
-    // is stable and the E shape's [0,5] is iterated first.
+    // connector: 2 notes (1 thirds-pair), first=A2, last=F#2
+    // A2 occurs at [0,5] (low E) and [1,0] (A string open) — same-string
+    // pool keeps only [0,5] so bridge stays on low E string.
+    expect(result.connector.length).toBe(2);
+    expect(result.connector[0].note).toBe("A2");
+    expect(result.connector[result.connector.length - 1].note).toBe("F#2");
     expect(result.connector.map((n) => [n.string, n.fret])).toEqual([
       [0, 5],
       [0, 2],
     ]);
-  });
-
-  test("Scenario 4: dedupSeam true — nextNotes[0] is not F#2 and nextNotes is non-empty", () => {
-    const result = buildExtend(inputS4, true, motif);
+    // dedupSeam=true drops F#2 from nextNotes head; dedupSeam=false keeps it
     expect(result.nextNotes.length).toBeGreaterThan(0);
     expect(result.nextNotes[0].note).not.toBe("F#2");
-  });
-
-  test("Scenario 4: dedupSeam false — nextNotes[0] IS F#2 (head kept)", () => {
-    const result = buildExtend(inputS4, false, motif);
-    expect(result.nextNotes[0].note).toBe("F#2");
+    expect(buildExtend(inputS4, false, motif).nextNotes[0].note).toBe("F#2");
   });
 
   // ---------------------------------------------------------------
@@ -866,16 +835,15 @@ describe("Task Group 6: Gap Fills (spec §6.2 scenario fingerprints, §6.3 dedup
   // ---------------------------------------------------------------
   // GAP §6.2: Scenario 7 end-to-end via connectSequences public API
   // (previous Scenario 7 tests only called buildReachBack directly)
+  // Uses module-scope eShapeA for both prev and next (identical shapes).
   // ---------------------------------------------------------------
 
-  const eShapeA_tg6 = buildFrettedScale(CAGED_E, "A", STANDARD);
-  const eShapeA2_tg6 = buildFrettedScale(CAGED_E, "A", STANDARD);
-  const prevAscWalk_tg6 = walkShapeMotif(eShapeA_tg6, motif, { direction: "ascending" });
-  const prevLastNote_tg6 = prevAscWalk_tg6[prevAscWalk_tg6.length - 1]; // B4 (s5f7)
+  const prevAscWalkTg6 = walkShapeMotif(eShapeA, motif, { direction: "ascending" });
+  const prevLastNoteTg6 = prevAscWalkTg6[prevAscWalkTg6.length - 1]; // B4 (s5f7)
 
   const inputS7_tg6: ConnectSequencesInput = {
-    prev: { scale: eShapeA_tg6, lastNote: prevLastNote_tg6, direction: "ascending" },
-    next: { scale: eShapeA2_tg6, motif, direction: "descending" },
+    prev: { scale: eShapeA, lastNote: prevLastNoteTg6, direction: "ascending" },
+    next: { scale: eShapeA, motif, direction: "descending" },
   };
 
   test("Scenario 7 end-to-end (connectSequences): strategy reach-back, connector + nextNotes both non-empty", () => {
@@ -890,36 +858,36 @@ describe("Task Group 6: Gap Fills (spec §6.2 scenario fingerprints, §6.3 dedup
   // ---------------------------------------------------------------
   // GAP §6.4: Direction invariant — asc extend connector ends at/below target,
   // desc extend connector ends at/above target (positional sanity check)
+  // Uses module-scope eShapeA and dShapeA fixtures.
   // ---------------------------------------------------------------
 
   test("Asc extend connector: last connector note midi equals next-scale's max midi (target reached)", () => {
     // Scenario 1: E asc → D desc, target = D5 (midi 74)
-    const dShapeA_tg6 = buildFrettedScale(CAGED_D, "A", STANDARD);
     const inputS1_tg6: ConnectSequencesInput = {
-      prev: { scale: eShapeA_tg6, lastNote: prevLastNote_tg6, direction: "ascending" },
-      next: { scale: dShapeA_tg6, motif, direction: "descending" },
+      prev: { scale: eShapeA, lastNote: prevLastNoteTg6, direction: "ascending" },
+      next: { scale: dShapeA, motif, direction: "descending" },
     };
     const result = connectSequences(inputS1_tg6);
     expect(result.strategy).toBe("extend");
     // The connector's last note should be the target (max midi of D shape = D5 = midi 74)
-    const target = Math.max(...dShapeA_tg6.notes.map((n) => n.midi));
+    const target = Math.max(...dShapeA.notes.map((n) => n.midi));
+    expect(result.connector.length).toBeGreaterThan(0);
     expect(result.connector[result.connector.length - 1].midi).toBe(target);
   });
 
   // ---------------------------------------------------------------
   // GAP §6.2: Scenario 3 nextNotes[0] head position confirmed via strategy field
   // in the full connectSequences call (exercises public API path)
+  // Uses module-scope eShapeA and dShapeA fixtures.
   // ---------------------------------------------------------------
 
   test("Scenario 3 end-to-end (connectSequences): strategy reach-back, connector [], seam respected", () => {
-    const eShapeA_s3 = buildFrettedScale(CAGED_E, "A", STANDARD);
-    const dShapeA_s3 = buildFrettedScale(CAGED_D, "A", STANDARD);
-    const prevDescWalk = walkShapeMotif(eShapeA_s3, motif, { direction: "descending" });
+    const prevDescWalk = walkShapeMotif(eShapeA, motif, { direction: "descending" });
     const prevLastNote = prevDescWalk[prevDescWalk.length - 1]; // G#2 (s0f4)
 
     const inputS3_tg6: ConnectSequencesInput = {
-      prev: { scale: eShapeA_s3, lastNote: prevLastNote, direction: "descending" },
-      next: { scale: dShapeA_s3, motif, direction: "ascending" },
+      prev: { scale: eShapeA, lastNote: prevLastNote, direction: "descending" },
+      next: { scale: dShapeA, motif, direction: "ascending" },
     };
 
     const result = connectSequences(inputS3_tg6);

@@ -96,13 +96,19 @@ export function nextSide(
     return "same";
   }
 
-  const prevMidis = prevScale.notes.map((n) => n.midi);
-  const nextMidis = nextScale.notes.map((n) => n.midi);
+  let prevTop = -Infinity;
+  let prevBottom = Infinity;
+  for (const n of prevScale.notes) {
+    if (n.midi > prevTop) prevTop = n.midi;
+    if (n.midi < prevBottom) prevBottom = n.midi;
+  }
 
-  const prevTop = prevMidis.reduce((a, b) => (b > a ? b : a));
-  const prevBottom = prevMidis.reduce((a, b) => (b < a ? b : a));
-  const nextTop = nextMidis.reduce((a, b) => (b > a ? b : a));
-  const nextBottom = nextMidis.reduce((a, b) => (b < a ? b : a));
+  let nextTop = -Infinity;
+  let nextBottom = Infinity;
+  for (const n of nextScale.notes) {
+    if (n.midi > nextTop) nextTop = n.midi;
+    if (n.midi < nextBottom) nextBottom = n.midi;
+  }
 
   if (nextTop > prevTop && nextBottom > prevBottom) return "higher";
   if (nextTop < prevTop && nextBottom < prevBottom) return "lower";
