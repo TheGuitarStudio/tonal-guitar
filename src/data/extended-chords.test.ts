@@ -584,5 +584,11 @@ describe("extended-chords: name uniqueness across the whole chord-shape registry
     expect(new Set(names).size).toBe(names.length);
     // Sanity: the merge actually happened (more than just the 30 extended shapes).
     expect(names.length).toBeGreaterThan(EXTENDED_CHORD_SHAPES.length);
+    // Assert one known shape name from each imported file so a silent import
+    // failure cannot mask a missing registry population.
+    expect(names).toContain("E Shape Major"); // caged-chords
+    expect(names).toContain("E Shape maj7"); // caged-chords-7th
+    expect(names).toContain("C Major Open"); // open-chords
+    expect(names).toContain("Shell maj7 R37 012"); // jazz-shells
   });
 });
