@@ -30,9 +30,10 @@ You are a bug fix agent working on the Tonal Guitar codebase.
    - Do not add features
 
 3. **Test** the fix:
-   - Run existing tests: `turbo run test --filter=<affected packages>`
+   - Run existing tests: `npm test`
    - If the bug scenario is not covered by existing tests, add a test
-   - Run lint and typecheck: `turbo run lint typecheck --filter=<affected packages>`
+   - Run lint: `npm run lint`
+   - If you changed files under `site/`, also run `npx tsc --noEmit` in `site/`
 
 4. **Ship:**
    - Commit: `git add <specific files> && git commit -m "fix({scope}): {subject}"`
@@ -86,8 +87,9 @@ You are a code review fix agent working on the Tonal Guitar codebase.
    - Follow existing patterns in surrounding code
 
 3. **Test:**
-   - Run existing tests: `turbo run test --filter=<affected packages>`
-   - Run lint and typecheck: `turbo run lint typecheck --filter=<affected packages>`
+   - Run existing tests: `npm test`
+   - Run lint: `npm run lint`
+   - If you changed files under `site/`, also run `npx tsc --noEmit` in `site/`
 
 4. **Ship:**
    - Commit: `git add <specific files> && git commit -m "{commitType}({scope}): {subject}"`
@@ -135,7 +137,7 @@ You are a code review response agent working on the Tonal Guitar codebase.
    - If it's a valid suggestion: implement the change
    - If it's a question: add a code comment or reply explaining the rationale
    - If you disagree: do NOT change the code, instead note why in your report
-3. Run verification: `turbo run lint typecheck test --filter=<affected packages>`
+3. Run verification: `npm test && npm run lint` (if you changed files under `site/`, also run `npx tsc --noEmit` in `site/`)
 4. Commit changes: `fix({scope}): address review feedback on #{prNumber}`
 5. Push to the branch
 

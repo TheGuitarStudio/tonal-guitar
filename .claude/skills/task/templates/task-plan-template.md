@@ -25,7 +25,7 @@ Total Tasks: {N} Task Groups
   - File: `{file path}`
   - {Implementation detail}
 - [ ] 1.2 {Subtask description}
-- [ ] 1.3 Verify: `turbo run lint typecheck --filter=<pkg>`
+- [ ] 1.3 Verify: `npm run lint && npm test` (root); `npx tsc --noEmit` in `site/` if site files changed
 
 **Acceptance Criteria:**
 
@@ -40,7 +40,7 @@ Total Tasks: {N} Task Groups
 
 - [ ] 2.1 {Subtask description}
 - [ ] 2.2 {Subtask description}
-- [ ] 2.3 Verify: `turbo run lint typecheck --filter=<pkg>`
+- [ ] 2.3 Verify: `npm run lint && npm test` (root); `npx tsc --noEmit` in `site/` if site files changed
 
 **Acceptance Criteria:**
 

@@ -1,7 +1,7 @@
 ---
 name: fix
 description: Bug and code-review issue investigation and fix workflow with batch dispatch and review loop. Use this skill when fixing bugs from GitHub issues, dispatching parallel agents to fix multiple bugs or code-review issues, or processing review feedback on fix PRs.
-argument-hint: '<description> | #<id> | --all [--cr] | --cr #<id> | --review [--cr] | --update #<pr> | --status [--cr]'
+argument-hint: '<description> | #<id> | #<id> #<id> ... | --all [--cr] | --cr #<id> | --review [--cr] | --update #<pr> | --status [--cr]'
 ---
 
 # Bug Fix Pipeline
@@ -28,6 +28,7 @@ and a review feedback loop for processing PR comments.
 | Flag             | Description                                                       |
 | ---------------- | ----------------------------------------------------------------- |
 | `#<id>`          | Fix a single bug from a GitHub issue                              |
+| `#<id> #<id> ...` | Batch-list: fix exactly the given issues (skips the label query); text after the ids is passed to agents as pre-vetted context |
 | `<description>`  | Fix a bug from an ad hoc description                              |
 | `--all`          | Batch: pull all bug issues, dispatch parallel agents              |
 | `--all --cr`     | Batch: pull all code-review issues, dispatch parallel agents      |
@@ -50,6 +51,7 @@ See [../references/shared-conventions.md](../references/shared-conventions.md).
 ### Step 1: Parse Arguments
 
 - **`#<id>`** → `mode = "single"`, `issueId = <id>`, `label = "bug"`
+- **`#<id> #<id> ...`** (two or more ids) → `mode = "batch-list"`, `issueIds = [<id>, ...]`; any text after the ids is `context`
 - **`<description>`** → `mode = "adhoc"`, `label = "bug"`
 - **`--all`** → `mode = "batch"`, `label = "bug"`
 - **`--all --cr`** → `mode = "batch"`, `label = "code-review"`
@@ -131,13 +133,14 @@ See [../references/shared-conventions.md](../references/shared-conventions.md).
 1. Apply the fix — minimal change addressing root cause.
 2. Run existing tests:
    ```bash
-   turbo run test --filter=<affected packages>
+   npm test
    ```
 3. If the bug scenario is NOT covered by existing tests, add a test.
 4. Run full verification:
    ```bash
-   turbo run lint typecheck test --filter=<affected packages>
+   npm test && npm run lint
    ```
+   For changes under `site/`, additionally verify with `npx tsc --noEmit` run in `site/` (there is no test script there, and no root typecheck script — the build runs tsup + dts).
 
 #### Step 5: Ship
 
@@ -204,14 +207,11 @@ See [../references/shared-conventions.md](../references/shared-conventions.md).
 
 For each selected issue (max **5 concurrent**, queue the rest):
 
-1. Create worktree:
+1. Create worktree (do NOT launch claude in the pane — the dispatched background agent does the work; a pane agent would race it):
 
    ```bash
    REPO=$(git worktree list --porcelain | head -1 | sed 's/^worktree //')  # main checkout — herdr rejects linked worktrees
-   PANE=$(herdr worktree create --cwd "$REPO" --branch {prefix}/{slug} --base origin/main --no-focus --json \
-     | python3 -c 'import sys,json;print(json.load(sys.stdin)["result"]["root_pane"]["pane_id"])')
-   herdr pane run "$PANE" "claude" && herdr wait output "$PANE" --match ">" --timeout 20000
-   herdr pane run "$PANE" "Investigate and fix the issue described in the branch name."
+   herdr worktree create --cwd "$REPO" --branch {prefix}/{slug} --base origin/main --no-focus --json
    ```
 
 2. Read [references/agent-prompts.md](references/agent-prompts.md) for the appropriate agent prompt:
@@ -243,6 +243,12 @@ Update GitHub Project items accordingly:
 
 - Fixed/Uncertain → "In Review" status
 - Too complex → remains at current status
+
+---
+
+### Batch List (`mode = "batch-list"` / `#<id> #<id> ...`)
+
+Behaves like Batch Dispatch, but skips the label query in Step 2: fetch each given issue directly with `gh issue view {id} --json number,title,body,labels`, run the same in-progress filtering and type detection, then proceed with Batch Dispatch Steps 3–4 unchanged (max 5 concurrent). Any text passed after the ids is pre-vetted context — since the user has already vetted the selection, skip the confirmation prompt and include that context verbatim in each dispatched agent's prompt.
 
 ---
 

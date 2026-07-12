@@ -57,7 +57,8 @@ Fix each finding listed above. For each fix:
 4. Do NOT modify files outside the {domain} domain
 
 After all fixes, verify with:
-turbo run lint --affected && turbo run typecheck --affected
+npm run lint && npm test
+If files under site/ changed, also run npx tsc --noEmit from site/.
 ```
 
 ---
@@ -67,7 +68,7 @@ turbo run lint --affected && turbo run typecheck --affected
 | Placeholder     | Source                                                                                |
 | --------------- | ------------------------------------------------------------------------------------- |
 | `{BRANCH_NAME}` | `git rev-parse --abbrev-ref HEAD`                                                     |
-| `{package}`     | The package path being reviewed (e.g., `apps/web`)                                    |
+| `{package}`     | The area path being reviewed (`src`, `site`, or `packages/fretboard-ui`)              |
 | `{domain}`      | The domain grouping (frontend, backend, audio, shared)                                |
 | `{review-type}` | The review focus (architecture, simplification, security, type-safety, accessibility) |
 | `{severity}`    | Critical, Important, or Suggestion                                                    |

@@ -9,6 +9,12 @@ argument-hint: '[--from <id> | --resume | --research | --shape | --plan | --revi
 Multi-phase feature specification pipeline: **Research → Shape → Plan**. Uses multi-agent teams
 for research and planning, interactive sessions for shaping.
 
+**When NOT to use this pipeline:** A milestone composed of pre-vetted XS–S issues with known
+fixes is better served by lightweight batch dispatch (`/fix #a #b #c`) than the full
+Research→Shape→Plan pipeline. Reserve `/feature` for work that needs design/spec —
+requirements discovery, architecture decisions, or task decomposition. Precedent: the
+v0.1.0-Publish milestone (2026-07-12) shipped via batch `/fix` dispatch, not `/feature`.
+
 ## Supporting Files
 
 - For agent prompt templates, see [references/agent-prompts.md](references/agent-prompts.md)
@@ -378,7 +384,7 @@ See [External Review Integration](#external-review-integration) below.
    gh issue create --title "[{Feature Name}] Task Group {N}: {Group Name}" --body "{body}" --label "task-group"
    ```
 
-   **Critical:** Each sub-issue body MUST include `**Parent:** #{parent_issue_number}` on its own line. The `pr-merged.yml` workflow uses this reference to automatically close sub-issues when the parent PR merges. Use the exact `{Feature Name}` from the parent issue title for the `[{Feature Name}]` prefix in sub-issue titles.
+   **Critical:** Each sub-issue body MUST include `**Parent:** #{parent_issue_number}` on its own line. The `pr-merged.yml` workflow uses this reference to automatically close sub-issues when the parent PR merges. As a backstop, `reconcile-subissues.yml` (added in PR #59) fires on ANY parent-issue close (the `issues:closed` event) and on manual `workflow_dispatch`, closing open `**Parent:** #N` sub-issues even when the closing path bypassed `pr-merged.yml`. Use the exact `{Feature Name}` from the parent issue title for the `[{Feature Name}]` prefix in sub-issue titles.
 
 10. Commit:
 
