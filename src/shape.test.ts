@@ -1,12 +1,17 @@
 /**
  * Tests for Task Group 1: VoicingFamily, VoicingPatternDictionary, and chordShapes.query
+ * Also covers CR-038: registry hostile-key safety (Map-backed indices).
  */
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, afterEach } from "vitest";
 import {
   chordShapes,
+  get as getScale,
+  add as addScale,
+  removeAll as removeAllScales,
   type VoicingFamily,
   type VoicingPatternDictionary,
   type ChordShape,
+  type ScaleShape,
 } from "./index";
 
 describe("VoicingFamily and VoicingPatternDictionary — import smoke", () => {
@@ -162,5 +167,82 @@ describe("chordShapes.query", () => {
     };
     expect(minimalShape.chordType).toBeUndefined();
     expect(minimalShape.voicingFamily).toBeUndefined();
+  });
+});
+
+// ============================================================
+// CR-038: Registry hostile-key safety (Map-backed indices)
+// ============================================================
+
+describe("Scale shape registry — hostile key safety (CR-038)", () => {
+  const hostileNames = ["__proto__", "constructor", "hasOwnProperty", "toString"];
+
+  afterEach(() => {
+    removeAllScales();
+  });
+
+  for (const hostileName of hostileNames) {
+    it(`add/get round-trips correctly for hostile name "${hostileName}"`, () => {
+      const shape: ScaleShape = {
+        name: hostileName,
+        system: "custom",
+        strings: [["1P"]],
+        rootString: 0,
+      };
+      addScale(shape);
+      const retrieved = getScale(hostileName);
+      expect(retrieved).toBeDefined();
+      expect(retrieved?.name).toBe(hostileName);
+    });
+  }
+
+  it("normal names still work alongside hostile names", () => {
+    const hostile: ScaleShape = {
+      name: "__proto__",
+      system: "custom",
+      strings: [["1P"]],
+      rootString: 0,
+    };
+    const normal: ScaleShape = {
+      name: "test-normal-shape",
+      system: "custom",
+      strings: [["1P"]],
+      rootString: 0,
+    };
+    addScale(hostile);
+    addScale(normal);
+    expect(getScale("__proto__")?.name).toBe("__proto__");
+    expect(getScale("test-normal-shape")?.name).toBe("test-normal-shape");
+  });
+});
+
+describe("Chord shape registry — hostile key safety (CR-038)", () => {
+  const makeChord = (name: string): ChordShape => ({
+    name,
+    system: "custom",
+    strings: ["1P", null, null, null, null, null],
+    fingers: [1, null, null, null, null, null],
+    barres: [],
+    rootString: 0,
+  });
+
+  afterEach(() => {
+    chordShapes.removeAll();
+  });
+
+  it('add/get round-trips for hostile name "__proto__"', () => {
+    const shape = makeChord("__proto__");
+    chordShapes.add(shape);
+    const retrieved = chordShapes.get("__proto__");
+    expect(retrieved).toBeDefined();
+    expect(retrieved?.name).toBe("__proto__");
+  });
+
+  it('add/get round-trips for hostile name "constructor"', () => {
+    const shape = makeChord("constructor");
+    chordShapes.add(shape);
+    const retrieved = chordShapes.get("constructor");
+    expect(retrieved).toBeDefined();
+    expect(retrieved?.name).toBe("constructor");
   });
 });

@@ -68,6 +68,15 @@ export function toAlphaTeX(notes: FrettedNote[] | FrettedNote[][], options?: Alp
   const stringCount = tuning.length;
   const [tsNum, tsDen] = timeSignature ?? [4, 4];
 
+  // Sanitize title: escape embedded double-quotes so the AlphaTeX quoted field
+  // stays well-formed (a literal `"` would terminate the quoted string early).
+  const safeTitle = title.replace(/"/g, '\\"');
+
+  // Validate key: AlphaTeX expects a simple pitch-class + optional accidental
+  // with no spaces (e.g. "C", "F#", "Bb"). Fall back to "C" for anything that
+  // doesn't match to avoid emitting a malformed `\ks` directive.
+  const safeKey = /^[A-Ga-g][b#]?$/.test(key) ? key : "C";
+
   // Derive tuning label: reversed tuning array, using pitch classes
   const reversedTuning = [...tuning].reverse().map((n) => {
     const pc = pitchClass(n);
@@ -77,12 +86,12 @@ export function toAlphaTeX(notes: FrettedNote[] | FrettedNote[][], options?: Alp
   });
 
   const lines: string[] = [
-    `\\title "${title}"`,
+    `\\title "${safeTitle}"`,
     `\\tempo ${tempo}`,
     `\\track "Guitar" "Gtr"`,
     `\\staff {tabs}`,
     `\\tuning ${reversedTuning.join(" ")}`,
-    `\\ts ${tsNum} ${tsDen} \\ks ${key}`,
+    `\\ts ${tsNum} ${tsDen} \\ks ${safeKey}`,
   ];
 
   // Normalise input: flat FrettedNote[] → FrettedNote[][] of singletons so the

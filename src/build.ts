@@ -55,12 +55,7 @@ function fretInWindow(
 ): number | null {
   const openChr = toChroma(tuning[string]);
   const targetChr = toChroma(targetPc);
-  if (
-    openChr == null ||
-    targetChr == null ||
-    isNaN(openChr) ||
-    isNaN(targetChr)
-  ) {
+  if (isNaN(openChr) || isNaN(targetChr)) {
     return null;
   }
   const base = (((targetChr - openChr) % 12) + 12) % 12;

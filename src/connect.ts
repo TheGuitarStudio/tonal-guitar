@@ -99,10 +99,10 @@ export function nextSide(
   const prevMidis = prevScale.notes.map((n) => n.midi);
   const nextMidis = nextScale.notes.map((n) => n.midi);
 
-  const prevTop = Math.max(...prevMidis);
-  const prevBottom = Math.min(...prevMidis);
-  const nextTop = Math.max(...nextMidis);
-  const nextBottom = Math.min(...nextMidis);
+  const prevTop = prevMidis.reduce((a, b) => (b > a ? b : a));
+  const prevBottom = prevMidis.reduce((a, b) => (b < a ? b : a));
+  const nextTop = nextMidis.reduce((a, b) => (b > a ? b : a));
+  const nextBottom = nextMidis.reduce((a, b) => (b < a ? b : a));
 
   if (nextTop > prevTop && nextBottom > prevBottom) return "higher";
   if (nextTop < prevTop && nextBottom < prevBottom) return "lower";

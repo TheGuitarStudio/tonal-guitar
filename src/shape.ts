@@ -89,10 +89,10 @@ export const NoFrettedScale: FrettedScale = {
 // ============================================================
 
 let dictionary: ScaleShape[] = [];
-let index: Record<string, ScaleShape> = {};
+let index: Map<string, ScaleShape> = new Map();
 
 export function get(name: string): ScaleShape | undefined {
-  return index[name];
+  return index.get(name);
 }
 
 export function all(): ScaleShape[] {
@@ -105,13 +105,13 @@ export function names(): string[] {
 
 export function add(shape: ScaleShape): ScaleShape {
   dictionary.push(shape);
-  index[shape.name] = shape;
+  index.set(shape.name, shape);
   return shape;
 }
 
 export function removeAll(): void {
   dictionary = [];
-  index = {};
+  index = new Map();
 }
 
 // ============================================================
@@ -119,11 +119,11 @@ export function removeAll(): void {
 // ============================================================
 
 let chordDictionary: ChordShape[] = [];
-let chordIndex: Record<string, ChordShape> = {};
+let chordIndex: Map<string, ChordShape> = new Map();
 
 export const chordShapes = {
   get(name: string): ChordShape | undefined {
-    return chordIndex[name];
+    return chordIndex.get(name);
   },
   all(): ChordShape[] {
     return chordDictionary.slice();
@@ -133,12 +133,12 @@ export const chordShapes = {
   },
   add(shape: ChordShape): ChordShape {
     chordDictionary.push(shape);
-    chordIndex[shape.name] = shape;
+    chordIndex.set(shape.name, shape);
     return shape;
   },
   removeAll(): void {
     chordDictionary = [];
-    chordIndex = {};
+    chordIndex = new Map();
   },
   query(filter: {
     chordType?: string;
