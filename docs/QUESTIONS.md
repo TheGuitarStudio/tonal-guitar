@@ -18,7 +18,7 @@ This is consistent with the experiment code. The question is whether `rootString
 
 ## Q3: `analyzeInKey` chord matching limitations
 
-Uses exact string match between `detectChord()` output and `majorKey().chords`. Enharmonic equivalents (C#maj7 vs Dbmaj7) or slash chords won't match. Consider normalizing chord names before comparison in a future iteration.
+**Status: RESOLVED (Issue #61).** `findChordIndex` now compares by `(tonic chroma, chord type)` when exact string match fails, catching enharmonic pairs like `Abm7` / `G#m7` (same chroma 8, same type `minor seventh`). Triad-vs-seventh mismatches (different types) and genuinely out-of-key chords (different chromas) correctly return no match. Slash-chord normalization and triad-subset matching remain out of scope.
 
 ## Q4: 3NPS pattern names vs mode compatibility
 

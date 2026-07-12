@@ -11,7 +11,7 @@ import { NPS_PATTERN_1, NPS_PATTERN_2, NPS_PATTERN_3, NPS_PATTERN_4, NPS_PATTERN
 import { PENTA_BOX_1, PENTA_BOX_2, PENTA_BOX_3, PENTA_BOX_4, PENTA_BOX_5 } from "./data/pentatonic";
 import { buildFrettedScale } from "./build";
 import { NoFrettedScale, type ScaleShape, add, removeAll } from "./shape";
-import { arpeggioFromScale, arpeggioFromShape, inferShapeContext } from "./integration";
+import { arpeggioFromScale, arpeggioFromShape, inferShapeContext, analyzeInKey } from "./integration";
 import { walkShapeMotif } from "./walker";
 import { STANDARD, DROP_D } from "./tuning";
 
@@ -996,5 +996,98 @@ describe("inferShapeContext — slash / inverted grip (edge case §B.5)", () => 
     for (const c of result) {
       expect(c.score).toBeGreaterThanOrEqual(0);
     }
+  });
+});
+
+// ===========================================================================
+// analyzeInKey — enharmonic chord-name normalization (Issue #61 / Q3)
+//
+// Root cause: key.chords uses sharp spellings (e.g. "G#m7", "D#m7") but
+// noteAt / transpose produces flat-spelled notes when going by certain
+// intervals from natural open strings (e.g. D3+6=Ab3, A2+6=Eb3, G3+6=Db4).
+// detectChord then returns flat-named chords (e.g. "Abm7", "Ebm7") that don't
+// match via raw indexOf. The chroma+type fallback in findChordIndex fixes this.
+//
+// Fret derivation (STANDARD tuning — E2 A2 D3 G3 B3 E4):
+//   Abm7 (= G#m7): str2 f6=Ab3, str3 f8=Eb4, str4 f7=F#4, str5 f7=B4
+//     detectChord(['Ab3','Eb4','F#4','B4']) = ['Abm7', ...]
+//     key 'F#' has 'G#m7' (chroma 8, minor seventh) → enharmonic match → degree II
+//
+//   Ebm7 (= D#m7): str1 f6=Eb3, str2 f8=Bb3, str3 f6=Db4, str4 f7=F#4
+//     detectChord(['Eb3','Bb3','Db4','F#4']) = ['Ebm7', ...]
+//     key 'B' has 'D#m7' (chroma 3, minor seventh) → enharmonic match → degree III
+// ===========================================================================
+
+describe("analyzeInKey — enharmonic normalization (Issue #61)", () => {
+  // ---------------------------------------------------------------------------
+  // Case 1: key 'F#' has 'G#m7' (chroma 8, minor seventh)
+  //         frets [null,null,6,8,7,7] → notes [Ab3,Eb4,F#4,B4] → detect 'Abm7'
+  //         Raw indexOf fails (Abm7 != G#m7); chroma+type fallback matches.
+  // ---------------------------------------------------------------------------
+  it("key 'F#', frets producing 'Abm7' match key chord 'G#m7' (II) via enharmonic normalization", () => {
+    // str2 fret6=Ab3, str3 fret8=Eb4, str4 fret7=F#4, str5 fret7=B4 → Abm7
+    const result = analyzeInKey([null, null, 6, 8, 7, 7], "F#");
+    expect(result.empty).toBe(false);
+    expect(result.degree).toBe(2); // G#m7 is II in F# major
+    expect(result.numeral).toBe("II");
+    expect(result.chord).toBe("Abm7"); // detected chord name preserved as-is
+  });
+
+  // ---------------------------------------------------------------------------
+  // Case 2: key 'B' has 'D#m7' (chroma 3, minor seventh)
+  //         frets [null,6,8,6,7,null] → notes [Eb3,Bb3,Db4,F#4] → detect 'Ebm7'
+  //         Raw indexOf fails (Ebm7 != D#m7); chroma+type fallback matches.
+  // ---------------------------------------------------------------------------
+  it("key 'B', frets producing 'Ebm7' match key chord 'D#m7' (III) via enharmonic normalization", () => {
+    // str1 fret6=Eb3, str2 fret8=Bb3, str3 fret6=Db4, str4 fret7=F#4 → Ebm7
+    const result = analyzeInKey([null, 6, 8, 6, 7, null], "B");
+    expect(result.empty).toBe(false);
+    expect(result.degree).toBe(3); // D#m7 is III in B major
+    expect(result.numeral).toBe("III");
+    expect(result.chord).toBe("Ebm7"); // detected chord name preserved as-is
+  });
+
+  // ---------------------------------------------------------------------------
+  // Case 3: triad-vs-seventh mismatch returns empty (explicit non-goal)
+  //         key 'C' has 'Cmaj7' (major seventh); playing a C major triad detects
+  //         'CM' (major) — different chord types → no match, returns empty: true.
+  //         Triad-subset matching is deliberately not implemented.
+  // ---------------------------------------------------------------------------
+  it("key 'C', open C major triad 'CM' does not match 'Cmaj7' (different types — non-goal)", () => {
+    // C major open x32010 → detect 'CM' (major), key has 'Cmaj7' (major seventh)
+    const result = analyzeInKey([null, 3, 2, 0, 1, 0], "C");
+    expect(result.empty).toBe(true);
+    expect(result.chord).toBe("CM"); // chord name preserved even when no key match
+  });
+
+  // ---------------------------------------------------------------------------
+  // Case 4: genuinely out-of-key chord returns empty: true with chord preserved
+  //         Bb major (chroma 10, major) in key of C — not in key → no match
+  // ---------------------------------------------------------------------------
+  it("key 'C', out-of-key chord (Bb major) returns empty: true with chord populated", () => {
+    // Bb major A-shape barre at fret 1: [null,1,3,3,3,1]
+    const result = analyzeInKey([null, 1, 3, 3, 3, 1], "C");
+    expect(result.empty).toBe(true);
+    expect(result.chord.length).toBeGreaterThan(0);
+  });
+
+  // ---------------------------------------------------------------------------
+  // Case 5: exact-match fast path still works (regression guard)
+  //         key 'C', open Dm7 voicing → detect 'Dm7' → exact match at degree II
+  // ---------------------------------------------------------------------------
+  it("key 'C', open Dm7 voicing is a direct exact match (unchanged happy path)", () => {
+    // x,x,0,2,1,1 → D3, A3, C4, F4 → detect 'Dm7'
+    const result = analyzeInKey([null, null, 0, 2, 1, 1], "C");
+    expect(result.empty).toBe(false);
+    expect(result.degree).toBe(2); // Dm7 is II in C major
+    expect(result.chord).toBe("Dm7");
+  });
+
+  // ---------------------------------------------------------------------------
+  // Case 6: all-muted returns empty (guard path unchanged)
+  // ---------------------------------------------------------------------------
+  it("all-muted returns empty: true (guard path)", () => {
+    const result = analyzeInKey([null, null, null, null, null, null], "C");
+    expect(result.empty).toBe(true);
   });
 });
