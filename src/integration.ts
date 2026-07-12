@@ -223,8 +223,49 @@ const NoKeyAnalysis: KeyAnalysis = {
 };
 
 /**
+ * Find the index of `detectedChord` in `keyChords` using enharmonic normalization.
+ *
+ * Comparison strategy (applied in order):
+ * 1. Exact string match (fast path — avoids getChord overhead for most calls).
+ * 2. Enharmonic fallback: parse both sides with `getChord`, compare tonic by chroma
+ *    and chord type string exactly. This catches C#maj7 vs Dbmaj7 (same tonic chroma,
+ *    same type) while correctly rejecting triad-vs-seventh mismatches (different types)
+ *    and unrelated chords (different chromas).
+ *
+ * Returns -1 when no match is found by either strategy.
+ */
+function findChordIndex(detectedChord: string, keyChords: readonly string[]): number {
+  // Fast path: exact string equality
+  const exactIdx = keyChords.indexOf(detectedChord);
+  if (exactIdx !== -1) return exactIdx;
+
+  // Enharmonic fallback: compare (tonic chroma, chord type)
+  const detected = getChord(detectedChord);
+  if (detected.empty || !detected.tonic) return -1;
+
+  const detectedChroma = noteChroma(detected.tonic);
+  if (!isValidChroma(detectedChroma)) return -1;
+
+  for (let i = 0; i < keyChords.length; i++) {
+    const keyChord = getChord(keyChords[i]);
+    if (keyChord.empty || !keyChord.tonic) continue;
+    const keyChroma = noteChroma(keyChord.tonic);
+    if (!isValidChroma(keyChroma)) continue;
+    if (keyChroma === detectedChroma && keyChord.type === detected.type) {
+      return i;
+    }
+  }
+
+  return -1;
+}
+
+/**
  * Analyze a fretted chord voicing in the context of a major key.
  * Returns the detected chord, its roman numeral, and scale degree.
+ *
+ * Chord matching is enharmonic-aware: detected "Dbmaj7" matches key chord "C#maj7"
+ * (same tonic chroma, same chord type). Triad-vs-seventh mismatches (e.g. detected
+ * "C" vs key chord "Cmaj7") correctly return empty: true — they have different types.
  *
  * @param frets - per-string fret numbers (null = muted/unplayed), low to high
  * @param keyName - tonic of the major key, e.g. "C", "G"
@@ -245,7 +286,7 @@ export function analyzeInKey(
 
   // key.chords is e.g. ["Cmaj7", "Dm7", "Em7", "Fmaj7", "G7", "Am7", "Bm7b5"]
   // key.grades is e.g. ["I", "II", "III", "IV", "V", "VI", "VII"]
-  const chordIndex = key.chords.indexOf(detectedChord);
+  const chordIndex = findChordIndex(detectedChord, key.chords);
   if (chordIndex === -1) {
     return { ...NoKeyAnalysis, chord: detectedChord };
   }
