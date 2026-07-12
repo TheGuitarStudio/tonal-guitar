@@ -29,6 +29,7 @@ export interface ScaleShape {
 
 export type VoicingFamily =
   | "caged"
+  | "extended"
   | "shell"
   | "open"
   | "barre"

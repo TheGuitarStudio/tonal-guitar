@@ -407,6 +407,15 @@ describe("extended-chords: Tier 1 + Tier 2 + Tier 3 aggregate sanity", () => {
     expect(distinctTypes.size).toBe(15);
   });
 
+  it("all 30 shapes carry voicingFamily 'extended' (CR-001)", () => {
+    expect(chordShapes.query({ voicingFamily: "extended" }).length).toBe(
+      EXTENDED_CHORD_SHAPES.length,
+    );
+    for (const shape of EXTENDED_CHORD_SHAPES) {
+      expect(shape.voicingFamily).toBe("extended");
+    }
+  });
+
   it.each([
     // Tier 1 (6 types)
     "6",
