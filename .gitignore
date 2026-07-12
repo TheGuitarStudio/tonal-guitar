@@ -5,6 +5,11 @@ coverage/
 .DS_Store
 scratch/
 
+# Local secrets — npm publish token lives in .env (stub: .env.example); .npmrc references it.
+.env
+.env.local
+.npmrc
+
 # Per-developer project board config + skill state (auto-detected by /idea, /feature, /task, etc.).
 # Tracked: .tonal-guitar/features/, .tonal-guitar/tasks/, .tonal-guitar/ideas/ — phase artifacts live on the feature/task branch.
 # Ignored: project-config.json (per-developer), *.local.md (per-developer skill state).

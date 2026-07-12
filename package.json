@@ -1,7 +1,7 @@
 {
   "name": "tonal-guitar",
   "version": "0.1.0",
-  "description": "Guitar fretboard, shapes, patterns, and sequences \u2014 built on Tonal.js",
+  "description": "Guitar fretboard, shapes, patterns, and sequences — built on Tonal.js",
   "keywords": [
     "guitar",
     "fretboard",
@@ -39,7 +39,8 @@
     "lint:fix": "eslint 'src/**/*.ts' --fix",
     "format": "prettier --write 'src/**/*.ts'",
     "prepare": "npm run build",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "release": "sh -c 'set -a; . ./.env; set +a; npm publish'"
   },
   "peerDependencies": {
     "@tonaljs/chord": "^6.1.0",
@@ -78,6 +79,6 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/TheGuitarStudio/tonal-guitar.git"
+    "url": "git+https://github.com/TheGuitarStudio/tonal-guitar.git"
   }
 }
