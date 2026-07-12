@@ -153,7 +153,7 @@ export const EXT_CHORD_E_6: ChordShape = {
   ],
   rootString: 0,
   chordType: "6",
-  voicingFamily: "caged",
+  voicingFamily: "extended",
   inversion: 0,
   stringSet: [0, 1, 2, 3, 4],
 };
@@ -172,7 +172,7 @@ export const EXT_CHORD_A_6: ChordShape = {
   barres: [{ fret: 2, fromString: 2, toString: 5, finger: 1 }],
   rootString: 1,
   chordType: "6",
-  voicingFamily: "caged",
+  voicingFamily: "extended",
   inversion: 0,
   stringSet: [1, 2, 3, 4, 5],
 };
@@ -195,7 +195,7 @@ export const EXT_CHORD_E_M6: ChordShape = {
   barres: [{ fret: 0, fromString: 0, toString: 5, finger: 1 }],
   rootString: 0,
   chordType: "m6",
-  voicingFamily: "caged",
+  voicingFamily: "extended",
   inversion: 0,
   stringSet: [0, 1, 2, 3, 4, 5],
 };
@@ -214,7 +214,7 @@ export const EXT_CHORD_A_M6: ChordShape = {
   barres: [{ fret: 2, fromString: 2, toString: 3, finger: 2 }],
   rootString: 1,
   chordType: "m6",
-  voicingFamily: "caged",
+  voicingFamily: "extended",
   inversion: 0,
   stringSet: [1, 2, 3, 4, 5],
 };
@@ -237,7 +237,7 @@ export const EXT_CHORD_E_9: ChordShape = {
   barres: [{ fret: 0, fromString: 0, toString: 4, finger: 1 }],
   rootString: 0,
   chordType: "9",
-  voicingFamily: "caged",
+  voicingFamily: "extended",
   inversion: 0,
   stringSet: [0, 1, 2, 3, 4, 5],
 };
@@ -260,7 +260,7 @@ export const EXT_CHORD_A_9: ChordShape = {
   barres: [{ fret: 3, fromString: 3, toString: 4, finger: 3 }],
   rootString: 1,
   chordType: "9",
-  voicingFamily: "caged",
+  voicingFamily: "extended",
   inversion: 0,
   stringSet: [1, 2, 3, 4],
   omittedIntervals: ["5P"],
@@ -287,7 +287,7 @@ export const EXT_CHORD_E_MAJ9: ChordShape = {
   ],
   rootString: 0,
   chordType: "maj9",
-  voicingFamily: "caged",
+  voicingFamily: "extended",
   inversion: 0,
   stringSet: [0, 1, 2, 3, 4, 5],
 };
@@ -309,7 +309,7 @@ export const EXT_CHORD_A_MAJ9: ChordShape = {
   barres: [],
   rootString: 1,
   chordType: "maj9",
-  voicingFamily: "caged",
+  voicingFamily: "extended",
   inversion: 0,
   stringSet: [1, 2, 3, 4],
   omittedIntervals: ["5P"],
@@ -333,7 +333,7 @@ export const EXT_CHORD_E_M9: ChordShape = {
   barres: [{ fret: 0, fromString: 0, toString: 4, finger: 1 }],
   rootString: 0,
   chordType: "m9",
-  voicingFamily: "caged",
+  voicingFamily: "extended",
   inversion: 0,
   stringSet: [0, 1, 2, 3, 4, 5],
 };
@@ -355,7 +355,7 @@ export const EXT_CHORD_A_M9: ChordShape = {
   barres: [{ fret: 3, fromString: 3, toString: 4, finger: 3 }],
   rootString: 1,
   chordType: "m9",
-  voicingFamily: "caged",
+  voicingFamily: "extended",
   inversion: 0,
   stringSet: [1, 2, 3, 4],
   omittedIntervals: ["5P"],
@@ -385,7 +385,7 @@ export const EXT_CHORD_E_ADD9: ChordShape = {
   ],
   rootString: 0,
   chordType: "add9",
-  voicingFamily: "caged",
+  voicingFamily: "extended",
   inversion: 0,
   stringSet: [0, 1, 2, 3, 4, 5],
 };
@@ -407,7 +407,7 @@ export const EXT_CHORD_A_ADD9: ChordShape = {
   barres: [],
   rootString: 1,
   chordType: "add9",
-  voicingFamily: "caged",
+  voicingFamily: "extended",
   inversion: 0,
   stringSet: [1, 2, 3, 4],
 };
@@ -434,7 +434,7 @@ export const EXT_CHORD_E_13: ChordShape = {
   ],
   rootString: 0,
   chordType: "13",
-  voicingFamily: "caged",
+  voicingFamily: "extended",
   inversion: 0,
   stringSet: [0, 1, 2, 3, 4, 5],
 };
@@ -458,7 +458,7 @@ export const EXT_CHORD_A_13: ChordShape = {
   barres: [{ fret: 3, fromString: 3, toString: 4, finger: 3 }],
   rootString: 1,
   chordType: "13",
-  voicingFamily: "caged",
+  voicingFamily: "extended",
   inversion: 0,
   stringSet: [1, 2, 3, 4, 5],
   omittedIntervals: ["5P"],
@@ -486,7 +486,7 @@ export const EXT_CHORD_E_DIM7: ChordShape = {
   barres: [{ fret: 0, fromString: 2, toString: 4, finger: 1 }],
   rootString: 0,
   chordType: "dim7",
-  voicingFamily: "caged",
+  voicingFamily: "extended",
   inversion: 0,
   stringSet: [0, 2, 3, 4],
 };
@@ -508,7 +508,7 @@ export const EXT_CHORD_A_DIM7: ChordShape = {
   barres: [{ fret: 2, fromString: 3, toString: 5, finger: 1 }],
   rootString: 1,
   chordType: "dim7",
-  voicingFamily: "caged",
+  voicingFamily: "extended",
   inversion: 0,
   stringSet: [1, 3, 4, 5],
 };
@@ -534,7 +534,7 @@ export const EXT_CHORD_E_MMAJ7: ChordShape = {
   barres: [{ fret: 0, fromString: 0, toString: 5, finger: 1 }],
   rootString: 0,
   chordType: "mMaj7",
-  voicingFamily: "caged",
+  voicingFamily: "extended",
   inversion: 0,
   stringSet: [0, 1, 2, 3, 4, 5],
 };
@@ -555,7 +555,7 @@ export const EXT_CHORD_A_MMAJ7: ChordShape = {
   barres: [],
   rootString: 1,
   chordType: "mMaj7",
-  voicingFamily: "caged",
+  voicingFamily: "extended",
   inversion: 0,
   stringSet: [1, 2, 3, 4, 5],
 };
@@ -580,7 +580,7 @@ export const EXT_CHORD_E_7SUS4: ChordShape = {
   barres: [{ fret: 0, fromString: 0, toString: 5, finger: 1 }],
   rootString: 0,
   chordType: "7sus4",
-  voicingFamily: "caged",
+  voicingFamily: "extended",
   inversion: 0,
   stringSet: [0, 1, 2, 3, 4, 5],
 };
@@ -600,7 +600,7 @@ export const EXT_CHORD_A_7SUS4: ChordShape = {
   barres: [],
   rootString: 1,
   chordType: "7sus4",
-  voicingFamily: "caged",
+  voicingFamily: "extended",
   inversion: 0,
   stringSet: [1, 2, 3, 4, 5],
 };
@@ -628,7 +628,7 @@ export const EXT_CHORD_E_69: ChordShape = {
   barres: [{ fret: 2, fromString: 1, toString: 3, finger: 1 }],
   rootString: 0,
   chordType: "6/9",
-  voicingFamily: "caged",
+  voicingFamily: "extended",
   inversion: 0,
   stringSet: [0, 1, 2, 3, 4],
 };
@@ -650,7 +650,7 @@ export const EXT_CHORD_A_69: ChordShape = {
   barres: [{ fret: 2, fromString: 2, toString: 3, finger: 1 }],
   rootString: 1,
   chordType: "6/9",
-  voicingFamily: "caged",
+  voicingFamily: "extended",
   inversion: 0,
   stringSet: [1, 2, 3, 4, 5],
 };
@@ -676,7 +676,7 @@ export const EXT_CHORD_E_7B9: ChordShape = {
   barres: [],
   rootString: 0,
   chordType: "7b9",
-  voicingFamily: "caged",
+  voicingFamily: "extended",
   inversion: 0,
   stringSet: [0, 1, 2, 3, 4, 5],
 };
@@ -701,7 +701,7 @@ export const EXT_CHORD_A_7B9: ChordShape = {
   barres: [],
   rootString: 1,
   chordType: "7b9",
-  voicingFamily: "caged",
+  voicingFamily: "extended",
   inversion: 0,
   stringSet: [1, 2, 3, 4],
   omittedIntervals: ["5P"],
@@ -729,7 +729,7 @@ export const EXT_CHORD_E_7SHARP9: ChordShape = {
   barres: [{ fret: 0, fromString: 0, toString: 4, finger: 1 }],
   rootString: 0,
   chordType: "7#9",
-  voicingFamily: "caged",
+  voicingFamily: "extended",
   inversion: 0,
   stringSet: [0, 1, 2, 3, 4, 5],
 };
@@ -753,7 +753,7 @@ export const EXT_CHORD_A_7SHARP9: ChordShape = {
   barres: [],
   rootString: 1,
   chordType: "7#9",
-  voicingFamily: "caged",
+  voicingFamily: "extended",
   inversion: 0,
   stringSet: [1, 2, 3, 4],
   omittedIntervals: ["5P"],
@@ -787,7 +787,7 @@ export const EXT_CHORD_E_7SHARP5: ChordShape = {
   barres: [{ fret: 1, fromString: 3, toString: 4, finger: 1 }],
   rootString: 0,
   chordType: "7#5",
-  voicingFamily: "caged",
+  voicingFamily: "extended",
   inversion: 0,
   stringSet: [0, 2, 3, 4, 5],
 };
@@ -810,7 +810,7 @@ export const EXT_CHORD_A_7SHARP5: ChordShape = {
   barres: [],
   rootString: 1,
   chordType: "7#5",
-  voicingFamily: "caged",
+  voicingFamily: "extended",
   inversion: 0,
   stringSet: [1, 3, 4, 5],
 };
@@ -838,7 +838,7 @@ export const EXT_CHORD_E_7B5: ChordShape = {
   barres: [],
   rootString: 0,
   chordType: "7b5",
-  voicingFamily: "caged",
+  voicingFamily: "extended",
   inversion: 0,
   stringSet: [0, 1, 2, 3],
 };
@@ -860,7 +860,7 @@ export const EXT_CHORD_A_7B5: ChordShape = {
   barres: [],
   rootString: 1,
   chordType: "7b5",
-  voicingFamily: "caged",
+  voicingFamily: "extended",
   inversion: 0,
   stringSet: [1, 2, 3, 5],
 };

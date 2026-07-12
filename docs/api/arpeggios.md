@@ -254,7 +254,7 @@ interface ChordShape {
   // Optional harmonic metadata:
   chordType?: string;              // Tonal chord type alias, e.g. "maj7", "m7", "M"
   inversion?: number;              // 0 = root position, 1 = first inversion, etc.
-  voicingFamily?: VoicingFamily;   // "caged" | "shell" | "open" | "barre" | "drop2" | ...
+  voicingFamily?: VoicingFamily;   // "caged" | "extended" | "shell" | "open" | "barre" | "drop2" | ...
   stringSet?: number[];            // played string indices (0-based), e.g. [0,1,2]
   omittedIntervals?: string[];     // intervals absent from this voicing, e.g. ["5P"]
   canonicalRoot?: string;          // documented key for open shapes (informational only)
@@ -375,7 +375,7 @@ const fingering = applyChordShape(shape, "G");
 
 ### extended-chords
 
-Sixths, ninths, jazz-core, and altered-dominant movable shapes: `6`, `m6`, `9`, `maj9`, `m9`, `add9`, `13`, `dim7`, `mMaj7`, `7sus4`, `6/9`, `7b9`, `7#9`, `7#5`, `7b5` — 15 canonical chord types, each with an **E-form** (`rootString: 0`) and/or **A-form** (`rootString: 1`) movable shape (`system: "caged"`, `voicingFamily: "caged"`). Every `chordType` string equals the symbol `@tonaljs/chord`'s `Chord.get` accepts, so these shapes need no translation layer to work with `identifyChord`, `arpeggioFromShape`/`arpeggioFromScale`, or plain `Chord.get`/`detect` calls. Voicings that omit a chord tone (5th first, then the 9th for `13`) set `omittedIntervals` accordingly.
+Sixths, ninths, jazz-core, and altered-dominant movable shapes: `6`, `m6`, `9`, `maj9`, `m9`, `add9`, `13`, `dim7`, `mMaj7`, `7sus4`, `6/9`, `7b9`, `7#9`, `7#5`, `7b5` — 15 canonical chord types, each with an **E-form** (`rootString: 0`) and/or **A-form** (`rootString: 1`) movable shape (`system: "caged"`, `voicingFamily: "extended"`). Every `chordType` string equals the symbol `@tonaljs/chord`'s `Chord.get` accepts, so these shapes need no translation layer to work with `identifyChord`, `arpeggioFromShape`/`arpeggioFromScale`, or plain `Chord.get`/`detect` calls. Voicings that omit a chord tone (5th first, then the 9th for `13`) set `omittedIntervals` accordingly.
 
 ```js
 import { chordShapes } from "tonal-guitar";

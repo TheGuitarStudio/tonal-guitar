@@ -708,12 +708,11 @@ describe("TG10 — Data integrity: chordShapes.all() count after all curated imp
     // 7:   E-shape + A-shape + D-shape = 3
     // m7b5: E-shape + A-shape = 2
     // Total = 11
-    // extended-chords.ts also registers caged-family shapes with chordType set,
-    // so exclude them by name to isolate the caged-chords-7th contribution.
-    const extendedNames = new Set(EXTENDED_CHORD_SHAPES.map((s) => s.name));
+    // Extended shapes now carry voicingFamily "extended" (not "caged"), so a
+    // clean query suffices — no name-exclusion workaround needed.
     const cagedSeventh = chordShapes
       .query({ voicingFamily: "caged" })
-      .filter((s) => s.chordType !== undefined && !extendedNames.has(s.name));
+      .filter((s) => s.chordType !== undefined);
     expect(cagedSeventh.length).toBe(11);
   });
 
