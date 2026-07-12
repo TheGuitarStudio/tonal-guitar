@@ -68,8 +68,25 @@ function fretInWindow(
 }
 
 /**
+ * Compute how many strings to shift shape string indices when the tuning is
+ * longer than the shape (e.g. 7-string tuning with a 6-string shape).
+ *
+ * Convention: string index 0 is the LOWEST string. A 6-string shape on a
+ * 7-string tuning should map shape string 0 → tuning string 1 (the low-E
+ * equivalent), not tuning string 0 (the added low-B). When the tuning is
+ * shorter than the shape, no offset is applied and the build loop's existing
+ * `s < tuning.length` guard truncates the extra shape strings.
+ */
+function stringOffset(tuning: string[], shape: ScaleShape): number {
+  return Math.max(0, tuning.length - shape.strings.length);
+}
+
+/**
  * Check whether every (string, interval) pair in `shape` placed against
  * `anchor` lands on a fret inside the window and >= `minFret`.
+ *
+ * String indices are shifted by `strOffset` so a 6-string shape placed on a
+ * 7/8-string tuning is evaluated against the correct (high-side) strings.
  */
 function shapeFitsAtAnchor(
   tuning: string[],
@@ -78,13 +95,14 @@ function shapeFitsAtAnchor(
   anchor: number,
   minFret: number,
 ): boolean {
-  for (let s = 0; s < shape.strings.length && s < tuning.length; s++) {
+  const strOffset = stringOffset(tuning, shape);
+  for (let s = 0; s < shape.strings.length && s + strOffset < tuning.length; s++) {
     const intervals = shape.strings[s];
     if (!intervals) continue;
     for (const ivl of intervals) {
       const targetPc = transpose(pc, ivl);
       if (!targetPc) continue;
-      const fret = fretInWindow(tuning, s, targetPc, anchor, minFret);
+      const fret = fretInWindow(tuning, s + strOffset, targetPc, anchor, minFret);
       if (fret == null) return false;
     }
   }
@@ -105,6 +123,11 @@ function shapeFitsAtAnchor(
  * If the shape doesn't fully fit at the natural anchor (e.g. Pentatonic
  * Box 5 applied to A, where the lowest box would need notes below the
  * open strings), shift the anchor up by 12 and retry.
+ *
+ * When the tuning is longer than the shape (e.g. 7/8-string tuning with a
+ * 6-string shape), all shape string indices are shifted by
+ * `tuning.length - shape.strings.length` so the shape maps to the
+ * standard-equivalent high-side strings rather than the added low strings.
  */
 const MAX_FRET = 24;
 export function findShapeAnchorFret(
@@ -113,14 +136,16 @@ export function findShapeAnchorFret(
   pc: string,
   minFret: number,
 ): number | null {
+  const strOffset = stringOffset(tuning, shape);
+  const adjustedRootString = shape.rootString + strOffset;
   const intervals = shape.strings[shape.rootString];
   let baseAnchor: number | null;
   if (!intervals || intervals.length === 0) {
-    baseAnchor = findNearestFret(tuning, shape.rootString, pc);
+    baseAnchor = findNearestFret(tuning, adjustedRootString, pc);
   } else {
     const firstPc = transpose(pc, intervals[0]);
     if (!firstPc) return null;
-    baseAnchor = findNearestFret(tuning, shape.rootString, firstPc);
+    baseAnchor = findNearestFret(tuning, adjustedRootString, firstPc);
   }
   if (baseAnchor == null) return null;
   // If the natural anchor would force notes below minFret, jump up an octave.
@@ -177,7 +202,15 @@ export function buildFrettedScale(
 
   const notes: FrettedNote[] = [];
 
-  for (let s = 0; s < shape.strings.length && s < tuning.length; s++) {
+  // When the tuning is longer than the shape (e.g. 7/8-string tuning with a
+  // 6-string shape), shift all shape-string indices up by the difference so
+  // the shape maps onto the standard-equivalent high-side strings.
+  // When the tuning is shorter than the shape, strOffset is 0 and the loop's
+  // `s + strOffset < tuning.length` guard naturally truncates extra shape
+  // strings (deliberate no-op for truncated tunings).
+  const strOffset = stringOffset(tuning, shape);
+
+  for (let s = 0; s < shape.strings.length && s + strOffset < tuning.length; s++) {
     const intervals = shape.strings[s];
     if (!intervals) continue;
 
@@ -185,10 +218,11 @@ export function buildFrettedScale(
       const targetPc = transpose(pc, ivl);
       if (!targetPc) continue;
 
-      const fret = fretInWindow(tuning, s, targetPc, rootFret, minFret);
+      const tuningString = s + strOffset;
+      const fret = fretInWindow(tuning, tuningString, targetPc, rootFret, minFret);
       if (fret == null || fret < minFret) continue;
 
-      const openMidi = toMidi(tuning[s]);
+      const openMidi = toMidi(tuning[tuningString]);
       if (openMidi == null) continue;
       const midi = openMidi + fret;
 
@@ -202,7 +236,7 @@ export function buildFrettedScale(
       const scaleIndex = intervalToIndex.get(ivl) ?? 0;
 
       notes.push({
-        string: s,
+        string: tuningString,
         fret,
         note: fullNote,
         pc: toPitchClass(targetPc) || targetPc,

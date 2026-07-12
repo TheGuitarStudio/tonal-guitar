@@ -126,6 +126,6 @@ index.ts             ← re-exports everything
 - [x] Interactive experiments page (site/ — Guitar Lab)
 - [ ] Deploy site to GitHub Pages
 - [ ] Site deploy failing since fretboard-ui landed — tracked in #51, fix in PR #52 (preserveSymlinks)
-- [ ] Task 2.5: 7/8-string rootString auto-adjustment logic
+- [x] Task 2.5: 7/8-string rootString auto-adjustment logic
 - [ ] ASCII tab column alignment for multi-digit frets (QUESTIONS.md Q2)
 - [ ] Consider `analyzeInKey` chord name normalization (QUESTIONS.md Q3)
