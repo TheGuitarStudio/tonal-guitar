@@ -98,6 +98,20 @@ import {
   PENTA_BOX_4,
   PENTA_BOX_5,
 } from "./data/pentatonic";
+import {
+  CAGED_DM,
+  CAGED_CM,
+  CAGED_AM,
+  CAGED_GM,
+  CAGED_EM,
+} from "./data/caged-scales-minor";
+import {
+  PENTA_BOX_1_MINOR,
+  PENTA_BOX_2_MINOR,
+  PENTA_BOX_3_MINOR,
+  PENTA_BOX_4_MINOR,
+  PENTA_BOX_5_MINOR,
+} from "./data/pentatonic-minor";
 
 // ============================================================
 // 1. Tuning constants
@@ -369,9 +383,9 @@ describe("Shape registry", () => {
     expect(shapes.length).toBeGreaterThan(0);
   });
 
-  test("built-in CAGED shapes are registered (5 shapes)", () => {
+  test("built-in CAGED shapes are registered (5 major + 5 minor)", () => {
     const cagedShapes = all().filter((s) => s.system === "caged");
-    expect(cagedShapes).toHaveLength(5);
+    expect(cagedShapes).toHaveLength(10);
   });
 
   test("built-in 3NPS patterns are registered (7 shapes)", () => {
@@ -379,13 +393,13 @@ describe("Shape registry", () => {
     expect(npsShapes).toHaveLength(7);
   });
 
-  test("built-in pentatonic boxes are registered (5 shapes)", () => {
+  test("built-in pentatonic boxes are registered (5 major + 5 minor)", () => {
     const pentShapes = all().filter((s) => s.system === "pentatonic");
-    expect(pentShapes).toHaveLength(5);
+    expect(pentShapes).toHaveLength(10);
   });
 
-  test("total registered shapes = 17 (5 CAGED + 7 3NPS + 5 pentatonic)", () => {
-    expect(all()).toHaveLength(17);
+  test("total registered shapes = 27 (10 CAGED + 7 3NPS + 10 pentatonic)", () => {
+    expect(all()).toHaveLength(27);
   });
 
   test("removeAll() clears registry, add() re-registers", () => {
@@ -414,6 +428,14 @@ describe("Shape registry", () => {
     [PENTA_BOX_1, PENTA_BOX_2, PENTA_BOX_3, PENTA_BOX_4, PENTA_BOX_5].forEach(
       add,
     );
+    [CAGED_DM, CAGED_CM, CAGED_AM, CAGED_GM, CAGED_EM].forEach(add);
+    [
+      PENTA_BOX_1_MINOR,
+      PENTA_BOX_2_MINOR,
+      PENTA_BOX_3_MINOR,
+      PENTA_BOX_4_MINOR,
+      PENTA_BOX_5_MINOR,
+    ].forEach(add);
     expect(all()).toHaveLength(originalCount);
   });
 
