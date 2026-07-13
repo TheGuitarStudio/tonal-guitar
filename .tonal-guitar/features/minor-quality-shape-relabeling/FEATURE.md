@@ -25,6 +25,26 @@
 | Plan      | tasks.md    | done    | 1     | no       |
 | Implement | FEATURE.md  | pending | 0     | no       |
 
+## Phase 4: Implement
+
+| Layer | Task Group                                                              | Status  | Agent | Notes |
+| ----- | ----------------------------------------------------------------------- | ------- | ----- | ----- |
+| 0     | TG1: ScaleShape Type Extension + transform.ts Shell + Re-exports        | pending | -     | -     |
+| 1     | TG2: relabelShape Algorithm Implementation                              | pending | -     | -     |
+| 2     | TG3: Minor CAGED Entries (caged-scales-minor.ts)                        | pending | -     | -     |
+| 2     | TG4: Minor Pentatonic Entries (pentatonic-minor.ts)                     | pending | -     | -     |
+| 3     | TG5: isShapeCompatible Rewrite + relabelShapeToScale + buildFromScale   | pending | -     | -     |
+| 4     | TG6: API Docs, README, PLAN.md, CLAUDE.md                               | pending | -     | -     |
+| 5     | TG7: Final Test Review and Gap Analysis                                 | pending | -     | -     |
+
+### Oversight Reports
+
+_(none yet)_
+
+### Spec Compliance
+
+_(none yet)_
+
 ## Loop History
 
 _(none yet)_
