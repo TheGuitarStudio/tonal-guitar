@@ -31,9 +31,9 @@
 | ----- | ----------------------------------------------------------------------- | ------- | ----- | ----- |
 | 0     | TG1: ScaleShape Type Extension + transform.ts Shell + Re-exports        | complete | sonnet | 848 tests pass |
 | 1     | TG2: relabelShape Algorithm Implementation                              | complete | sonnet | 859 tests pass |
-| 2     | TG3: Minor CAGED Entries (caged-scales-minor.ts)                        | in-progress | sonnet | -     |
-| 2     | TG4: Minor Pentatonic Entries (pentatonic-minor.ts)                     | in-progress | sonnet | -     |
-| 3     | TG5: isShapeCompatible Rewrite + relabelShapeToScale + buildFromScale   | pending | -     | -     |
+| 2     | TG3: Minor CAGED Entries (caged-scales-minor.ts)                        | complete | sonnet | ran sequentially before TG4 (shared files) |
+| 2     | TG4: Minor Pentatonic Entries (pentatonic-minor.ts)                     | complete | sonnet | 891 tests pass; lead updated index.test.ts counts |
+| 3     | TG5: isShapeCompatible Rewrite + relabelShapeToScale + buildFromScale   | in-progress | sonnet | -     |
 | 4     | TG6: API Docs, README, PLAN.md, CLAUDE.md                               | pending | -     | -     |
 | 5     | TG7: Final Test Review and Gap Analysis                                 | pending | -     | -     |
 
@@ -41,6 +41,7 @@
 
 - **Layer 0**: No concerns. Continued.
 - **Layer 1**: No concerns. Continued.
+- **Layer 2**: No concerns. Continued.
 
 ### Spec Compliance
 
