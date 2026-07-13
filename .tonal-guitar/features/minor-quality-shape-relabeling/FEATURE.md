@@ -7,7 +7,7 @@
 - [x] Phase 1: Research
 - [x] Phase 2: Shape
 - [x] Phase 3: Plan
-- [ ] Phase 4: Implement
+- [x] Phase 4: Implement
 
 ## Context
 
@@ -23,7 +23,7 @@
 | Research  | research.md | done    | 1     | no       |
 | Shape     | spec.md     | done    | 1     | no       |
 | Plan      | tasks.md    | done    | 1     | no       |
-| Implement | FEATURE.md  | pending | 0     | no       |
+| Implement | FEATURE.md  | done    | 1     | no       |
 
 ## Phase 4: Implement
 
@@ -48,7 +48,9 @@
 
 ### Spec Compliance
 
-_(none yet)_
+- **Loop 1**: 0 gaps found (22/22 requirements Implemented).
+- **Loop 2** (adversarial pass): 3 trivial partials found, all fixed via gap-1 branch — R2.3 first-wins collision test, R2.7 null-rootString test, CLAUDE.md test count. Final: 922 tests, 0 gaps remaining.
+- **Accepted deviation**: modeShapes("A dorian") returns the 5 minor-pentatonic entries (not 0 as spec R3.2 claimed) — spec row was inconsistent with R3.1's own chroma-subset algorithm; verified independently by oversight and both compliance passes; documented in README/docs as shipped behavior.
 
 ## Loop History
 
