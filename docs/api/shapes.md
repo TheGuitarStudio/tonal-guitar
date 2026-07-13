@@ -18,15 +18,19 @@ Shapes define the geometry of how notes are laid out on the fretboard. A shape i
 
 ```ts
 interface ScaleShape {
-  name: string;                    // e.g. "CAGED E Shape"
+  name: string;                    // e.g. "E Shape"
   system: string;                  // "caged" | "3nps" | "pentatonic" | "custom"
   strings: (string[] | null)[];    // intervals per string, low to high
   rootString: number;              // which string anchors the root
   span?: number;                   // optional fret span hint
+  quality?: string;                // interval-frame quality tag, e.g. "major" | "minor" | "minor-pentatonic"
+  parentShape?: string;            // name of the source shape a relabeled entry was derived from, e.g. "G Shape"
 }
 ```
 
 Each entry in `strings` is either an array of interval names (e.g. `["1P", "2M", "3M"]`) or `null` for unused strings.
+
+`quality` and `parentShape` are populated on shapes derived via [`relabelShape`](/docs/guitar/transform) (see the 10 registered minor-quality entries below); hand-authored source shapes leave both `undefined`.
 
 ### ChordShape
 
@@ -80,6 +84,23 @@ names();
 // => ["CAGED E Shape", "CAGED D Shape", "CAGED C Shape", "CAGED A Shape",
 //     "CAGED G Shape", "3NPS Pattern 1", ..., "Pentatonic Box 5"]
 ```
+
+### Minor-quality entries
+
+10 additional entries are registered at import time, derived from the major-frame CAGED and pentatonic shapes via [`relabelShape`](/docs/guitar/transform) -- same fretboard geometry as their `parentShape`, only interval labels/`rootString`/`quality` differ:
+
+```js
+names().filter((n) => get(n)?.quality === "minor");
+// => ["Dm Shape", "Cm Shape", "Am Shape", "Gm Shape", "Em Shape"]
+
+names().filter((n) => get(n)?.quality === "minor-pentatonic");
+// => ["Pentatonic Box 1 Minor", "Pentatonic Box 2 Minor", "Pentatonic Box 3 Minor",
+//     "Pentatonic Box 4 Minor", "Pentatonic Box 5 Minor"]
+
+get("Em Shape"); // => { name: "Em Shape", quality: "minor", parentShape: "G Shape", rootString: 0, ... }
+```
+
+See the project [README](https://github.com/TheGuitarStudio/tonal-guitar#minor-quality-entries) for the full parent-to-minor mapping tables.
 
 ### `add`
 

@@ -67,6 +67,7 @@ The package ships with 22 shapes registered at import time:
 
 - [Fretboard](/docs/guitar/fretboard) -- Fretboard math and note lookups
 - [Shapes](/docs/guitar/shapes) -- Scale and chord shape registry
+- [Transform](/docs/guitar/transform) -- Relabel a shape into a different interval frame (`relabelShape`)
 - [Patterns](/docs/guitar/patterns) -- Melodic pattern generators and walker
 - [Sequences](/docs/guitar/sequences) -- Sequence engine for incremental exercises
 - [Output](/docs/guitar/output) -- AlphaTeX and ASCII tab formatters
