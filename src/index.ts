@@ -120,6 +120,7 @@ export type {
 
 // Built-in shape data (import to register shapes)
 import "./data/caged-scales";
+import "./data/caged-scales-minor";
 import "./data/caged-chords";
 import "./data/three-nps";
 import "./data/pentatonic";
