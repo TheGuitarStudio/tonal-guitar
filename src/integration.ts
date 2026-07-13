@@ -10,14 +10,22 @@ import {
   pitchClass,
   midi as toMidi,
 } from "@tonaljs/note";
+import { semitones } from "@tonaljs/interval";
 import { majorKey } from "@tonaljs/key";
 
-import { FrettedNote, FrettedScale, NoFrettedScale, ScaleShape, all } from "./shape";
+import {
+  FrettedNote,
+  FrettedScale,
+  NoFrettedScale,
+  ScaleShape,
+  all,
+} from "./shape";
 import { buildFrettedScale, findShapeAnchorFret } from "./build";
 import { noteAt } from "./fretboard";
 import { STANDARD } from "./tuning";
 import { scoreShapeMatch, InferenceProbe, ScoreBreakdown } from "./arpeggio";
 import { parseChordFrets } from "./notation";
+import { relabelShape, RelabelOptions } from "./transform";
 
 // ============================================================
 // arpeggioFromScale / arpeggioFromShape
@@ -114,7 +122,10 @@ export function arpeggioFromShape(
   parentRoot: string,
   tuning: string[] = STANDARD,
 ): FrettedScale {
-  return arpeggioFromScale(buildFrettedScale(shape, parentRoot, tuning), chordName);
+  return arpeggioFromScale(
+    buildFrettedScale(shape, parentRoot, tuning),
+    chordName,
+  );
 }
 
 // ============================================================
@@ -124,6 +135,14 @@ export function arpeggioFromShape(
 /**
  * Build a FrettedScale by looking up the scale name with Tonal's Scale module.
  * Fills in `scaleType` and `scaleName` on the returned FrettedScale.
+ *
+ * Before building, `shape` is relabeled into the requested scale's interval
+ * frame via `relabelShape` (R3.3) — this is what makes e.g.
+ * `buildFromScale(CAGED_E, "A minor")` produce correct A-natural-minor pitch
+ * classes (A=1P, C=3m) instead of silently building the A-major frame at A.
+ * If the shape is not rotation-compatible with the requested scale,
+ * `relabelShape` returns `undefined` and this falls back to building the
+ * original shape as-is (no regression to an empty result).
  *
  * @param shape - the ScaleShape to apply
  * @param scaleName - full scale name, e.g. "A major", "A dorian", "A minor pentatonic"
@@ -139,12 +158,48 @@ export function buildFromScale(
     return { ...NoFrettedScale };
   }
 
-  const frettedScale = buildFrettedScale(shape, result.tonic, tuning);
+  const relabeled = relabelShape(shape, result.intervals);
+  const frettedScale = buildFrettedScale(
+    relabeled ?? shape,
+    result.tonic,
+    tuning,
+  );
   if (frettedScale.empty) {
     return frettedScale;
   }
 
   return { ...frettedScale, scaleType: result.type, scaleName: result.name };
+}
+
+// ============================================================
+// relabelShapeToScale
+// ============================================================
+
+/**
+ * Integration-tier wrapper over the pure `relabelShape` primitive: resolves
+ * `scaleName` via Tonal's Scale module and relabels `shape` into that
+ * scale's interval frame.
+ *
+ * Enharmonic spelling is inherited from the target scale's own
+ * `scale.intervals` (never a raw semitone→interval lookup).
+ *
+ * @param shape - the ScaleShape to relabel
+ * @param scaleName - full scale name, e.g. "A minor", "A minor pentatonic"
+ * @param options - optional name/quality/parentShape overrides (see RelabelOptions)
+ * @returns the relabeled ScaleShape, or `undefined` for an unknown scale name
+ * or a shape that is not rotation-compatible with the scale's frame
+ */
+export function relabelShapeToScale(
+  shape: ScaleShape,
+  scaleName: string,
+  options?: RelabelOptions,
+): ScaleShape | undefined {
+  const scale = getScale(scaleName);
+  if (scale.empty) {
+    return undefined;
+  }
+
+  return relabelShape(shape, scale.intervals, options);
 }
 
 // ============================================================
@@ -234,7 +289,10 @@ const NoKeyAnalysis: KeyAnalysis = {
  *
  * Returns -1 when no match is found by either strategy.
  */
-function findChordIndex(detectedChord: string, keyChords: readonly string[]): number {
+function findChordIndex(
+  detectedChord: string,
+  keyChords: readonly string[],
+): number {
   // Fast path: exact string equality
   const exactIdx = keyChords.indexOf(detectedChord);
   if (exactIdx !== -1) return exactIdx;
@@ -304,9 +362,22 @@ export function analyzeInKey(
 // ============================================================
 
 /**
- * Check whether a ScaleShape is compatible with a given scale.
- * A shape is compatible if every interval it uses is present in the scale
- * (i.e. the shape's interval set is a subset of or equal to the scale's intervals).
+ * Check whether a ScaleShape is compatible with a given scale, by
+ * interval-chroma coverage (enharmonic-safe, root-relative).
+ *
+ * Both the shape's and the scale's interval frames are reduced to their
+ * pitch-class chroma sets (0-11, via `@tonaljs/interval` `semitones`) so
+ * that differently-spelled-but-enharmonically-equal intervals (e.g. `4A`
+ * vs `5d` across Tonal scale types) still compare correctly. A shape is
+ * compatible iff its chroma set is non-empty and a subset of the scale's
+ * chroma set.
+ *
+ * This is root-relative, not a relative-major/minor loosening: a
+ * major-frame shape is NOT compatible with a minor scale name, because
+ * anchoring the major-interval-frame shape at the minor tonic would
+ * produce the wrong pitch classes. The relative-major/minor geometric
+ * identity is expressed via the registered minor-quality shape entries
+ * (see `relabelShape`), not by this compatibility check.
  *
  * @param shape - the ScaleShape to check
  * @param scaleName - full scale name, e.g. "A major"
@@ -320,20 +391,22 @@ export function isShapeCompatible(
     return false;
   }
 
-  // Collect unique intervals used by the shape
-  const shapeIntervals = Array.from(
-    new Set(shape.strings.flatMap((s) => s || [])),
+  const chromaOf = (ivl: string): number => ((semitones(ivl) % 12) + 12) % 12;
+
+  // Collect unique chromas used by the shape's intervals
+  const shapeChromas = new Set(
+    shape.strings.flatMap((s) => s || []).map(chromaOf),
   );
 
-  if (shapeIntervals.length === 0) {
+  if (shapeChromas.size === 0) {
     return false;
   }
 
-  // The scale's intervals (from root), e.g. ["1P","2M","3M","4P","5P","6M","7M"]
-  const scaleIntervalSet = new Set(scale.intervals);
+  // The scale's interval chromas (from root)
+  const scaleChromaSet = new Set(scale.intervals.map(chromaOf));
 
-  // Every interval in the shape must be in the scale
-  return shapeIntervals.every((ivl) => scaleIntervalSet.has(ivl));
+  // Every chroma in the shape must be in the scale
+  return Array.from(shapeChromas).every((c) => scaleChromaSet.has(c));
 }
 
 // ============================================================
@@ -489,7 +562,10 @@ function extractProbe(
       }
     }
 
-    const anchorFret = input.notes.reduce((m, n) => Math.min(m, n.fret), Infinity);
+    const anchorFret = input.notes.reduce(
+      (m, n) => Math.min(m, n.fret),
+      Infinity,
+    );
     const anchorString = bassNote.string;
 
     return { pitchClasses, rootCandidates, anchorFret, anchorString };
@@ -497,7 +573,12 @@ function extractProbe(
 
   // Grip path (string or array) — spec §B.1 Grip form
   const frets = parseChordFrets(input);
-  const played: { string: number; fret: number; midi: number; noteName: string }[] = [];
+  const played: {
+    string: number;
+    fret: number;
+    midi: number;
+    noteName: string;
+  }[] = [];
 
   // Cap loop to tuning length to avoid iterating a pathologically large frets array (CR-040)
   const fretLimit = Math.min(frets.length, tuning.length);
@@ -573,8 +654,8 @@ export function inferShapeContext(
   if (probe.pitchClasses.length < 3 && !options?.includeWeak) return [];
 
   // Candidate enumeration (spec §B.2)
-  const shapes = all().filter((s) =>
-    !options?.system || s.system === options.system,
+  const shapes = all().filter(
+    (s) => !options?.system || s.system === options.system,
   );
 
   const candidates: InferenceCandidate[] = [];
@@ -618,7 +699,8 @@ export function inferShapeContext(
   // Ranking (spec §B.4): descending score, then ascending name, then ascending shapeRoot, then ascending anchorFret
   candidates.sort((a, b) => {
     if (b.score !== a.score) return b.score - a.score;
-    if (a.shape.name !== b.shape.name) return a.shape.name < b.shape.name ? -1 : 1;
+    if (a.shape.name !== b.shape.name)
+      return a.shape.name < b.shape.name ? -1 : 1;
     if (a.shapeRoot !== b.shapeRoot) return a.shapeRoot < b.shapeRoot ? -1 : 1;
     return a.anchorFret - b.anchorFret;
   });
@@ -626,7 +708,11 @@ export function inferShapeContext(
   // Apply limit (spec §B.4)
   const rawLimit = options?.limit;
   let limit: number | undefined;
-  if (rawLimit !== undefined && isFinite(rawLimit) && Math.floor(rawLimit) >= 1) {
+  if (
+    rawLimit !== undefined &&
+    isFinite(rawLimit) &&
+    Math.floor(rawLimit) >= 1
+  ) {
     limit = Math.floor(rawLimit);
   }
 

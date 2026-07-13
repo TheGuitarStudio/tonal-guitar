@@ -102,6 +102,7 @@ export type { RelabelOptions } from "./transform";
 // Tonal integration
 export {
   buildFromScale,
+  relabelShapeToScale,
   relatedScales,
   identifyChord,
   analyzeInKey,
