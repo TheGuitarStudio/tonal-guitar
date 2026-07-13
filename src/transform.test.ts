@@ -185,4 +185,41 @@ describe("relabelShape (R2.3-R2.9)", () => {
     expect(result?.system).toBe(CAGED_G.system);
     expect(result?.system).toBe("caged");
   });
+
+  it("resolves chroma collisions in targetIntervals with first-wins (R2.3)", () => {
+    // "3M" and "4d" are enharmonic (both chroma 4, via @tonaljs/interval
+    // semitones). "3M" is listed first, so it must win the chroma slot.
+    const targetWithCollision = ["1P", "3M", "4d", "5P", "6M", "7M"];
+    const shapeWithDiminishedFourth: ScaleShape = {
+      name: "Custom Shape",
+      system: "custom",
+      strings: [["1P", "4d"]],
+      rootString: 0,
+    };
+
+    const result = relabelShape(shapeWithDiminishedFourth, targetWithCollision);
+    expect(result).toBeDefined();
+    if (!result) return;
+
+    // The chroma-4 note must be relabeled to "3M" (first-wins), not "4d".
+    expect(result.strings[0]).toEqual(["1P", "3M"]);
+  });
+
+  it("recomputes rootString to the lowest non-null string carrying the tonic, ignoring an input rootString that points at a null string (R2.7)", () => {
+    const shapeWithNullAtRootString: ScaleShape = {
+      name: "Custom Shape",
+      system: "custom",
+      strings: [null, ["1P", "2M"], ["1P", "4P"]],
+      rootString: 0, // points at a null string entry
+    };
+
+    const result = relabelShape(shapeWithNullAtRootString, NATURAL_MINOR);
+    expect(result).toBeDefined();
+    if (!result) return;
+
+    // The new tonic ("1P") first appears on string index 1 (string 0 is
+    // null), so rootString must follow the tonic, not the stale input value.
+    expect(result.rootString).toBe(1);
+    expect(result.strings[0]).toBeNull();
+  });
 });
