@@ -834,3 +834,112 @@ describe("caged-scales-minor: build-equivalence and registry tests (R4.1)", () =
     }
   });
 });
+
+// ─── TG4: minor pentatonic entries (pentatonic-minor.ts) ─────────────────────
+//
+// The 5 minor pentatonic boxes are derived from the 5 major pentatonic boxes
+// via relabelShape (chroma-anchored rotation into the minor-pentatonic
+// frame). Each pair shares identical fretboard geometry: the minor-form box
+// anchored at "A" occupies the exact same {string, fret} positions as its
+// major-form parent anchored at "C" (the relative-major root for A minor
+// pentatonic).
+
+import {
+  PENTA_BOX_1,
+  PENTA_BOX_2,
+  PENTA_BOX_3,
+  PENTA_BOX_4,
+  PENTA_BOX_5,
+} from "./pentatonic";
+
+describe("pentatonic-minor: build-equivalence and registry tests (R4.2)", () => {
+  function positionSet(root: string, source: typeof PENTA_BOX_1) {
+    const result = buildFrettedScale(source, root, STANDARD);
+    return result.notes.map((n) => `${n.string}:${n.fret}`).sort();
+  }
+
+  function minorPositionSet(minorName: string, root: string) {
+    const shape = get(minorName);
+    expect(shape, `${minorName} not registered`).toBeDefined();
+    const result = buildFrettedScale(shape!, root, STANDARD);
+    return result.notes.map((n) => `${n.string}:${n.fret}`).sort();
+  }
+
+  // [minor registered name, source const, source const name (parentShape)]
+  const pairs: [string, typeof PENTA_BOX_1, string][] = [
+    ["Pentatonic Box 1 Minor", PENTA_BOX_1, "Pentatonic Box 1"],
+    ["Pentatonic Box 2 Minor", PENTA_BOX_2, "Pentatonic Box 2"],
+    ["Pentatonic Box 3 Minor", PENTA_BOX_3, "Pentatonic Box 3"],
+    ["Pentatonic Box 4 Minor", PENTA_BOX_4, "Pentatonic Box 4"],
+    ["Pentatonic Box 5 Minor", PENTA_BOX_5, "Pentatonic Box 5"],
+  ];
+
+  describe("build-equivalence: minor box at A === major parent at C (relative pair)", () => {
+    for (const [minorName, source] of pairs) {
+      it(`${minorName} at "A" produces the same {string, fret} positions as ${source.name} at "C"`, () => {
+        const minorPositions = minorPositionSet(minorName, "A");
+        const majorPositions = positionSet("C", source);
+        expect(minorPositions).toEqual(majorPositions);
+        expect(minorPositions.length).toBeGreaterThan(0);
+      });
+    }
+  });
+
+  describe("minor-frame interval labels (A root build)", () => {
+    for (const [minorName] of pairs) {
+      it(`${minorName} at "A": pc "A" carries interval "1P", pc "C" carries interval "3m"`, () => {
+        const shape = get(minorName);
+        expect(shape).toBeDefined();
+        const result = buildFrettedScale(shape!, "A", STANDARD);
+        const aNotes = result.notes.filter((n) => n.pc === "A");
+        const cNotes = result.notes.filter((n) => n.pc === "C");
+        expect(aNotes.length).toBeGreaterThan(0);
+        expect(cNotes.length).toBeGreaterThan(0);
+        for (const n of aNotes) {
+          expect(n.interval).toBe("1P");
+        }
+        for (const n of cNotes) {
+          expect(n.interval).toBe("3m");
+        }
+      });
+    }
+  });
+
+  describe("registry metadata (R4.2)", () => {
+    const expectedRootStrings: Record<string, number> = {
+      "Pentatonic Box 1 Minor": 0,
+      "Pentatonic Box 2 Minor": 2,
+      "Pentatonic Box 3 Minor": 1,
+      "Pentatonic Box 4 Minor": 1,
+      "Pentatonic Box 5 Minor": 0,
+    };
+    const expectedParents: Record<string, string> = {
+      "Pentatonic Box 1 Minor": "Pentatonic Box 1",
+      "Pentatonic Box 2 Minor": "Pentatonic Box 2",
+      "Pentatonic Box 3 Minor": "Pentatonic Box 3",
+      "Pentatonic Box 4 Minor": "Pentatonic Box 4",
+      "Pentatonic Box 5 Minor": "Pentatonic Box 5",
+    };
+
+    for (const [minorName] of pairs) {
+      it(`get("${minorName}") has quality "minor-pentatonic", parentShape "${expectedParents[minorName]}", rootString ${expectedRootStrings[minorName]}`, () => {
+        const shape = get(minorName);
+        expect(shape).toBeDefined();
+        expect(shape!.quality).toBe("minor-pentatonic");
+        expect(shape!.parentShape).toBe(expectedParents[minorName]);
+        expect(shape!.rootString).toBe(expectedRootStrings[minorName]);
+        expect(shape!.system).toBe("pentatonic");
+      });
+    }
+  });
+
+  it("registry: exactly 5 entries with quality 'minor-pentatonic' and all 5 minor box names present in names()", () => {
+    const minorShapes = all().filter((s) => s.quality === "minor-pentatonic");
+    expect(minorShapes.length).toBe(5);
+
+    const registeredNames = names();
+    for (const [minorName] of pairs) {
+      expect(registeredNames).toContain(minorName);
+    }
+  });
+});
