@@ -95,6 +95,10 @@ export type { AlphaTexOptions, AsciiTabOptions } from "./output";
 export { filterChordTones, scoreShapeMatch } from "./arpeggio";
 export type { InferenceProbe, ScoreBreakdown } from "./arpeggio";
 
+// Shape relabeling (pure tier)
+export { relabelShape } from "./transform";
+export type { RelabelOptions } from "./transform";
+
 // Tonal integration
 export {
   buildFromScale,

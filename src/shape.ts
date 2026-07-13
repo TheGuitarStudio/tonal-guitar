@@ -25,6 +25,8 @@ export interface ScaleShape {
   strings: (string[] | null)[]; // per-string intervals, low to high
   rootString: number; // which string has the root
   span?: number; // optional fret span hint
+  quality?: string; // interval-frame quality tag, e.g. "major" | "minor" | "minor-pentatonic"
+  parentShape?: string; // name of the source shape a relabeled entry was derived from, e.g. "G Shape"
 }
 
 export type VoicingFamily =

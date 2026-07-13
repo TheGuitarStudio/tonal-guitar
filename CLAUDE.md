@@ -37,6 +37,7 @@ src/
 ├── shape.ts                  # Types (FrettedNote, ScaleShape, etc.) + registries
 ├── shape.test.ts             # VoicingFamily, VoicingPatternDictionary, chordShapes.query tests
 ├── build.ts                  # buildFrettedScale, applyChordShape
+├── transform.ts               # Shape relabeling (relabelShape)
 ├── walker.ts                 # Bidirectional pattern walker
 ├── pattern.ts                # Pattern generators (intervals, groupings)
 ├── sequence.ts                # Sequence engine (incremental, bounded)
