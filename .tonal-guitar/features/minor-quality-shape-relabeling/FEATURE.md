@@ -35,7 +35,7 @@
 | 2     | TG4: Minor Pentatonic Entries (pentatonic-minor.ts)                     | complete | sonnet | 891 tests pass; lead updated index.test.ts counts |
 | 3     | TG5: isShapeCompatible Rewrite + relabelShapeToScale + buildFromScale   | complete | sonnet | 918 tests; accepted deviation: modeShapes("A dorian") returns 5 minor-pent boxes (spec R3.2 row inconsistent with R3.1 chroma math) |
 | 4     | TG6: API Docs, README, PLAN.md, CLAUDE.md                               | complete | sonnet | docs verified against shipped code |
-| 5     | TG7: Final Test Review and Gap Analysis                                 | in-progress | sonnet | -     |
+| 5     | TG7: Final Test Review and Gap Analysis                                 | complete | sonnet | 920 tests; 2 gaps filled (registry +10 count, R3.4 no-double-offset) |
 
 ### Oversight Reports
 
@@ -44,6 +44,7 @@
 - **Layer 2**: No concerns. Continued.
 - **Layer 3**: No concerns. Dorian-deviation chroma math independently verified by oversight. Continued.
 - **Layer 4**: No concerns. Docs spot-checked against live code. Continued.
+- **Layer 5**: No concerns. Test-only additions verified. Continued.
 
 ### Spec Compliance
 
