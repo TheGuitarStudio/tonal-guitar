@@ -943,3 +943,22 @@ describe("pentatonic-minor: build-equivalence and registry tests (R4.2)", () => 
     }
   });
 });
+
+// ─── R5.3 registry-count gap: total scale-shape registrations grew by +10 ────
+//
+// caged-scales-minor.ts (5) + pentatonic-minor.ts (5) = 10 new entries on top
+// of the pre-feature 17 (5 CAGED + 7 3NPS + 5 pentatonic). src/index.test.ts
+// asserts the absolute total (all() === 27); this asserts the same fact from
+// the data-layer's point of view, scoped to the two derived-entry files this
+// suite exercises.
+
+describe("R5.3 — minor-derived scale-shape registrations: +10 total", () => {
+  it("quality 'minor' + 'minor-pentatonic' entries together equal exactly 10, and total registered scale shapes equal 27 (17 pre-feature + 10 derived)", () => {
+    const allShapes = all();
+    const derivedMinorShapes = allShapes.filter(
+      (s) => s.quality === "minor" || s.quality === "minor-pentatonic",
+    );
+    expect(derivedMinorShapes.length).toBe(10);
+    expect(names().length).toBe(27);
+  });
+});

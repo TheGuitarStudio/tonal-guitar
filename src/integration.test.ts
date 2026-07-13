@@ -1480,6 +1480,34 @@ describe("TG5 — isShapeCompatible / modeShapes / buildFromScale / relabelShape
       const aNotes = result.notes.filter((n) => n.pc === "A");
       expect(aNotes.length).toBeGreaterThan(0);
     });
+
+    it("no double-offset / off-by-one: the added low-B string (index 0) carries no notes, matching a direct 6-string build shifted by 1", () => {
+      // Em Shape has rootString 0 on 6 strings. On STANDARD_7 (7 strings),
+      // strOffset = 7 - 6 = 1, so every note should land on tuning strings
+      // 1-6, never on the added low-B string (index 0) — mirroring the
+      // Task 2.5 CAGED_E/STANDARD_7 pattern in index.test.ts.
+      const em = get("Em Shape");
+      expect(em).toBeDefined();
+      const result7 = buildFromScale(em!, "A minor", STANDARD_7);
+      expect(result7.empty).toBe(false);
+
+      const onAddedString = result7.notes.filter((n) => n.string === 0);
+      expect(onAddedString).toHaveLength(0);
+
+      const result6 = buildFromScale(em!, "A minor");
+      expect(result6.empty).toBe(false);
+      expect(result7.notes.length).toBe(result6.notes.length);
+
+      // Every note from the 6-string build reappears one string higher
+      // (same fret) in the 7-string build — confirms a single, correct
+      // shift with no double-offset or off-by-one.
+      for (const note6 of result6.notes) {
+        const matching = result7.notes.find(
+          (n) => n.string === note6.string + 1 && n.fret === note6.fret,
+        );
+        expect(matching).toBeDefined();
+      }
+    });
   });
 
   describe("Target-frame constants sanity (R5.3)", () => {
