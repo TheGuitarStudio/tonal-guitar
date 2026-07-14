@@ -750,13 +750,13 @@ export const OPEN_E_DIM: ChordShape = {
 
 /**
  * E augmented open (032110)
- * Notes: E C G# E G# E → intervals: 1P 5A 3M 1P 3M 1P
+ * Notes: E C E G# C E → intervals: 1P 5A 1P 3M 5A 1P
  * C is enharmonic to B# (aug 5th of E); stored as "5A" per Tonal convention.
  */
 export const OPEN_E_AUG: ChordShape = {
   name: "E Augmented Open",
   system: "open",
-  strings: ["1P", "5A", "3M", "1P", "3M", "1P"],
+  strings: ["1P", "5A", "1P", "3M", "5A", "1P"],
   fingers: [0, 3, 2, 1, 1, 0],
   barres: [{ fret: 1, fromString: 3, toString: 4, finger: 1 }],
   rootString: 0,
@@ -1126,19 +1126,20 @@ export const BARRE_E_DIM: ChordShape = {
 };
 
 /**
- * E-form augmented barre. Interval math shows strings 3-4 share a fret
- * distinct from strings 0/5's fret (the original data incorrectly merged
- * all four under one finger — impossible without a hinge barre); this is a
- * wide-span augmented grip (mirroring OPEN_E_AUG), so treat the exact
- * fingering as a best-effort approximation rather than a single compact
- * hand position.
+ * E-form augmented barre (movable 032110 grip): full index barre at the
+ * base fret (strings 0/5 sound it), middle-finger mini-barre one fret
+ * above on strings 3-4, ring two above, pinky three above — mirroring
+ * OPEN_E_AUG's corrected 1P 5A 1P 3M 5A 1P interval layout.
  */
 export const BARRE_E_AUG: ChordShape = {
   name: "E Form aug Barre",
   system: "barre",
-  strings: ["1P", "5A", "3M", "1P", "3M", "1P"],
-  fingers: [1, 3, 2, 4, 4, 1],
-  barres: [{ fret: 0, fromString: 3, toString: 4, finger: 4 }],
+  strings: ["1P", "5A", "1P", "3M", "5A", "1P"],
+  fingers: [1, 4, 3, 2, 2, 1],
+  barres: [
+    { fret: 0, fromString: 0, toString: 5, finger: 1 },
+    { fret: 1, fromString: 3, toString: 4, finger: 2 },
+  ],
   rootString: 0,
   chordType: "aug",
   voicingFamily: "barre",
