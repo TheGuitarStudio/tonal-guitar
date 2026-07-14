@@ -40,7 +40,7 @@ import {
 } from "tonal-guitar";
 
 // 1. Get a shape and build a scale on the fretboard
-const shape = get("CAGED E Shape");
+const shape = get("E Shape");
 const scale = buildFrettedScale(shape, "A");
 
 // 2. Generate a pattern and walk it
@@ -51,6 +51,16 @@ const notes = walkPattern(scale, pattern);
 console.log(toAsciiTab(notes));
 console.log(toAlphaTeX(notes, { tempo: 100, duration: 8 }));
 ```
+
+## v0.2.0 Changes
+
+- **`buildFromScale` pitch-correctness fix.** `buildFromScale` now relabels a shape into the requested scale's interval frame before building, so minor-tonic (and other non-major) scale names produce correct pitch content instead of silently building the shape's original (usually major) frame at the new tonic. See [buildFromScale](#tonaljs-integration) for the before/after example.
+- **`isShapeCompatible` chroma-set semantics.** Compatibility is now computed via interval-chroma-set coverage (enharmonic-safe) instead of raw interval-string comparison. This does not loosen relative-major/minor matching -- a major-frame shape is still incompatible with a minor scale name.
+- **New APIs:** `relabelShape` (pure tier, `src/transform.ts`) and `relabelShapeToScale` (integration tier) — see [Shape Relabeling](#shape-relabeling).
+- **New `ScaleShape` fields:** optional `quality` and `parentShape`, set on shapes derived via `relabelShape`.
+- **10 new registered entries:** 5 minor CAGED scale shapes and 5 minor pentatonic boxes — see [Minor-Quality Entries](#minor-quality-entries).
+
+See [CHANGELOG.md](./CHANGELOG.md) for full details.
 
 ## API
 
@@ -125,15 +135,15 @@ fretboard(STANDARD, [0, 4]); // every note on strings 0-5, frets 0-4
 
 ### Shape Registry
 
-Built-in shapes are registered at import time: CAGED scale shapes (5), CAGED chord shapes (5), 3NPS patterns (7), and pentatonic boxes (5).
+Built-in shapes are registered at import time: CAGED scale shapes (5), CAGED chord shapes (5), 3NPS patterns (7), pentatonic boxes (5) -- plus (v0.2.0) 5 minor CAGED scale shapes and 5 minor pentatonic boxes, derived from the major-frame shapes via `relabelShape`. See [Minor-Quality Entries](#minor-quality-entries) below.
 
 #### `get(name: string) => ScaleShape | undefined`
 
 Retrieve a scale shape by name:
 
 ```js
-get("CAGED E Shape"); // => { name: "CAGED E Shape", system: "caged", strings: [...], ... }
-get("3NPS Pattern 1"); // => { name: "3NPS Pattern 1", system: "3nps", ... }
+get("E Shape"); // => { name: "E Shape", system: "caged", strings: [...], ... }
+get("3NPS Pattern 1 (Ionian)"); // => { name: "3NPS Pattern 1 (Ionian)", system: "3nps", ... }
 ```
 
 #### `all() => ScaleShape[]`
@@ -145,7 +155,7 @@ Get all registered scale shapes.
 Get all registered scale shape names:
 
 ```js
-names(); // => ["CAGED E Shape", "CAGED D Shape", "CAGED C Shape", ...]
+names(); // => ["E Shape", "D Shape", "C Shape", ...]
 ```
 
 #### `add(shape: ScaleShape) => ScaleShape`
@@ -176,13 +186,13 @@ Separate registry for chord shapes with the same API: `chordShapes.get()`, `chor
 Apply a scale shape to a root note and tuning, returning all fretted positions:
 
 ```js
-const scale = buildFrettedScale(get("CAGED E Shape"), "A");
+const scale = buildFrettedScale(get("E Shape"), "A");
 // => {
 //   empty: false,
 //   root: "A",
 //   scaleType: "",
 //   scaleName: "",
-//   shapeName: "CAGED E Shape",
+//   shapeName: "E Shape",
 //   tuning: ["E2", "A2", "D3", "G3", "B3", "E4"],
 //   notes: [
 //     { string: 0, fret: 5, note: "A2", pc: "A", interval: "1P", degree: 1, midi: 45, ... },
@@ -218,6 +228,66 @@ const chord = applyChordShape(chordShapes.get("E Shape"), "A");
 //   shapeName: "E Shape",
 //   startFret: 5
 // }
+```
+
+### Shape Relabeling
+
+#### `relabelShape(shape: ScaleShape, targetIntervals: string[], options?: RelabelOptions) => ScaleShape | undefined`
+
+Pure-tier primitive that rewrites a shape's per-string interval labels into a different, rotation-compatible interval frame (e.g. turning a major-frame CAGED shape into its natural-minor labeling). Geometry (which string/fret each note lands on) is unchanged -- only `strings` labels, `rootString`, `name`, `quality`, and `parentShape` change. Returns a new `ScaleShape` (the input is never mutated), or `undefined` when no valid relabeling exists (e.g. relabeling a 7-note shape into a 5-note pentatonic frame).
+
+```js
+import { relabelShape, get } from "tonal-guitar";
+
+const em = relabelShape(get("G Shape"), ["1P", "2M", "3m", "4P", "5P", "6m", "7m"], {
+  name: "Em Shape",
+  quality: "minor",
+  parentShape: "G Shape",
+});
+// em.rootString === 0, em.quality === "minor", em.parentShape === "G Shape"
+```
+
+```ts
+interface RelabelOptions {
+  name?: string;        // override the derived name (default: input shape.name)
+  quality?: string;      // value written to result.quality
+  parentShape?: string;  // value written to result.parentShape (default: shape.name)
+}
+```
+
+This is the primitive used to derive the 10 registered minor-quality entries -- see [Minor-Quality Entries](#minor-quality-entries) below, and `relabelShapeToScale` (in [Tonal.js Integration](#tonaljs-integration)) for the scale-name-driven wrapper.
+
+### Minor-Quality Entries
+
+The 5 CAGED and 5 pentatonic major-frame source shapes are each relabeled at import time (via `relabelShape`) into a paired minor-frame entry, registered under a distinct name. Geometry is identical to the parent shape -- only interval labels, `rootString`, and `quality`/`parentShape` metadata differ.
+
+#### Minor CAGED shapes
+
+| Parent shape | Registered minor name | `rootString` | `quality` |
+| --- | --- | --- | --- |
+| `"E Shape"` | `"Dm Shape"` | 2 | `"minor"` |
+| `"D Shape"` | `"Cm Shape"` | 1 | `"minor"` |
+| `"C Shape"` | `"Am Shape"` | 1 | `"minor"` |
+| `"A Shape"` | `"Gm Shape"` | 0 | `"minor"` |
+| `"G Shape"` | `"Em Shape"` | 0 | `"minor"` |
+
+#### Minor pentatonic boxes
+
+| Parent shape | Registered minor name | `rootString` | `quality` |
+| --- | --- | --- | --- |
+| `"Pentatonic Box 1"` | `"Pentatonic Box 1 Minor"` | 0 | `"minor-pentatonic"` |
+| `"Pentatonic Box 2"` | `"Pentatonic Box 2 Minor"` | 2 | `"minor-pentatonic"` |
+| `"Pentatonic Box 3"` | `"Pentatonic Box 3 Minor"` | 1 | `"minor-pentatonic"` |
+| `"Pentatonic Box 4"` | `"Pentatonic Box 4 Minor"` | 1 | `"minor-pentatonic"` |
+| `"Pentatonic Box 5"` | `"Pentatonic Box 5 Minor"` | 0 | `"minor-pentatonic"` |
+
+```js
+get("Em Shape");
+// => { name: "Em Shape", system: "caged", quality: "minor", parentShape: "G Shape", rootString: 0, ... }
+
+// Same fret positions as the major-frame parent at the relative-major root:
+buildFrettedScale(get("G Shape"), "C").notes;
+buildFrettedScale(get("Em Shape"), "A").notes; // same {string, fret} pairs, A=1P, C=3m
 ```
 
 ### Pattern Generators
@@ -278,7 +348,7 @@ sixths(7);  // same as ascendingIntervals(7, 5)
 Walk a degree pattern through a fretted scale, picking concrete notes:
 
 ```js
-const scale = buildFrettedScale(get("CAGED E Shape"), "A");
+const scale = buildFrettedScale(get("E Shape"), "A");
 const notes = walkPattern(scale, [1, 3, 5, 7, 6, 5, 4, 3, 2, 1]);
 ```
 
@@ -502,11 +572,34 @@ These functions require optional peer dependencies (`@tonaljs/scale`, `@tonaljs/
 Build a fretted scale using Tonal's `Scale.get()` for validation. Populates `scaleType` and `scaleName`:
 
 ```js
-const scale = buildFromScale(get("CAGED E Shape"), "A major");
+const scale = buildFromScale(get("E Shape"), "A major");
 scale.scaleType; // => "major"
 scale.scaleName; // => "A major"
 
 buildFromScale(get("Pentatonic Box 1"), "A minor pentatonic");
+```
+
+> **v0.2.0 behavior change (pitch-correctness fix).** `buildFromScale` now relabels `shape` into `scaleName`'s interval frame (via `relabelShape`) before building. Previously, `buildFromScale(get("E Shape"), "A minor")` applied the major-frame shape as-is at the "A" tonic, silently producing **A-major pitch classes** tagged `scaleType: "aeolian"`. As of v0.2.0 the same call produces correct A-natural-minor notes (`A=1P`, `C=3m`, `E=5P`) in the relabeled geometry. If the shape can't be relabeled into the requested frame, `relabelShape` returns `undefined` and `buildFromScale` falls back to its pre-fix behavior (building the shape as-is), so no previously-working call regresses to empty. See [Shape Relabeling](#shape-relabeling) above.
+
+```js
+// v0.2.0: minor tonics now produce correct pitch content --
+// pre-fix this call produced A-major pitch classes (A, B, C#, D, E, F#, G#)
+// mislabeled as "aeolian"; post-fix it produces A-natural-minor pitch classes.
+const aMinor = buildFromScale(get("E Shape"), "A minor");
+[...new Set(aMinor.notes.map((n) => n.pc))].sort();
+// => ["A", "B", "C", "D", "E", "F", "G"]
+aMinor.notes.find((n) => n.pc === "C").interval; // => "3m"
+```
+
+#### `relabelShapeToScale(shape: ScaleShape, scaleName: string, options?: RelabelOptions) => ScaleShape | undefined`
+
+Integration-tier wrapper over the pure `relabelShape` primitive (see [Shape Relabeling](#shape-relabeling)): resolves `scaleName` via Tonal's `Scale.get()` and relabels `shape` into that scale's interval frame. Enharmonic spelling is inherited from the target scale's own intervals.
+
+```js
+relabelShapeToScale(get("G Shape"), "A minor", { name: "Em Shape", quality: "minor", parentShape: "G Shape" });
+// equals the pre-registered get("Em Shape")
+
+relabelShapeToScale(get("E Shape"), "bogus scale"); // => undefined
 ```
 
 #### `relatedScales(frettedScale: FrettedScale) => Array<{ root: string, scale: string }>`
@@ -550,11 +643,16 @@ Returns `{ empty: true }` if the chord is not found in the key.
 
 #### `isShapeCompatible(shape: ScaleShape, scaleName: string) => boolean`
 
-Check if a shape's intervals are all present in a given scale:
+Check whether a shape is compatible with a scale by interval-chroma coverage (root-relative, enharmonic-safe): a shape is compatible iff its chroma set is a non-empty subset of the scale's chroma set.
+
+> **v0.2.0 behavior change.** The comparison is now chroma-based rather than raw interval-string comparison (fixes enharmonic spelling mismatches like `4A` vs `5d` across Tonal scale types). This is **not** a relative-major/minor loosening -- a major-frame shape is still incompatible with a minor scale name. The relative-major/minor identity is expressed through the registered minor-quality entries instead (see [Minor-Quality Entries](#minor-quality-entries)).
 
 ```js
-isShapeCompatible(get("CAGED E Shape"), "A major"); // => true
+isShapeCompatible(get("E Shape"), "A major"); // => true
 isShapeCompatible(get("Pentatonic Box 1"), "A major"); // => true (subset)
+isShapeCompatible(get("E Shape"), "A minor"); // => false (major frame ⊄ minor frame, root-relative)
+isShapeCompatible(get("Em Shape"), "A minor"); // => true (minor frame ⊆ minor frame)
+isShapeCompatible(get("Pentatonic Box 1 Minor"), "A minor"); // => true (minor-pent ⊆ natural-minor chromas)
 ```
 
 #### `modeShapes(modeName: string, shapeSystem?: string) => ScaleShape[]`
@@ -562,8 +660,20 @@ isShapeCompatible(get("Pentatonic Box 1"), "A major"); // => true (subset)
 Get all registered shapes compatible with a mode/scale:
 
 ```js
-modeShapes("A major", "caged"); // all CAGED shapes that fit A major
-modeShapes("A dorian"); // all shapes (any system) that fit A dorian
+modeShapes("C major", "caged"); // => 5 (major-frame CAGED shapes; minor entries excluded)
+
+// v0.2.0: minor tonics now resolve to the 10 registered minor-quality entries
+modeShapes("A minor", "caged");
+// => 5: "Dm Shape", "Cm Shape", "Am Shape", "Gm Shape", "Em Shape"
+modeShapes("A minor pentatonic", "pentatonic");
+// => the 5 "Pentatonic Box N Minor" entries
+modeShapes("A minor").length; // => 10 (5 minor CAGED + 5 minor pentatonic)
+
+// Chroma-subset coverage applies to any superset frame: the minor-pentatonic
+// chroma set {0,3,5,7,10} is also a subset of dorian's {0,2,3,5,7,9,10}, so
+modeShapes("A dorian");
+// => the 5 "Pentatonic Box N Minor" entries (there is no first-class dorian entry --
+// this is the minor-pentatonic entries' chroma set fitting dorian too)
 ```
 
 ## Types
@@ -572,8 +682,9 @@ The package exports these TypeScript interfaces:
 
 - `FrettedNote` — a note on the fretboard with position, pitch, and interval info
 - `FrettedScale` — a scale applied to the fretboard (with `empty` sentinel pattern)
-- `ScaleShape` — a scale shape definition (intervals per string)
+- `ScaleShape` — a scale shape definition (intervals per string, plus optional `quality`/`parentShape` metadata set on entries derived via `relabelShape`)
 - `ChordShape` — a chord voicing definition (one interval per string + fingerings + optional harmonic metadata)
+- `RelabelOptions` — options for `relabelShape`/`relabelShapeToScale` (`name`, `quality`, `parentShape`)
 - `Barre` — barre chord finger placement
 - `Fingering` — chord shape applied to a specific root
 - `FretboardPosition` — absolute position on the fretboard (string, fret, note, midi)

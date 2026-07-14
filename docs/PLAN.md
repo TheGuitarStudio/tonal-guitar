@@ -111,7 +111,7 @@ interface FrettedScale {
   root: string;            // tonic pitch class: "A", "C#"
   scaleType: string;       // scale type: "major", "minor pentatonic", "dorian"
   scaleName: string;       // full name: "A major", "A minor pentatonic"
-  shapeName: string;       // shape used: "E Shape", "3NPS Pattern 1"
+  shapeName: string;       // shape used: "E Shape", "3NPS Pattern 1 (Ionian)"
   tuning: string[];
   notes: FrettedNote[];
 }
@@ -604,8 +604,22 @@ Key things to verify end-to-end:
 
 ### Pentatonic/Modal same-shape relationship
 
+**Status: IMPLEMENTED** (v0.2.0, minor-quality-shape-relabeling feature — Task 6.1 docs, see `src/transform.ts`, `src/data/caged-scales-minor.ts`, `src/data/pentatonic-minor.ts`).
+
 A shape is geometry. The scale gives it meaning. Same fret positions can be
-multiple scales — this is handled by `relatedScales()` using `Scale.modeNames()`:
+multiple scales — this is handled two ways:
+
+1. `relatedScales()` using `Scale.modeNames()` (pre-existing): given an already-built
+   `FrettedScale`, find every scale name that shares its pitch-class set.
+2. `relabelShape()` / `relabelShapeToScale()` (new): given a `ScaleShape` template,
+   rewrite its interval labels into a different rotation-compatible frame — e.g.
+   turning the major-frame `"G Shape"` into `"Em Shape"` (natural-minor labels, same
+   geometry). This is now exercised at import time to register 5 minor CAGED shapes
+   and 5 minor pentatonic boxes (10 new entries total), so consumers get first-class
+   `get("Em Shape")` / `get("Pentatonic Box 1 Minor")` lookups and correct
+   `modeShapes("A minor", "caged")` / `buildFromScale(shape, "A minor")` results
+   without hand-deriving the relabel table. See `README.md` § Minor-Quality Entries
+   and `docs/api/transform.md` for the full mapping and worked example.
 
 ```
 Pentatonic Box 1 with root "A" = A minor pentatonic
@@ -615,7 +629,15 @@ Same frets, different interval labels.
 
 `buildFromScale(shape, "A minor pentatonic")` and `buildFromScale(shape, "C major
 pentatonic")` produce the same frets but different `interval`/`scaleIndex`/`degree`
-values on each `FrettedNote`.
+values on each `FrettedNote`. As of v0.2.0, `buildFromScale` relabels `shape` into
+the requested scale's frame first, so passing the pre-registered minor entry
+(`get("Pentatonic Box 1 Minor")`) and the major-frame source shape at their
+respective tonics both produce correct pitch content — see `CHANGELOG.md`.
+
+Out of scope for this pass: registered entries for the other diatonic modes
+(dorian, phrygian, etc.) and harmonic/melodic minor — `relabelShape` supports
+deriving them on demand, but no first-class registry entries are seeded. 3NPS
+modal-name revision remains deferred; see `docs/QUESTIONS.md` Q4.
 
 ### Sequences vs Patterns
 

@@ -7,7 +7,7 @@ package: guitar
 ```js
 import * as Guitar from "tonal-guitar";
 
-const shape = Guitar.get("CAGED E Shape");
+const shape = Guitar.get("E Shape");
 const scale = Guitar.buildFrettedScale(shape, "A");
 const notes = Guitar.walkPattern(scale, Guitar.thirds(7));
 console.log(Guitar.toAsciiTab(notes));
@@ -39,8 +39,8 @@ import {
   SEQ_1235,
 } from "tonal-guitar";
 
-// Build A major in CAGED E Shape
-const scale = buildFrettedScale(get("CAGED E Shape"), "A");
+// Build A major in E Shape
+const scale = buildFrettedScale(get("E Shape"), "A");
 
 // Walk ascending thirds
 const thirdNotes = walkPattern(scale, thirds(7));
@@ -54,7 +54,7 @@ console.log(toAlphaTeX(allNotes, { tempo: 100, key: "A" }));
 
 ## Built-in Shape Systems
 
-The package ships with 22 shapes registered at import time:
+The package ships with 32 shapes registered at import time:
 
 | System | Count | Shapes |
 |--------|-------|--------|
@@ -62,11 +62,14 @@ The package ships with 22 shapes registered at import time:
 | CAGED Chords | 5 | E, D, C, A, G shapes (with fingerings and barres) |
 | 3NPS | 7 | Patterns 1-7 (one per mode) |
 | Pentatonic | 5 | Boxes 1-5 |
+| Minor CAGED Scales | 5 | Dm, Cm, Am, Gm, Em shapes (relabeled from the major CAGED scale shapes) |
+| Minor Pentatonic | 5 | Boxes 1-5 Minor (relabeled from the major pentatonic boxes) |
 
 ## Package Sections
 
 - [Fretboard](/docs/guitar/fretboard) -- Fretboard math and note lookups
 - [Shapes](/docs/guitar/shapes) -- Scale and chord shape registry
+- [Transform](/docs/guitar/transform) -- Relabel a shape into a different interval frame (`relabelShape`)
 - [Patterns](/docs/guitar/patterns) -- Melodic pattern generators and walker
 - [Sequences](/docs/guitar/sequences) -- Sequence engine for incremental exercises
 - [Output](/docs/guitar/output) -- AlphaTeX and ASCII tab formatters

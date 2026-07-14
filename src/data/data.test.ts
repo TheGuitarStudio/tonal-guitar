@@ -17,8 +17,9 @@ import {
   type ChordShape,
   type VoicingPatternDictionary,
 } from "../index";
-import { applyChordShape } from "../build";
+import { applyChordShape, buildFrettedScale } from "../build";
 import { STANDARD } from "../tuning";
+import { get, all, names } from "../shape";
 
 // ─── Import all curated data files for side-effect registration ─────────────
 import "../data/caged-chords-7th";
@@ -63,6 +64,7 @@ import {
 } from "../data/open-chords";
 
 import { SHELL_DICTIONARY, SHELL_SHAPES } from "../data/jazz-shells";
+import type { ScaleShape } from "../shape";
 
 // ─── Utility ─────────────────────────────────────────────────────────────────
 
@@ -72,6 +74,21 @@ function buildFrets(shape: ChordShape, root: string): (number | null)[] {
 
 function buildPositions(shape: ChordShape, root: string) {
   return applyChordShape(shape, root, STANDARD).positions;
+}
+
+// Shared by the caged-scales-minor and pentatonic-minor describe blocks below:
+// builds the sorted {string, fret} position set for a source shape or a
+// registered minor-derived shape, so the two can be compared for geometry
+// equivalence.
+function positionSet(root: string, source: ScaleShape): string[] {
+  const result = buildFrettedScale(source, root, STANDARD);
+  return result.notes.map((n) => `${n.string}:${n.fret}`).sort();
+}
+
+function minorPositionSet(minorName: string, root: string): string[] {
+  const shape = get(minorName);
+  expect(shape, `${minorName} not registered`).toBeDefined();
+  return positionSet(root, shape!);
 }
 
 // ─── Task 8.2: CAGED 7th chord shapes ────────────────────────────────────────
@@ -727,5 +744,211 @@ describe("TG10 — Data integrity: chordShapes.all() count after all curated imp
     // 4 chord types × 2 string sets × 2 orderings = 16
     const shellCount = chordShapes.query({ voicingFamily: "shell" }).length;
     expect(shellCount).toBe(16);
+  });
+});
+
+// ─── TG3: minor CAGED entries (caged-scales-minor.ts) ────────────────────────
+//
+// The 5 minor CAGED shapes are derived from the 5 major CAGED shapes via
+// relabelShape (chroma-anchored rotation into the natural-minor frame). Each
+// pair shares identical fretboard geometry: the minor-form shape anchored at
+// "A" occupies the exact same {string, fret} positions as its major-form
+// parent anchored at "C" (the relative-major root for A natural minor).
+
+import { CAGED_E, CAGED_D, CAGED_C, CAGED_A, CAGED_G } from "./caged-scales";
+
+describe("caged-scales-minor: build-equivalence and registry tests (R4.1)", () => {
+  // [minor registered name, source const, source const name (parentShape)]
+  const pairs: [string, typeof CAGED_E, string][] = [
+    ["Dm Shape", CAGED_E, "E Shape"],
+    ["Cm Shape", CAGED_D, "D Shape"],
+    ["Am Shape", CAGED_C, "C Shape"],
+    ["Gm Shape", CAGED_A, "A Shape"],
+    ["Em Shape", CAGED_G, "G Shape"],
+  ];
+
+  describe("build-equivalence: minor shape at A === major parent at C (relative pair)", () => {
+    for (const [minorName, source] of pairs) {
+      it(`${minorName} at "A" produces the same {string, fret} positions as ${source.name} at "C"`, () => {
+        const minorPositions = minorPositionSet(minorName, "A");
+        const majorPositions = positionSet("C", source);
+        expect(minorPositions).toEqual(majorPositions);
+        expect(minorPositions.length).toBeGreaterThan(0);
+      });
+    }
+  });
+
+  describe("minor-frame interval labels (A root build)", () => {
+    for (const [minorName] of pairs) {
+      it(`${minorName} at "A": pc "A" carries interval "1P", pc "C" carries interval "3m"`, () => {
+        const shape = get(minorName);
+        expect(shape).toBeDefined();
+        const result = buildFrettedScale(shape!, "A", STANDARD);
+        const aNotes = result.notes.filter((n) => n.pc === "A");
+        const cNotes = result.notes.filter((n) => n.pc === "C");
+        expect(aNotes.length).toBeGreaterThan(0);
+        expect(cNotes.length).toBeGreaterThan(0);
+        for (const n of aNotes) {
+          expect(n.interval).toBe("1P");
+        }
+        for (const n of cNotes) {
+          expect(n.interval).toBe("3m");
+        }
+      });
+    }
+  });
+
+  describe("registry metadata (R4.1)", () => {
+    const expectedRootStrings: Record<string, number> = {
+      "Dm Shape": 2,
+      "Cm Shape": 1,
+      "Am Shape": 1,
+      "Gm Shape": 0,
+      "Em Shape": 0,
+    };
+    const expectedParents: Record<string, string> = {
+      "Dm Shape": "E Shape",
+      "Cm Shape": "D Shape",
+      "Am Shape": "C Shape",
+      "Gm Shape": "A Shape",
+      "Em Shape": "G Shape",
+    };
+
+    for (const [minorName] of pairs) {
+      it(`get("${minorName}") has quality "minor", parentShape "${expectedParents[minorName]}", rootString ${expectedRootStrings[minorName]}`, () => {
+        const shape = get(minorName);
+        expect(shape).toBeDefined();
+        expect(shape!.quality).toBe("minor");
+        expect(shape!.parentShape).toBe(expectedParents[minorName]);
+        expect(shape!.rootString).toBe(expectedRootStrings[minorName]);
+        expect(shape!.system).toBe("caged");
+      });
+    }
+  });
+
+  it("registry: exactly 5 entries with quality 'minor' and all 5 minor names present in names()", () => {
+    const minorShapes = all().filter((s) => s.quality === "minor");
+    expect(minorShapes.length).toBe(5);
+
+    const registeredNames = names();
+    for (const [minorName] of pairs) {
+      expect(registeredNames).toContain(minorName);
+    }
+  });
+});
+
+// ─── TG4: minor pentatonic entries (pentatonic-minor.ts) ─────────────────────
+//
+// The 5 minor pentatonic boxes are derived from the 5 major pentatonic boxes
+// via relabelShape (chroma-anchored rotation into the minor-pentatonic
+// frame). Each pair shares identical fretboard geometry: the minor-form box
+// anchored at "A" occupies the exact same {string, fret} positions as its
+// major-form parent anchored at "C" (the relative-major root for A minor
+// pentatonic).
+
+import {
+  PENTA_BOX_1,
+  PENTA_BOX_2,
+  PENTA_BOX_3,
+  PENTA_BOX_4,
+  PENTA_BOX_5,
+} from "./pentatonic";
+
+describe("pentatonic-minor: build-equivalence and registry tests (R4.2)", () => {
+  // [minor registered name, source const, source const name (parentShape)]
+  const pairs: [string, typeof PENTA_BOX_1, string][] = [
+    ["Pentatonic Box 1 Minor", PENTA_BOX_1, "Pentatonic Box 1"],
+    ["Pentatonic Box 2 Minor", PENTA_BOX_2, "Pentatonic Box 2"],
+    ["Pentatonic Box 3 Minor", PENTA_BOX_3, "Pentatonic Box 3"],
+    ["Pentatonic Box 4 Minor", PENTA_BOX_4, "Pentatonic Box 4"],
+    ["Pentatonic Box 5 Minor", PENTA_BOX_5, "Pentatonic Box 5"],
+  ];
+
+  describe("build-equivalence: minor box at A === major parent at C (relative pair)", () => {
+    for (const [minorName, source] of pairs) {
+      it(`${minorName} at "A" produces the same {string, fret} positions as ${source.name} at "C"`, () => {
+        const minorPositions = minorPositionSet(minorName, "A");
+        const majorPositions = positionSet("C", source);
+        expect(minorPositions).toEqual(majorPositions);
+        expect(minorPositions.length).toBeGreaterThan(0);
+      });
+    }
+  });
+
+  describe("minor-frame interval labels (A root build)", () => {
+    for (const [minorName] of pairs) {
+      it(`${minorName} at "A": pc "A" carries interval "1P", pc "C" carries interval "3m"`, () => {
+        const shape = get(minorName);
+        expect(shape).toBeDefined();
+        const result = buildFrettedScale(shape!, "A", STANDARD);
+        const aNotes = result.notes.filter((n) => n.pc === "A");
+        const cNotes = result.notes.filter((n) => n.pc === "C");
+        expect(aNotes.length).toBeGreaterThan(0);
+        expect(cNotes.length).toBeGreaterThan(0);
+        for (const n of aNotes) {
+          expect(n.interval).toBe("1P");
+        }
+        for (const n of cNotes) {
+          expect(n.interval).toBe("3m");
+        }
+      });
+    }
+  });
+
+  describe("registry metadata (R4.2)", () => {
+    const expectedRootStrings: Record<string, number> = {
+      "Pentatonic Box 1 Minor": 0,
+      "Pentatonic Box 2 Minor": 2,
+      "Pentatonic Box 3 Minor": 1,
+      "Pentatonic Box 4 Minor": 1,
+      "Pentatonic Box 5 Minor": 0,
+    };
+    const expectedParents: Record<string, string> = {
+      "Pentatonic Box 1 Minor": "Pentatonic Box 1",
+      "Pentatonic Box 2 Minor": "Pentatonic Box 2",
+      "Pentatonic Box 3 Minor": "Pentatonic Box 3",
+      "Pentatonic Box 4 Minor": "Pentatonic Box 4",
+      "Pentatonic Box 5 Minor": "Pentatonic Box 5",
+    };
+
+    for (const [minorName] of pairs) {
+      it(`get("${minorName}") has quality "minor-pentatonic", parentShape "${expectedParents[minorName]}", rootString ${expectedRootStrings[minorName]}`, () => {
+        const shape = get(minorName);
+        expect(shape).toBeDefined();
+        expect(shape!.quality).toBe("minor-pentatonic");
+        expect(shape!.parentShape).toBe(expectedParents[minorName]);
+        expect(shape!.rootString).toBe(expectedRootStrings[minorName]);
+        expect(shape!.system).toBe("pentatonic");
+      });
+    }
+  });
+
+  it("registry: exactly 5 entries with quality 'minor-pentatonic' and all 5 minor box names present in names()", () => {
+    const minorShapes = all().filter((s) => s.quality === "minor-pentatonic");
+    expect(minorShapes.length).toBe(5);
+
+    const registeredNames = names();
+    for (const [minorName] of pairs) {
+      expect(registeredNames).toContain(minorName);
+    }
+  });
+});
+
+// ─── R5.3 registry-count gap: total scale-shape registrations grew by +10 ────
+//
+// caged-scales-minor.ts (5) + pentatonic-minor.ts (5) = 10 new entries on top
+// of the pre-feature 17 (5 CAGED + 7 3NPS + 5 pentatonic). src/index.test.ts
+// asserts the absolute total (all() === 27); this asserts the same fact from
+// the data-layer's point of view, scoped to the two derived-entry files this
+// suite exercises.
+
+describe("R5.3 — minor-derived scale-shape registrations: +10 total", () => {
+  it("quality 'minor' + 'minor-pentatonic' entries together equal exactly 10, and total registered scale shapes equal 27 (17 pre-feature + 10 derived)", () => {
+    const allShapes = all();
+    const derivedMinorShapes = allShapes.filter(
+      (s) => s.quality === "minor" || s.quality === "minor-pentatonic",
+    );
+    expect(derivedMinorShapes.length).toBe(10);
+    expect(names().length).toBe(27);
   });
 });

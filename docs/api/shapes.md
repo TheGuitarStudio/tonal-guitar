@@ -6,7 +6,7 @@ description: Scale and chord shape registry
 ```js
 import * as Guitar from "tonal-guitar";
 
-const shape = Guitar.get("CAGED E Shape");
+const shape = Guitar.get("E Shape");
 const scale = Guitar.buildFrettedScale(shape, "A");
 ```
 
@@ -18,15 +18,19 @@ Shapes define the geometry of how notes are laid out on the fretboard. A shape i
 
 ```ts
 interface ScaleShape {
-  name: string;                    // e.g. "CAGED E Shape"
+  name: string;                    // e.g. "E Shape"
   system: string;                  // "caged" | "3nps" | "pentatonic" | "custom"
   strings: (string[] | null)[];    // intervals per string, low to high
   rootString: number;              // which string anchors the root
   span?: number;                   // optional fret span hint
+  quality?: string;                // interval-frame quality tag, e.g. "major" | "minor" | "minor-pentatonic"
+  parentShape?: string;            // name of the source shape a relabeled entry was derived from, e.g. "G Shape"
 }
 ```
 
 Each entry in `strings` is either an array of interval names (e.g. `["1P", "2M", "3M"]`) or `null` for unused strings.
+
+`quality` and `parentShape` are populated on shapes derived via [`relabelShape`](/docs/guitar/transform) (see the 10 registered minor-quality entries below); hand-authored source shapes leave both `undefined`.
 
 ### ChordShape
 
@@ -57,8 +61,8 @@ interface Barre {
 Retrieve a shape by name:
 
 ```js
-get("CAGED E Shape");   // => { name: "CAGED E Shape", system: "caged", ... }
-get("3NPS Pattern 1");  // => { name: "3NPS Pattern 1", system: "3nps", ... }
+get("E Shape");   // => { name: "E Shape", system: "caged", ... }
+get("3NPS Pattern 1 (Ionian)");  // => { name: "3NPS Pattern 1 (Ionian)", system: "3nps", ... }
 get("Pentatonic Box 1"); // => { name: "Pentatonic Box 1", system: "pentatonic", ... }
 get("nonexistent");      // => undefined
 ```
@@ -77,9 +81,27 @@ Returns all registered shape names:
 
 ```js
 names();
-// => ["CAGED E Shape", "CAGED D Shape", "CAGED C Shape", "CAGED A Shape",
-//     "CAGED G Shape", "3NPS Pattern 1", ..., "Pentatonic Box 5"]
+// => ["E Shape", "D Shape", "C Shape", "A Shape", "G Shape",
+//     "Dm Shape", "Cm Shape", "Am Shape", "Gm Shape", "Em Shape",
+//     "3NPS Pattern 1 (Ionian)", ..., "Pentatonic Box 5 Minor"]
 ```
+
+### Minor-quality entries
+
+10 additional entries are registered at import time, derived from the major-frame CAGED and pentatonic shapes via [`relabelShape`](/docs/guitar/transform) -- same fretboard geometry as their `parentShape`, only interval labels/`rootString`/`quality` differ:
+
+```js
+names().filter((n) => get(n)?.quality === "minor");
+// => ["Dm Shape", "Cm Shape", "Am Shape", "Gm Shape", "Em Shape"]
+
+names().filter((n) => get(n)?.quality === "minor-pentatonic");
+// => ["Pentatonic Box 1 Minor", "Pentatonic Box 2 Minor", "Pentatonic Box 3 Minor",
+//     "Pentatonic Box 4 Minor", "Pentatonic Box 5 Minor"]
+
+get("Em Shape"); // => { name: "Em Shape", quality: "minor", parentShape: "G Shape", rootString: 0, ... }
+```
+
+See the project [README](https://github.com/TheGuitarStudio/tonal-guitar#minor-quality-entries) for the full parent-to-minor mapping tables.
 
 ### `add`
 
@@ -126,11 +148,11 @@ chordShapes.removeAll();      // clear all
 Apply a scale shape to a root note, returning all fretted positions:
 
 ```js
-const scale = buildFrettedScale(get("CAGED E Shape"), "A");
+const scale = buildFrettedScale(get("E Shape"), "A");
 // => {
 //   empty: false,
 //   root: "A",
-//   shapeName: "CAGED E Shape",
+//   shapeName: "E Shape",
 //   tuning: ["E2", "A2", "D3", "G3", "B3", "E4"],
 //   notes: [FrettedNote, FrettedNote, ...]
 // }
@@ -149,8 +171,8 @@ Works with any tuning:
 ```js
 import { DROP_D, STANDARD_7 } from "tonal-guitar";
 
-buildFrettedScale(get("CAGED E Shape"), "A", DROP_D);
-buildFrettedScale(get("CAGED E Shape"), "A", STANDARD_7);
+buildFrettedScale(get("E Shape"), "A", DROP_D);
+buildFrettedScale(get("E Shape"), "A", STANDARD_7);
 ```
 
 ### `applyChordShape`
@@ -178,7 +200,7 @@ interface FrettedScale {
   root: string;         // pitch class of root
   scaleType: string;    // e.g. "major" (populated by buildFromScale)
   scaleName: string;    // e.g. "A major" (populated by buildFromScale)
-  shapeName: string;    // e.g. "CAGED E Shape"
+  shapeName: string;    // e.g. "E Shape"
   tuning: string[];
   notes: FrettedNote[];
 }

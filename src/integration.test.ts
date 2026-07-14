@@ -5,19 +5,67 @@
 
 import { describe, it, expect, beforeAll, beforeEach, afterEach } from "vitest";
 import { chroma } from "@tonaljs/note";
+import { get as getTonalScale } from "@tonaljs/scale";
 
-import { CAGED_G, CAGED_E, CAGED_A, CAGED_C, CAGED_D } from "./data/caged-scales";
-import { NPS_PATTERN_1, NPS_PATTERN_2, NPS_PATTERN_3, NPS_PATTERN_4, NPS_PATTERN_5, NPS_PATTERN_6, NPS_PATTERN_7 } from "./data/three-nps";
-import { PENTA_BOX_1, PENTA_BOX_2, PENTA_BOX_3, PENTA_BOX_4, PENTA_BOX_5 } from "./data/pentatonic";
+import {
+  CAGED_G,
+  CAGED_E,
+  CAGED_A,
+  CAGED_C,
+  CAGED_D,
+} from "./data/caged-scales";
+import {
+  NPS_PATTERN_1,
+  NPS_PATTERN_2,
+  NPS_PATTERN_3,
+  NPS_PATTERN_4,
+  NPS_PATTERN_5,
+  NPS_PATTERN_6,
+  NPS_PATTERN_7,
+} from "./data/three-nps";
+import {
+  PENTA_BOX_1,
+  PENTA_BOX_2,
+  PENTA_BOX_3,
+  PENTA_BOX_4,
+  PENTA_BOX_5,
+} from "./data/pentatonic";
+import {
+  CAGED_DM,
+  CAGED_CM,
+  CAGED_AM,
+  CAGED_GM,
+  CAGED_EM,
+} from "./data/caged-scales-minor";
+import {
+  PENTA_BOX_1_MINOR,
+  PENTA_BOX_2_MINOR,
+  PENTA_BOX_3_MINOR,
+  PENTA_BOX_4_MINOR,
+  PENTA_BOX_5_MINOR,
+} from "./data/pentatonic-minor";
 import { buildFrettedScale } from "./build";
-import { NoFrettedScale, type ScaleShape, add, removeAll } from "./shape";
-import { arpeggioFromScale, arpeggioFromShape, inferShapeContext, analyzeInKey } from "./integration";
+import { NoFrettedScale, type ScaleShape, add, removeAll, get } from "./shape";
+import {
+  arpeggioFromScale,
+  arpeggioFromShape,
+  inferShapeContext,
+  analyzeInKey,
+  isShapeCompatible,
+  modeShapes,
+  buildFromScale,
+  relabelShapeToScale,
+} from "./integration";
+import { relabelShape } from "./transform";
 import { walkShapeMotif } from "./walker";
-import { STANDARD, DROP_D } from "./tuning";
+import { STANDARD, DROP_D, STANDARD_7 } from "./tuning";
 
 // Side-effect imports to register shapes at module load time (used by TG5 tests)
 import "./data/caged-scales";
 import "./data/three-nps";
+import "./data/pentatonic";
+import "./data/caged-scales-minor";
+import "./data/pentatonic-minor";
 
 // ---------------------------------------------------------------------------
 // Fixture (a): Am7 arpeggio from CAGED_G in C major
@@ -430,8 +478,14 @@ function registerBuiltins(): void {
 // ---------------------------------------------------------------------------
 
 describe("inferShapeContext — Fixture (a): Am7 arpeggio in G-shape of C", () => {
-  beforeEach(() => { removeAll(); registerBuiltins(); });
-  afterEach(() => { removeAll(); registerBuiltins(); });
+  beforeEach(() => {
+    removeAll();
+    registerBuiltins();
+  });
+  afterEach(() => {
+    removeAll();
+    registerBuiltins();
+  });
 
   let result: ReturnType<typeof inferShapeContext>;
 
@@ -481,8 +535,14 @@ describe("inferShapeContext — Fixture (a): Am7 arpeggio in G-shape of C", () =
 // ---------------------------------------------------------------------------
 
 describe("inferShapeContext — Fixture (b): 'x32010' C major open grip", () => {
-  beforeEach(() => { removeAll(); registerBuiltins(); });
-  afterEach(() => { removeAll(); registerBuiltins(); });
+  beforeEach(() => {
+    removeAll();
+    registerBuiltins();
+  });
+  afterEach(() => {
+    removeAll();
+    registerBuiltins();
+  });
 
   let result: ReturnType<typeof inferShapeContext>;
 
@@ -527,8 +587,14 @@ describe("inferShapeContext — Fixture (b): 'x32010' C major open grip", () => 
 // ---------------------------------------------------------------------------
 
 describe("inferShapeContext — Fixture (c): '133211' F major E-shape barre", () => {
-  beforeEach(() => { removeAll(); registerBuiltins(); });
-  afterEach(() => { removeAll(); registerBuiltins(); });
+  beforeEach(() => {
+    removeAll();
+    registerBuiltins();
+  });
+  afterEach(() => {
+    removeAll();
+    registerBuiltins();
+  });
 
   let result: ReturnType<typeof inferShapeContext>;
 
@@ -569,10 +635,12 @@ describe("inferShapeContext — Fixture (f): custom system isolation", () => {
     name: "MyTeacher Box A",
     system: "myteacher",
     strings: [
-      ["1P", "3m"],   // low E: root and minor 3rd
-      ["4P", "5P"],   // A: 4th and 5th
-      ["7m", "1P"],   // D: 7th and root
-      null, null, null,
+      ["1P", "3m"], // low E: root and minor 3rd
+      ["4P", "5P"], // A: 4th and 5th
+      ["7m", "1P"], // D: 7th and root
+      null,
+      null,
+      null,
     ],
     rootString: 0,
   };
@@ -582,7 +650,10 @@ describe("inferShapeContext — Fixture (f): custom system isolation", () => {
     registerBuiltins();
     add(myTeacherShape);
   });
-  afterEach(() => { removeAll(); registerBuiltins(); });
+  afterEach(() => {
+    removeAll();
+    registerBuiltins();
+  });
 
   it("with system:'myteacher', only the custom shape appears (not CAGED)", () => {
     // A minor pentatonic notes: A C D E G (frets on low E: A=5, C=8)
@@ -614,8 +685,14 @@ describe("inferShapeContext — Fixture (f): custom system isolation", () => {
 // ---------------------------------------------------------------------------
 
 describe("inferShapeContext — Fixture (g): 'x02220' A major open (anchor-octave artifact)", () => {
-  beforeEach(() => { removeAll(); registerBuiltins(); });
-  afterEach(() => { removeAll(); registerBuiltins(); });
+  beforeEach(() => {
+    removeAll();
+    registerBuiltins();
+  });
+  afterEach(() => {
+    removeAll();
+    registerBuiltins();
+  });
 
   let result: ReturnType<typeof inferShapeContext>;
   let result2: ReturnType<typeof inferShapeContext>;
@@ -647,8 +724,12 @@ describe("inferShapeContext — Fixture (g): 'x02220' A major open (anchor-octav
   });
 
   it("two consecutive calls return identically ordered results (determinism)", () => {
-    const order1 = result.map((c) => `${c.shape.name}|${c.shapeRoot}|${c.score}`);
-    const order2 = result2.map((c) => `${c.shape.name}|${c.shapeRoot}|${c.score}`);
+    const order1 = result.map(
+      (c) => `${c.shape.name}|${c.shapeRoot}|${c.score}`,
+    );
+    const order2 = result2.map(
+      (c) => `${c.shape.name}|${c.shapeRoot}|${c.score}`,
+    );
     expect(order1).toEqual(order2);
   });
 });
@@ -660,8 +741,14 @@ describe("inferShapeContext — Fixture (g): 'x02220' A major open (anchor-octav
 // ---------------------------------------------------------------------------
 
 describe("inferShapeContext — Fixture (h): no-match and edge cases", () => {
-  beforeEach(() => { removeAll(); registerBuiltins(); });
-  afterEach(() => { removeAll(); registerBuiltins(); });
+  beforeEach(() => {
+    removeAll();
+    registerBuiltins();
+  });
+  afterEach(() => {
+    removeAll();
+    registerBuiltins();
+  });
 
   it("array with no played notes → []", () => {
     expect(inferShapeContext([null, 13, 14, 13, null, null])).toEqual([]);
@@ -692,8 +779,14 @@ describe("inferShapeContext — Fixture (h): no-match and edge cases", () => {
 // ---------------------------------------------------------------------------
 
 describe("inferShapeContext — min-evidence gate", () => {
-  beforeEach(() => { removeAll(); registerBuiltins(); });
-  afterEach(() => { removeAll(); registerBuiltins(); });
+  beforeEach(() => {
+    removeAll();
+    registerBuiltins();
+  });
+  afterEach(() => {
+    removeAll();
+    registerBuiltins();
+  });
 
   it("1 distinct PC → []", () => {
     // "0-0-0-0-0-0" (all open strings) normalised: E2 B2 G3 D4 A4 E5 → 3 PCs (E,B,G)
@@ -721,8 +814,14 @@ describe("inferShapeContext — min-evidence gate", () => {
 // ---------------------------------------------------------------------------
 
 describe("inferShapeContext — options.system filter", () => {
-  beforeEach(() => { removeAll(); registerBuiltins(); });
-  afterEach(() => { removeAll(); registerBuiltins(); });
+  beforeEach(() => {
+    removeAll();
+    registerBuiltins();
+  });
+  afterEach(() => {
+    removeAll();
+    registerBuiltins();
+  });
 
   it("system:'caged' returns only caged shapes", () => {
     const result = inferShapeContext("x32010", { system: "caged" });
@@ -738,8 +837,14 @@ describe("inferShapeContext — options.system filter", () => {
 });
 
 describe("inferShapeContext — options.limit normalization", () => {
-  beforeEach(() => { removeAll(); registerBuiltins(); });
-  afterEach(() => { removeAll(); registerBuiltins(); });
+  beforeEach(() => {
+    removeAll();
+    registerBuiltins();
+  });
+  afterEach(() => {
+    removeAll();
+    registerBuiltins();
+  });
 
   it("limit=2 caps output at 2", () => {
     const full = inferShapeContext("x32010", { system: "caged" });
@@ -773,14 +878,20 @@ describe("inferShapeContext — options.limit normalization", () => {
 // ---------------------------------------------------------------------------
 
 describe("inferShapeContext — determinism", () => {
-  beforeEach(() => { removeAll(); registerBuiltins(); });
-  afterEach(() => { removeAll(); registerBuiltins(); });
+  beforeEach(() => {
+    removeAll();
+    registerBuiltins();
+  });
+  afterEach(() => {
+    removeAll();
+    registerBuiltins();
+  });
 
   it("identical input produces identical ordered output (grip form)", () => {
     const r1 = inferShapeContext("x32010", { system: "caged" });
     const r2 = inferShapeContext("x32010", { system: "caged" });
     expect(r1.map((c) => `${c.shape.name}|${c.shapeRoot}|${c.score}`)).toEqual(
-      r2.map((c) => `${c.shape.name}|${c.shapeRoot}|${c.score}`)
+      r2.map((c) => `${c.shape.name}|${c.shapeRoot}|${c.score}`),
     );
   });
 
@@ -789,7 +900,7 @@ describe("inferShapeContext — determinism", () => {
     const r1 = inferShapeContext(arp, { system: "caged" });
     const r2 = inferShapeContext(arp, { system: "caged" });
     expect(r1.map((c) => `${c.shape.name}|${c.shapeRoot}|${c.score}`)).toEqual(
-      r2.map((c) => `${c.shape.name}|${c.shapeRoot}|${c.score}`)
+      r2.map((c) => `${c.shape.name}|${c.shapeRoot}|${c.score}`),
     );
   });
 });
@@ -800,8 +911,14 @@ describe("inferShapeContext — determinism", () => {
 // ---------------------------------------------------------------------------
 
 describe("inferShapeContext — FrettedScale input form", () => {
-  beforeEach(() => { removeAll(); registerBuiltins(); });
-  afterEach(() => { removeAll(); registerBuiltins(); });
+  beforeEach(() => {
+    removeAll();
+    registerBuiltins();
+  });
+  afterEach(() => {
+    removeAll();
+    registerBuiltins();
+  });
 
   it("FrettedScale input detects shape (Fixture a via arpeggio)", () => {
     const arp = arpeggioFromShape(CAGED_G, "Am7", "C");
@@ -832,8 +949,14 @@ describe("inferShapeContext — FrettedScale input form", () => {
 // ---------------------------------------------------------------------------
 
 describe("inferShapeContext — determinism Fixture (c): '133211'", () => {
-  beforeEach(() => { removeAll(); registerBuiltins(); });
-  afterEach(() => { removeAll(); registerBuiltins(); });
+  beforeEach(() => {
+    removeAll();
+    registerBuiltins();
+  });
+  afterEach(() => {
+    removeAll();
+    registerBuiltins();
+  });
 
   it("two consecutive calls to '133211' produce identically ordered results", () => {
     removeAll();
@@ -841,7 +964,7 @@ describe("inferShapeContext — determinism Fixture (c): '133211'", () => {
     const r1 = inferShapeContext("133211", { system: "caged" });
     const r2 = inferShapeContext("133211", { system: "caged" });
     expect(r1.map((c) => `${c.shape.name}|${c.shapeRoot}|${c.score}`)).toEqual(
-      r2.map((c) => `${c.shape.name}|${c.shapeRoot}|${c.score}`)
+      r2.map((c) => `${c.shape.name}|${c.shapeRoot}|${c.score}`),
     );
   });
 });
@@ -855,12 +978,7 @@ describe("inferShapeContext — determinism Fixture (f): custom system", () => {
   const myTeacherShapeDet: ScaleShape = {
     name: "MyTeacher Det Box",
     system: "myteacher-det",
-    strings: [
-      ["1P", "3m"],
-      ["4P", "5P"],
-      ["7m", "1P"],
-      null, null, null,
-    ],
+    strings: [["1P", "3m"], ["4P", "5P"], ["7m", "1P"], null, null, null],
     rootString: 0,
   };
 
@@ -869,7 +987,10 @@ describe("inferShapeContext — determinism Fixture (f): custom system", () => {
     registerBuiltins();
     add(myTeacherShapeDet);
   });
-  afterEach(() => { removeAll(); registerBuiltins(); });
+  afterEach(() => {
+    removeAll();
+    registerBuiltins();
+  });
 
   it("two consecutive calls with custom system filter produce identically ordered results", () => {
     const built = buildFrettedScale(myTeacherShapeDet, "A");
@@ -877,7 +998,7 @@ describe("inferShapeContext — determinism Fixture (f): custom system", () => {
     const r2 = inferShapeContext(built, { system: "myteacher-det" });
     expect(r1.length).toBeGreaterThan(0);
     expect(r1.map((c) => `${c.shape.name}|${c.shapeRoot}|${c.score}`)).toEqual(
-      r2.map((c) => `${c.shape.name}|${c.shapeRoot}|${c.score}`)
+      r2.map((c) => `${c.shape.name}|${c.shapeRoot}|${c.score}`),
     );
   });
 });
@@ -888,15 +1009,24 @@ describe("inferShapeContext — determinism Fixture (f): custom system", () => {
 // ---------------------------------------------------------------------------
 
 describe("inferShapeContext — DROP_D tuning (edge case §B.5)", () => {
-  beforeEach(() => { removeAll(); registerBuiltins(); });
-  afterEach(() => { removeAll(); registerBuiltins(); });
+  beforeEach(() => {
+    removeAll();
+    registerBuiltins();
+  });
+  afterEach(() => {
+    removeAll();
+    registerBuiltins();
+  });
 
   it("returns non-empty candidates for an E major grip in DROP_D tuning", () => {
     // In DROP_D: low string is D2 instead of E2.
     // G major chord in DROP_D: [5,5,4,0,3,3] anchors in G position
     // Use a simple grip that has 3+ distinct PCs in DROP_D:
     // Frets [0,2,2,1,0,0] in DROP_D → D2,B2,E3,G#3,B3,D4 → {D,B,E,G#} = {2,11,4,8} — 4 PCs
-    const result = inferShapeContext([0, 2, 2, 1, 0, 0], { system: "caged", tuning: DROP_D });
+    const result = inferShapeContext([0, 2, 2, 1, 0, 0], {
+      system: "caged",
+      tuning: DROP_D,
+    });
     // At minimum, the engine should not throw and should return an array (possibly empty if
     // no shape covers the E-major chord tones in DROP_D, but it MUST not error).
     expect(Array.isArray(result)).toBe(true);
@@ -923,7 +1053,7 @@ describe("inferShapeContext — DROP_D tuning (edge case §B.5)", () => {
     const r1 = inferShapeContext(grip, { system: "caged", tuning: DROP_D });
     const r2 = inferShapeContext(grip, { system: "caged", tuning: DROP_D });
     expect(r1.map((c) => `${c.shape.name}|${c.shapeRoot}|${c.score}`)).toEqual(
-      r2.map((c) => `${c.shape.name}|${c.shapeRoot}|${c.score}`)
+      r2.map((c) => `${c.shape.name}|${c.shapeRoot}|${c.score}`),
     );
   });
 });
@@ -935,8 +1065,14 @@ describe("inferShapeContext — DROP_D tuning (edge case §B.5)", () => {
 // ---------------------------------------------------------------------------
 
 describe("inferShapeContext — duplicate-note grip (edge case §B.5)", () => {
-  beforeEach(() => { removeAll(); registerBuiltins(); });
-  afterEach(() => { removeAll(); registerBuiltins(); });
+  beforeEach(() => {
+    removeAll();
+    registerBuiltins();
+  });
+  afterEach(() => {
+    removeAll();
+    registerBuiltins();
+  });
 
   it("grip with same PC on two strings is handled without error", () => {
     // C major open (x32010): C appears on both string 1 fret 3 and string 4 fret 1
@@ -971,8 +1107,14 @@ describe("inferShapeContext — duplicate-note grip (edge case §B.5)", () => {
 // ---------------------------------------------------------------------------
 
 describe("inferShapeContext — slash / inverted grip (edge case §B.5)", () => {
-  beforeEach(() => { removeAll(); registerBuiltins(); });
-  afterEach(() => { removeAll(); registerBuiltins(); });
+  beforeEach(() => {
+    removeAll();
+    registerBuiltins();
+  });
+  afterEach(() => {
+    removeAll();
+    registerBuiltins();
+  });
 
   it("inverted grip returns results for both bass and root interpretations", () => {
     // G/B: B bass with G major chord tones (G, B, D)
@@ -1091,3 +1233,304 @@ describe("analyzeInKey — enharmonic normalization (Issue #61)", () => {
     expect(result.empty).toBe(true);
   });
 });
+
+// ===========================================================================
+// TG5 — isShapeCompatible chroma-set rewrite, modeShapes counts,
+// buildFromScale relabel pass, relabelShapeToScale (R3.0-R3.4)
+//
+// Registry isolation: earlier TG6 describe blocks in this file reset the
+// registry (removeAll + registerBuiltins) in their own beforeEach/afterEach,
+// leaving only the major CAGED/3NPS/pentatonic shapes registered by the time
+// this section runs. These TG5 tests need the derived minor CAGED/pentatonic
+// entries too (get("Em Shape") etc.), so this section pins its own registry
+// state via registerAllBuiltins (majors + the 10 derived minor entries).
+// ===========================================================================
+
+function registerAllBuiltins(): void {
+  registerBuiltins();
+  add(CAGED_DM);
+  add(CAGED_CM);
+  add(CAGED_AM);
+  add(CAGED_GM);
+  add(CAGED_EM);
+  add(PENTA_BOX_1_MINOR);
+  add(PENTA_BOX_2_MINOR);
+  add(PENTA_BOX_3_MINOR);
+  add(PENTA_BOX_4_MINOR);
+  add(PENTA_BOX_5_MINOR);
+}
+
+describe("TG5 — isShapeCompatible / modeShapes / buildFromScale / relabelShapeToScale", () => {
+  beforeEach(() => {
+    removeAll();
+    registerAllBuiltins();
+  });
+  afterEach(() => {
+    removeAll();
+    registerAllBuiltins();
+  });
+
+  describe("isShapeCompatible — full behavior table (R3.1)", () => {
+    it("CAGED_E is compatible with 'C major'", () => {
+      expect(isShapeCompatible(CAGED_E, "C major")).toBe(true);
+    });
+
+    it("CAGED_E is NOT compatible with 'A minor' (major frame is not a subset of the minor frame, root-relative)", () => {
+      expect(isShapeCompatible(CAGED_E, "A minor")).toBe(false);
+    });
+
+    it("'Em Shape' is compatible with 'A minor' (minor frame is a subset of the minor frame)", () => {
+      const em = get("Em Shape");
+      expect(em).toBeDefined();
+      expect(isShapeCompatible(em!, "A minor")).toBe(true);
+    });
+
+    it("'Em Shape' is NOT compatible with 'A dorian' (6m, chroma 8, is not in dorian)", () => {
+      const em = get("Em Shape");
+      expect(em).toBeDefined();
+      expect(isShapeCompatible(em!, "A dorian")).toBe(false);
+    });
+
+    it("PENTA_BOX_1 is NOT compatible with 'A minor pentatonic' (major-pent frame is not a subset of the minor-pent frame)", () => {
+      expect(isShapeCompatible(PENTA_BOX_1, "A minor pentatonic")).toBe(false);
+    });
+
+    it("'Pentatonic Box 1 Minor' IS compatible with 'A minor pentatonic'", () => {
+      const box1Minor = get("Pentatonic Box 1 Minor");
+      expect(box1Minor).toBeDefined();
+      expect(isShapeCompatible(box1Minor!, "A minor pentatonic")).toBe(true);
+    });
+
+    it("'Pentatonic Box 1 Minor' IS compatible with 'A minor' (minor-pent chromas are a subset of natural-minor chromas)", () => {
+      const box1Minor = get("Pentatonic Box 1 Minor");
+      expect(box1Minor).toBeDefined();
+      expect(isShapeCompatible(box1Minor!, "A minor")).toBe(true);
+    });
+
+    it("unknown scale name returns false", () => {
+      expect(isShapeCompatible(CAGED_E, "not a real scale")).toBe(false);
+    });
+
+    it("shape with no intervals returns false", () => {
+      const emptyShape: ScaleShape = {
+        name: "Empty Shape",
+        system: "custom",
+        strings: [null, null, null, null, null, null],
+        rootString: 0,
+      };
+      expect(isShapeCompatible(emptyShape, "C major")).toBe(false);
+    });
+  });
+
+  describe("modeShapes — counts (R3.2)", () => {
+    it("modeShapes('C major', 'caged') has length 5", () => {
+      expect(modeShapes("C major", "caged")).toHaveLength(5);
+    });
+
+    it("modeShapes('A minor', 'caged') has length 5 with exactly {Em, Am, Dm, Gm, Cm} Shape", () => {
+      const shapes = modeShapes("A minor", "caged");
+      expect(shapes).toHaveLength(5);
+      const names = new Set(shapes.map((s) => s.name));
+      expect(names).toEqual(
+        new Set(["Em Shape", "Am Shape", "Dm Shape", "Gm Shape", "Cm Shape"]),
+      );
+    });
+
+    it("modeShapes('A minor pentatonic', 'pentatonic') has length 5", () => {
+      expect(modeShapes("A minor pentatonic", "pentatonic")).toHaveLength(5);
+    });
+
+    it("modeShapes('A major pentatonic', 'pentatonic') has length 5", () => {
+      expect(modeShapes("A major pentatonic", "pentatonic")).toHaveLength(5);
+    });
+
+    it("modeShapes('A minor') (no system filter) has length 10", () => {
+      expect(modeShapes("A minor")).toHaveLength(10);
+    });
+
+    it("modeShapes('A dorian') matches only the 5 minor-pentatonic entries (their 5-chroma frame {1P,3m,4P,5P,7m} is a literal subset of dorian's 7-chroma frame; no CAGED-major, CAGED-minor, or major-pentatonic entry qualifies)", () => {
+      // Spec R3.2's table lists this case as 0 ("no dorian-frame entries
+      // registered"), but that overlooks that the R4.2 minor-pentatonic
+      // entries — which omit the 2nd/6th degrees where dorian and aeolian
+      // differ — genuinely satisfy R3.1's chroma-subset compatibility check
+      // against dorian too (verified independently against @tonaljs/scale;
+      // A minor pentatonic {A,C,D,E,G} is entirely contained in A dorian
+      // {A,B,C,D,E,F#,G}). This is the mathematically/musically correct
+      // consequence of applying R3.1's own algorithm to the R4.2 data, not
+      // a bug in the rewritten isShapeCompatible.
+      const shapes = modeShapes("A dorian");
+      const names = new Set(shapes.map((s) => s.name));
+      expect(names).toEqual(
+        new Set([
+          "Pentatonic Box 1 Minor",
+          "Pentatonic Box 2 Minor",
+          "Pentatonic Box 3 Minor",
+          "Pentatonic Box 4 Minor",
+          "Pentatonic Box 5 Minor",
+        ]),
+      );
+
+      // No CAGED (major or minor-frame) or major-pentatonic entry matches.
+      expect(modeShapes("A dorian", "caged")).toHaveLength(0);
+    });
+  });
+
+  describe("buildFromScale — relabel pass (R3.3)", () => {
+    it("buildFromScale(CAGED_E, 'A minor') produces A-natural-minor pitch classes with minor-frame labels", () => {
+      const result = buildFromScale(CAGED_E, "A minor");
+      expect(result.empty).toBe(false);
+      expect(result.root).toBe("A");
+
+      const pcs = new Set(result.notes.map((n) => n.pc));
+      for (const expectedPc of ["A", "B", "C", "D", "E", "F", "G"]) {
+        expect(pcs.has(expectedPc)).toBe(true);
+      }
+
+      const cNote = result.notes.find((n) => n.pc === "C");
+      expect(cNote).toBeDefined();
+      expect(cNote!.interval).toBe("3m");
+    });
+
+    it("buildFromScale(PENTA_BOX_1, 'A minor pentatonic') produces minor-pentatonic labels (A=1P, C=3m)", () => {
+      const result = buildFromScale(PENTA_BOX_1, "A minor pentatonic");
+      expect(result.empty).toBe(false);
+
+      const aNote = result.notes.find((n) => n.pc === "A");
+      expect(aNote).toBeDefined();
+      expect(aNote!.interval).toBe("1P");
+
+      const cNote = result.notes.find((n) => n.pc === "C");
+      expect(cNote).toBeDefined();
+      expect(cNote!.interval).toBe("3m");
+    });
+  });
+
+  describe("buildFromScale — identity path (unchanged when shape already matches scale frame)", () => {
+    it("buildFromScale(CAGED_E, 'C major') matches buildFrettedScale(CAGED_E, 'C') directly", () => {
+      const viaScale = buildFromScale(CAGED_E, "C major");
+      const direct = buildFrettedScale(CAGED_E, "C");
+      expect(viaScale.notes).toEqual(direct.notes);
+    });
+
+    it("buildFromScale(get('Em Shape'), 'A minor') is non-empty with root 'A'", () => {
+      const em = get("Em Shape");
+      expect(em).toBeDefined();
+      const result = buildFromScale(em!, "A minor");
+      expect(result.empty).toBe(false);
+      expect(result.root).toBe("A");
+    });
+  });
+
+  describe("buildFromScale — fallback for non-rotation-compatible shape/scale pairs", () => {
+    it("CAGED_E vs 'A minor pentatonic' (7-note frame into a 5-note frame) still builds non-empty via fallback", () => {
+      const result = buildFromScale(CAGED_E, "A minor pentatonic");
+      expect(result.empty).toBe(false);
+      expect(result.notes.length).toBeGreaterThan(0);
+    });
+
+    it("a shape with a chromatic cluster (not rotation-compatible with any 7-note scale) falls back to the original shape, not NoFrettedScale", () => {
+      const chromaticShape: ScaleShape = {
+        name: "Chromatic Cluster",
+        system: "custom",
+        strings: [["1P", "2m", "2M"], null, null, null, null, null],
+        rootString: 0,
+      };
+      const result = buildFromScale(chromaticShape, "C major");
+      expect(result.empty).toBe(false);
+      expect(result.notes.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe("relabelShapeToScale (R3.0)", () => {
+    it("relabelShapeToScale(CAGED_G, 'A minor') deep-equals relabelShape(CAGED_G, natural-minor intervals) with the same options", () => {
+      const options = {
+        name: "Em Shape",
+        quality: "minor",
+        parentShape: "G Shape",
+      };
+      const viaScale = relabelShapeToScale(CAGED_G, "A minor", options);
+      const direct = relabelShape(
+        CAGED_G,
+        ["1P", "2M", "3m", "4P", "5P", "6m", "7m"],
+        options,
+      );
+      expect(viaScale).toEqual(direct);
+    });
+
+    it("unknown scale name returns undefined", () => {
+      expect(relabelShapeToScale(CAGED_G, "not a real scale")).toBeUndefined();
+    });
+
+    it("non-compatible shape+scale pair returns undefined", () => {
+      // 7-note CAGED shape relabeled into a 5-note pentatonic frame — no valid rotation
+      expect(
+        relabelShapeToScale(CAGED_E, "A minor pentatonic"),
+      ).toBeUndefined();
+    });
+  });
+
+  describe("buildFromScale — extended-range regression (R3.4)", () => {
+    it("buildFromScale(get('Em Shape'), 'A minor', STANDARD_7) is non-empty with A on the auto-adjusted root string", () => {
+      const em = get("Em Shape");
+      expect(em).toBeDefined();
+      const result = buildFromScale(em!, "A minor", STANDARD_7);
+      expect(result.empty).toBe(false);
+      expect(result.notes.length).toBeGreaterThan(0);
+
+      const aNotes = result.notes.filter((n) => n.pc === "A");
+      expect(aNotes.length).toBeGreaterThan(0);
+    });
+
+    it("no double-offset / off-by-one: the added low-B string (index 0) carries no notes, matching a direct 6-string build shifted by 1", () => {
+      // Em Shape has rootString 0 on 6 strings. On STANDARD_7 (7 strings),
+      // strOffset = 7 - 6 = 1, so every note should land on tuning strings
+      // 1-6, never on the added low-B string (index 0) — mirroring the
+      // Task 2.5 CAGED_E/STANDARD_7 pattern in index.test.ts.
+      const em = get("Em Shape");
+      expect(em).toBeDefined();
+      const result7 = buildFromScale(em!, "A minor", STANDARD_7);
+      expect(result7.empty).toBe(false);
+
+      const onAddedString = result7.notes.filter((n) => n.string === 0);
+      expect(onAddedString).toHaveLength(0);
+
+      const result6 = buildFromScale(em!, "A minor");
+      expect(result6.empty).toBe(false);
+      expect(result7.notes.length).toBe(result6.notes.length);
+
+      // Every note from the 6-string build reappears one string higher
+      // (same fret) in the 7-string build — confirms a single, correct
+      // shift with no double-offset or off-by-one.
+      for (const note6 of result6.notes) {
+        const matching = result7.notes.find(
+          (n) => n.string === note6.string + 1 && n.fret === note6.fret,
+        );
+        expect(matching).toBeDefined();
+      }
+    });
+  });
+
+  describe("Target-frame constants sanity (R5.3)", () => {
+    it("Scale.get('A minor').intervals matches the natural-minor frame used by caged-scales-minor.ts", () => {
+      expect(getTonalScale("A minor").intervals).toEqual([
+        "1P",
+        "2M",
+        "3m",
+        "4P",
+        "5P",
+        "6m",
+        "7m",
+      ]);
+    });
+
+    it("Scale.get('A minor pentatonic').intervals matches the minor-pentatonic frame used by pentatonic-minor.ts", () => {
+      expect(getTonalScale("A minor pentatonic").intervals).toEqual([
+        "1P",
+        "3m",
+        "4P",
+        "5P",
+        "7m",
+      ]);
+    });
+  });
+}); // end TG5 wrapping describe

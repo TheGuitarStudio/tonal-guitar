@@ -1,17 +1,17 @@
 /**
  * The 5 pentatonic box shapes.
  *
- * Defined here as MAJOR PENTATONIC (intervals 1P, 2M, 3M, 5P, 6M) so they
- * compose with the same modal-relabel logic as the diatonic CAGED / 3NPS
- * shapes, which are defined as Ionian (major). To render the same boxes
- * as MINOR PENTATONIC, set the mode to "minor-pent" — the build engine
- * then anchors the shape at the relative major's root (e.g. for A minor
- * pent it builds at C, then relabels intervals from A: A=1P, C=3m, D=4P,
- * E=5P, G=7m). The physical fretboard layout is identical either way.
+ * Defined here as MAJOR PENTATONIC (intervals 1P, 2M, 3M, 5P, 6M) — these
+ * are the raw geometric frames, labeled from the major-pentatonic root.
  *
- * Box positions follow the conventional pentatonic numbering. When loaded
- * with mode = "minor-pent" the boxes line up the way most guitarists know
- * them (Box 1 anchored at the minor root, etc.).
+ * To obtain the same boxes as MINOR PENTATONIC (the labeling most
+ * guitarists reach for first — Box 1 anchored at the minor root, etc.),
+ * use `relabelShape`/`relabelShapeToScale` (`src/transform.ts`), or the
+ * pre-registered "Pentatonic Box N Minor" entries in
+ * `src/data/pentatonic-minor.ts`, which relabel these same geometries into
+ * the minor-pentatonic frame (e.g. for A minor pentatonic: A=1P, C=3m,
+ * D=4P, E=5P, G=7m). The physical fretboard layout is identical either
+ * way — only the interval labels and rootString change.
  *
  * Boxes are registered into the scale shape registry at import time.
  */

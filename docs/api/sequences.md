@@ -19,7 +19,7 @@ The sequence engine builds on the pattern walker to create exercises that shift 
 Apply a degree sequence to a fretted scale. Returns one `FrettedNote[]` array per pass.
 
 ```js
-const scale = buildFromScale(get("CAGED E Shape"), "A major");
+const scale = buildFromScale(get("E Shape"), "A major");
 
 // Single pass (default)
 const [notes] = applySequence(scale, [1, 2, 3, 5]);
@@ -54,7 +54,7 @@ interface SequenceOptions {
 ### Incremental Example
 
 ```js
-const scale = buildFromScale(get("CAGED E Shape"), "A major");
+const scale = buildFromScale(get("E Shape"), "A major");
 
 // 4-note ascending groups, shifting through the scale
 const passes = applySequence(scale, SEQ_1234_GROUP, {
@@ -118,7 +118,7 @@ import {
 } from "tonal-guitar";
 
 // Build A major in CAGED E position
-const scale = buildFromScale(get("CAGED E Shape"), "A major");
+const scale = buildFromScale(get("E Shape"), "A major");
 
 // Apply triad climb incrementally
 const passes = applySequence(scale, SEQ_TRIAD_CLIMB, {

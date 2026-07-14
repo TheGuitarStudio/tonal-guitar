@@ -98,6 +98,20 @@ import {
   PENTA_BOX_4,
   PENTA_BOX_5,
 } from "./data/pentatonic";
+import {
+  CAGED_DM,
+  CAGED_CM,
+  CAGED_AM,
+  CAGED_GM,
+  CAGED_EM,
+} from "./data/caged-scales-minor";
+import {
+  PENTA_BOX_1_MINOR,
+  PENTA_BOX_2_MINOR,
+  PENTA_BOX_3_MINOR,
+  PENTA_BOX_4_MINOR,
+  PENTA_BOX_5_MINOR,
+} from "./data/pentatonic-minor";
 
 // ============================================================
 // 1. Tuning constants
@@ -369,9 +383,9 @@ describe("Shape registry", () => {
     expect(shapes.length).toBeGreaterThan(0);
   });
 
-  test("built-in CAGED shapes are registered (5 shapes)", () => {
+  test("built-in CAGED shapes are registered (5 major + 5 minor)", () => {
     const cagedShapes = all().filter((s) => s.system === "caged");
-    expect(cagedShapes).toHaveLength(5);
+    expect(cagedShapes).toHaveLength(10);
   });
 
   test("built-in 3NPS patterns are registered (7 shapes)", () => {
@@ -379,13 +393,13 @@ describe("Shape registry", () => {
     expect(npsShapes).toHaveLength(7);
   });
 
-  test("built-in pentatonic boxes are registered (5 shapes)", () => {
+  test("built-in pentatonic boxes are registered (5 major + 5 minor)", () => {
     const pentShapes = all().filter((s) => s.system === "pentatonic");
-    expect(pentShapes).toHaveLength(5);
+    expect(pentShapes).toHaveLength(10);
   });
 
-  test("total registered shapes = 17 (5 CAGED + 7 3NPS + 5 pentatonic)", () => {
-    expect(all()).toHaveLength(17);
+  test("total registered shapes = 27 (10 CAGED + 7 3NPS + 10 pentatonic)", () => {
+    expect(all()).toHaveLength(27);
   });
 
   test("removeAll() clears registry, add() re-registers", () => {
@@ -414,6 +428,14 @@ describe("Shape registry", () => {
     [PENTA_BOX_1, PENTA_BOX_2, PENTA_BOX_3, PENTA_BOX_4, PENTA_BOX_5].forEach(
       add,
     );
+    [CAGED_DM, CAGED_CM, CAGED_AM, CAGED_GM, CAGED_EM].forEach(add);
+    [
+      PENTA_BOX_1_MINOR,
+      PENTA_BOX_2_MINOR,
+      PENTA_BOX_3_MINOR,
+      PENTA_BOX_4_MINOR,
+      PENTA_BOX_5_MINOR,
+    ].forEach(add);
     expect(all()).toHaveLength(originalCount);
   });
 
@@ -1595,17 +1617,22 @@ describe("isShapeCompatible", () => {
     });
   });
 
-  test("CAGED_E is not compatible with 'A minor pentatonic' (has 7 intervals, pentatonic has 5)", () => {
-    // The major scale shape uses 7M, 3M etc. which are not in pentatonic
+  test("CAGED_E is not compatible with 'A minor pentatonic' (7-note major chroma frame is not a subset of the 5-note pentatonic chroma frame)", () => {
+    // The major scale shape's 7-chroma interval frame (including 7M, 3M etc.)
+    // is not a subset of the 5-chroma pentatonic frame.
     expect(isShapeCompatible(CAGED_E, "A minor pentatonic")).toBe(false);
   });
 
-  test("pentatonic box is compatible with 'A major pentatonic'", () => {
+  test("pentatonic box is compatible with 'A major pentatonic', but not 'A minor pentatonic' (major-pent chroma frame is not a subset of the minor-pent chroma frame, root-relative)", () => {
     // Boxes are now defined as major-pentatonic intervals (1P, 2M, 3M, 5P, 6M)
-    // so they only directly match the major-pent scale; the minor-pent
-    // version is produced via the modal-relabel path in fretboard-ui.
+    // so they only directly match the major-pent scale; the registered
+    // "Pentatonic Box N Minor" entries (produced via relabelShape) match
+    // the minor-pent frame instead.
     expect(isShapeCompatible(PENTA_BOX_1, "A major pentatonic")).toBe(true);
     expect(isShapeCompatible(PENTA_BOX_1, "A minor pentatonic")).toBe(false);
+    expect(
+      isShapeCompatible(get("Pentatonic Box 1 Minor")!, "A minor pentatonic"),
+    ).toBe(true);
   });
 
   test("invalid scale name returns false", () => {
@@ -1922,8 +1949,8 @@ describe("Lab preset smoke tests", () => {
           tuning: STANDARD,
           key: p.root,
         });
-        expect(tex).toContain('\\title');
-        expect(tex).toContain('\\tuning');
+        expect(tex).toContain("\\title");
+        expect(tex).toContain("\\tuning");
         expect(tex).toMatch(/\d+\.\d+/); // at least one fret.string note
       });
 

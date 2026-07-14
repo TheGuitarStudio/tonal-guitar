@@ -95,9 +95,14 @@ export type { AlphaTexOptions, AsciiTabOptions } from "./output";
 export { filterChordTones, scoreShapeMatch } from "./arpeggio";
 export type { InferenceProbe, ScoreBreakdown } from "./arpeggio";
 
+// Shape relabeling (pure tier)
+export { relabelShape } from "./transform";
+export type { RelabelOptions } from "./transform";
+
 // Tonal integration
 export {
   buildFromScale,
+  relabelShapeToScale,
   relatedScales,
   identifyChord,
   analyzeInKey,
@@ -116,9 +121,11 @@ export type {
 
 // Built-in shape data (import to register shapes)
 import "./data/caged-scales";
+import "./data/caged-scales-minor";
 import "./data/caged-chords";
 import "./data/three-nps";
 import "./data/pentatonic";
+import "./data/pentatonic-minor";
 import "./data/caged-chords-7th";
 import "./data/open-chords";
 import "./data/jazz-shells";
