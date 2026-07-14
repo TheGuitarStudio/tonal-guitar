@@ -1380,6 +1380,7 @@ describe("TG5 — isShapeCompatible / modeShapes / buildFromScale / relabelShape
       const result = buildFromScale(CAGED_E, "A minor");
       expect(result.empty).toBe(false);
       expect(result.root).toBe("A");
+      expect(result.relabeled).toBe(true);
 
       const pcs = new Set(result.notes.map((n) => n.pc));
       for (const expectedPc of ["A", "B", "C", "D", "E", "F", "G"]) {
@@ -1394,6 +1395,7 @@ describe("TG5 — isShapeCompatible / modeShapes / buildFromScale / relabelShape
     it("buildFromScale(PENTA_BOX_1, 'A minor pentatonic') produces minor-pentatonic labels (A=1P, C=3m)", () => {
       const result = buildFromScale(PENTA_BOX_1, "A minor pentatonic");
       expect(result.empty).toBe(false);
+      expect(result.relabeled).toBe(true);
 
       const aNote = result.notes.find((n) => n.pc === "A");
       expect(aNote).toBeDefined();
@@ -1410,6 +1412,7 @@ describe("TG5 — isShapeCompatible / modeShapes / buildFromScale / relabelShape
       const viaScale = buildFromScale(CAGED_E, "C major");
       const direct = buildFrettedScale(CAGED_E, "C");
       expect(viaScale.notes).toEqual(direct.notes);
+      expect(viaScale.relabeled).toBe(true);
     });
 
     it("buildFromScale(get('Em Shape'), 'A minor') is non-empty with root 'A'", () => {
@@ -1418,17 +1421,31 @@ describe("TG5 — isShapeCompatible / modeShapes / buildFromScale / relabelShape
       const result = buildFromScale(em!, "A minor");
       expect(result.empty).toBe(false);
       expect(result.root).toBe("A");
+      expect(result.relabeled).toBe(true);
     });
   });
 
   describe("buildFromScale — fallback for non-rotation-compatible shape/scale pairs", () => {
-    it("CAGED_E vs 'A minor pentatonic' (7-note frame into a 5-note frame) still builds non-empty via fallback", () => {
+    it("CAGED_E vs 'A minor pentatonic' (7-note frame into a 5-note frame) still builds non-empty via fallback, honestly flagged as not relabeled", () => {
       const result = buildFromScale(CAGED_E, "A minor pentatonic");
       expect(result.empty).toBe(false);
       expect(result.notes.length).toBeGreaterThan(0);
+
+      // CR-001 (issue #87): relabelShape could not rotate CAGED_E into the
+      // pentatonic frame, so this is the as-built-major-frame fallback.
+      // scaleName/scaleType still say "A minor pentatonic" (requested), but
+      // relabeled: false tells callers the notes' intervals/pitch classes
+      // don't actually belong to that scale.
+      expect(result.relabeled).toBe(false);
+      expect(result.scaleName).toBe("A minor pentatonic");
+
+      // The fallback keeps CAGED_E's own (major-frame) labels rather than
+      // pentatonic ones — e.g. it still carries a "3M"-labeled note, proving
+      // no relabeling actually happened.
+      expect(result.notes.some((n) => n.interval === "3M")).toBe(true);
     });
 
-    it("a shape with a chromatic cluster (not rotation-compatible with any 7-note scale) falls back to the original shape, not NoFrettedScale", () => {
+    it("a shape with a chromatic cluster (not rotation-compatible with any 7-note scale) falls back to the original shape, not NoFrettedScale, and is flagged not relabeled", () => {
       const chromaticShape: ScaleShape = {
         name: "Chromatic Cluster",
         system: "custom",
@@ -1438,6 +1455,7 @@ describe("TG5 — isShapeCompatible / modeShapes / buildFromScale / relabelShape
       const result = buildFromScale(chromaticShape, "C major");
       expect(result.empty).toBe(false);
       expect(result.notes.length).toBeGreaterThan(0);
+      expect(result.relabeled).toBe(false);
     });
   });
 
