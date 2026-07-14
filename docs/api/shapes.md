@@ -81,8 +81,9 @@ Returns all registered shape names:
 
 ```js
 names();
-// => ["E Shape", "D Shape", "C Shape", "A Shape",
-//     "G Shape", "3NPS Pattern 1 (Ionian)", ..., "Pentatonic Box 5"]
+// => ["E Shape", "D Shape", "C Shape", "A Shape", "G Shape",
+//     "Dm Shape", "Cm Shape", "Am Shape", "Gm Shape", "Em Shape",
+//     "3NPS Pattern 1 (Ionian)", ..., "Pentatonic Box 5 Minor"]
 ```
 
 ### Minor-quality entries

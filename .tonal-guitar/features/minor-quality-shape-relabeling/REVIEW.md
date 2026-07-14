@@ -1,7 +1,7 @@
 # Code Review: feat/minor-quality-shape-relabeling
 
 **Date:** 2026-07-13 | **Base:** main | **Scope:** full
-**Commits:** 22 | **Files Changed:** 26 | **Loop:** 1/3
+**Commits:** 22 | **Files Changed:** 26 | **Loop:** 2/3 | **PR:** #89
 
 ## Affected Packages
 
@@ -10,17 +10,25 @@
 - Root docs — CLAUDE.md, README.md, CHANGELOG.md
 - Meta — .tonal-guitar feature files, package-lock.json
 
-## Review Progress
+## Review Progress (Loop 2)
 
-- [x] Phase 1: Setup
+- [x] Phase 1: Setup (carried over)
 - [x] Phase 2: Lint/Test Fix (all checks passed, 0 issues)
-- [x] Phase 3: Architecture Review
+- [x] Phase 3: Architecture Review (2 findings)
 - [x] Phase 4: Architecture Fix
-- [x] Phase 5: Code Simplification Review
-- [x] Phase 6: Code Simplification Fix
-- [x] Phase 7: Specialized Reviews (0 findings)
-- [x] Phase 8: Specialized Fixes (nothing to fix)
-- [x] Phase 9: Final Verification
+- [ ] Phase 5: Code Simplification Review
+- [ ] Phase 6: Code Simplification Fix
+- [ ] Phase 7: Specialized Reviews
+- [ ] Phase 8: Specialized Fixes
+- [ ] Phase 9: Final Verification
+
+Loop 2 focus: re-review including all loop-1 fix commits; CR IDs continue from CR-012.
+
+<details><summary>Loop 1 phase log (completed)</summary>
+
+- Phases 1–9 all completed; see phase sections below and Loop 1 Summary.
+
+</details>
 
 ## Phase 2: Lint/Test Results
 
@@ -102,6 +110,23 @@ Skipped — no UI components affected (branch changes are library code + docs; t
 ## Phase 8: Specialized Fixes
 
 No findings to fix.
+
+## Loop 2 — Phase 3: Architecture Review
+
+### src (library)
+
+No findings. The loop-1 transform.ts Step-4 rewrite was verified exactly behavior-equivalent (the new undefined guard is provably unreachable — every Step-4 chroma is in `parentChromas`, and Step 3 only selects offsets where all parent chromas map); `parentShape` default removal verified against source names; dependency layering and registry side-effects intact.
+
+### docs
+
+- CR-013: [Important] Stale `names()` example in `docs/api/shapes.md:84` — loop 1 renamed entries but the listing skipped the 5 minor CAGED names between "G Shape" and the 3NPS entries, and closed with "Pentatonic Box 5" instead of the actual last entry "Pentatonic Box 5 Minor" (the loop-1 sed for the trailing entry never matched because an earlier sed had already rewritten the line).
+- CR-014: [Suggestion] Same stale listing in `site/content/docs/shapes.mdx:80`.
+
+## Loop 2 — Phase 4: Architecture Fixes
+
+### Fixed
+
+- CR-013, CR-014: Fixed — both `names()` examples now list E/D/C/A/G, then Dm/Cm/Am/Gm/Em, then "3NPS Pattern 1 (Ionian)", ..., "Pentatonic Box 5 Minor", matching registration order in src/index.ts. Verified: tests 922/922, site build clean.
 
 ## Statistics
 
