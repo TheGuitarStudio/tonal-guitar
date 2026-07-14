@@ -67,8 +67,11 @@ export const CAGED_CHORD_A_MAJ7: ChordShape = {
   name: "A Shape maj7",
   system: "caged",
   strings: [null, "1P", "5P", "7M", "3M", "5P"],
-  fingers: [null, 1, 3, 4, 2, 0],
-  barres: [],
+  // Prototype x,0,2,1,2,0: strings 1 and 5 share the base fret (finger 0 in
+  // the open voicing is invalid once transposed, CR-005) — joined into the
+  // index-finger barre alongside string 1.
+  fingers: [null, 1, 3, 4, 2, 1],
+  barres: [{ fret: 0, fromString: 1, toString: 5, finger: 1 }],
   rootString: 1,
   chordType: "maj7",
   voicingFamily: "caged",
@@ -85,8 +88,11 @@ export const CAGED_CHORD_D_MAJ7: ChordShape = {
   name: "D Shape maj7",
   system: "caged",
   strings: [null, null, "1P", "5P", "7M", "3M"],
-  fingers: [null, null, 0, 2, 2, 2],
-  barres: [],
+  // Prototype x,x,0,2,2,2 (CR-005/CR-006): the root (was finger 0, invalid
+  // once transposed) gets its own finger; strings 3-5 are a genuine
+  // three-string mini-barre (all at the same fret) backed by a barre entry.
+  fingers: [null, null, 1, 2, 2, 2],
+  barres: [{ fret: 2, fromString: 3, toString: 5, finger: 2 }],
   rootString: 2,
   chordType: "maj7",
   voicingFamily: "caged",
@@ -125,8 +131,11 @@ export const CAGED_CHORD_A_M7: ChordShape = {
   name: "A Shape m7",
   system: "caged",
   strings: [null, "1P", "5P", "7m", "3m", "5P"],
-  fingers: [null, 0, 2, 0, 1, 0],
-  barres: [],
+  // Prototype x,0,2,0,1,0 (CR-005): strings 1, 3, and 5 share the base
+  // fret — the open-voicing finger 0s are invalid once transposed, so all
+  // three join the index-finger barre.
+  fingers: [null, 1, 3, 1, 2, 1],
+  barres: [{ fret: 0, fromString: 1, toString: 5, finger: 1 }],
   rootString: 1,
   chordType: "m7",
   voicingFamily: "caged",
@@ -143,8 +152,10 @@ export const CAGED_CHORD_D_M7: ChordShape = {
   name: "D Shape m7",
   system: "caged",
   strings: [null, null, "1P", "5P", "7m", "3m"],
-  fingers: [null, null, 0, 2, 1, 1],
-  barres: [],
+  // Prototype x,x,0,2,1,1 (CR-005/CR-006): the root (was finger 0) gets its
+  // own finger; strings 4-5 are a genuine two-string mini-barre one fret up.
+  fingers: [null, null, 1, 3, 2, 2],
+  barres: [{ fret: 1, fromString: 4, toString: 5, finger: 2 }],
   rootString: 2,
   chordType: "m7",
   voicingFamily: "caged",
@@ -183,8 +194,12 @@ export const CAGED_CHORD_A_DOM7: ChordShape = {
   name: "A Shape 7",
   system: "caged",
   strings: [null, "1P", "5P", "7m", "3M", "5P"],
-  fingers: [null, 0, 2, 0, 2, 0],
-  barres: [],
+  // Prototype x,0,2,0,2,0 (CR-005): strings 1, 3, and 5 share the base
+  // fret and join the index-finger barre. Strings 2 and 4 both land on the
+  // same higher fret but a lower-fret string sits between them, so they
+  // cannot share a barre and get distinct fingers instead.
+  fingers: [null, 1, 2, 1, 3, 1],
+  barres: [{ fret: 0, fromString: 1, toString: 5, finger: 1 }],
   rootString: 1,
   chordType: "7",
   voicingFamily: "caged",
@@ -201,7 +216,11 @@ export const CAGED_CHORD_D_DOM7: ChordShape = {
   name: "D Shape 7",
   system: "caged",
   strings: [null, null, "1P", "5P", "7m", "3M"],
-  fingers: [null, null, 0, 2, 1, 2],
+  // Prototype x,x,0,2,1,2 (CR-005): the root (was finger 0) gets its own
+  // finger. Strings 3 and 5 land on the same higher fret but string 4 sits
+  // between them one fret lower, so a barre would misfret it — distinct
+  // fingers for all three upper notes instead.
+  fingers: [null, null, 1, 3, 2, 4],
   barres: [],
   rootString: 2,
   chordType: "7",
@@ -224,8 +243,11 @@ export const CAGED_CHORD_E_M7B5: ChordShape = {
   name: "E Shape m7b5",
   system: "caged",
   strings: ["1P", "5d", "7m", "3m", null, null],
-  fingers: [0, 1, 3, 2, null, null],
-  barres: [],
+  // Prototype 0,1,0,0 (CR-005): strings 0, 2, and 3 share the base fret
+  // (finger 0 in the open voicing is invalid once transposed) and join the
+  // index-finger barre; string 1 is the one genuinely separate, higher note.
+  fingers: [1, 2, 1, 1, null, null],
+  barres: [{ fret: 0, fromString: 0, toString: 3, finger: 1 }],
   rootString: 0,
   chordType: "m7b5",
   voicingFamily: "caged",
@@ -242,8 +264,12 @@ export const CAGED_CHORD_A_M7B5: ChordShape = {
   name: "A Shape m7b5",
   system: "caged",
   strings: [null, "1P", "5d", "7m", "3m", null],
-  fingers: [null, 0, 1, 2, 3, null],
-  barres: [],
+  // Interval math (1P/5d/7m/3m against standard tuning) puts strings 1 and 3
+  // on the same base fret and strings 2 and 4 one fret higher — but string 3
+  // sits between 2 and 4 at the *lower* base fret, which blocks a barre
+  // across 2-4 (CR-005: finger 0 was invalid once transposed off the nut).
+  fingers: [null, 1, 2, 1, 3, null],
+  barres: [{ fret: 0, fromString: 1, toString: 3, finger: 1 }],
   rootString: 1,
   chordType: "m7b5",
   voicingFamily: "caged",
