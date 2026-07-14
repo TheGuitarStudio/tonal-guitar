@@ -1,7 +1,7 @@
 # Code Review: feat/minor-quality-shape-relabeling
 
 **Date:** 2026-07-13 | **Base:** main | **Scope:** full
-**Commits:** 22 | **Files Changed:** 26 | **Loop:** 2/3 | **PR:** #89
+**Commits:** 22 | **Files Changed:** 26 | **Loop:** 3/3 | **PR:** #89
 
 ## Affected Packages
 
@@ -10,19 +10,18 @@
 - Root docs — CLAUDE.md, README.md, CHANGELOG.md
 - Meta — .tonal-guitar feature files, package-lock.json
 
-## Review Progress (Loop 2)
+## Review Progress (Loop 3)
 
-- [x] Phase 1: Setup (carried over)
 - [x] Phase 2: Lint/Test Fix (all checks passed, 0 issues)
-- [x] Phase 3: Architecture Review (2 findings)
-- [x] Phase 4: Architecture Fix
-- [x] Phase 5: Code Simplification Review (2 findings)
-- [x] Phase 6: Code Simplification Fix
-- [x] Phase 7: Specialized Reviews (delta review — 0 findings)
+- [x] Phase 3: Architecture Review (0 findings; 1 courtesy fix CR-017)
+- [x] Phase 4: Architecture Fix (CR-017 applied)
+- [x] Phase 5: Code Simplification Review (delta — no changes since loop 2's clean pass)
+- [x] Phase 6: Code Simplification Fix (nothing to fix)
+- [x] Phase 7: Specialized Reviews (delta — src production code unchanged since loop 1's clean passes)
 - [x] Phase 8: Specialized Fixes (nothing to fix)
 - [x] Phase 9: Final Verification
 
-Loop 2 focus: re-review including all loop-1 fix commits; CR IDs continue from CR-012.
+Loop 3 focus: verify loop-2 fixes (CR-013/14 doc examples, CR-015 test delegation); CR IDs continue from CR-016. Loops 1–2 completed all phases (see summaries).
 
 <details><summary>Loop 1 phase log (completed)</summary>
 
@@ -153,12 +152,25 @@ Delta review: production code in src/ is byte-identical to what loop 1's securit
 
 No findings to fix.
 
+## Loop 3 — Phase 3: Architecture Review / Verification
+
+Fresh-eyes agent verified both loop-2 fixes correct (names() ordering matches registration order end-to-end; minorPositionSet delegation faithful) and swept all changed hunks: rootString tables, transform.md worked example (t=9), modeShapes/isShapeCompatible claims, and the 32-shape count basis (27 scale shapes + 5 CAGED chord shapes) all verified. NO FINDINGS.
+
+- CR-017: [Suggestion, courtesy fix] `site/content/docs/index.mdx:56` still said "22 shapes" with the pre-feature inventory table — same class as CR-004. Fixed: 32 shapes + Minor CAGED Scales / Minor Pentatonic rows. Site build verified.
+
 ## Statistics
 
 - Loop 1 findings: 12 total — 0 Critical, 6 Important (5 fixed, 1 deferred), 6 Suggestion (4 fixed, 1 deferred, 1 won't fix)
 - Loop 2 findings: 4 total — 0 Critical, 1 Important (fixed), 3 Suggestion (2 fixed, 1 won't fix)
+- Loop 3 findings: 1 courtesy fix (CR-017), 0 review findings
 - GitHub Issues Created: #87 (CR-001 fallback labeling), #88 (CR-003 chromaOf dedupe)
-- Total Commits: 10 | Total Fixes: 12 | Loop 2 Status: **PASS** (0 Critical open, lint/build/922 tests/site build all green)
+- Total Commits: 12 | Total Fixes: 13 | Final Status: **PASS** (0 Critical open, lint/build/922 tests/site build all green)
+
+## Loop 3 Summary
+
+- Findings: 0 (both loop-2 fixes independently verified correct; full consistency sweep clean)
+- Courtesy fix: CR-017 (stale site mdx shape inventory)
+- The pipeline converged: loop 1 found 12, loop 2 found 4 (including one silently-failed loop-1 fix), loop 3 found 0
 
 ## Loop 2 Summary
 
