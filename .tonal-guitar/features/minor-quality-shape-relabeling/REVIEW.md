@@ -13,14 +13,34 @@
 ## Review Progress
 
 - [x] Phase 1: Setup
-- [ ] Phase 2: Lint/Test Fix
-- [ ] Phase 3: Architecture Review
+- [x] Phase 2: Lint/Test Fix (all checks passed, 0 issues)
+- [x] Phase 3: Architecture Review
 - [ ] Phase 4: Architecture Fix
 - [ ] Phase 5: Code Simplification Review
 - [ ] Phase 6: Code Simplification Fix
 - [ ] Phase 7: Specialized Reviews
 - [ ] Phase 8: Specialized Fixes
 - [ ] Phase 9: Final Verification
+
+## Phase 2: Lint/Test Results
+
+All checks passed on first run (lint clean, build clean, 922/922 tests). No findings.
+
+## Phase 3: Architecture Review
+
+### src (library)
+
+- CR-001: [Important] `buildFromScale` relabel fallback produces self-inconsistent `FrettedScale` in `src/integration.ts:161` — when `relabelShape` returns `undefined` (non-rotation-compatible pair), the unrelabeled shape is built but still stamped with the requested `scaleName`/`scaleType`, so the notes don't match the claimed scale. Note: the non-empty fallback itself is spec-mandated (spec.md:213); the open question is only the labeling.
+- CR-002: [Suggestion] `relabelOrThrow` throws at import time in `src/data/caged-scales-minor.ts:36` and `src/data/pentatonic-minor.ts:378` — deviates from "no exceptions" convention; a broken invariant crashes `import "tonal-guitar"` entirely. Deliberate, documented fail-fast covered by tests.
+- CR-003: [Suggestion] `chromaOf` helper duplicated verbatim in `src/transform.ts:22` and `src/integration.ts:394` — could be exported from transform.ts (already imported by integration.ts) to remove the copy.
+
+### docs
+
+- CR-004: [Important] Stale shape inventory in `docs/api/index.md:57` — count says 22 shapes and table omits the 10 new registered entries (5 minor CAGED + 5 minor pentatonic); should be 32 with two new rows, consistent with README.md and docs/api/shapes.md.
+- CR-005: [Important] `modeShapes("A minor", "caged")` example output order wrong in `README.md:667` and `docs/api/integration.md:182` — shows Em/Am/Dm/Gm/Cm but registration order (= `all()` return order) is Dm, Cm, Am, Gm, Em; contradicts docs/api/shapes.md's correct example.
+- CR-006: [Important] `CHANGELOG.md:24` conflates filtered and unfiltered queries — says `modeShapes("A minor", "caged")` returns "the 10 new registered minor-quality entries" but the caged-filtered call returns only the 5 minor CAGED entries; 10 requires the unfiltered call.
+- CR-007: [Important] Broken examples using `get("CAGED E Shape")` in `docs/api/integration.md:9,25,32,86` and `docs/api/index.md:10,43` — registered name is `"E Shape"`, so `get()` returns `undefined` and the examples throw; README was fixed in this PR, these files were not.
+- CR-008: [Suggestion] `docs/api/integration.md:30` uses `get("3NPS Pattern 1")` — registered name is `"3NPS Pattern 1 (Ionian)"`; pre-existing, adjacent to CR-007 fixes.
 
 ## Statistics
 
