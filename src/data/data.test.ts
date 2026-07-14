@@ -64,6 +64,7 @@ import {
 } from "../data/open-chords";
 
 import { SHELL_DICTIONARY, SHELL_SHAPES } from "../data/jazz-shells";
+import type { ScaleShape } from "../shape";
 
 // ─── Utility ─────────────────────────────────────────────────────────────────
 
@@ -73,6 +74,22 @@ function buildFrets(shape: ChordShape, root: string): (number | null)[] {
 
 function buildPositions(shape: ChordShape, root: string) {
   return applyChordShape(shape, root, STANDARD).positions;
+}
+
+// Shared by the caged-scales-minor and pentatonic-minor describe blocks below:
+// builds the sorted {string, fret} position set for a source shape or a
+// registered minor-derived shape, so the two can be compared for geometry
+// equivalence.
+function positionSet(root: string, source: ScaleShape): string[] {
+  const result = buildFrettedScale(source, root, STANDARD);
+  return result.notes.map((n) => `${n.string}:${n.fret}`).sort();
+}
+
+function minorPositionSet(minorName: string, root: string): string[] {
+  const shape = get(minorName);
+  expect(shape, `${minorName} not registered`).toBeDefined();
+  const result = buildFrettedScale(shape!, root, STANDARD);
+  return result.notes.map((n) => `${n.string}:${n.fret}`).sort();
 }
 
 // ─── Task 8.2: CAGED 7th chord shapes ────────────────────────────────────────
@@ -742,20 +759,6 @@ describe("TG10 — Data integrity: chordShapes.all() count after all curated imp
 import { CAGED_E, CAGED_D, CAGED_C, CAGED_A, CAGED_G } from "./caged-scales";
 
 describe("caged-scales-minor: build-equivalence and registry tests (R4.1)", () => {
-  function positionSet(root: string, source: typeof CAGED_E) {
-    const result = buildFrettedScale(source, root, STANDARD);
-    return result.notes
-      .map((n) => `${n.string}:${n.fret}`)
-      .sort();
-  }
-
-  function minorPositionSet(minorName: string, root: string) {
-    const shape = get(minorName);
-    expect(shape, `${minorName} not registered`).toBeDefined();
-    const result = buildFrettedScale(shape!, root, STANDARD);
-    return result.notes.map((n) => `${n.string}:${n.fret}`).sort();
-  }
-
   // [minor registered name, source const, source const name (parentShape)]
   const pairs: [string, typeof CAGED_E, string][] = [
     ["Dm Shape", CAGED_E, "E Shape"],
@@ -853,18 +856,6 @@ import {
 } from "./pentatonic";
 
 describe("pentatonic-minor: build-equivalence and registry tests (R4.2)", () => {
-  function positionSet(root: string, source: typeof PENTA_BOX_1) {
-    const result = buildFrettedScale(source, root, STANDARD);
-    return result.notes.map((n) => `${n.string}:${n.fret}`).sort();
-  }
-
-  function minorPositionSet(minorName: string, root: string) {
-    const shape = get(minorName);
-    expect(shape, `${minorName} not registered`).toBeDefined();
-    const result = buildFrettedScale(shape!, root, STANDARD);
-    return result.notes.map((n) => `${n.string}:${n.fret}`).sort();
-  }
-
   // [minor registered name, source const, source const name (parentShape)]
   const pairs: [string, typeof PENTA_BOX_1, string][] = [
     ["Pentatonic Box 1 Minor", PENTA_BOX_1, "Pentatonic Box 1"],

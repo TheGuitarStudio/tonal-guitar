@@ -18,9 +18,14 @@ export interface RelabelOptions {
   parentShape?: string; // value written to result.parentShape (defaults to input shape.name)
 }
 
+// Normalize an integer to [0, 12) regardless of sign.
+function mod12(n: number): number {
+  return ((n % 12) + 12) % 12;
+}
+
 // Chroma (0-11) of an interval string, always normalized to [0, 12).
 function chromaOf(ivl: string): number {
-  return ((semitones(ivl) % 12) + 12) % 12;
+  return mod12(semitones(ivl));
 }
 
 /**
@@ -64,7 +69,7 @@ export function relabelShape(
   let tonicOffset: number | undefined;
   for (const t of candidates) {
     const allMapped = Array.from(parentChromas).every((c) =>
-      targetByChroma.has(((c - t) % 12 + 12) % 12),
+      targetByChroma.has(mod12(c - t)),
     );
     if (allMapped) {
       tonicOffset = t;
@@ -72,17 +77,27 @@ export function relabelShape(
     }
   }
   if (tonicOffset === undefined) return undefined;
+  const offset = tonicOffset;
 
   // Step 4: rewrite per-string intervals, preserving order and null entries.
-  const newStrings: (string[] | null)[] = shape.strings.map((stringIntervals) => {
-    if (!stringIntervals) return null;
-    return stringIntervals.map((ivl) => {
+  // Guaranteed present by the Step 3 subset check — every remapped chroma
+  // maps to a target interval — but rather than asserting that, an
+  // explicit undefined check keeps the sentinel-return convention honest.
+  const newStrings: (string[] | null)[] = [];
+  for (const stringIntervals of shape.strings) {
+    if (!stringIntervals) {
+      newStrings.push(null);
+      continue;
+    }
+    const rewritten: string[] = [];
+    for (const ivl of stringIntervals) {
       const chroma = chromaOf(ivl);
-      const newChroma = ((chroma - (tonicOffset as number)) % 12 + 12) % 12;
-      // Guaranteed present by the Step 3 subset check.
-      return targetByChroma.get(newChroma) as string;
-    });
-  });
+      const mapped = targetByChroma.get(mod12(chroma - offset));
+      if (mapped === undefined) return undefined;
+      rewritten.push(mapped);
+    }
+    newStrings.push(rewritten);
+  }
 
   // Step 5: recompute rootString — lowest string index whose (original)
   // intervals include the new tonic (parent chroma === tonicOffset).

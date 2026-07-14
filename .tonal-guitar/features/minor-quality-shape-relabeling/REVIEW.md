@@ -17,7 +17,7 @@
 - [x] Phase 3: Architecture Review
 - [x] Phase 4: Architecture Fix
 - [x] Phase 5: Code Simplification Review
-- [ ] Phase 6: Code Simplification Fix
+- [x] Phase 6: Code Simplification Fix
 - [ ] Phase 7: Specialized Reviews
 - [ ] Phase 8: Specialized Fixes
 - [ ] Phase 9: Final Verification
@@ -73,6 +73,17 @@ Verification: lint clean, build clean, 922/922 tests, site `npm run build` clean
 - CR-012: [Suggestion] Redundant explicit `parentShape: X.name` in every `relabelOrThrow` call in `src/data/caged-scales-minor.ts:44-72` and `src/data/pentatonic-minor.ts:54-102` — `relabelShape` already defaults `parentShape` to `shape.name` (`src/transform.ts:108`).
 
 Triage note: all four are < 20-line localized cleanups; fixing directly in Phase 6 instead of filing issues.
+
+## Phase 6: Code Simplification Fixes
+
+### Fixed
+
+- CR-009: Fixed — module-private `mod12()` helper in transform.ts, used by `chromaOf` and both inline sites
+- CR-010: Fixed — narrowed `const offset = tonicOffset` binding + explicit `if (mapped === undefined) return undefined` guard; both `as` casts removed, sentinel-return convention preserved
+- CR-011: Fixed — `positionSet`/`minorPositionSet` hoisted to file-level helpers in data.test.ts, duplicates removed
+- CR-012: Fixed — redundant `parentShape: X.name` options removed from all `relabelOrThrow` calls (defaults to `shape.name` in relabelShape)
+
+Verification: lint clean, build clean, 922/922 tests.
 
 ## Statistics
 

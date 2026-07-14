@@ -44,31 +44,26 @@ function relabelOrThrow(
 export const CAGED_DM: ScaleShape = relabelOrThrow(CAGED_E, MINOR_INTERVALS, {
   name: "Dm Shape",
   quality: "minor",
-  parentShape: CAGED_E.name,
 });
 
 export const CAGED_CM: ScaleShape = relabelOrThrow(CAGED_D, MINOR_INTERVALS, {
   name: "Cm Shape",
   quality: "minor",
-  parentShape: CAGED_D.name,
 });
 
 export const CAGED_AM: ScaleShape = relabelOrThrow(CAGED_C, MINOR_INTERVALS, {
   name: "Am Shape",
   quality: "minor",
-  parentShape: CAGED_C.name,
 });
 
 export const CAGED_GM: ScaleShape = relabelOrThrow(CAGED_A, MINOR_INTERVALS, {
   name: "Gm Shape",
   quality: "minor",
-  parentShape: CAGED_A.name,
 });
 
 export const CAGED_EM: ScaleShape = relabelOrThrow(CAGED_G, MINOR_INTERVALS, {
   name: "Em Shape",
   quality: "minor",
-  parentShape: CAGED_G.name,
 });
 
 // Register all minor CAGED scale shapes

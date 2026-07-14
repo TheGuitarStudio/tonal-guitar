@@ -57,7 +57,6 @@ export const PENTA_BOX_1_MINOR: ScaleShape = relabelOrThrow(
   {
     name: "Pentatonic Box 1 Minor",
     quality: "minor-pentatonic",
-    parentShape: PENTA_BOX_1.name,
   },
 );
 
@@ -67,7 +66,6 @@ export const PENTA_BOX_2_MINOR: ScaleShape = relabelOrThrow(
   {
     name: "Pentatonic Box 2 Minor",
     quality: "minor-pentatonic",
-    parentShape: PENTA_BOX_2.name,
   },
 );
 
@@ -77,7 +75,6 @@ export const PENTA_BOX_3_MINOR: ScaleShape = relabelOrThrow(
   {
     name: "Pentatonic Box 3 Minor",
     quality: "minor-pentatonic",
-    parentShape: PENTA_BOX_3.name,
   },
 );
 
@@ -87,7 +84,6 @@ export const PENTA_BOX_4_MINOR: ScaleShape = relabelOrThrow(
   {
     name: "Pentatonic Box 4 Minor",
     quality: "minor-pentatonic",
-    parentShape: PENTA_BOX_4.name,
   },
 );
 
@@ -97,7 +93,6 @@ export const PENTA_BOX_5_MINOR: ScaleShape = relabelOrThrow(
   {
     name: "Pentatonic Box 5 Minor",
     quality: "minor-pentatonic",
-    parentShape: PENTA_BOX_5.name,
   },
 );
 
