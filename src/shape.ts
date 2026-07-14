@@ -74,6 +74,15 @@ export interface FrettedScale {
   shapeName: string;
   tuning: string[];
   notes: FrettedNote[];
+  // Set only by buildFromScale (src/integration.ts): `true` when the input
+  // shape was successfully relabeled into the requested scale's interval
+  // frame via `relabelShape`, `false` when relabelShape returned `undefined`
+  // (not rotation-compatible) and the original, unrelabeled shape was built
+  // at the scale's tonic as a fallback — in that case `scaleName`/`scaleType`
+  // still reflect the *requested* scale, but the notes' intervals/pitch
+  // classes may not actually belong to it. Left `undefined` everywhere else
+  // (the distinction doesn't apply).
+  relabeled?: boolean;
 }
 
 // Sentinel value for invalid/empty results
