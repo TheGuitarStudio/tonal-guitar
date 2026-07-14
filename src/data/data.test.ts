@@ -747,6 +747,48 @@ describe("TG10 — Data integrity: chordShapes.all() count after all curated imp
   });
 });
 
+// ─── Fingering/barre metadata invariants (issue #39: CR-005/CR-006/CR-009) ───
+//
+// Codebase-wide guards against the two structural defect classes fixed by
+// the fingering/voicingFamily audit: finger 0 (open string) asserted on a
+// shape with no canonicalRoot (movable shapes are, by definition, never
+// played with an open string), and repeated finger numbers on adjacent
+// strings with no barre entry backing the implied simultaneous press.
+
+describe("chord-shape fingering/barre invariants (issue #39 audit)", () => {
+  it("movable shapes (no canonicalRoot) never use finger 0", () => {
+    const movableShapes = chordShapes
+      .all()
+      .filter((s) => s.canonicalRoot === undefined);
+    expect(movableShapes.length).toBeGreaterThan(0);
+    for (const shape of movableShapes) {
+      expect(
+        shape.fingers.includes(0),
+        `${shape.name} is movable (no canonicalRoot) but asserts finger 0 (open string)`,
+      ).toBe(false);
+    }
+  });
+
+  it("repeated fingers on adjacent strings are backed by a barre entry", () => {
+    for (const shape of chordShapes.all()) {
+      const { fingers, barres, name } = shape;
+      for (let i = 0; i < fingers.length - 1; i++) {
+        const finger = fingers[i];
+        if (finger === null || finger === 0 || fingers[i + 1] !== finger)
+          continue;
+        const covered = barres.some(
+          (b) =>
+            b.finger === finger && i >= b.fromString && i + 1 <= b.toString,
+        );
+        expect(
+          covered,
+          `${name}: finger ${finger} repeats on adjacent strings ${i},${i + 1} with no barre entry covering them`,
+        ).toBe(true);
+      }
+    }
+  });
+});
+
 // ─── TG3: minor CAGED entries (caged-scales-minor.ts) ────────────────────────
 //
 // The 5 minor CAGED shapes are derived from the 5 major CAGED shapes via
