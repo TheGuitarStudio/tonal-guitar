@@ -168,7 +168,9 @@ export const EXT_CHORD_A_6: ChordShape = {
   name: "A Shape 6",
   system: "caged",
   strings: [null, "1P", "5P", "1P", "3M", "6M"],
-  fingers: [null, 0, 1, 1, 1, 1],
+  // Root (string 1) is finger 0 in the open A6 prototype — invalid once
+  // this movable shape is transposed off the nut (CR-005).
+  fingers: [null, 2, 1, 1, 1, 1],
   barres: [{ fret: 2, fromString: 2, toString: 5, finger: 1 }],
   rootString: 1,
   chordType: "6",
@@ -191,8 +193,16 @@ export const EXT_CHORD_E_M6: ChordShape = {
   name: "E Shape m6",
   system: "caged",
   strings: ["1P", "5P", "1P", "3m", "6M", "1P"],
-  fingers: [1, 1, 1, 0, 2, 1],
-  barres: [{ fret: 0, fromString: 0, toString: 5, finger: 1 }],
+  // Interval math: strings 0/3/5 share the base fret (root — was finger 0,
+  // invalid once transposed, CR-005) and strings 1/2 share one fret up
+  // (a genuine two-string mini-barre); string 4 lands on the same fret as
+  // 1/2 but string 3 sits between them at the *lower* base fret, blocking a
+  // shared barre, so it keeps its own finger.
+  fingers: [1, 2, 2, 1, 3, 1],
+  barres: [
+    { fret: 0, fromString: 0, toString: 5, finger: 1 },
+    { fret: 2, fromString: 1, toString: 2, finger: 2 },
+  ],
   rootString: 0,
   chordType: "m6",
   voicingFamily: "extended",
@@ -210,7 +220,9 @@ export const EXT_CHORD_A_M6: ChordShape = {
   name: "A Shape m6",
   system: "caged",
   strings: [null, "1P", "5P", "1P", "3m", "6M"],
-  fingers: [null, 0, 2, 2, 1, 3],
+  // Root (string 1) is finger 0 in the open Am6 prototype — invalid once
+  // this movable shape is transposed off the nut (CR-005).
+  fingers: [null, 4, 2, 2, 1, 3],
   barres: [{ fret: 2, fromString: 2, toString: 3, finger: 2 }],
   rootString: 1,
   chordType: "m6",
@@ -403,7 +415,10 @@ export const EXT_CHORD_A_ADD9: ChordShape = {
   name: "A Shape add9",
   system: "caged",
   strings: [null, "1P", "3M", "5P", "9M", null],
-  fingers: [null, 2, 1, 0, 3, null],
+  // The open-position 5th (string 3) is finger 0 in the open Aadd9
+  // prototype — invalid once this movable shape is transposed off the nut
+  // (CR-005).
+  fingers: [null, 2, 1, 4, 3, null],
   barres: [],
   rootString: 1,
   chordType: "add9",
@@ -551,8 +566,15 @@ export const EXT_CHORD_A_MMAJ7: ChordShape = {
   name: "A Shape mMaj7",
   system: "caged",
   strings: [null, "1P", "5P", "7M", "3m", "5P"],
-  fingers: [null, 0, 3, 1, 2, 0],
-  barres: [],
+  // Prototype x,0,2,1,1,0 (CR-005): strings 1 and 5 share the base fret
+  // (open-voicing finger 0s are invalid once transposed) and join the
+  // index-finger barre; strings 3 and 4 are a genuine two-string mini-barre
+  // one fret up.
+  fingers: [null, 1, 3, 2, 2, 1],
+  barres: [
+    { fret: 0, fromString: 1, toString: 5, finger: 1 },
+    { fret: 1, fromString: 3, toString: 4, finger: 2 },
+  ],
   rootString: 1,
   chordType: "mMaj7",
   voicingFamily: "extended",
@@ -596,8 +618,11 @@ export const EXT_CHORD_A_7SUS4: ChordShape = {
   name: "A Shape 7sus4",
   system: "caged",
   strings: [null, "1P", "5P", "7m", "4P", "5P"],
-  fingers: [null, 0, 2, 0, 3, 0],
-  barres: [],
+  // Prototype x,0,2,0,3,0 (CR-005): strings 1, 3, and 5 share the base fret
+  // (open-voicing finger 0s are invalid once transposed) and join the
+  // index-finger barre.
+  fingers: [null, 1, 2, 1, 3, 1],
+  barres: [{ fret: 0, fromString: 1, toString: 5, finger: 1 }],
   rootString: 1,
   chordType: "7sus4",
   voicingFamily: "extended",
@@ -672,8 +697,13 @@ export const EXT_CHORD_E_7B9: ChordShape = {
   name: "E Shape 7b9",
   system: "caged",
   strings: ["1P", "5P", "7m", "3M", "5P", "9m"],
-  fingers: [0, 3, 0, 1, 0, 2],
-  barres: [],
+  // Interval math: strings 0, 2, and 4 share the base fret (root/5th
+  // doubled — was finger 0, invalid once transposed, CR-005) and join the
+  // index-finger barre. String 3 lands one fret up but string 4 sits
+  // between it and string 5 at the *lower* base fret, blocking a shared
+  // barre, so strings 3 and 5 keep distinct fingers.
+  fingers: [1, 3, 1, 4, 1, 2],
+  barres: [{ fret: 0, fromString: 0, toString: 4, finger: 1 }],
   rootString: 0,
   chordType: "7b9",
   voicingFamily: "extended",
@@ -783,8 +813,14 @@ export const EXT_CHORD_E_7SHARP5: ChordShape = {
   name: "E Shape 7#5",
   system: "caged",
   strings: ["1P", null, "7m", "3M", "5A", "1P"],
-  fingers: [0, null, 0, 1, 1, 0],
-  barres: [{ fret: 1, fromString: 3, toString: 4, finger: 1 }],
+  // Interval math: strings 0, 2, and 5 share the base fret (root doubled —
+  // was finger 0, invalid once transposed, CR-005) and join a barre;
+  // strings 3-4 keep their existing one-fret-up mini-barre.
+  fingers: [2, null, 2, 1, 1, 2],
+  barres: [
+    { fret: 1, fromString: 3, toString: 4, finger: 1 },
+    { fret: 0, fromString: 0, toString: 5, finger: 2 },
+  ],
   rootString: 0,
   chordType: "7#5",
   voicingFamily: "extended",
@@ -834,8 +870,12 @@ export const EXT_CHORD_E_7B5: ChordShape = {
   name: "E Shape 7b5",
   system: "caged",
   strings: ["1P", "5d", "7m", "3M", null, null],
-  fingers: [0, 1, 0, 2, null, null],
-  barres: [],
+  // Interval math: strings 0 and 2 share the base fret (root — was finger
+  // 0, invalid once transposed, CR-005) and join a barre; string 1 lands
+  // one fret up but sits between them, blocking a shared barre with
+  // string 3 (also one fret up), so those two keep distinct fingers.
+  fingers: [1, 3, 1, 2, null, null],
+  barres: [{ fret: 0, fromString: 0, toString: 2, finger: 1 }],
   rootString: 0,
   chordType: "7b5",
   voicingFamily: "extended",

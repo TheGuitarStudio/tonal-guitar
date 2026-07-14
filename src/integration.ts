@@ -10,7 +10,6 @@ import {
   pitchClass,
   midi as toMidi,
 } from "@tonaljs/note";
-import { semitones } from "@tonaljs/interval";
 import { majorKey } from "@tonaljs/key";
 
 import {
@@ -25,7 +24,7 @@ import { noteAt } from "./fretboard";
 import { STANDARD } from "./tuning";
 import { scoreShapeMatch, InferenceProbe, ScoreBreakdown } from "./arpeggio";
 import { parseChordFrets } from "./notation";
-import { relabelShape, RelabelOptions } from "./transform";
+import { relabelShape, RelabelOptions, chromaOf } from "./transform";
 
 // ============================================================
 // arpeggioFromScale / arpeggioFromShape
@@ -142,7 +141,11 @@ export function arpeggioFromShape(
  * classes (A=1P, C=3m) instead of silently building the A-major frame at A.
  * If the shape is not rotation-compatible with the requested scale,
  * `relabelShape` returns `undefined` and this falls back to building the
- * original shape as-is (no regression to an empty result).
+ * original shape as-is (no regression to an empty result). In that fallback
+ * case `scaleType`/`scaleName` still reflect the *requested* scale (not the
+ * shape's actual, unrelabeled frame) — `result.relabeled` is set to `false`
+ * so callers can detect this and treat the notes' intervals/pitch classes
+ * accordingly (see CR-001 / issue #87).
  *
  * @param shape - the ScaleShape to apply
  * @param scaleName - full scale name, e.g. "A major", "A dorian", "A minor pentatonic"
@@ -158,9 +161,9 @@ export function buildFromScale(
     return { ...NoFrettedScale };
   }
 
-  const relabeled = relabelShape(shape, result.intervals);
+  const relabeledShape = relabelShape(shape, result.intervals);
   const frettedScale = buildFrettedScale(
-    relabeled ?? shape,
+    relabeledShape ?? shape,
     result.tonic,
     tuning,
   );
@@ -168,7 +171,12 @@ export function buildFromScale(
     return frettedScale;
   }
 
-  return { ...frettedScale, scaleType: result.type, scaleName: result.name };
+  return {
+    ...frettedScale,
+    scaleType: result.type,
+    scaleName: result.name,
+    relabeled: relabeledShape !== undefined,
+  };
 }
 
 // ============================================================
@@ -390,8 +398,6 @@ export function isShapeCompatible(
   if (scale.empty) {
     return false;
   }
-
-  const chromaOf = (ivl: string): number => ((semitones(ivl) % 12) + 12) % 12;
 
   // Collect unique chromas used by the shape's intervals
   const shapeChromas = new Set(

@@ -54,21 +54,23 @@ export const OPEN_C_MAJOR: ChordShape = {
 };
 
 /**
- * C minor (x35543 barre at fret 3)
+ * C minor (x35543 barre at fret 3) — CR-009: this is a barre grip (baseFret
+ * 3, no open strings, a full barre across strings 1-5), not an open-position
+ * chord, so it is tagged `voicingFamily`/`system: "barre"` like the G
+ * dim/m7b5 barre grips (see CR-003 precedent in git history).
  * Notes: C G C Eb G → intervals: 1P 5P 1P 3m 5P
  */
 export const OPEN_C_MINOR: ChordShape = {
   name: "C Minor Open",
-  system: "open",
+  system: "barre",
   strings: [null, "1P", "5P", "1P", "3m", "5P"],
   fingers: [null, 1, 3, 4, 2, 1],
   barres: [{ fret: 3, fromString: 1, toString: 5, finger: 1 }],
   rootString: 1,
   chordType: "m",
-  voicingFamily: "open",
+  voicingFamily: "barre",
   stringSet: [1, 2, 3, 4, 5],
   inversion: 0,
-  canonicalRoot: "C",
   baseFret: 3,
 };
 
@@ -112,21 +114,22 @@ export const OPEN_C_MAJ7: ChordShape = {
 };
 
 /**
- * C minor 7 (x35343 barre at fret 3)
+ * C minor 7 (x35343 barre at fret 3) — CR-009: same class as OPEN_C_MINOR
+ * above — a barre grip (baseFret 3, no open strings), not an open-position
+ * chord.
  * Notes: C G Bb Eb G → intervals: 1P 5P 7m 3m 5P
  */
 export const OPEN_C_M7: ChordShape = {
   name: "C Minor 7 Open",
-  system: "open",
+  system: "barre",
   strings: [null, "1P", "5P", "7m", "3m", "5P"],
   fingers: [null, 1, 3, 4, 2, 1],
   barres: [{ fret: 3, fromString: 1, toString: 5, finger: 1 }],
   rootString: 1,
   chordType: "m7",
-  voicingFamily: "open",
+  voicingFamily: "barre",
   stringSet: [1, 2, 3, 4, 5],
   inversion: 0,
-  canonicalRoot: "C",
   baseFret: 3,
 };
 
@@ -177,8 +180,11 @@ export const OPEN_C_SUS2: ChordShape = {
   name: "C Sus2 Open",
   system: "open",
   strings: [null, "1P", "2M", "5P", "2M", "5P"],
-  fingers: [null, 3, 0, 0, 3, 3],
-  barres: [],
+  // Strings 4-5 land on the same fret as string 1, but the open strings 2-3
+  // ring between them, blocking one continuous barre — string 1 keeps its
+  // own finger and strings 4-5 form their own two-string mini-barre.
+  fingers: [null, 4, 0, 0, 3, 3],
+  barres: [{ fret: 3, fromString: 4, toString: 5, finger: 3 }],
   rootString: 1,
   chordType: "sus2",
   voicingFamily: "open",
@@ -239,7 +245,7 @@ export const OPEN_A_MAJOR: ChordShape = {
   system: "open",
   strings: [null, "1P", "5P", "1P", "3M", "5P"],
   fingers: [null, 0, 2, 2, 2, 0],
-  barres: [],
+  barres: [{ fret: 2, fromString: 2, toString: 4, finger: 2 }],
   rootString: 1,
   chordType: "M",
   voicingFamily: "open",
@@ -258,7 +264,7 @@ export const OPEN_A_MINOR: ChordShape = {
   system: "open",
   strings: [null, "1P", "5P", "1P", "3m", "5P"],
   fingers: [null, 0, 2, 2, 1, 0],
-  barres: [],
+  barres: [{ fret: 2, fromString: 2, toString: 3, finger: 2 }],
   rootString: 1,
   chordType: "m",
   voicingFamily: "open",
@@ -276,7 +282,9 @@ export const OPEN_A_DOM7: ChordShape = {
   name: "A Dominant 7 Open",
   system: "open",
   strings: [null, "1P", "5P", "7m", "3M", "5P"],
-  fingers: [null, 0, 2, 0, 2, 0],
+  // Strings 2 and 4 land on the same fret, but the open string 3 rings
+  // between them, so they can't share a barre — distinct fingers instead.
+  fingers: [null, 0, 2, 0, 3, 0],
   barres: [],
   rootString: 1,
   chordType: "7",
@@ -295,7 +303,9 @@ export const OPEN_A_MAJ7: ChordShape = {
   name: "A Major 7 Open",
   system: "open",
   strings: [null, "1P", "5P", "7M", "3M", "5P"],
-  fingers: [null, 0, 2, 1, 2, 0],
+  // Strings 2 and 4 land on the same fret, but string 3 (a fret lower)
+  // rings between them, so they can't share a barre — distinct fingers.
+  fingers: [null, 0, 2, 1, 3, 0],
   barres: [],
   rootString: 1,
   chordType: "maj7",
@@ -354,7 +364,7 @@ export const OPEN_A_AUG: ChordShape = {
   system: "open",
   strings: [null, "1P", "5P", "1P", "3M", "5A"],
   fingers: [null, 0, 3, 2, 2, 1],
-  barres: [],
+  barres: [{ fret: 2, fromString: 3, toString: 4, finger: 2 }],
   rootString: 1,
   chordType: "aug",
   voicingFamily: "open",
@@ -373,7 +383,7 @@ export const OPEN_A_SUS2: ChordShape = {
   system: "open",
   strings: [null, "1P", "5P", "1P", "2M", "5P"],
   fingers: [null, 0, 2, 2, 0, 0],
-  barres: [],
+  barres: [{ fret: 2, fromString: 2, toString: 3, finger: 2 }],
   rootString: 1,
   chordType: "sus2",
   voicingFamily: "open",
@@ -392,7 +402,7 @@ export const OPEN_A_SUS4: ChordShape = {
   system: "open",
   strings: [null, "1P", "5P", "1P", "4P", "5P"],
   fingers: [null, 0, 2, 2, 3, 0],
-  barres: [],
+  barres: [{ fret: 2, fromString: 2, toString: 3, finger: 2 }],
   rootString: 1,
   chordType: "sus4",
   voicingFamily: "open",
@@ -411,7 +421,7 @@ export const OPEN_A_M7B5: ChordShape = {
   system: "open",
   strings: [null, "1P", "5d", "1P", "3m", "7m"],
   fingers: [null, 0, 1, 2, 1, 3],
-  barres: [],
+  barres: [{ fret: 1, fromString: 2, toString: 4, finger: 1 }],
   rootString: 1,
   chordType: "m7b5",
   voicingFamily: "open",
@@ -452,7 +462,9 @@ export const OPEN_G_MINOR: ChordShape = {
   name: "G Minor Open",
   system: "open",
   strings: ["1P", "3m", "5P", "1P", "5P", "1P"],
-  fingers: [3, 1, 0, 0, 3, 4],
+  // String 4 lands on the same fret as string 0, but strings 1-3 (lower
+  // frets) sit between them, so they can't share a barre — distinct fingers.
+  fingers: [3, 1, 0, 0, 2, 4],
   barres: [],
   rootString: 0,
   chordType: "m",
@@ -509,8 +521,12 @@ export const OPEN_G_M7: ChordShape = {
   name: "G Minor 7 Open",
   system: "open",
   strings: ["1P", "3m", "7m", "1P", "5P", "1P"],
-  fingers: [2, 1, 3, 0, 3, 4],
-  barres: [],
+  // Strings 4-5 land on the same fret as string 0 and are adjacent to each
+  // other, so they share a two-string mini-barre; string 2 (the other
+  // finger-3 note) is a lower fret with string 3 (open) between it and the
+  // barre, so it keeps its own distinct finger.
+  fingers: [2, 1, 3, 0, 4, 4],
+  barres: [{ fret: 3, fromString: 4, toString: 5, finger: 4 }],
   rootString: 0,
   chordType: "m7",
   voicingFamily: "open",
@@ -627,7 +643,7 @@ export const OPEN_E_MAJOR: ChordShape = {
   system: "open",
   strings: ["1P", "5P", "1P", "3M", "5P", "1P"],
   fingers: [0, 2, 2, 1, 0, 0],
-  barres: [],
+  barres: [{ fret: 2, fromString: 1, toString: 2, finger: 2 }],
   rootString: 0,
   chordType: "M",
   voicingFamily: "open",
@@ -646,7 +662,7 @@ export const OPEN_E_MINOR: ChordShape = {
   system: "open",
   strings: ["1P", "5P", "1P", "3m", "5P", "1P"],
   fingers: [0, 2, 2, 0, 0, 0],
-  barres: [],
+  barres: [{ fret: 2, fromString: 1, toString: 2, finger: 2 }],
   rootString: 0,
   chordType: "m",
   voicingFamily: "open",
@@ -684,7 +700,7 @@ export const OPEN_E_MAJ7: ChordShape = {
   system: "open",
   strings: ["1P", "5P", "7M", "3M", "5P", "1P"],
   fingers: [0, 2, 1, 1, 0, 0],
-  barres: [],
+  barres: [{ fret: 1, fromString: 2, toString: 3, finger: 1 }],
   rootString: 0,
   chordType: "maj7",
   voicingFamily: "open",
@@ -780,7 +796,7 @@ export const OPEN_E_SUS4: ChordShape = {
   system: "open",
   strings: ["1P", "5P", "1P", "4P", "5P", "1P"],
   fingers: [0, 2, 2, 2, 0, 0],
-  barres: [],
+  barres: [{ fret: 2, fromString: 1, toString: 3, finger: 2 }],
   rootString: 0,
   chordType: "sus4",
   voicingFamily: "open",
@@ -825,7 +841,7 @@ export const OPEN_D_MAJOR: ChordShape = {
   system: "open",
   strings: [null, null, "1P", "5P", "1P", "3M"],
   fingers: [null, null, 0, 2, 3, 2],
-  barres: [],
+  barres: [{ fret: 2, fromString: 3, toString: 5, finger: 2 }],
   rootString: 2,
   chordType: "M",
   voicingFamily: "open",
@@ -862,7 +878,9 @@ export const OPEN_D_DOM7: ChordShape = {
   name: "D Dominant 7 Open",
   system: "open",
   strings: [null, null, "1P", "5P", "7m", "3M"],
-  fingers: [null, null, 0, 2, 1, 2],
+  // Strings 3 and 5 land on the same fret, but string 4 (a fret lower)
+  // rings between them, so they can't share a barre — distinct fingers.
+  fingers: [null, null, 0, 2, 1, 3],
   barres: [],
   rootString: 2,
   chordType: "7",
@@ -881,8 +899,10 @@ export const OPEN_D_MAJ7: ChordShape = {
   name: "D Major 7 Open",
   system: "open",
   strings: [null, null, "1P", "5P", "7M", "3M"],
+  // Strings 3-5 are a genuine three-string mini-barre (CR-006: three
+  // identical fingers now backed by an explicit barre entry).
   fingers: [null, null, 0, 2, 2, 2],
-  barres: [],
+  barres: [{ fret: 2, fromString: 3, toString: 5, finger: 2 }],
   rootString: 2,
   chordType: "maj7",
   voicingFamily: "open",
@@ -901,7 +921,7 @@ export const OPEN_D_M7: ChordShape = {
   system: "open",
   strings: [null, null, "1P", "5P", "7m", "3m"],
   fingers: [null, null, 0, 2, 1, 1],
-  barres: [],
+  barres: [{ fret: 1, fromString: 4, toString: 5, finger: 1 }],
   rootString: 2,
   chordType: "m7",
   voicingFamily: "open",
@@ -920,7 +940,7 @@ export const OPEN_D_DIM: ChordShape = {
   system: "open",
   strings: [null, null, "1P", "5d", "1P", "3m"],
   fingers: [null, null, 0, 1, 3, 1],
-  barres: [],
+  barres: [{ fret: 1, fromString: 3, toString: 5, finger: 1 }],
   rootString: 2,
   chordType: "dim",
   voicingFamily: "open",
@@ -978,7 +998,7 @@ export const OPEN_D_SUS4: ChordShape = {
   system: "open",
   strings: [null, null, "1P", "5P", "1P", "4P"],
   fingers: [null, null, 0, 2, 3, 3],
-  barres: [],
+  barres: [{ fret: 3, fromString: 4, toString: 5, finger: 3 }],
   rootString: 2,
   chordType: "sus4",
   voicingFamily: "open",
@@ -997,8 +1017,11 @@ export const OPEN_D_M7B5: ChordShape = {
   name: "D m7b5 Open",
   system: "open",
   strings: [null, null, "1P", "5d", "7m", "3m"],
-  fingers: [null, null, 0, 1, 2, 1],
-  barres: [],
+  // Interval math shows strings 3-5 all land on the same fret (a genuine
+  // three-string mini-barre), not the two-fret spread the older fret-diagram
+  // comment above suggests.
+  fingers: [null, null, 0, 1, 1, 1],
+  barres: [{ fret: 1, fromString: 3, toString: 5, finger: 1 }],
   rootString: 2,
   chordType: "m7b5",
   voicingFamily: "open",
@@ -1102,13 +1125,20 @@ export const BARRE_E_DIM: ChordShape = {
   baseFret: 1,
 };
 
-/** E-form augmented barre */
+/**
+ * E-form augmented barre. Interval math shows strings 3-4 share a fret
+ * distinct from strings 0/5's fret (the original data incorrectly merged
+ * all four under one finger — impossible without a hinge barre); this is a
+ * wide-span augmented grip (mirroring OPEN_E_AUG), so treat the exact
+ * fingering as a best-effort approximation rather than a single compact
+ * hand position.
+ */
 export const BARRE_E_AUG: ChordShape = {
   name: "E Form aug Barre",
   system: "barre",
   strings: ["1P", "5A", "3M", "1P", "3M", "1P"],
-  fingers: [1, 3, 2, 1, 1, 1],
-  barres: [{ fret: 0, fromString: 0, toString: 5, finger: 1 }],
+  fingers: [1, 3, 2, 4, 4, 1],
+  barres: [{ fret: 0, fromString: 3, toString: 4, finger: 4 }],
   rootString: 0,
   chordType: "aug",
   voicingFamily: "barre",
@@ -1117,13 +1147,20 @@ export const BARRE_E_AUG: ChordShape = {
   baseFret: 1,
 };
 
-/** E-form sus2 barre */
+/**
+ * E-form sus2 barre. Interval math: strings 2-3 share a fret one fret
+ * above the base — string 3 was incorrectly grouped into the base barre
+ * (finger 1) instead of joining string 2 (fixed here with its own barre).
+ */
 export const BARRE_E_SUS2: ChordShape = {
   name: "E Form sus2 Barre",
   system: "barre",
   strings: ["1P", "5P", "2M", "5P", "5P", "1P"],
-  fingers: [1, 3, 2, 1, 1, 1],
-  barres: [{ fret: 0, fromString: 0, toString: 5, finger: 1 }],
+  fingers: [1, 3, 2, 2, 1, 1],
+  barres: [
+    { fret: 0, fromString: 0, toString: 5, finger: 1 },
+    { fret: 4, fromString: 2, toString: 3, finger: 2 },
+  ],
   rootString: 0,
   chordType: "sus2",
   voicingFamily: "barre",
@@ -1172,7 +1209,10 @@ export const BARRE_A_MAJOR: ChordShape = {
   system: "barre",
   strings: [null, "1P", "5P", "1P", "3M", "5P"],
   fingers: [null, 1, 3, 3, 3, 1],
-  barres: [],
+  barres: [
+    { fret: 0, fromString: 1, toString: 5, finger: 1 },
+    { fret: 2, fromString: 2, toString: 4, finger: 3 },
+  ],
   rootString: 1,
   chordType: "M",
   voicingFamily: "barre",
@@ -1187,7 +1227,10 @@ export const BARRE_A_MINOR: ChordShape = {
   system: "barre",
   strings: [null, "1P", "5P", "1P", "3m", "5P"],
   fingers: [null, 1, 3, 3, 2, 1],
-  barres: [],
+  barres: [
+    { fret: 0, fromString: 1, toString: 5, finger: 1 },
+    { fret: 2, fromString: 2, toString: 3, finger: 3 },
+  ],
   rootString: 1,
   chordType: "m",
   voicingFamily: "barre",
@@ -1202,7 +1245,7 @@ export const BARRE_A_DOM7: ChordShape = {
   system: "barre",
   strings: [null, "1P", "5P", "7m", "3M", "5P"],
   fingers: [null, 1, 3, 2, 4, 1],
-  barres: [],
+  barres: [{ fret: 0, fromString: 1, toString: 5, finger: 1 }],
   rootString: 1,
   chordType: "7",
   voicingFamily: "barre",
@@ -1217,7 +1260,7 @@ export const BARRE_A_MAJ7: ChordShape = {
   system: "barre",
   strings: [null, "1P", "5P", "7M", "3M", "5P"],
   fingers: [null, 1, 3, 2, 4, 1],
-  barres: [],
+  barres: [{ fret: 0, fromString: 1, toString: 5, finger: 1 }],
   rootString: 1,
   chordType: "maj7",
   voicingFamily: "barre",
@@ -1227,12 +1270,18 @@ export const BARRE_A_MAJ7: ChordShape = {
 };
 
 /** A-form minor 7 barre (mirrors Am7 open shape) */
+/**
+ * A-form m7 barre. Interval math: string 3 (the 7m) lands on the base fret,
+ * not the same fret as string 4 (the 3m) — the original data incorrectly
+ * grouped them together under finger 2. String 3 joins the base barre
+ * (finger 1) instead.
+ */
 export const BARRE_A_M7: ChordShape = {
   name: "A Form m7 Barre",
   system: "barre",
   strings: [null, "1P", "5P", "7m", "3m", "5P"],
-  fingers: [null, 1, 3, 2, 2, 1],
-  barres: [],
+  fingers: [null, 1, 3, 1, 2, 1],
+  barres: [{ fret: 0, fromString: 1, toString: 5, finger: 1 }],
   rootString: 1,
   chordType: "m7",
   voicingFamily: "barre",
@@ -1262,7 +1311,7 @@ export const BARRE_A_AUG: ChordShape = {
   system: "barre",
   strings: [null, "1P", "5P", "1P", "3M", "5A"],
   fingers: [null, 1, 3, 2, 2, 4],
-  barres: [],
+  barres: [{ fret: 2, fromString: 3, toString: 4, finger: 2 }],
   rootString: 1,
   chordType: "aug",
   voicingFamily: "barre",
@@ -1277,7 +1326,10 @@ export const BARRE_A_SUS2: ChordShape = {
   system: "barre",
   strings: [null, "1P", "5P", "1P", "2M", "5P"],
   fingers: [null, 1, 3, 3, 2, 1],
-  barres: [],
+  barres: [
+    { fret: 0, fromString: 1, toString: 5, finger: 1 },
+    { fret: 2, fromString: 2, toString: 3, finger: 3 },
+  ],
   rootString: 1,
   chordType: "sus2",
   voicingFamily: "barre",
@@ -1292,7 +1344,10 @@ export const BARRE_A_SUS4: ChordShape = {
   system: "barre",
   strings: [null, "1P", "5P", "1P", "4P", "5P"],
   fingers: [null, 1, 3, 3, 4, 1],
-  barres: [],
+  barres: [
+    { fret: 0, fromString: 1, toString: 5, finger: 1 },
+    { fret: 2, fromString: 2, toString: 3, finger: 3 },
+  ],
   rootString: 1,
   chordType: "sus4",
   voicingFamily: "barre",
@@ -1301,13 +1356,19 @@ export const BARRE_A_SUS4: ChordShape = {
   baseFret: 1,
 };
 
-/** A-form m7b5 barre (mirrors Am7b5 open shape) */
+/**
+ * A-form m7b5 barre (mirrors Am7b5 open shape). Interval math: strings 2
+ * and 4 share a fret, while strings 1/3/5 each sit on their own distinct
+ * fret — the original data incorrectly grouped string 5 with string 1
+ * under finger 1, though they are 3 frets apart. Strings 2 and 4 form a
+ * genuine (non-adjacent but blocker-free) two-string barre instead.
+ */
 export const BARRE_A_M7B5: ChordShape = {
   name: "A Form m7b5 Barre",
   system: "barre",
   strings: [null, "1P", "5d", "1P", "3m", "7m"],
-  fingers: [null, 1, 2, 3, 4, 1],
-  barres: [],
+  fingers: [null, 1, 2, 3, 2, 4],
+  barres: [{ fret: 1, fromString: 2, toString: 4, finger: 2 }],
   rootString: 1,
   chordType: "m7b5",
   voicingFamily: "barre",
