@@ -18,9 +18,9 @@
 - [x] Phase 4: Architecture Fix
 - [x] Phase 5: Code Simplification Review (2 findings)
 - [x] Phase 6: Code Simplification Fix
-- [ ] Phase 7: Specialized Reviews
-- [ ] Phase 8: Specialized Fixes
-- [ ] Phase 9: Final Verification
+- [x] Phase 7: Specialized Reviews (delta review — 0 findings)
+- [x] Phase 8: Specialized Fixes (nothing to fix)
+- [x] Phase 9: Final Verification
 
 Loop 2 focus: re-review including all loop-1 fix commits; CR IDs continue from CR-012.
 
@@ -145,11 +145,27 @@ All loop-1 simplification fixes verified clean; no other issues.
 
 - CR-016: Two copies is below the review's own 3+ DRY threshold; extraction would add a new internal data/ module (CLAUDE.md layout churn) to share ~10 lines of build-time guard logic with per-file error context. Premature abstraction.
 
+## Loop 2 — Phase 7: Specialized Reviews
+
+Delta review: production code in src/ is byte-identical to what loop 1's security and type-safety agents cleared (0 findings each). The only src/ change since is CR-015's 3-line test-helper delegation — no casts, no `any`, non-null assertion guarded by `toBeDefined()` per existing test convention, no new input surface. Re-running the full agents was skipped as redundant. Accessibility remains N/A.
+
+## Loop 2 — Phase 8: Specialized Fixes
+
+No findings to fix.
+
 ## Statistics
 
 - Loop 1 findings: 12 total — 0 Critical, 6 Important (5 fixed, 1 deferred), 6 Suggestion (4 fixed, 1 deferred, 1 won't fix)
+- Loop 2 findings: 4 total — 0 Critical, 1 Important (fixed), 3 Suggestion (2 fixed, 1 won't fix)
 - GitHub Issues Created: #87 (CR-001 fallback labeling), #88 (CR-003 chromaOf dedupe)
-- Total Commits: 7 | Total Fixes: 9 | Loop 1 Status: **PASS** (0 Critical open, lint/build/922 tests/site build all green)
+- Total Commits: 10 | Total Fixes: 12 | Loop 2 Status: **PASS** (0 Critical open, lint/build/922 tests/site build all green)
+
+## Loop 2 Summary
+
+- Findings: 4 total (0 Critical, 1 Important, 3 Suggestion) — CR-013..CR-016
+- Fixed: 3 (stale `names()` ordering examples in docs/api/shapes.md + site mirror; test-helper delegation) | Won't Fix: 1 (relabelOrThrow dedup — below DRY threshold)
+- Notable: loop 2 caught a loop-1 fix that silently failed to apply (the trailing `names()` entry sed never matched after an earlier sed rewrote the line) — exactly the class of issue --loop exists for
+- src production code verified unchanged since loop 1's clean security/type-safety passes
 
 ## Loop 1 Summary
 
