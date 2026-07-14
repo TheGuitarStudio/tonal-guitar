@@ -88,8 +88,7 @@ function positionSet(root: string, source: ScaleShape): string[] {
 function minorPositionSet(minorName: string, root: string): string[] {
   const shape = get(minorName);
   expect(shape, `${minorName} not registered`).toBeDefined();
-  const result = buildFrettedScale(shape!, root, STANDARD);
-  return result.notes.map((n) => `${n.string}:${n.fret}`).sort();
+  return positionSet(root, shape!);
 }
 
 // ─── Task 8.2: CAGED 7th chord shapes ────────────────────────────────────────

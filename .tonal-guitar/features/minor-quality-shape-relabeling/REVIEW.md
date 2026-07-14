@@ -16,8 +16,8 @@
 - [x] Phase 2: Lint/Test Fix (all checks passed, 0 issues)
 - [x] Phase 3: Architecture Review (2 findings)
 - [x] Phase 4: Architecture Fix
-- [ ] Phase 5: Code Simplification Review
-- [ ] Phase 6: Code Simplification Fix
+- [x] Phase 5: Code Simplification Review (2 findings)
+- [x] Phase 6: Code Simplification Fix
 - [ ] Phase 7: Specialized Reviews
 - [ ] Phase 8: Specialized Fixes
 - [ ] Phase 9: Final Verification
@@ -127,6 +127,23 @@ No findings. The loop-1 transform.ts Step-4 rewrite was verified exactly behavio
 ### Fixed
 
 - CR-013, CR-014: Fixed — both `names()` examples now list E/D/C/A/G, then Dm/Cm/Am/Gm/Em, then "3NPS Pattern 1 (Ionian)", ..., "Pentatonic Box 5 Minor", matching registration order in src/index.ts. Verified: tests 922/922, site build clean.
+
+## Loop 2 — Phase 5: Code Simplification Review
+
+- CR-015: [Suggestion] `minorPositionSet` in `src/data/data.test.ts:88` duplicates `positionSet`'s body instead of delegating after resolving the shape — leftover from the loop-1 hoist.
+- CR-016: [Suggestion] `relabelOrThrow` defined identically in `src/data/caged-scales-minor.ts:30` and `src/data/pentatonic-minor.ts:378` (only the error-message context string differs); could be hoisted to a shared internal helper.
+
+All loop-1 simplification fixes verified clean; no other issues.
+
+## Loop 2 — Phase 6: Code Simplification Fixes
+
+### Fixed
+
+- CR-015: Fixed — `minorPositionSet` now delegates to `positionSet(root, shape!)`. Lint clean, 922/922 tests.
+
+### Won't Fix
+
+- CR-016: Two copies is below the review's own 3+ DRY threshold; extraction would add a new internal data/ module (CLAUDE.md layout churn) to share ~10 lines of build-time guard logic with per-file error context. Premature abstraction.
 
 ## Statistics
 
