@@ -18,8 +18,8 @@
 - [x] Phase 4: Architecture Fix
 - [x] Phase 5: Code Simplification Review
 - [x] Phase 6: Code Simplification Fix
-- [ ] Phase 7: Specialized Reviews
-- [ ] Phase 8: Specialized Fixes
+- [x] Phase 7: Specialized Reviews (0 findings)
+- [x] Phase 8: Specialized Fixes (nothing to fix)
 - [ ] Phase 9: Final Verification
 
 ## Phase 2: Lint/Test Results
@@ -84,6 +84,24 @@ Triage note: all four are < 20-line localized cleanups; fixing directly in Phase
 - CR-012: Fixed — redundant `parentShape: X.name` options removed from all `relabelOrThrow` calls (defaults to `shape.name` in relabelShape)
 
 Verification: lint clean, build clean, 922/922 tests.
+
+## Phase 7: Specialized Reviews
+
+### Security (src)
+
+No findings. Verified: Map-based registries immune to prototype pollution; no new regexes (no ReDoS surface); relabelShape bounded by input sizes; malformed interval strings degrade to NaN chromas handled safely by Map/Set semantics (sentinel returns, no crashes); no new dependencies (package.json untouched; @tonaljs/interval already a declared peer dep).
+
+### Type Safety (src)
+
+No findings. Verified: no `any`/`as any`/`as Type` assertions in the diff; `ScaleShape | undefined` returns consistently narrowed with explicit checks; `quality`/`parentShape` optional fields populated consistently; explicit return types on new exports; non-null assertions confined to tests behind `toBeDefined()` guards.
+
+### Accessibility
+
+Skipped — no UI components affected (branch changes are library code + docs; the mdx edits from Phase 4 touched code-example text only).
+
+## Phase 8: Specialized Fixes
+
+No findings to fix.
 
 ## Statistics
 
