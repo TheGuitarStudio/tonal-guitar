@@ -179,14 +179,18 @@ export function filterChordTones(
  * @param builtAnchorFret  The fret at which the built scale is anchored, as computed
  *                         by findShapeAnchorFret (the fret of the FIRST interval in
  *                         shape.strings[shape.rootString]).  This is passed as a separate
- *                         parameter because FrettedScale carries no anchorFret field.
- *                         The integration tier (inferShapeContext, TG6) computes this via
- *                         findShapeAnchorFret from build.ts before calling scoreShapeMatch.
+ *                         parameter — rather than read off `built` — because this file
+ *                         is zero-Tonal-dep and must not import build.ts; `FrettedScale`
+ *                         does carry an optional `anchorFret` field (populated by
+ *                         `buildFrettedScale`), and the integration tier (inferShapeContext)
+ *                         reuses that value instead of calling findShapeAnchorFret again
+ *                         (CR-001), then forwards it here as this explicit parameter.
  *
  * Divergence from spec's formal 4-parameter signature (spec §Exact API surface):
- * The spec lists scoreShapeMatch(probe, shape, root, built) but FrettedScale has no
- * anchorFret field.  A fifth parameter is required; the integration tier computes it
- * and passes it here.  The pure tier never calls build.ts.
+ * The spec lists scoreShapeMatch(probe, shape, root, built), but this pure-tier file
+ * must not depend on build.ts, so a fifth parameter carries the anchor fret that the
+ * integration tier already computed while building `built`. The pure tier never calls
+ * build.ts.
  *
  * Pure: zero Tonal deps, no mutation.
  *
