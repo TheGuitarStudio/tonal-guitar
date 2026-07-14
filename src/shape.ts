@@ -74,6 +74,16 @@ export interface FrettedScale {
   shapeName: string;
   tuning: string[];
   notes: FrettedNote[];
+  /**
+   * Build-engine anchor fret (see `findShapeAnchorFret` in build.ts): the
+   * fret of the FIRST interval in `shape.strings[shape.rootString]`, as
+   * computed by `buildFrettedScale`. Optional/additive — only populated by
+   * `buildFrettedScale`; other constructors (e.g. `filterChordTones`,
+   * `arpeggioFromScale`) leave it unset. Exposing it here lets callers
+   * (e.g. `inferShapeContext`) reuse the anchor already computed during the
+   * build instead of recomputing it via a second `findShapeAnchorFret` call.
+   */
+  anchorFret?: number;
   // Set only by buildFromScale (src/integration.ts): `true` when the input
   // shape was successfully relabeled into the requested scale's interval
   // frame via `relabelShape`, `false` when relabelShape returned `undefined`

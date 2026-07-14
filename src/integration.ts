@@ -19,7 +19,7 @@ import {
   ScaleShape,
   all,
 } from "./shape";
-import { buildFrettedScale, findShapeAnchorFret } from "./build";
+import { buildFrettedScale } from "./build";
 import { noteAt } from "./fretboard";
 import { STANDARD } from "./tuning";
 import { scoreShapeMatch, InferenceProbe, ScoreBreakdown } from "./arpeggio";
@@ -634,6 +634,33 @@ function extractProbe(
 }
 
 /**
+ * Cheap pre-check (CR-002): true iff every probe chroma is present among the
+ * built scale's note chromas. Mirrors the subset comparison
+ * `scoreShapeMatch` performs internally for its `coverage` term, but does
+ * none of the other (allocation-heavy) scoring work — matchedNotes /
+ * matchedIntervals collection, anchor/position/root-preference terms.
+ *
+ * Most (shape, root) candidate pairs fail full pitch-class coverage, so
+ * running this first lets the loop `continue` before ever calling the full
+ * `scoreShapeMatch`, instead of discovering the same failure only after
+ * paying for it.
+ */
+function coversAllProbeChromas(
+  built: FrettedScale,
+  probePitchClasses: number[],
+): boolean {
+  if (probePitchClasses.length === 0) return true;
+
+  const builtChromas = new Set<number>();
+  for (const n of built.notes) {
+    const c = noteChroma(n.pc);
+    if (isValidChroma(c)) builtChromas.add(c);
+  }
+
+  return probePitchClasses.every((c) => builtChromas.has(c));
+}
+
+/**
  * Detect which registered scale shapes cover a given grip or FrettedScale,
  * returning a ranked list of candidates with transparent score breakdowns.
  *
@@ -671,12 +698,27 @@ export function inferShapeContext(
       const built = buildFrettedScale(shape, root.pc, tuning);
       if (built.empty) continue;
 
-      const builtAnchorFret = findShapeAnchorFret(tuning, shape, root.pc, 0);
-      if (builtAnchorFret === null) continue;
+      // CR-001: buildFrettedScale computes the anchor fret internally (via
+      // findShapeAnchorFret) and now exposes it on the result, so reuse it
+      // here instead of recomputing it with a second findShapeAnchorFret
+      // call. buildFrettedScale only returns a non-empty scale once it has
+      // found an anchor, so anchorFret is always set at this point (the
+      // `?? 0` fallback is unreachable and exists only to satisfy the
+      // optional-field type).
+      const builtAnchorFret = built.anchorFret ?? 0;
+
+      // CR-002: cheap chroma-subset pre-check before the full (allocation-
+      // heavy) scoreShapeMatch call. Most (shape, root) pairs fail full
+      // pitch-class coverage, so skip straight to the next candidate instead
+      // of paying for matchedNotes/matchedIntervals + all sub-scores first.
+      if (!coversAllProbeChromas(built, probe.pitchClasses)) continue;
 
       const score = scoreShapeMatch(probe, shape, root, built, builtAnchorFret);
 
-      // Hard coverage gate: every probe PC must be in built scale
+      // Hard coverage gate: every probe PC must be in built scale.
+      // (Kept as-is: coversAllProbeChromas already filtered out the vast
+      // majority of failures above; this is the authoritative check against
+      // scoreShapeMatch's own coverage computation.)
       if (score.coverage !== 1) continue;
 
       // Compute rootFret: lowest fret of a "1P" note on shape.rootString in built scale

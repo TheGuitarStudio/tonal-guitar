@@ -259,6 +259,7 @@ export function buildFrettedScale(
     shapeName: shape.name,
     tuning,
     notes,
+    anchorFret: rootFret,
   };
 }
 
