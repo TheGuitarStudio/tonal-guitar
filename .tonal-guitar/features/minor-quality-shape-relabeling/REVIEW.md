@@ -16,7 +16,7 @@
 - [x] Phase 2: Lint/Test Fix (all checks passed, 0 issues)
 - [x] Phase 3: Architecture Review
 - [x] Phase 4: Architecture Fix
-- [ ] Phase 5: Code Simplification Review
+- [x] Phase 5: Code Simplification Review
 - [ ] Phase 6: Code Simplification Fix
 - [ ] Phase 7: Specialized Reviews
 - [ ] Phase 8: Specialized Fixes
@@ -62,6 +62,17 @@ All checks passed on first run (lint clean, build clean, 922/922 tests). No find
 - CR-002: `relabelOrThrow` import-time throw is a deliberate, documented fail-fast for a data invariant fully covered by tests; the "no exceptions" convention governs runtime API functions, not import-time data integrity checks
 
 Verification: lint clean, build clean, 922/922 tests, site `npm run build` clean.
+
+## Phase 5: Code Simplification Review
+
+### src (library)
+
+- CR-009: [Suggestion] Mod-12 normalization `((x % 12) + 12) % 12` appears three times in `src/transform.ts:23,67,81` — `chromaOf` encapsulates it but lines 67/81 re-implement inline; extract a shared `mod12` helper.
+- CR-010: [Important] `tonicOffset as number` and `targetByChroma.get(newChroma) as string` casts in `src/transform.ts:81,83` — bind `const t = tonicOffset` after the undefined-check so TS narrows across the nested closures, avoiding both assertions. (Upgraded from Suggestion: type-safety criteria treat avoidable `as` assertions as Important.)
+- CR-011: [Suggestion] `positionSet`/`minorPositionSet` helpers duplicated verbatim between describe blocks in `src/data/data.test.ts:745` and `src/data/data.test.ts:856` — share one file-level helper pair.
+- CR-012: [Suggestion] Redundant explicit `parentShape: X.name` in every `relabelOrThrow` call in `src/data/caged-scales-minor.ts:44-72` and `src/data/pentatonic-minor.ts:54-102` — `relabelShape` already defaults `parentShape` to `shape.name` (`src/transform.ts:108`).
+
+Triage note: all four are < 20-line localized cleanups; fixing directly in Phase 6 instead of filing issues.
 
 ## Statistics
 
