@@ -20,7 +20,7 @@
 - [x] Phase 6: Code Simplification Fix
 - [x] Phase 7: Specialized Reviews (0 findings)
 - [x] Phase 8: Specialized Fixes (nothing to fix)
-- [ ] Phase 9: Final Verification
+- [x] Phase 9: Final Verification
 
 ## Phase 2: Lint/Test Results
 
@@ -105,6 +105,13 @@ No findings to fix.
 
 ## Statistics
 
-- Critical: 0 fixed, 0 remaining | Important: 0 fixed, 0 deferred
-- GitHub Issues Created: (none yet)
-- Total Commits: 0 | Total Fixes: 0 | Final Status: IN PROGRESS
+- Loop 1 findings: 12 total — 0 Critical, 6 Important (5 fixed, 1 deferred), 6 Suggestion (4 fixed, 1 deferred, 1 won't fix)
+- GitHub Issues Created: #87 (CR-001 fallback labeling), #88 (CR-003 chromaOf dedupe)
+- Total Commits: 7 | Total Fixes: 9 | Loop 1 Status: **PASS** (0 Critical open, lint/build/922 tests/site build all green)
+
+## Loop 1 Summary
+
+- Findings: 12 total (0 Critical, 6 Important, 6 Suggestion)
+- Fixed: 9 | Deferred: 2 (#87, #88) | Won't Fix: 1 (CR-002 deliberate fail-fast)
+- Commits: 7 (phases 2, 3, 4, 5, 6, 7, 9)
+- Highlights: repo-wide fix of broken `get("CAGED X Shape")` doc examples (43 occurrences); `as`-cast removal in transform.ts; modeShapes example-order and shape-inventory corrections
