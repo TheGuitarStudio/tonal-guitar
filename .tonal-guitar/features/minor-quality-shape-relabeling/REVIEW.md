@@ -15,7 +15,7 @@
 - [x] Phase 1: Setup
 - [x] Phase 2: Lint/Test Fix (all checks passed, 0 issues)
 - [x] Phase 3: Architecture Review
-- [ ] Phase 4: Architecture Fix
+- [x] Phase 4: Architecture Fix
 - [ ] Phase 5: Code Simplification Review
 - [ ] Phase 6: Code Simplification Fix
 - [ ] Phase 7: Specialized Reviews
@@ -41,6 +41,27 @@ All checks passed on first run (lint clean, build clean, 922/922 tests). No find
 - CR-006: [Important] `CHANGELOG.md:24` conflates filtered and unfiltered queries — says `modeShapes("A minor", "caged")` returns "the 10 new registered minor-quality entries" but the caged-filtered call returns only the 5 minor CAGED entries; 10 requires the unfiltered call.
 - CR-007: [Important] Broken examples using `get("CAGED E Shape")` in `docs/api/integration.md:9,25,32,86` and `docs/api/index.md:10,43` — registered name is `"E Shape"`, so `get()` returns `undefined` and the examples throw; README was fixed in this PR, these files were not.
 - CR-008: [Suggestion] `docs/api/integration.md:30` uses `get("3NPS Pattern 1")` — registered name is `"3NPS Pattern 1 (Ionian)"`; pre-existing, adjacent to CR-007 fixes.
+
+## Phase 4: Architecture Fixes
+
+### Fixed
+
+- CR-004: Fixed — docs/api/index.md shape count 22 → 32, added Minor CAGED Scales (5) and Minor Pentatonic (5) rows
+- CR-005: Fixed — corrected `modeShapes("A minor", "caged")` example order to registration order (Dm, Cm, Am, Gm, Em) in README.md and docs/api/integration.md
+- CR-006: Fixed — CHANGELOG.md now uses unfiltered `modeShapes("A minor")` for the 10-entry claim
+- CR-007: Fixed — `get("CAGED E Shape")` → `get("E Shape")` in docs/api/integration.md and docs/api/index.md; **extended repo-wide**: verification showed 43 broken occurrences of `"CAGED {E,D,C,A,G} Shape"` (registered names have no "CAGED " prefix) across README.md, docs/api/{shapes,patterns,sequences}.md, and site/content/docs/*.mdx — all fixed, 0 remaining
+- CR-008: Fixed — `get("3NPS Pattern 1")` → `get("3NPS Pattern 1 (Ionian)")`; extended to remaining bare occurrences in README.md, docs/api/shapes.md, docs/PLAN.md, site/content/docs/{integration,shapes}.mdx; also updated stale `names()` output examples (trailing entry is now "Pentatonic Box 5 Minor")
+
+### Deferred
+
+- CR-001: GitHub issue #87 — fallback labeling is a design decision; the non-empty fallback itself is spec-mandated (spec.md:213)
+- CR-003: GitHub issue #88 — chromaOf dedupe widens transform.ts public surface; needs a call
+
+### Won't Fix
+
+- CR-002: `relabelOrThrow` import-time throw is a deliberate, documented fail-fast for a data invariant fully covered by tests; the "no exceptions" convention governs runtime API functions, not import-time data integrity checks
+
+Verification: lint clean, build clean, 922/922 tests, site `npm run build` clean.
 
 ## Statistics
 

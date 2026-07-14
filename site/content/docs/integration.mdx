@@ -6,7 +6,7 @@ description: Integration with Tonal.js scales, chords, modes, and keys
 ```js
 import * as Guitar from "tonal-guitar";
 
-const scale = Guitar.buildFromScale(Guitar.get("CAGED E Shape"), "A major");
+const scale = Guitar.buildFromScale(Guitar.get("E Shape"), "A major");
 const related = Guitar.relatedScales(scale);
 Guitar.identifyChord([null, 3, 2, 0, 1, 0]); // => ["C"]
 ```
@@ -20,14 +20,14 @@ These functions connect guitar shapes to Tonal's Scale, Chord, Mode, and Key mod
 Build a fretted scale using Tonal's `Scale.get()` for validation. This populates the `scaleType` and `scaleName` fields on the returned `FrettedScale`, enabling features like `relatedScales`.
 
 ```js
-const scale = buildFromScale(get("CAGED E Shape"), "A major");
+const scale = buildFromScale(get("E Shape"), "A major");
 scale.scaleType; // => "major"
 scale.scaleName; // => "A major"
 
 // Works with any scale Tonal knows:
 buildFromScale(get("Pentatonic Box 1"), "A minor pentatonic");
-buildFromScale(get("3NPS Pattern 1"), "C dorian");
-buildFromScale(get("CAGED E Shape"), "G mixolydian");
+buildFromScale(get("3NPS Pattern 1 (Ionian)"), "C dorian");
+buildFromScale(get("E Shape"), "G mixolydian");
 ```
 
 Returns `{ empty: true }` if the scale name is invalid or the tonic is missing.
@@ -53,7 +53,7 @@ relatedScales(scale);
 //   { root: "A", scale: "minor pentatonic" }
 // ]
 
-const major = buildFromScale(get("CAGED E Shape"), "C major");
+const major = buildFromScale(get("E Shape"), "C major");
 relatedScales(major);
 // => [
 //   { root: "C", scale: "major" },
@@ -125,9 +125,9 @@ interface KeyAnalysis {
 Check whether a shape's intervals are all present in a given scale. A shape is compatible if its interval set is a subset of the scale's intervals.
 
 ```js
-isShapeCompatible(get("CAGED E Shape"), "A major");        // => true
+isShapeCompatible(get("E Shape"), "A major");        // => true
 isShapeCompatible(get("Pentatonic Box 1"), "A major");     // => true (subset)
-isShapeCompatible(get("CAGED E Shape"), "A minor pentatonic"); // => false (7-note shape doesn't fit 5-note scale)
+isShapeCompatible(get("E Shape"), "A minor pentatonic"); // => false (7-note shape doesn't fit 5-note scale)
 ```
 
 ## modeShapes

@@ -116,7 +116,7 @@ thirds(5);  // ascending 3rds over 5-note scale
 Walk a degree pattern through a fretted scale, picking concrete notes from the available positions. The walker intelligently selects notes in the correct octave and direction.
 
 ```js
-const shape = get("CAGED E Shape");
+const shape = get("E Shape");
 const scale = buildFrettedScale(shape, "A");
 
 // Simple ascending scale

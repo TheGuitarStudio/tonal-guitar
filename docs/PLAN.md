@@ -111,7 +111,7 @@ interface FrettedScale {
   root: string;            // tonic pitch class: "A", "C#"
   scaleType: string;       // scale type: "major", "minor pentatonic", "dorian"
   scaleName: string;       // full name: "A major", "A minor pentatonic"
-  shapeName: string;       // shape used: "E Shape", "3NPS Pattern 1"
+  shapeName: string;       // shape used: "E Shape", "3NPS Pattern 1 (Ionian)"
   tuning: string[];
   notes: FrettedNote[];
 }

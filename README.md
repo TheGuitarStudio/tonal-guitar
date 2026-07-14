@@ -40,7 +40,7 @@ import {
 } from "tonal-guitar";
 
 // 1. Get a shape and build a scale on the fretboard
-const shape = get("CAGED E Shape");
+const shape = get("E Shape");
 const scale = buildFrettedScale(shape, "A");
 
 // 2. Generate a pattern and walk it
@@ -142,8 +142,8 @@ Built-in shapes are registered at import time: CAGED scale shapes (5), CAGED cho
 Retrieve a scale shape by name:
 
 ```js
-get("CAGED E Shape"); // => { name: "CAGED E Shape", system: "caged", strings: [...], ... }
-get("3NPS Pattern 1"); // => { name: "3NPS Pattern 1", system: "3nps", ... }
+get("E Shape"); // => { name: "E Shape", system: "caged", strings: [...], ... }
+get("3NPS Pattern 1 (Ionian)"); // => { name: "3NPS Pattern 1 (Ionian)", system: "3nps", ... }
 ```
 
 #### `all() => ScaleShape[]`
@@ -155,7 +155,7 @@ Get all registered scale shapes.
 Get all registered scale shape names:
 
 ```js
-names(); // => ["CAGED E Shape", "CAGED D Shape", "CAGED C Shape", ...]
+names(); // => ["E Shape", "D Shape", "C Shape", ...]
 ```
 
 #### `add(shape: ScaleShape) => ScaleShape`
@@ -186,13 +186,13 @@ Separate registry for chord shapes with the same API: `chordShapes.get()`, `chor
 Apply a scale shape to a root note and tuning, returning all fretted positions:
 
 ```js
-const scale = buildFrettedScale(get("CAGED E Shape"), "A");
+const scale = buildFrettedScale(get("E Shape"), "A");
 // => {
 //   empty: false,
 //   root: "A",
 //   scaleType: "",
 //   scaleName: "",
-//   shapeName: "CAGED E Shape",
+//   shapeName: "E Shape",
 //   tuning: ["E2", "A2", "D3", "G3", "B3", "E4"],
 //   notes: [
 //     { string: 0, fret: 5, note: "A2", pc: "A", interval: "1P", degree: 1, midi: 45, ... },
@@ -348,7 +348,7 @@ sixths(7);  // same as ascendingIntervals(7, 5)
 Walk a degree pattern through a fretted scale, picking concrete notes:
 
 ```js
-const scale = buildFrettedScale(get("CAGED E Shape"), "A");
+const scale = buildFrettedScale(get("E Shape"), "A");
 const notes = walkPattern(scale, [1, 3, 5, 7, 6, 5, 4, 3, 2, 1]);
 ```
 
@@ -572,7 +572,7 @@ These functions require optional peer dependencies (`@tonaljs/scale`, `@tonaljs/
 Build a fretted scale using Tonal's `Scale.get()` for validation. Populates `scaleType` and `scaleName`:
 
 ```js
-const scale = buildFromScale(get("CAGED E Shape"), "A major");
+const scale = buildFromScale(get("E Shape"), "A major");
 scale.scaleType; // => "major"
 scale.scaleName; // => "A major"
 
@@ -664,7 +664,7 @@ modeShapes("C major", "caged"); // => 5 (major-frame CAGED shapes; minor entries
 
 // v0.2.0: minor tonics now resolve to the 10 registered minor-quality entries
 modeShapes("A minor", "caged");
-// => 5: "Em Shape", "Am Shape", "Dm Shape", "Gm Shape", "Cm Shape"
+// => 5: "Dm Shape", "Cm Shape", "Am Shape", "Gm Shape", "Em Shape"
 modeShapes("A minor pentatonic", "pentatonic");
 // => the 5 "Pentatonic Box N Minor" entries
 modeShapes("A minor").length; // => 10 (5 minor CAGED + 5 minor pentatonic)

@@ -6,7 +6,7 @@ description: Integration with Tonal.js scales, chords, modes, and keys
 ```js
 import * as Guitar from "tonal-guitar";
 
-const scale = Guitar.buildFromScale(Guitar.get("CAGED E Shape"), "A major");
+const scale = Guitar.buildFromScale(Guitar.get("E Shape"), "A major");
 const related = Guitar.relatedScales(scale);
 Guitar.identifyChord([null, 3, 2, 0, 1, 0]); // => ["C"]
 ```
@@ -22,14 +22,14 @@ Build a fretted scale using Tonal's `Scale.get()` for validation. This populates
 > **v0.2.0 behavior change (pitch-correctness fix).** Before building, `shape` is now relabeled into the requested scale's interval frame via [`relabelShape`](/docs/guitar/transform) (see `src/integration.ts`). Previously, `buildFromScale` applied the shape's raw (usually major-frame) intervals directly at the scale's tonic, so e.g. `buildFromScale(get("E Shape"), "A minor")` silently produced **A-major pitch classes** tagged `scaleType: "aeolian"` -- wrong notes, not merely mislabeled ones. As of v0.2.0, the shape is relabeled into the requested frame first, so the same call now produces correct A-natural-minor notes (`A=1P`, `C=3m`, `E=5P`) in the relabeled (Dm-form) geometry anchored at A. If the shape is not rotation-compatible with the requested scale, `relabelShape` returns `undefined` and `buildFromScale` falls back to building the original shape as-is (its pre-fix behavior) -- so no previously-working call regresses to an empty result. When the shape already matches the scale's frame (e.g. `buildFromScale(get("E Shape"), "C major")`, or `buildFromScale(get("Em Shape"), "A minor")`), the identity rotation applies and output is unchanged.
 
 ```js
-const scale = buildFromScale(get("CAGED E Shape"), "A major");
+const scale = buildFromScale(get("E Shape"), "A major");
 scale.scaleType; // => "major"
 scale.scaleName; // => "A major"
 
 // Works with any scale Tonal knows:
 buildFromScale(get("Pentatonic Box 1"), "A minor pentatonic");
-buildFromScale(get("3NPS Pattern 1"), "C dorian");
-buildFromScale(get("CAGED E Shape"), "G mixolydian");
+buildFromScale(get("3NPS Pattern 1 (Ionian)"), "C dorian");
+buildFromScale(get("E Shape"), "G mixolydian");
 
 // v0.2.0: minor-tonic scale names now produce correct pitch content --
 // the shape is relabeled into the minor frame before building.
@@ -83,7 +83,7 @@ relatedScales(scale);
 //   { root: "A", scale: "minor pentatonic" }
 // ]
 
-const major = buildFromScale(get("CAGED E Shape"), "C major");
+const major = buildFromScale(get("E Shape"), "C major");
 relatedScales(major);
 // => [
 //   { root: "C", scale: "major" },
@@ -179,7 +179,7 @@ modeShapes("C major", "caged"); // => 5 (the major-frame CAGED shapes)
 
 // The 10 new minor-quality entries make minor tonics work out of the box:
 modeShapes("A minor", "caged");
-// => 5 registered minor CAGED shapes: "Em Shape", "Am Shape", "Dm Shape", "Gm Shape", "Cm Shape"
+// => 5 registered minor CAGED shapes: "Dm Shape", "Cm Shape", "Am Shape", "Gm Shape", "Em Shape"
 
 modeShapes("A minor pentatonic", "pentatonic");
 // => the 5 "Pentatonic Box N Minor" entries
