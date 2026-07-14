@@ -10,7 +10,6 @@ import {
   pitchClass,
   midi as toMidi,
 } from "@tonaljs/note";
-import { semitones } from "@tonaljs/interval";
 import { majorKey } from "@tonaljs/key";
 
 import {
@@ -25,7 +24,7 @@ import { noteAt } from "./fretboard";
 import { STANDARD } from "./tuning";
 import { scoreShapeMatch, InferenceProbe, ScoreBreakdown } from "./arpeggio";
 import { parseChordFrets } from "./notation";
-import { relabelShape, RelabelOptions } from "./transform";
+import { relabelShape, RelabelOptions, chromaOf } from "./transform";
 
 // ============================================================
 // arpeggioFromScale / arpeggioFromShape
@@ -390,8 +389,6 @@ export function isShapeCompatible(
   if (scale.empty) {
     return false;
   }
-
-  const chromaOf = (ivl: string): number => ((semitones(ivl) % 12) + 12) % 12;
 
   // Collect unique chromas used by the shape's intervals
   const shapeChromas = new Set(
