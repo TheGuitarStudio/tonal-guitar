@@ -41,7 +41,7 @@ export interface ChordShape {
 Key facts:
 
 - **`ChordShape` has no `quality`/`parentShape`** — those audit fields apply only to scale shapes.
-- **`ChordShape.baseFret` is declared but never set or read anywhere** in `src/` — the raw-idea's "voicingFamily/baseFret consistency" badge has no data to validate today and would pass trivially. Needs redefinition (e.g. voicingFamily vs. canonicalRoot consistency, the CR-009 defect class) or deferral.
+- **`ChordShape.baseFret` is set throughout `open-chords.ts`** (all 70 shapes; e.g. `OPEN_C_MINOR.baseFret = 3`) with documented chords-db semantics (`absFret = baseFret === 1 ? frets[i] : frets[i] + (baseFret - 1)`, `open-chords.ts:25-26`) — but **it is never consumed by the build engine**: `applyChordShape` rebuilds from intervals and ignores `baseFret`/`fingers`/`barres`. The "voicingFamily/baseFret consistency" badge is therefore *underspecified*, not a no-op — its exact rule (e.g. `baseFret > 1` + no open strings ⇒ not `voicingFamily: "open"`) must be defined in the Shape phase or the badge deferred. *(Corrected 2026-07-14 per adversarial review — the initial research claimed baseFret was never set.)*
 - **Registries (`src/shape.ts:113-189`):** scale — `get(name)`, `all()`, `names()`, `add()`; chord — `chordShapes.get/all/names/add/query(filter)`. `chordShapes.query({ chordType?, system?, voicingFamily?, stringSet? })` is the only pre-built filter; **no scale-shape equivalent of `query`** — scale filtering must be done client-side over `all()`.
 - All registries populate via side-effect imports at `src/index.ts:123-132`, so `import "tonal-guitar"` fully populates both before any page code runs.
 
@@ -75,7 +75,7 @@ Three of the four badge checks already exist as test-only assertions:
 3. **fret-span** — two variants:
    - `src/data/extended-chords.test.ts:121-148` (`assertBuildsPlayable`): build via `applyChordShape`, span = `max(frets) - min(frets) ≤ 4`.
    - `src/data/data.test.ts:474-508` (issue #94 regression, landed via PR #95 and merged into this branch): `maxSpan` helper that **excludes open strings (`f > 0`)** — the more correct variant for open-position shapes.
-4. **voicingFamily/baseFret consistency** — **no reference implementation exists**; `baseFret` is unused (see above). The real CR-009 defect class was *voicingFamily mistagging* (open vs. barre), which is checkable against `canonicalRoot` + fret pattern.
+4. **voicingFamily/baseFret consistency** — **no reference implementation exists.** `baseFret` data exists on all open-chords shapes (see above) but no code reads it, so the check must be authored fresh with explicit semantics (candidate rules: `"open"` implies `canonicalRoot` + at least one open string; `"barre"` implies no `canonicalRoot`; `baseFret > 1` with no open strings ⇒ not open-position). The real CR-009 defect class was *voicingFamily mistagging* (open vs. barre).
 
 Fret-span is a **build-time** check (needs `applyChordShape` per shape at a representative root), not a static-data check. 132 builds client-side is cheap but nonzero.
 
@@ -165,7 +165,8 @@ Impact: every prior defect was found reactively (code review of unrelated work) 
 
 | Risk/Dependency | Severity | Mitigation |
 | --- | --- | --- |
-| `baseFret` unused everywhere — voicingFamily/baseFret badge is a no-op as specified | Medium | Redefine as voicingFamily/canonicalRoot-consistency (CR-009 class) or defer; decide in Shape phase |
+| `applyChordShape` ignores `baseFret`/`fingers`/`barres` — built geometry may not match the source-diagram grip for `baseFret > 1` shapes, so the page could render a transposed shape while hiding the actual data defect | **High** | **Validate early (pre-UI spike):** compare `applyChordShape` frets vs. baseFret-implied source frets for representative shapes (open, baseFret>1 barre, #96 known-bad, shell, extended E/A); decide whether the visual source of truth is build-engine geometry, source-diagram geometry, or both labeled distinctly |
+| voicingFamily/baseFret badge semantics undefined | Medium | Define exact rules in Shape phase (open ⇒ canonicalRoot + open string; barre ⇒ no canonicalRoot; baseFret>1 + no open strings ⇒ not open) or defer the badge |
 | `fretboard-ui` can't render fingers/barres | Medium | v1 property-table fallback (confirmed, not speculative); fretboard-ui extension as follow-up |
 | Fret-span check requires a build call per chord shape (132 × `applyChordShape`) | Low | Cheap client-side; compute once per page load (or at build time via static generation) |
 | No scale-shape `query()` helper | Low | Filter `all()` client-side in a pure site util |
@@ -177,7 +178,9 @@ Impact: every prior defect was found reactively (code review of unrelated work) 
 ## Open Questions
 
 - Should invariant checks live in the library (`src/audit.ts`, exported + reused by `data.test.ts`) or site-only? (Research strongly favors library — resolves a raw-idea deferred item for free. Needs a Shape-phase decision.)
-- What replaces the no-op voicingFamily/baseFret check — voicingFamily vs. canonicalRoot/grip-pattern consistency, or drop to three badges for v1?
+- Exact voicingFamily/baseFret badge semantics — define precise rules or drop to three structural badges for v1? (Review recommends deferring unless made precise.)
+- Should v1 add a **build-loss badge** (`applyChordShape` silently drops notes when it can't place every interval) and a **metadata-completeness badge** (missing `chordType`/`voicingFamily`/`stringSet`)? (Review recommends both.)
+- Which geometry is the visual source of truth — build-engine frets, baseFret-implied source-diagram frets, or both labeled distinctly? (**Needs pre-UI spike — biggest risk per review.**)
 - Page grouping/navigation: by type then system (scale: caged/3nps/pentatonic; chord: caged/open/barre/shell/extended), by data file, or flat with filters?
 - Render-root default for movable shapes: `canonicalRoot ?? form-letter-from-name ?? "C"` — confirm, and at what fret window for the diagram (`viewMode: "shape"` vs `"full"`)?
 - Prefilled issue body format: which fields, and should failing badge names be included automatically?
