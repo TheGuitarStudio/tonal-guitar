@@ -56,7 +56,9 @@ import {
   OPEN_E_M7B5,
   OPEN_D_M7B5,
   OPEN_E_DIM,
+  OPEN_E_AUG,
   BARRE_E_DIM,
+  BARRE_E_AUG,
   BARRE_E_MAJOR,
   BARRE_A_MAJOR,
   BARRE_E_M7,
@@ -402,6 +404,25 @@ describe("open-chords: build-equivalence tests", () => {
         ).toBe(true);
       }
     });
+
+    // Issue #94 regression: the interval array was misordered
+    // (1P 5A 3M 1P 3M 1P), which resolved to frets 12,15,18,9,9,12 —
+    // an unplayable 9-fret span instead of the open 032110 grip.
+    it("E Augmented Open applied to E produces 0,3,2,1,1,0", () => {
+      expect(buildFrets(OPEN_E_AUG, "E")).toEqual([0, 3, 2, 1, 1, 0]);
+    });
+
+    it("E Augmented Open has only aug triad intervals", () => {
+      const augIntervals = new Set(["1P", "3M", "5A"]);
+      const positions = buildPositions(OPEN_E_AUG, "E");
+      expect(positions.length).toBe(6);
+      for (const p of positions) {
+        expect(
+          augIntervals.has(p.interval),
+          `OPEN_E_AUG: unexpected interval ${p.interval}`,
+        ).toBe(true);
+      }
+    });
   });
 
   describe("D family open shapes", () => {
@@ -437,6 +458,52 @@ describe("open-chords: build-equivalence tests", () => {
       expect(intervals).toContain("1P");
       expect(intervals).toContain("3m");
       expect(intervals).toContain("7m");
+    });
+
+    // Issue #94 regression: shared the misordered interval array with
+    // OPEN_E_AUG; the movable grip must transpose the 032110 layout intact.
+    it("E-form aug barre applied to E produces 0,3,2,1,1,0", () => {
+      expect(buildFrets(BARRE_E_AUG, "E")).toEqual([0, 3, 2, 1, 1, 0]);
+    });
+
+    it("E-form aug barre applied to F produces 1,4,3,2,2,1", () => {
+      expect(buildFrets(BARRE_E_AUG, "F")).toEqual([1, 4, 3, 2, 2, 1]);
+    });
+  });
+
+  // ─── Issue #94: playable-span regression for the corrected aug shapes ──────
+
+  describe("aug shape fret span stays playable (issue #94)", () => {
+    const maxSpan = (frets: (number | null)[]): number => {
+      const fretted = frets.filter((f): f is number => f !== null && f > 0);
+      return fretted.length ? Math.max(...fretted) - Math.min(...fretted) : 0;
+    };
+
+    it("OPEN_E_AUG at its canonical root spans at most 4 frets", () => {
+      expect(maxSpan(buildFrets(OPEN_E_AUG, "E"))).toBeLessThanOrEqual(4);
+    });
+
+    it("BARRE_E_AUG spans at most 4 frets at every chromatic root", () => {
+      const roots = [
+        "E",
+        "F",
+        "F#",
+        "G",
+        "G#",
+        "A",
+        "Bb",
+        "B",
+        "C",
+        "C#",
+        "D",
+        "Eb",
+      ];
+      for (const root of roots) {
+        expect(
+          maxSpan(buildFrets(BARRE_E_AUG, root)),
+          `BARRE_E_AUG at ${root} exceeds a playable span`,
+        ).toBeLessThanOrEqual(4);
+      }
     });
   });
 
