@@ -24,7 +24,9 @@ function mod12(n: number): number {
 }
 
 // Chroma (0-11) of an interval string, always normalized to [0, 12).
-function chromaOf(ivl: string): number {
+// Exported for reuse by integration.ts (isShapeCompatible) — avoids
+// duplicating this interval-math helper across the pure/integration tiers.
+export function chromaOf(ivl: string): number {
   return mod12(semitones(ivl));
 }
 
