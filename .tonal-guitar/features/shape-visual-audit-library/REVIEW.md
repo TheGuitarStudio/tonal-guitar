@@ -15,7 +15,7 @@
 - [x] Phase 2: Lint/Test Fix (clean — lint, build, 1001 tests, site build all green; 0 issues)
 - [x] Phase 3: Architecture Review
 - [x] Phase 4: Architecture Fix
-- [ ] Phase 5: Code Simplification Review
+- [x] Phase 5: Code Simplification Review
 - [ ] Phase 6: Code Simplification Fix
 - [ ] Phase 7: Specialized Reviews
 - [ ] Phase 8: Specialized Fixes
@@ -181,6 +181,21 @@ All five Suggestions fixed directly by the lead (each a few lines; agent dispatc
 - CR-031: Fixed — filter placeholder now reads "All qualities" / "All voicing families"
 
 Verification: lint + 1001 tests pass at root; `tsc --noEmit` + build pass in site/.
+
+## Phase 5 (Loop 2): Code Simplification Review
+
+### src/ (library)
+
+- CR-032: [Suggestion] `src/data/data.test.ts:864-884` — the "issue #39 audit" block duplicates audit.test.ts's registry sweeps byte-for-byte (`checkFingerZeroOnMovable`/`checkRepeatedFingerNoBarre` over `chordShapes.all()` with `toEqual([])`); pure duplicate maintenance surface now that the checks live in audit.ts with their own coverage. Status: Open
+- CR-033: [Suggestion] `src/data/data.test.ts:865-867` — the feature's refactor weakened a pre-existing assertion: `movableShapes.length > 0` (registry contains ≥1 canonicalRoot-less shape, so the movable branch is exercised) became a vacuous `chordShapes.all().length > 0`; the movable branch could someday go untested without failing. Status: Open
+
+Loop-1 fix sites verified clean: `gripRoot`/`sourceFrets` rename consistent, `expectRegistryClean` a reasonable non-premature abstraction.
+
+### site/
+
+- CR-034: [Suggestion] `site/app/shapes/components/shapeLibraryUtils.ts:396-398` — dead `export { displayRootFor }` re-export with zero consumers; its "for consumers' convenience" comment describes a use case that doesn't exist. Status: Open
+
+Loop-1 fixes verified clean: memoization, stable keys/references, no useEffect transforms, no new complexity.
 
 ## Phase 8: Specialized Fixes
 
