@@ -222,7 +222,56 @@ export function checkScaleBuildLoss(
   ];
 }
 
-// checkMetadataCompleteness — implemented in Task Group 5
+/**
+ * Flags chord shapes missing `chordType` and/or `voicingFamily` — the two
+ * harmonic-metadata fields every meaningfully-cataloged chord shape should
+ * carry. `stringSet`/`canonicalRoot`/`baseFret` are intentionally NOT
+ * required: many valid shapes (movable CAGED forms, jazz shells) omit them
+ * by design. The 5 base CAGED majors in `caged-chords.ts` lack both
+ * `chordType` and `voicingFamily` — this is legitimately incomplete
+ * metadata (they predate the R-1.1 metadata fields) and is expected to
+ * surface here as a warning, not silently ignored.
+ */
+export function checkChordMetadataCompleteness(shape: ChordShape): ShapeAuditIssue[] {
+  const missing: string[] = [];
+  if (shape.chordType === undefined) missing.push("chordType");
+  if (shape.voicingFamily === undefined) missing.push("voicingFamily");
+
+  if (missing.length === 0) return [];
+
+  return [
+    {
+      id: CHECK_METADATA_COMPLETENESS,
+      severity: "warning",
+      message: `Chord shape "${shape.name}" is missing metadata field(s): ${missing.join(", ")}`,
+      details: { missing },
+    },
+  ];
+}
+
+/**
+ * Flags scale shapes that violate the derived-shape both-or-neither
+ * invariant: `quality` and `parentShape` are set together by `relabelShape`
+ * (see caged-scales-minor.ts / pentatonic-minor.ts) or not at all on base
+ * shapes — exactly one being present indicates a broken/partial relabel.
+ */
+export function checkScaleMetadataCompleteness(shape: ScaleShape): ShapeAuditIssue[] {
+  const hasQuality = shape.quality !== undefined;
+  const hasParentShape = shape.parentShape !== undefined;
+
+  if (hasQuality === hasParentShape) return [];
+
+  return [
+    {
+      id: CHECK_METADATA_COMPLETENESS,
+      severity: "warning",
+      message:
+        `Scale shape "${shape.name}" has only one of quality/parentShape set ` +
+        `(expected both or neither)`,
+      details: { quality: shape.quality, parentShape: shape.parentShape },
+    },
+  ];
+}
 
 // ============================================================
 // checkGeometryMismatch — Task Group 6

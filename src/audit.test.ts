@@ -1,14 +1,17 @@
 import { describe, expect, it } from "vitest";
 import {
   checkChordBuildLoss,
+  checkChordMetadataCompleteness,
   checkFingerZeroOnMovable,
   checkFretSpan,
   checkGeometryMismatch,
   checkRepeatedFingerNoBarre,
   checkScaleBuildLoss,
+  checkScaleMetadataCompleteness,
   CHECK_BUILD_LOSS,
   CHECK_FINGER_ZERO_ON_MOVABLE,
   CHECK_FRET_SPAN,
+  CHECK_METADATA_COMPLETENESS,
   CHECK_REPEATED_FINGER_NO_BARRE,
   displayRootFor,
   gripRootFor,
@@ -25,7 +28,7 @@ import type {
   ShapeAuditOptions as ShapeAuditOptionsFromIndex,
 } from "./index";
 import { VERSION } from "./version";
-import { all as allScaleShapes, chordShapes, ChordShape, ScaleShape } from "./shape";
+import { all as allScaleShapes, chordShapes, get as getScaleShape, ChordShape, ScaleShape } from "./shape";
 import {
   BARRE_E_SUS2,
   OPEN_C_MAJOR,
@@ -37,6 +40,8 @@ import { SHELL_SHAPES } from "./data/jazz-shells";
 import { EXT_CHORD_E_6, EXT_CHORD_A_6 } from "./data/extended-chords";
 import { CAGED_CHORD_E } from "./data/caged-chords";
 import { CAGED_E } from "./data/caged-scales";
+import { CAGED_DM } from "./data/caged-scales-minor";
+import { PENTA_BOX_1_MINOR } from "./data/pentatonic-minor";
 
 describe("displayRootFor", () => {
   it("returns canonicalRoot when set", () => {
@@ -580,6 +585,145 @@ describe("checkScaleBuildLoss", () => {
       expect(
         checkScaleBuildLoss(shape, "C"),
         `${shape.name} unexpectedly flagged by checkScaleBuildLoss`,
+      ).toEqual([]);
+    }
+  });
+});
+
+// ============================================================
+// checkChordMetadataCompleteness / checkScaleMetadataCompleteness —
+// Task Group 5
+// ============================================================
+
+describe("checkChordMetadataCompleteness", () => {
+  it("CAGED_CHORD_E (base CAGED major, lacks both chordType and voicingFamily): one warning issue, details.missing includes both fields — legitimately incomplete metadata, not a bug", () => {
+    expect(CAGED_CHORD_E.chordType).toBeUndefined();
+    expect(CAGED_CHORD_E.voicingFamily).toBeUndefined();
+
+    const issues = checkChordMetadataCompleteness(CAGED_CHORD_E);
+    expect(issues.length).toBe(1);
+    expect(issues[0].id).toBe(CHECK_METADATA_COMPLETENESS);
+    expect(issues[0].severity).toBe("warning");
+    const details = issues[0].details as { missing: string[] };
+    expect(details.missing).toEqual(
+      expect.arrayContaining(["chordType", "voicingFamily"]),
+    );
+    expect(details.missing.length).toBe(2);
+  });
+
+  it("OPEN_C_MAJOR (has both chordType and voicingFamily): []", () => {
+    expect(OPEN_C_MAJOR.chordType).toBeDefined();
+    expect(OPEN_C_MAJOR.voicingFamily).toBeDefined();
+    expect(checkChordMetadataCompleteness(OPEN_C_MAJOR)).toEqual([]);
+  });
+
+  it("shape with only chordType missing: details.missing === ['chordType']", () => {
+    const shape: ChordShape = {
+      ...OPEN_C_MAJOR,
+      chordType: undefined,
+    };
+    const issues = checkChordMetadataCompleteness(shape);
+    expect(issues.length).toBe(1);
+    expect(issues[0].severity).toBe("warning");
+    const details = issues[0].details as { missing: string[] };
+    expect(details.missing).toEqual(["chordType"]);
+  });
+
+  it("shape with only voicingFamily missing: details.missing === ['voicingFamily']", () => {
+    const shape: ChordShape = {
+      ...OPEN_C_MAJOR,
+      voicingFamily: undefined,
+    };
+    const issues = checkChordMetadataCompleteness(shape);
+    expect(issues.length).toBe(1);
+    const details = issues[0].details as { missing: string[] };
+    expect(details.missing).toEqual(["voicingFamily"]);
+  });
+
+  it("registry-wide: exactly the 5 base CAGED majors fail checkChordMetadataCompleteness", () => {
+    const allShapes = chordShapes.all();
+    expect(allShapes.length).toBeGreaterThan(0);
+    const flagged = allShapes
+      .filter((shape) => checkChordMetadataCompleteness(shape).length > 0)
+      .map((shape) => shape.name);
+    expect(new Set(flagged)).toEqual(
+      new Set([
+        "E Shape Major",
+        "A Shape Major",
+        "D Shape Major",
+        "C Shape Major",
+        "G Shape Major",
+      ]),
+    );
+  });
+});
+
+describe("checkScaleMetadataCompleteness", () => {
+  it("base scale shape 'G Shape' (no quality/parentShape): []", () => {
+    const gShape = getScaleShape("G Shape");
+    expect(gShape).toBeDefined();
+    expect(gShape?.quality).toBeUndefined();
+    expect(gShape?.parentShape).toBeUndefined();
+    expect(checkScaleMetadataCompleteness(gShape as ScaleShape)).toEqual([]);
+  });
+
+  it("derived scale shape CAGED_DM (caged-scales-minor.ts, both quality and parentShape set): []", () => {
+    expect(CAGED_DM.quality).toBeDefined();
+    expect(CAGED_DM.parentShape).toBeDefined();
+    expect(checkScaleMetadataCompleteness(CAGED_DM)).toEqual([]);
+  });
+
+  it("derived scale shape PENTA_BOX_1_MINOR (pentatonic-minor.ts, both quality and parentShape set): []", () => {
+    expect(PENTA_BOX_1_MINOR.quality).toBeDefined();
+    expect(PENTA_BOX_1_MINOR.parentShape).toBeDefined();
+    expect(checkScaleMetadataCompleteness(PENTA_BOX_1_MINOR)).toEqual([]);
+  });
+
+  it("synthetic fixture with quality set but parentShape stripped (both-or-neither violation): one warning issue, details.quality present, details.parentShape undefined", () => {
+    const shape: ScaleShape = { ...CAGED_DM, parentShape: undefined };
+    const issues = checkScaleMetadataCompleteness(shape);
+    expect(issues.length).toBe(1);
+    expect(issues[0].id).toBe(CHECK_METADATA_COMPLETENESS);
+    expect(issues[0].severity).toBe("warning");
+    const details = issues[0].details as {
+      quality?: string;
+      parentShape?: string;
+    };
+    expect(details.quality).toBeDefined();
+    expect(details.parentShape).toBeUndefined();
+  });
+
+  it("synthetic fixture with parentShape set but quality stripped (both-or-neither violation): one warning issue", () => {
+    const shape: ScaleShape = { ...CAGED_DM, quality: undefined };
+    const issues = checkScaleMetadataCompleteness(shape);
+    expect(issues.length).toBe(1);
+    expect(issues[0].severity).toBe("warning");
+    const details = issues[0].details as {
+      quality?: string;
+      parentShape?: string;
+    };
+    expect(details.quality).toBeUndefined();
+    expect(details.parentShape).toBeDefined();
+  });
+
+  it("registry-wide: all 10 relabelShape-derived scale entries (caged-scales-minor.ts + pentatonic-minor.ts) pass checkScaleMetadataCompleteness cleanly", () => {
+    const derived = allScaleShapes().filter((s) => s.parentShape !== undefined);
+    expect(derived.length).toBe(10);
+    for (const shape of derived) {
+      expect(
+        checkScaleMetadataCompleteness(shape),
+        `${shape.name} unexpectedly flagged by checkScaleMetadataCompleteness`,
+      ).toEqual([]);
+    }
+  });
+
+  it("registry-wide: no currently-registered scale shape fails checkScaleMetadataCompleteness", () => {
+    const allShapes = allScaleShapes();
+    expect(allShapes.length).toBeGreaterThan(0);
+    for (const shape of allShapes) {
+      expect(
+        checkScaleMetadataCompleteness(shape),
+        `${shape.name} unexpectedly flagged by checkScaleMetadataCompleteness`,
       ).toEqual([]);
     }
   });
