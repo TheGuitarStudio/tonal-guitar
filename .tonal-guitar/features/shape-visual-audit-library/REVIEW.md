@@ -14,7 +14,7 @@
 - [x] Phase 1: Setup
 - [x] Phase 2: Lint/Test Fix
 - [x] Phase 3: Architecture Review
-- [ ] Phase 4: Architecture Fix
+- [x] Phase 4: Architecture Fix
 - [ ] Phase 5: Code Simplification Review
 - [ ] Phase 6: Code Simplification Fix
 - [ ] Phase 7: Specialized Reviews
@@ -52,5 +52,23 @@ Verified clean: no `useEffect` misuse (all derived data via `useMemo`), business
 - CR-007: [Important] `CLAUDE.md:40` — source-layout tree describes `audit.ts` as "six checkX fns" but the module exports eight (`checkScaleBuildLoss` and `checkScaleMetadataCompleteness` uncounted); six is only the chord-specific subset. Status: Open
 
 Verified clean: all documented signatures in `docs/api/audit.md` match real exports, worked examples numerically reproduce (`OPEN_G_AUG` traces), all new public exports documented, CLAUDE.md dependency-layer claims match actual imports.
+
+## Phase 4: Architecture Fixes
+
+### Fixed
+
+- CR-007: Fixed — CLAUDE.md source-layout line now reads "eight checkX fns: six chord + two scale". Lint + 1001 tests pass.
+
+### Deferred
+
+- CR-001: GitHub issue #115 — hoisting shared applyChordShape build is a design trade-off (self-contained checks), only worth it if profiling shows need
+- CR-002: GitHub issue #116 — unused "info" severity; document-or-remove decision
+- CR-004: GitHub issue #117 — virtualization/windowing is not a <20-line change
+- CR-005: GitHub issue #118 — lazy report-URL computation
+- CR-006: GitHub issue #119 — ShapeCard subcomponent extraction
+
+### Won't Fix
+
+- CR-003: Measured the trade-off: client-side `auditAllShapes()` + catalog build costs ~11ms one-time (8.8ms audit + 1.8ms builds), while server-building would inline ~200KB of serialized catalog JSON into the static page (measured 187KB for the approximate entry set) against a total first-load JS of 111KB. Also `auditAllShapes()` returns `Map`s, which don't serialize across the RSC boundary without conversion. The current client-side build is the better trade.
 - GitHub Issues Created: (none yet)
 - Total Commits: 0 | Total Fixes: 0 | Final Status: IN PROGRESS

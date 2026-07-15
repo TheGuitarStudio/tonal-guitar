@@ -37,7 +37,7 @@ src/
 ├── shape.ts                  # Types (FrettedNote, ScaleShape, etc.) + registries
 ├── shape.test.ts             # VoicingFamily, VoicingPatternDictionary, chordShapes.query tests
 ├── build.ts                  # buildFrettedScale, applyChordShape
-├── audit.ts                   # Shape-quality invariant checks (six checkX fns + audit aggregates)
+├── audit.ts                   # Shape-quality invariant checks (eight checkX fns: six chord + two scale, + audit aggregates)
 ├── audit.test.ts              # Audit check + aggregate tests (incl. registry-wide sweeps)
 ├── version.ts                 # VERSION constant (bumped alongside package.json at release)
 ├── transform.ts               # Shape relabeling (relabelShape)
