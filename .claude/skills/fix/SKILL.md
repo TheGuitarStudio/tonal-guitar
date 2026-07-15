@@ -122,7 +122,7 @@ See [../references/shared-conventions.md](../references/shared-conventions.md).
      REPO=$(git worktree list --porcelain | head -1 | sed 's/^worktree //')  # main checkout — herdr rejects linked worktrees
      PANE=$(herdr worktree create --cwd "$REPO" --branch {prefix}/{slug} --base origin/main --no-focus --json \
        | python3 -c 'import sys,json;print(json.load(sys.stdin)["result"]["root_pane"]["pane_id"])')
-     herdr pane run "$PANE" "claude" && herdr wait output "$PANE" --match ">" --timeout 20000
+     herdr pane run "$PANE" "claude" && herdr wait output "$PANE" --match "❯" --timeout 20000
      herdr pane run "$PANE" "Investigate and fix the issue described in the branch name."
      ```
 

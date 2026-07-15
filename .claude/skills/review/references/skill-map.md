@@ -13,9 +13,24 @@ and include it when spawning agents for that area.
 | Area                                  | Skills to Reference                                             |
 | -------------------------------------- | ---------------------------------------------------------------- |
 | `library` (`src/`)                     | (none — use CLAUDE.md Design conventions + review-criteria.md)   |
+| `shape data` (`src/data/`)             | (none — but reviews MUST run the `audit()` sweep, see below)     |
 | `site` (`site/`)                       | vercel-react-best-practices, web-design-guidelines               |
 | `fretboard-ui` (`packages/fretboard-ui/`) | vercel-react-best-practices, web-design-guidelines             |
 | `docs` (`docs/`)                       | (none — use review-criteria.md)                                  |
+
+### Shape-data reviews: run the audit() sweep
+
+Any diff touching `src/data/*` chord/scale shapes should be checked with the registry-wide
+invariant sweep in `src/audit.ts` instead of eyeballing TS literals — it codifies the defect
+classes found in issues #39/#94 (unplayable fret span, finger 0 on movable shapes,
+repeated fingers without a barre, voicingFamily/baseFret mismatch, and scale-shape checks):
+
+```bash
+npx vitest run src/audit.test.ts   # registry-wide sweeps assert zero violations
+```
+
+For ad hoc inspection of a single shape, call `audit()`/the `checkX` functions from
+`tonal-guitar` directly in a scratch script.
 
 ## Code Simplification / Refactor Review (Phase 5) — Code Patterns
 

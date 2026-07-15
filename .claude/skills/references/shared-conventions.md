@@ -84,15 +84,19 @@ Filter the JSON response for the matching issue number.
 
 ### Status Transitions
 
-| Event          | New Status  | Set By                                 |
-| -------------- | ----------- | -------------------------------------- |
-| Branch created | In Progress | `/task`, `/fix`                        |
-| PR created     | In Review   | PostToolUse hook (`post-pr-create.sh`) |
-| PR merged      | Done        | GitHub Action (`pr-merged.yml`)        |
+| Event          | New Status  | Set By                                                    |
+| -------------- | ----------- | --------------------------------------------------------- |
+| Branch created | In Progress | Skill lead (`/task`, `/fix`) via `gh project item-edit`   |
+| PR created     | In Review   | Skill lead, explicitly, after `gh pr create` succeeds     |
+| PR merged      | Done        | Skill lead during merge/prune, or the Project's built-in "issue closed → Done" automation if enabled |
 
-> **Note:** The "In Review" and "Done" transitions are fully automated.
-> The PostToolUse hook fires after any `gh pr create` command (from `/review`, `/fix`, `/task`, etc.).
-> The GitHub Action fires when a PR is merged to main — it also closes `task-group` sub-issues.
+> **Note:** There are NO hooks or Actions that move board statuses — the repo has no
+> `.claude/settings.json` hooks, and `pr-merged.yml` only closes `task-group` sub-issues
+> (see its header comment). Every skill that creates a branch, opens a PR, or merges one
+> is responsible for setting the corresponding status itself. If the GitHub Project's
+> built-in "When an issue is closed → set Done" workflow is enabled (Project settings →
+> Workflows), the Done transition happens automatically via the `Closes #N` reference;
+> until then, verify Done manually after merging.
 
 ---
 
@@ -172,6 +176,7 @@ If any check fails:
 - The git tag `vX.Y.Z` MUST point at the exact commit the npm tarball was built from.
 - Every published version gets a corresponding GitHub release.
 - Version bumps land via PR before publishing — never bump directly on main.
+- Bump `src/version.ts` (`VERSION`) alongside `package.json` in the same version-bump PR — the library exports it and the shape library embeds it in prefilled issue reports (`site/app/shapes/components/shapeLibraryUtils.ts`). The pinned expectations in `src/audit.test.ts` ("VERSION" describe block) must be updated in the same PR or tests fail.
 
 ---
 
