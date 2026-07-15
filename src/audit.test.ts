@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  checkChordBuildLoss,
   checkFingerZeroOnMovable,
   checkFretSpan,
   checkGeometryMismatch,
   checkRepeatedFingerNoBarre,
+  checkScaleBuildLoss,
+  CHECK_BUILD_LOSS,
   CHECK_FINGER_ZERO_ON_MOVABLE,
   CHECK_FRET_SPAN,
   CHECK_REPEATED_FINGER_NO_BARRE,
@@ -22,7 +25,7 @@ import type {
   ShapeAuditOptions as ShapeAuditOptionsFromIndex,
 } from "./index";
 import { VERSION } from "./version";
-import { chordShapes, ChordShape } from "./shape";
+import { all as allScaleShapes, chordShapes, ChordShape, ScaleShape } from "./shape";
 import {
   BARRE_E_SUS2,
   OPEN_C_MAJOR,
@@ -33,6 +36,7 @@ import {
 import { SHELL_SHAPES } from "./data/jazz-shells";
 import { EXT_CHORD_E_6, EXT_CHORD_A_6 } from "./data/extended-chords";
 import { CAGED_CHORD_E } from "./data/caged-chords";
+import { CAGED_E } from "./data/caged-scales";
 
 describe("displayRootFor", () => {
   it("returns canonicalRoot when set", () => {
@@ -470,6 +474,112 @@ describe("checkRepeatedFingerNoBarre", () => {
       expect(
         checkRepeatedFingerNoBarre(shape),
         `${shape.name} unexpectedly flagged by checkRepeatedFingerNoBarre`,
+      ).toEqual([]);
+    }
+  });
+});
+
+// ============================================================
+// checkChordBuildLoss / checkScaleBuildLoss — Task Group 4
+// ============================================================
+
+describe("checkChordBuildLoss", () => {
+  it("OPEN_C_MAJOR (clean chord shape): []", () => {
+    expect(checkChordBuildLoss(OPEN_C_MAJOR, "C")).toEqual([]);
+  });
+
+  it("synthetic shape with an unresolvable interval: one error issue, builtCount < playedCount", () => {
+    // "not-an-interval" fails @tonaljs/interval parsing, so transpose()
+    // returns "" for that string and buildFrettedScale drops the note —
+    // the string is still "played" (non-null in shape.strings) but never
+    // makes it into the built frets.
+    const shape: ChordShape = {
+      name: "Synthetic Build Loss Chord",
+      system: "test",
+      strings: ["1P", "not-an-interval", "5P", null, null, null],
+      fingers: [1, 2, 1, null, null, null],
+      barres: [],
+      rootString: 0,
+    };
+    const issues = checkChordBuildLoss(shape, "C");
+    expect(issues.length).toBe(1);
+    expect(issues[0].id).toBe(CHECK_BUILD_LOSS);
+    expect(issues[0].severity).toBe("error");
+    const details = issues[0].details as {
+      playedCount: number;
+      builtCount: number;
+      frets: (number | null)[];
+    };
+    expect(details.playedCount).toBe(3);
+    expect(details.builtCount).toBe(2);
+    expect(details.builtCount).toBeLessThan(details.playedCount);
+    expect(details.frets).toEqual([8, null, 5, null, null, null]);
+  });
+
+  it("registry-wide: no currently-registered chord shape fails checkChordBuildLoss at displayRootFor", () => {
+    const allShapes = chordShapes.all();
+    expect(allShapes.length).toBeGreaterThan(0);
+    for (const shape of allShapes) {
+      expect(
+        checkChordBuildLoss(shape, displayRootFor(shape)),
+        `${shape.name} unexpectedly flagged by checkChordBuildLoss`,
+      ).toEqual([]);
+    }
+  });
+});
+
+describe("checkScaleBuildLoss", () => {
+  it("CAGED_E (clean scale shape from the registry): []", () => {
+    expect(checkScaleBuildLoss(CAGED_E, "E")).toEqual([]);
+  });
+
+  it("NoFrettedScale sentinel (unresolvable root): one error issue", () => {
+    // "H" is not a valid Tonal note letter, so Note.pitchClass("H") returns
+    // "" and buildFrettedScale short-circuits to the NoFrettedScale
+    // sentinel (empty: true) before placing anything.
+    const issues = checkScaleBuildLoss(CAGED_E, "H");
+    expect(issues.length).toBe(1);
+    expect(issues[0].id).toBe(CHECK_BUILD_LOSS);
+    expect(issues[0].severity).toBe("error");
+  });
+
+  it("synthetic shape with an unresolvable interval: one error issue, builtCount < slotCount", () => {
+    const shape: ScaleShape = {
+      name: "Synthetic Build Loss Scale",
+      system: "test",
+      strings: [["1P"], ["not-an-interval"], ["5P"], null, null, null],
+      rootString: 0,
+    };
+    const issues = checkScaleBuildLoss(shape, "C");
+    expect(issues.length).toBe(1);
+    expect(issues[0].id).toBe(CHECK_BUILD_LOSS);
+    expect(issues[0].severity).toBe("error");
+    const details = issues[0].details as {
+      slotCount: number;
+      builtCount: number;
+    };
+    expect(details.slotCount).toBe(3);
+    expect(details.builtCount).toBe(2);
+    expect(details.builtCount).toBeLessThan(details.slotCount);
+  });
+
+  it("scale shape with a null string entry: slot counting skips it, no false positive", () => {
+    const shape: ScaleShape = {
+      name: "Synthetic Null String Scale",
+      system: "test",
+      strings: [null, ["1P", "3M", "5P"], null, ["1P"], null, null],
+      rootString: 1,
+    };
+    expect(checkScaleBuildLoss(shape, "C")).toEqual([]);
+  });
+
+  it("registry-wide: no currently-registered scale shape fails checkScaleBuildLoss at 'C' (ScaleShape has no canonicalRoot; 'C' mirrors displayRootFor's default)", () => {
+    const allShapes = allScaleShapes();
+    expect(allShapes.length).toBeGreaterThan(0);
+    for (const shape of allShapes) {
+      expect(
+        checkScaleBuildLoss(shape, "C"),
+        `${shape.name} unexpectedly flagged by checkScaleBuildLoss`,
       ).toEqual([]);
     }
   });

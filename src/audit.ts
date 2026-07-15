@@ -8,15 +8,8 @@
  * @tonaljs/key. See CLAUDE.md's "Dependency layers" section.
  */
 
-// buildFrettedScale is unused until checkBuildLoss (Task Group 4) lands;
-// kept (rather than dropped) to lock the module's import surface now,
-// per-line-disabled until consumed.
-import { applyChordShape } from "./build";
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import { buildFrettedScale } from "./build";
-import { ChordShape } from "./shape";
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import { ScaleShape } from "./shape";
+import { applyChordShape, buildFrettedScale } from "./build";
+import { ChordShape, ScaleShape } from "./shape";
 import { STANDARD } from "./tuning";
 import { chroma, transpose } from "@tonaljs/note";
 
@@ -145,7 +138,89 @@ export function checkRepeatedFingerNoBarre(shape: ChordShape): ShapeAuditIssue[]
   return issues;
 }
 
-// checkBuildLoss — implemented in Task Group 4
+/**
+ * Flags chord shapes where the build engine silently dropped one or more
+ * played notes: `playedCount` (non-null entries in `shape.strings`) exceeds
+ * `builtCount` (non-null entries in the built `frets` array). This mirrors
+ * `extended-chords.test.ts`'s `assertBuildsPlayable` helper (lines 121-148),
+ * which asserts `nonNullFrets.length === impliedStringSet(shape).length` for
+ * every registered extended-chord shape — a mismatch there means the
+ * fret-window logic in `buildFrettedScale` (invoked via `applyChordShape`)
+ * couldn't resolve one of the shape's own intervals (e.g. an unparseable
+ * interval string) and quietly dropped the note instead of placing it.
+ */
+export function checkChordBuildLoss(
+  shape: ChordShape,
+  root: string,
+  tuning: string[] = STANDARD,
+): ShapeAuditIssue[] {
+  const { frets } = applyChordShape(shape, root, tuning);
+  const playedCount = shape.strings.filter((s) => s != null).length;
+  const builtCount = frets.filter((f) => f != null).length;
+
+  if (builtCount >= playedCount) return [];
+
+  return [
+    {
+      id: CHECK_BUILD_LOSS,
+      severity: "error",
+      message:
+        `Built ${builtCount} of ${playedCount} played string(s) — the fret ` +
+        `window silently dropped ${playedCount - builtCount} note(s)`,
+      details: { playedCount, builtCount, frets },
+    },
+  ];
+}
+
+/**
+ * Flags scale shapes where the build engine silently dropped one or more
+ * defined notes. Two failure modes:
+ *
+ * 1. `buildFrettedScale` returns the `NoFrettedScale` sentinel (`empty:
+ *    true`) — the root/shape combination couldn't be resolved at all (e.g.
+ *    an unparseable root note), so nothing was placed.
+ * 2. The build succeeds but places fewer notes than the shape defines:
+ *    `slotCount` (the sum of `shape.strings[i].length` over non-null
+ *    entries) exceeds `builtCount` (`result.notes.length`) — some
+ *    individual interval within the shape couldn't be resolved and was
+ *    dropped.
+ */
+export function checkScaleBuildLoss(
+  shape: ScaleShape,
+  root: string,
+  tuning: string[] = STANDARD,
+): ShapeAuditIssue[] {
+  const slotCount = shape.strings.reduce(
+    (sum, s) => sum + (s ? s.length : 0),
+    0,
+  );
+  const result = buildFrettedScale(shape, root, tuning);
+
+  if (result.empty) {
+    return [
+      {
+        id: CHECK_BUILD_LOSS,
+        severity: "error",
+        message: `Build placed no notes for shape "${shape.name}" at root "${root}"`,
+        details: { slotCount, builtCount: 0 },
+      },
+    ];
+  }
+
+  const builtCount = result.notes.length;
+  if (builtCount >= slotCount) return [];
+
+  return [
+    {
+      id: CHECK_BUILD_LOSS,
+      severity: "error",
+      message:
+        `Built ${builtCount} of ${slotCount} defined note(s) — the fret ` +
+        `window silently dropped ${slotCount - builtCount} note(s)`,
+      details: { slotCount, builtCount },
+    },
+  ];
+}
 
 // checkMetadataCompleteness — implemented in Task Group 5
 
