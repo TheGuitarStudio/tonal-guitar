@@ -11,13 +11,21 @@ import {
 } from "./shapeLibraryUtils";
 import { FilterBar, FILTER_ALL } from "./FilterBar";
 import { LEGEND } from "./ShapeCardDiagram";
-import { ShapeCard } from "./ShapeCard";
+import { LazyShapeCard } from "./LazyShapeCard";
+
+// Cards at this index or earlier mount immediately rather than waiting on
+// the IntersectionObserver — roughly the first screenful of the 3-column
+// (`xl:grid-cols-3`) layout, so there's real content on screen (and in the
+// statically-exported HTML) before any scrolling or hydration-dependent
+// observer work happens.
+const EAGER_CARD_COUNT = 9;
 
 /**
  * Owns all filter state for the shape library. Renders the filter controls,
  * a single page-level interval legend (shared across every card in the
  * grid, not duplicated per-card), and the failures-first grid of
- * `<ShapeCard>`s.
+ * `<ShapeCard>`s — lazily mounted via `LazyShapeCard` so the up to ~159
+ * filtered cards aren't all mounted and reconciled up front.
  */
 export function ShapeLibrary() {
   // Runs exactly once — `auditAllShapes()` walks the full scale/chord
@@ -104,8 +112,12 @@ export function ShapeLibrary() {
         </p>
       ) : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {shownEntries.map((entry) => (
-            <ShapeCard key={`${entry.kind}-${entry.name}`} entry={entry} />
+          {shownEntries.map((entry, i) => (
+            <LazyShapeCard
+              key={`${entry.kind}-${entry.name}`}
+              entry={entry}
+              eager={i < EAGER_CARD_COUNT}
+            />
           ))}
         </div>
       )}
