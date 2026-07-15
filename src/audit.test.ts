@@ -192,6 +192,19 @@ describe("checkGeometryMismatch fixtures", () => {
         }),
       ).toBeUndefined();
     });
+
+    it("does not misread a CAGED form-family letter as a root: 'E Form Major Barre' -> undefined", () => {
+      expect(
+        gripRootFor({
+          name: "E Form Major Barre",
+          system: "barre",
+          strings: [],
+          fingers: [],
+          barres: [],
+          rootString: 0,
+        }),
+      ).toBeUndefined();
+    });
   });
 });
 
@@ -206,9 +219,20 @@ describe("checkGeometryMismatch registry-wide validation", () => {
   });
 
   // The spec.md lift rule ("let f = raw; while (f < shape.baseFret) f +=
-  // 12;") is implemented verbatim (no lift-rule tuning was viable — see
-  // below). A full registry sweep over all 70 baseFret-carrying shapes
-  // shows it flags 27, not just the 2 seeded #96 fixtures:
+  // 12;") is implemented verbatim. The name-parsing fallback in gripRootFor
+  // is restricted to the `"<Root> ... Open"` naming convention the spec
+  // describes: the 20 movable "E/A Form ... Barre" shapes (baseFret: 1, no
+  // canonicalRoot, barre at the nut) would otherwise have their leading
+  // CAGED-form-family letter misread as an authored chord root, producing a
+  // structural false-positive class — a nut-position barre grip (fret 0
+  // with a non-zero finger) is indistinguishable from a genuine
+  // off-by-octave defect (OPEN_G_AUG's B-string defect has the exact same
+  // raw=0/finger!=0/baseFret=1 signature). Those 20 shapes are therefore
+  // skipped (no grip root), per the spec's "if neither yields a root, skip
+  // the check" rule.
+  //
+  // A full registry sweep over the remaining 50 `"<Root> ... Open"` shapes
+  // flags 7, not just the 2 seeded #96 fixtures:
   //
   //   1. The 2 seeded #96 shapes (OPEN_G_AUG, OPEN_G_M7B5) — genuine
   //      misordered-interval defects, confirmed by hand against their own
@@ -228,19 +252,6 @@ describe("checkGeometryMismatch registry-wide validation", () => {
   //          with its own fret-diagram comment ("0120xx") and fingers data
   //          (finger 2, i.e. fretted, not open) — fret 2 on an open-D string
   //          sounds the root (E), not the 7th (D); a mislabeled interval.
-  //   3. All 20 movable "E Form ... Barre" / "A Form ... Barre" shapes
-  //      (baseFret: 1, no canonicalRoot, barre sits at the nut/fret 0).
-  //      These are NOT defects — this is a structural false-positive class:
-  //      gripRootFor's `parseRootFromName` fallback (per spec.md, verbatim)
-  //      reads the leading "E"/"A" CAGED-form-family letter in these names
-  //      as if it were an authored chord root (there is no canonicalRoot to
-  //      prefer instead), and the lift rule cannot distinguish "this string
-  //      legitimately sits at fret 0 as part of a nut-position barre" from
-  //      "this is a genuine off-by-octave defect" (OPEN_G_AUG's B-string
-  //      defect has the exact same raw=0/finger!=0/baseFret=1 shape). No
-  //      tuning of the lift rule alone can resolve this ambiguity without
-  //      also suppressing the #96 detections it's required to catch (see
-  //      task report). Reported as a known limitation gating the site layer.
   it("checkGeometryMismatch's registry-wide mismatch set matches the documented, hand-verified list above", () => {
     const knownMismatching = new Set([
       // #96 seeded pair
@@ -252,29 +263,8 @@ describe("checkGeometryMismatch registry-wide validation", () => {
       "G Sus2 Open",
       "E Sus2 Open",
       "E m7b5 Open",
-      // movable barre-at-nut false-positive class (baseFret=1 ambiguity)
-      "E Form Major Barre",
-      "E Form Minor Barre",
-      "E Form 7 Barre",
-      "E Form maj7 Barre",
-      "E Form m7 Barre",
-      "E Form dim Barre",
-      "E Form aug Barre",
-      "E Form sus2 Barre",
-      "E Form sus4 Barre",
-      "E Form m7b5 Barre",
-      "A Form Major Barre",
-      "A Form Minor Barre",
-      "A Form 7 Barre",
-      "A Form maj7 Barre",
-      "A Form m7 Barre",
-      "A Form dim Barre",
-      "A Form aug Barre",
-      "A Form sus2 Barre",
-      "A Form sus4 Barre",
-      "A Form m7b5 Barre",
     ]);
-    expect(knownMismatching.size).toBe(27);
+    expect(knownMismatching.size).toBe(7);
 
     const withBaseFret = chordShapes.all().filter((s) => s.baseFret != null);
     expect(withBaseFret.length).toBe(70);

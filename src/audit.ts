@@ -75,27 +75,27 @@ export function displayRootFor(shape: { canonicalRoot?: string }): string {
 // checkGeometryMismatch — Task Group 6
 // ============================================================
 
-// Matches a leading root-letter token, e.g. "G" or "Bb", at the start of a
-// shape name such as "G m7b5 Open" or "C Minor Open".
-const ROOT_TOKEN_RE = /^[A-G](#|b)?/;
+// Matches a leading root-letter token, e.g. "G" or "Bb", but only in names
+// that follow the authored-grip `"<Root> ... Open"` convention (see
+// open-chords.ts). The movable "E/A Form ... Barre" shapes also start with a
+// letter in `[A-G]`, but there it names the CAGED form family, not a chord
+// root — requiring the trailing "Open" keeps those from being misread.
+const OPEN_NAME_ROOT_RE = /^([A-G](#|b)?)\s.*\bOpen$/;
 
 function parseRootFromName(name: string): string | undefined {
-  const match = ROOT_TOKEN_RE.exec(name);
-  return match ? match[0] : undefined;
+  const match = OPEN_NAME_ROOT_RE.exec(name);
+  return match ? match[1] : undefined;
 }
 
 /**
  * The "grip root" is the root the source diagram (baseFret/fingers) was
  * authored against: `canonicalRoot` when present, else parsed from the
  * shape's `"<Root> ... Open"` name convention (see open-chords.ts). Shapes
- * with neither yield `undefined` and the check is skipped.
- *
- * Caveat: the movable "E/A Form ... Barre" shapes have no `canonicalRoot`
- * but their names still start with a letter in `[A-G]` (the CAGED form
- * family, e.g. "E Form Major Barre"), so this falls back to parsing that
- * letter as if it were an authored root. See checkGeometryMismatch's docs
- * and audit.test.ts's registry-wide sweep comment for the resulting
- * false-positive class this produces on those 20 shapes.
+ * with neither yield `undefined` and the check is skipped — this includes
+ * the movable "E/A Form ... Barre" shapes, whose leading letter is a CAGED
+ * form family, not an authored root: their nut-position barre grips (fret 0
+ * with a non-zero finger) are structurally indistinguishable from genuine
+ * off-by-octave defects, so they are skipped rather than misjudged.
  *
  * Exported (but not re-exported from ./index) so tests can exercise it
  * directly — it is otherwise an internal helper of checkGeometryMismatch.
@@ -139,19 +139,12 @@ export function sourceFrets(
  * Detects divergence between the build engine's reconstructed geometry
  * (`applyChordShape`, which ignores `baseFret`/`fingers`/`barres`) and the
  * geometry implied by the shape's own source diagram. Applies only to
- * `baseFret`-carrying shapes (the 70 open-chords.ts entries) — shell,
- * extended, and caged-7th shapes have no `baseFret` and are skipped ([]).
- *
- * Known limitation: for `baseFret: 1` shapes, a string with `fingers[i]`
- * non-zero but whose interval sits at the open-string pitch (chroma
- * distance 0) is structurally ambiguous — it could be a genuine
- * off-by-octave defect (see OPEN_G_AUG) or a legitimate barre-at-the-nut
- * grip (see the movable "E/A Form ... Barre" shapes in open-chords.ts,
- * which have no `canonicalRoot` and so also depend on gripRootFor's
- * name-parsing fallback). Both currently surface as a mismatch; see
- * audit.test.ts's registry-wide sweep for the full, hand-verified
- * breakdown of which flagged shapes are genuine defects versus this
- * false-positive class.
+ * `baseFret`-carrying shapes with a resolvable grip root (the 50
+ * `"<Root> ... Open"` open-chords.ts entries) — shell, extended, and
+ * caged-7th shapes have no `baseFret`, and the movable "E/A Form ... Barre"
+ * shapes have no authored grip root (see gripRootFor); all are skipped ([]).
+ * See audit.test.ts's registry-wide sweep for the hand-verified breakdown
+ * of the shapes this check flags.
  */
 export function checkGeometryMismatch(
   shape: ChordShape,
@@ -193,11 +186,11 @@ export function checkGeometryMismatch(
 }
 
 // ============================================================
-// Aggregate functions — implemented in Task Group 6
+// Aggregate functions — implemented in Task Group 7
 // ============================================================
 
-// auditChordShape — implemented in Task Group 6
+// auditChordShape — implemented in Task Group 7
 
-// auditScaleShape — implemented in Task Group 6
+// auditScaleShape — implemented in Task Group 7
 
-// auditAll — implemented in Task Group 6
+// auditAllShapes — implemented in Task Group 7
