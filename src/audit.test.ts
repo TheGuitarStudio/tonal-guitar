@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { checkGeometryMismatch, displayRootFor, gripRootFor, sourceFrets } from "./audit";
+import {
+  checkFretSpan,
+  checkGeometryMismatch,
+  CHECK_FRET_SPAN,
+  displayRootFor,
+  gripRootFor,
+  sourceFrets,
+} from "./audit";
 import type { AuditSeverity, ShapeAuditIssue, ShapeAuditOptions } from "./audit";
 import {
   displayRootFor as displayRootForFromIndex,
@@ -13,6 +20,7 @@ import type {
 import { VERSION } from "./version";
 import { chordShapes, ChordShape } from "./shape";
 import {
+  BARRE_E_SUS2,
   OPEN_C_MAJOR,
   OPEN_C_MINOR,
   OPEN_G_AUG,
@@ -284,5 +292,64 @@ describe("checkGeometryMismatch registry-wide validation", () => {
     expect(gM7b5).toBeDefined();
     expect(checkGeometryMismatch(gAug as ChordShape).length).toBe(1);
     expect(checkGeometryMismatch(gM7b5 as ChordShape).length).toBe(1);
+  });
+});
+
+// ============================================================
+// checkFretSpan — Task Group 2
+// ============================================================
+
+describe("checkFretSpan", () => {
+  it("OPEN_C_MAJOR (clean, baseFret 1): no issues", () => {
+    expect(checkFretSpan(OPEN_C_MAJOR, "C")).toEqual([]);
+  });
+
+  it("OPEN_G_AUG (#96 known-bad, 10-fret span): one error issue with span > 4", () => {
+    const issues = checkFretSpan(OPEN_G_AUG, "G");
+    expect(issues.length).toBe(1);
+    expect(issues[0].id).toBe(CHECK_FRET_SPAN);
+    expect(issues[0].severity).toBe("error");
+    const details = issues[0].details as { span: number };
+    expect(details.span).toBeGreaterThan(4);
+  });
+
+  it("OPEN_G_M7B5 (#96 known-bad): one error issue with span > 4", () => {
+    const issues = checkFretSpan(OPEN_G_M7B5, "G");
+    expect(issues.length).toBe(1);
+    expect(issues[0].id).toBe(CHECK_FRET_SPAN);
+    expect(issues[0].severity).toBe("error");
+    const details = issues[0].details as { span: number };
+    expect(details.span).toBeGreaterThan(4);
+  });
+
+  it("boundary: span === maxSpan (4) does not flag (strict >, not >=)", () => {
+    // BARRE_E_SUS2 applied at its movable E-form convention root ("F")
+    // spans exactly 4 frets — the canonical boundary case.
+    const issues = checkFretSpan(BARRE_E_SUS2, "F");
+    expect(issues).toEqual([]);
+  });
+
+  it("custom maxSpan override moves the pass/fail boundary", () => {
+    // "Shell m7 R73 012" applied at C spans exactly 5 frets: fails the
+    // default maxSpan (4) but passes when maxSpan is raised to 5.
+    const shellM7R73 = SHELL_SHAPES.find(
+      (s) =>
+        s.chordType === "m7" &&
+        s.name.includes("R73") &&
+        JSON.stringify(s.stringSet) === "[0,1,2]",
+    );
+    expect(shellM7R73).toBeDefined();
+
+    const defaultIssues = checkFretSpan(shellM7R73 as ChordShape, "C");
+    expect(defaultIssues.length).toBe(1);
+    expect((defaultIssues[0].details as { span: number }).span).toBe(5);
+
+    const raisedMaxSpanIssues = checkFretSpan(
+      shellM7R73 as ChordShape,
+      "C",
+      undefined,
+      5,
+    );
+    expect(raisedMaxSpanIssues).toEqual([]);
   });
 });

@@ -14,8 +14,9 @@
 import { applyChordShape } from "./build";
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { buildFrettedScale } from "./build";
+import { ChordShape } from "./shape";
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-import { ChordShape, ScaleShape } from "./shape";
+import { ScaleShape } from "./shape";
 import { STANDARD } from "./tuning";
 import { chroma, transpose } from "@tonaljs/note";
 
@@ -61,7 +62,35 @@ export function displayRootFor(shape: { canonicalRoot?: string }): string {
 // Individual checks — implemented in later task groups
 // ============================================================
 
-// checkFretSpan — implemented in Task Group 2
+/**
+ * Flags chord shapes whose fretted span (excluding open strings) exceeds
+ * `maxSpan`. Promotes the `data.test.ts:474-508` issue #94 regression's
+ * inline `maxSpan` helper to a first-class check: `fretted` excludes both
+ * muted strings (`null`) and open strings (`fret === 0`) before taking
+ * `max - min`, so an open-string drone never inflates the span. Boundary is
+ * strict — `span === maxSpan` does not flag.
+ */
+export function checkFretSpan(
+  shape: ChordShape,
+  root: string,
+  tuning: string[] = STANDARD,
+  maxSpan = 4,
+): ShapeAuditIssue[] {
+  const { frets } = applyChordShape(shape, root, tuning);
+  const fretted = frets.filter((f): f is number => f !== null && f > 0);
+  const span = fretted.length ? Math.max(...fretted) - Math.min(...fretted) : 0;
+
+  if (span <= maxSpan) return [];
+
+  return [
+    {
+      id: CHECK_FRET_SPAN,
+      severity: "error",
+      message: `Fret span of ${span} exceeds the maximum playable span of ${maxSpan}`,
+      details: { span, frets, maxSpan },
+    },
+  ];
+}
 
 // checkFingerZeroOnMovable — implemented in Task Group 3
 
