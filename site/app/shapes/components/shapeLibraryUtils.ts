@@ -392,7 +392,3 @@ export function buildReportUrl(entry: ShapeCatalogEntry): string {
     `&body=${encodeURIComponent(body)}`
   );
 }
-
-// Re-exported for convenience so consumers of this module don't need a
-// second import from "tonal-guitar" just for the root-display fallback.
-export { displayRootFor };

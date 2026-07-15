@@ -448,6 +448,12 @@ describe("checkFingerZeroOnMovable", () => {
   });
 
   it("registry-wide: no currently-registered shape fails checkFingerZeroOnMovable", () => {
+    // The sweep is only meaningful if the registry actually contains movable
+    // shapes (no canonicalRoot) — the branch this check exists to police.
+    const movableShapes = chordShapes
+      .all()
+      .filter((s) => s.canonicalRoot === undefined);
+    expect(movableShapes.length).toBeGreaterThan(0);
     expectRegistryClean(
       chordShapes.all(),
       checkFingerZeroOnMovable,

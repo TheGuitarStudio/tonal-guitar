@@ -16,7 +16,7 @@
 - [x] Phase 3: Architecture Review
 - [x] Phase 4: Architecture Fix
 - [x] Phase 5: Code Simplification Review
-- [ ] Phase 6: Code Simplification Fix
+- [x] Phase 6: Code Simplification Fix
 - [ ] Phase 7: Specialized Reviews
 - [ ] Phase 8: Specialized Fixes
 - [ ] Phase 9: Final Verification
@@ -196,6 +196,16 @@ Loop-1 fix sites verified clean: `gripRoot`/`sourceFrets` rename consistent, `ex
 - CR-034: [Suggestion] `site/app/shapes/components/shapeLibraryUtils.ts:396-398` — dead `export { displayRootFor }` re-export with zero consumers; its "for consumers' convenience" comment describes a use case that doesn't exist. Status: Open
 
 Loop-1 fixes verified clean: memoization, stable keys/references, no useEffect transforms, no new complexity.
+
+## Phase 6 (Loop 2): Code Simplification Fixes
+
+All three fixed directly by the lead:
+
+- CR-032: Fixed — duplicated registry sweeps removed from data.test.ts, replaced with a pointer comment to audit.test.ts's `expectRegistryClean` sweeps (test count 1001 → 999; coverage unchanged since the sweeps were byte-for-byte duplicates)
+- CR-033: Fixed — the movable-shape-count guard (`filter(s => s.canonicalRoot === undefined).length > 0`) restored inside audit.test.ts's checkFingerZeroOnMovable sweep, where the coverage now lives
+- CR-034: Fixed — dead `export { displayRootFor }` re-export and its misleading comment removed from shapeLibraryUtils.ts
+
+Verification: lint + 999 tests (11 files) pass at root; `tsc --noEmit` + build pass in site/.
 
 ## Phase 8: Specialized Fixes
 

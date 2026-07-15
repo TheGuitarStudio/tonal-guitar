@@ -20,11 +20,7 @@ import {
 import { applyChordShape, buildFrettedScale } from "../build";
 import { STANDARD } from "../tuning";
 import { get, all, names } from "../shape";
-import {
-  checkFretSpan,
-  checkFingerZeroOnMovable,
-  checkRepeatedFingerNoBarre,
-} from "../audit";
+import { checkFretSpan } from "../audit";
 
 // ─── Import all curated data files for side-effect registration ─────────────
 import "../data/caged-chords-7th";
@@ -855,33 +851,11 @@ describe("TG10 — Data integrity: chordShapes.all() count after all curated imp
 
 // ─── Fingering/barre metadata invariants (issue #39: CR-005/CR-006/CR-009) ───
 //
-// Codebase-wide guards against the two structural defect classes fixed by
-// the fingering/voicingFamily audit: finger 0 (open string) asserted on a
-// shape with no canonicalRoot (movable shapes are, by definition, never
-// played with an open string), and repeated finger numbers on adjacent
-// strings with no barre entry backing the implied simultaneous press.
-
-describe("chord-shape fingering/barre invariants (issue #39 audit)", () => {
-  it("movable shapes (no canonicalRoot) never use finger 0", () => {
-    const shapes = chordShapes.all();
-    expect(shapes.length).toBeGreaterThan(0);
-    for (const shape of shapes) {
-      expect(
-        checkFingerZeroOnMovable(shape),
-        `${shape.name} is movable (no canonicalRoot) but asserts finger 0 (open string)`,
-      ).toEqual([]);
-    }
-  });
-
-  it("repeated fingers on adjacent strings are backed by a barre entry", () => {
-    for (const shape of chordShapes.all()) {
-      expect(
-        checkRepeatedFingerNoBarre(shape),
-        `${shape.name}: finger repeats on adjacent strings with no barre entry covering them`,
-      ).toEqual([]);
-    }
-  });
-});
+// The registry-wide sweeps for these invariants (finger 0 on a movable
+// shape; repeated fingers on adjacent strings with no backing barre) live
+// in audit.test.ts alongside the checks themselves — see the
+// `expectRegistryClean` sweeps for checkFingerZeroOnMovable and
+// checkRepeatedFingerNoBarre. They are intentionally not duplicated here.
 
 // ─── TG3: minor CAGED entries (caged-scales-minor.ts) ────────────────────────
 //
