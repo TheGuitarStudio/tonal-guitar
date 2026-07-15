@@ -48,7 +48,7 @@ Saved to `reviews/research-review.md`. Verdict: proceed to Shape, but tighten sp
 | 3 | TG9: shapeLibraryUtils.ts | complete | sonnet | sourceFrets re-derived via public API (no direct @tonaljs dep in site) |
 | 3 | TG12: docs/api/audit.md + README | complete | sonnet | docs/api not wired into site nav (pre-existing) |
 | 4 | TG10: FilterBar, ShapeCardDiagram, ShapeCard | complete | sonnet | lead fixed 2 oversight concerns in FilterBar |
-| 5 | TG11: ShapeLibrary container + page/layout/nav | pending | - | - |
+| 5 | TG11: ShapeLibrary container + page/layout/nav | complete | sonnet | CAGED base majors sort first (genuine errors, lower index); #96 pair still above all clean shapes |
 | 6 | TG13: Test review and gap analysis | pending | - | - |
 
 ### Oversight Reports
@@ -58,5 +58,6 @@ Saved to `reviews/research-review.md`. Verdict: proceed to Shape, but tighten sp
 - **Layer 2**: No concerns. Continued. Two documented deviations approved: auditScaleShape "C" default; fret-span sweep scoped to open/barre families (2-item KNOWN_ISSUES allowlist per spec).
 - **Layer 3**: 2 minor concerns, both resolved: gripRoot field on ShapeCatalogEntry (intentional, needed by ShapeCard); docs/api/index.md missing Audit entry (lead fixed inline).
 - **Layer 4**: 2 concerns, both fixed by lead: FilterBar system options now scoped to selected kind; type toggle made strict binary scale|chord (removed "All" state) per spec.
+- **Layer 5**: No concerns. Continued. Noted: default failures-first view leads with "C Shape Major"/"G Shape Major" (genuine fret-span errors discovered during implementation) ahead of the #96 pair — correct data-driven behavior of the spec'd sort.
 
 ### Spec Compliance
