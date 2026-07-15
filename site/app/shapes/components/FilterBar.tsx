@@ -11,8 +11,6 @@ import {
 /** Sentinel used for every "no filter applied" dropdown option. */
 export const FILTER_ALL = "all";
 
-export type ShapeKindFilter = ShapeKind | typeof FILTER_ALL;
-
 export interface FilterBarProps {
   /**
    * The full, unfiltered catalog. Used only to derive dropdown option lists
@@ -21,8 +19,9 @@ export interface FilterBarProps {
    */
   entries: ShapeCatalogEntry[];
 
-  kind: ShapeKindFilter;
-  onKindChange: (kind: ShapeKindFilter) => void;
+  /** Strict binary per spec — the scale and chord registries are separate. */
+  kind: ShapeKind;
+  onKindChange: (kind: ShapeKind) => void;
 
   system: string;
   onSystemChange: (system: string) => void;
@@ -57,24 +56,28 @@ export function FilterBar({
   shownCount,
   totalCount,
 }: FilterBarProps) {
-  const systemOptions = useMemo(() => distinctSystems(entries), [entries]);
+  // Option lists are always scoped to the current kind — chord and scale
+  // shapes use disjoint system value sets in the data.
+  const kindEntries = useMemo(
+    () => entries.filter((e) => e.kind === kind),
+    [entries, kind],
+  );
+  const systemOptions = useMemo(() => distinctSystems(kindEntries), [kindEntries]);
   const familyOrQualityOptions = useMemo(() => {
-    if (kind === "chord") return distinctVoicingFamilies(entries);
-    if (kind === "scale") return distinctQualities(entries);
-    return [];
-  }, [entries, kind]);
+    if (kind === "chord") return distinctVoicingFamilies(kindEntries);
+    return distinctQualities(kindEntries);
+  }, [kindEntries, kind]);
   const familyOrQualityLabel = kind === "scale" ? "Quality" : "Voicing family";
 
   return (
     <div className="mb-4 flex flex-wrap items-center gap-2">
       <ToggleGroup
         options={[
-          { value: FILTER_ALL, label: "All" },
           { value: "scale", label: "Scale" },
           { value: "chord", label: "Chord" },
         ]}
         value={kind}
-        onChange={(v) => onKindChange(v as ShapeKindFilter)}
+        onChange={(v) => onKindChange(v as ShapeKind)}
       />
 
       <select
@@ -94,8 +97,7 @@ export function FilterBar({
       <select
         value={familyOrQuality}
         onChange={(e) => onFamilyOrQualityChange(e.target.value)}
-        disabled={kind === FILTER_ALL}
-        className="rounded-md border border-fd-border bg-fd-background px-3 py-1.5 text-sm disabled:cursor-not-allowed disabled:opacity-50"
+        className="rounded-md border border-fd-border bg-fd-background px-3 py-1.5 text-sm"
         aria-label={`Filter by ${familyOrQualityLabel.toLowerCase()}`}
       >
         <option value={FILTER_ALL}>All {familyOrQualityLabel.toLowerCase()}</option>
