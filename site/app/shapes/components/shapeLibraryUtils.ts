@@ -1,10 +1,11 @@
 // Pure helpers — no React imports, no "use client". Imports only from
 // "tonal-guitar" (the published library, consumed here via its `file:..`
-// dependency) and this module's own types. In particular this file must NOT
-// import "@tonaljs/*" directly: those packages are `tonal-guitar`'s peer
-// deps, not a declared dependency of `site/`, so a direct import would only
-// happen to resolve locally (via node_modules hoisting up to the repo root)
-// and could break in any environment that installs `site/` on its own.
+// dependency), this module's own types, and pure local `site/lib` constants.
+// In particular this file must NOT import "@tonaljs/*" directly: those
+// packages are `tonal-guitar`'s peer deps, not a declared dependency of
+// `site/`, so a direct import would only happen to resolve locally (via
+// node_modules hoisting up to the repo root) and could break in any
+// environment that installs `site/` on its own.
 import {
   all,
   chordShapes,
@@ -23,6 +24,7 @@ import type {
   AuditSeverity,
   auditAllShapes,
 } from "tonal-guitar";
+import { REPO_SLUG } from "@/lib/repo";
 
 export type ShapeKind = "scale" | "chord";
 
@@ -224,27 +226,43 @@ export function distinctSystems(entries: ShapeCatalogEntry[]): string[] {
   return Array.from(new Set(entries.map((e) => e.shape.system))).sort();
 }
 
-export function distinctVoicingFamilies(entries: ShapeCatalogEntry[]): string[] {
+/**
+ * Generic distinct-value extractor: narrows `entries` to the given `kind`,
+ * maps each entry through `extractor`, drops `undefined`, then dedupes and
+ * sorts. Shared by `distinctVoicingFamilies` (chord/voicingFamily) and
+ * `distinctQualities` (scale/quality).
+ */
+function distinctValuesForKind<K extends ShapeCatalogEntry["kind"]>(
+  entries: ShapeCatalogEntry[],
+  kind: K,
+  extractor: (entry: Extract<ShapeCatalogEntry, { kind: K }>) => string | undefined,
+): string[] {
   const values = entries
-    .filter((e): e is Extract<ShapeCatalogEntry, { kind: "chord" }> => e.kind === "chord")
-    .map((e) => e.shape.voicingFamily)
+    .filter((e): e is Extract<ShapeCatalogEntry, { kind: K }> => e.kind === kind)
+    .map(extractor)
     .filter((v): v is NonNullable<typeof v> => v !== undefined);
   return Array.from(new Set(values)).sort();
 }
 
+export function distinctVoicingFamilies(entries: ShapeCatalogEntry[]): string[] {
+  return distinctValuesForKind(entries, "chord", (e) => e.shape.voicingFamily);
+}
+
 export function distinctQualities(entries: ShapeCatalogEntry[]): string[] {
-  const values = entries
-    .filter((e): e is Extract<ShapeCatalogEntry, { kind: "scale" }> => e.kind === "scale")
-    .map((e) => e.shape.quality)
-    .filter((v): v is NonNullable<typeof v> => v !== undefined);
-  return Array.from(new Set(values)).sort();
+  return distinctValuesForKind(entries, "scale", (e) => e.shape.quality);
 }
 
 // ============================================================
 // Report-problem flow
 // ============================================================
 
-const REPO = "TheGuitarStudio/tonal-guitar";
+// Cheap placeholder for the "Report a problem" link's initial `href` — keeps
+// the anchor a real, focusable link (correct role, valid destination) before
+// `buildReportUrl` has run. `buildReportUrl` JSON-stringifies the shape and
+// all frets, which is wasteful to do for every one of the ~159 cards up
+// front when almost none of the links are ever clicked; callers should swap
+// in the full `buildReportUrl(entry)` href lazily, on interaction.
+export const REPORT_ISSUE_BASE_URL = `https://github.com/${REPO_SLUG}/issues/new?labels=bug`;
 
 function metadataLines(entry: ShapeCatalogEntry): string[] {
   const chordShape = entry.kind === "chord" ? entry.shape : undefined;
@@ -320,7 +338,7 @@ export function buildReportUrl(entry: ShapeCatalogEntry): string {
   const body = sections.join("\n\n");
 
   return (
-    `https://github.com/${REPO}/issues/new?labels=bug` +
+    REPORT_ISSUE_BASE_URL +
     `&title=${encodeURIComponent(title)}` +
     `&body=${encodeURIComponent(body)}`
   );

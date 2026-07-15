@@ -18,10 +18,10 @@ const issues = Guitar.auditChordShape(shape);
 ### AuditSeverity
 
 ```ts
-type AuditSeverity = "error" | "warning" | "info";
+type AuditSeverity = "error" | "warning";
 ```
 
-`"error"` marks a playability/correctness defect (excessive fret span, an impossible fingering, a note the build engine silently dropped). `"warning"` marks a metadata/consistency gap that doesn't affect playability (missing harmonic metadata, a geometry mismatch between the source diagram and the build engine's own reconstruction). No check currently emits `"info"`.
+`"error"` marks a playability/correctness defect (excessive fret span, an impossible fingering, a note the build engine silently dropped). `"warning"` marks a metadata/consistency gap that doesn't affect playability (missing harmonic metadata, a geometry mismatch between the source diagram and the build engine's own reconstruction).
 
 ### ShapeAuditIssue
 
