@@ -7,7 +7,7 @@
 - [x] Phase 1: Research
 - [x] Phase 2: Shape
 - [x] Phase 3: Plan
-- [ ] Phase 4: Implement
+- [x] Phase 4: Implement
 
 ## Context
 
@@ -23,7 +23,7 @@
 | Research  | research.md | complete | 1     | yes      |
 | Shape     | spec.md     | complete | 1     | no       |
 | Plan      | tasks.md    | complete | 1     | no       |
-| Implement | FEATURE.md  | pending | 0     | no       |
+| Implement | FEATURE.md  | complete | 2     | no       |
 
 ## Loop History
 
@@ -62,3 +62,6 @@ Saved to `reviews/research-review.md`. Verdict: proceed to Shape, but tighten sp
 - **Layer 6**: Test-only layer; TG13 report mapped every spec Quality Criteria bullet to a test or manual-verification note. Oversight folded into the Loop 1 spec-compliance review.
 
 ### Spec Compliance
+
+- **Loop 1**: 1 gap found (partial — CLAUDE.md missing audit.ts/version.ts in dependency-layer docs), 1 fixed. 50 requirements implemented, 0 missing.
+- **Loop 2**: 0 gaps remaining. Loop-1 fix verified; fresh sweep of user stories, visual design, report-body format, quality-criteria edge cases, and static-export constraints found nothing new.
