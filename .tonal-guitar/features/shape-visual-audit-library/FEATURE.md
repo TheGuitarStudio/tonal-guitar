@@ -49,7 +49,7 @@ Saved to `reviews/research-review.md`. Verdict: proceed to Shape, but tighten sp
 | 3 | TG12: docs/api/audit.md + README | complete | sonnet | docs/api not wired into site nav (pre-existing) |
 | 4 | TG10: FilterBar, ShapeCardDiagram, ShapeCard | complete | sonnet | lead fixed 2 oversight concerns in FilterBar |
 | 5 | TG11: ShapeLibrary container + page/layout/nav | complete | sonnet | CAGED base majors sort first (genuine errors, lower index); #96 pair still above all clean shapes |
-| 6 | TG13: Test review and gap analysis | pending | - | - |
+| 6 | TG13: Test review and gap analysis | complete | sonnet | +4 tests; all Quality Criteria mapped |
 
 ### Oversight Reports
 
@@ -59,5 +59,6 @@ Saved to `reviews/research-review.md`. Verdict: proceed to Shape, but tighten sp
 - **Layer 3**: 2 minor concerns, both resolved: gripRoot field on ShapeCatalogEntry (intentional, needed by ShapeCard); docs/api/index.md missing Audit entry (lead fixed inline).
 - **Layer 4**: 2 concerns, both fixed by lead: FilterBar system options now scoped to selected kind; type toggle made strict binary scale|chord (removed "All" state) per spec.
 - **Layer 5**: No concerns. Continued. Noted: default failures-first view leads with "C Shape Major"/"G Shape Major" (genuine fret-span errors discovered during implementation) ahead of the #96 pair — correct data-driven behavior of the spec'd sort.
+- **Layer 6**: Test-only layer; TG13 report mapped every spec Quality Criteria bullet to a test or manual-verification note. Oversight folded into the Loop 1 spec-compliance review.
 
 ### Spec Compliance
