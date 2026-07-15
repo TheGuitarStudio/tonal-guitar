@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { displayRootFor } from "./audit";
+import { checkGeometryMismatch, displayRootFor, gripRootFor, sourceFrets } from "./audit";
 import type { AuditSeverity, ShapeAuditIssue, ShapeAuditOptions } from "./audit";
 import {
   displayRootFor as displayRootForFromIndex,
@@ -11,6 +11,15 @@ import type {
   ShapeAuditOptions as ShapeAuditOptionsFromIndex,
 } from "./index";
 import { VERSION } from "./version";
+import { chordShapes, ChordShape } from "./shape";
+import {
+  OPEN_C_MAJOR,
+  OPEN_C_MINOR,
+  OPEN_G_AUG,
+  OPEN_G_M7B5,
+} from "./data/open-chords";
+import { SHELL_SHAPES } from "./data/jazz-shells";
+import { EXT_CHORD_E_6, EXT_CHORD_A_6 } from "./data/extended-chords";
 
 describe("displayRootFor", () => {
   it("returns canonicalRoot when set", () => {
@@ -76,5 +85,214 @@ describe("VERSION", () => {
   it("is re-exported from ./index and matches ./version", () => {
     expect(VERSION_FROM_INDEX).toBe("0.1.0");
     expect(VERSION_FROM_INDEX).toBe(VERSION);
+  });
+});
+
+describe("checkGeometryMismatch fixtures", () => {
+  it("OPEN_C_MAJOR: sourceFrets reproduces baseFret as min fretted fret; built == source", () => {
+    const gr = gripRootFor(OPEN_C_MAJOR);
+    expect(gr).toBe("C");
+    const src = sourceFrets(OPEN_C_MAJOR, gr as string);
+    const fretted = src.filter((f): f is number => f != null && f > 0);
+    expect(Math.min(...fretted)).toBe(OPEN_C_MAJOR.baseFret);
+    const issues = checkGeometryMismatch(OPEN_C_MAJOR);
+    expect(issues).toEqual([]);
+  });
+
+  it("OPEN_C_MINOR: grip root parsed from name; built == source, []", () => {
+    expect(OPEN_C_MINOR.canonicalRoot).toBeUndefined();
+    const gr = gripRootFor(OPEN_C_MINOR);
+    expect(gr).toBe("C");
+    const issues = checkGeometryMismatch(OPEN_C_MINOR);
+    expect(issues).toEqual([]);
+  });
+
+  it("OPEN_G_AUG (#96 known-bad): built diverges from source", () => {
+    const issues = checkGeometryMismatch(OPEN_G_AUG);
+    expect(issues.length).toBe(1);
+    expect(issues[0].id).toBe("geometry-mismatch");
+    const details = issues[0].details as { mismatchedStrings: number[] };
+    expect(details.mismatchedStrings.length).toBeGreaterThan(0);
+  });
+
+  it("OPEN_G_M7B5 (#96 known-bad): built diverges from source", () => {
+    const issues = checkGeometryMismatch(OPEN_G_M7B5);
+    expect(issues.length).toBe(1);
+    const details = issues[0].details as { mismatchedStrings: number[] };
+    expect(details.mismatchedStrings.length).toBeGreaterThan(0);
+  });
+
+  it("jazz shell (no baseFret): skipped, []", () => {
+    const shell = SHELL_SHAPES.find((s) => s.name === "Shell maj7 R37 012");
+    expect(shell).toBeDefined();
+    expect(shell?.baseFret).toBeUndefined();
+    expect(checkGeometryMismatch(shell as ChordShape)).toEqual([]);
+  });
+
+  it("EXT_CHORD_E_6 (no baseFret): skipped, []", () => {
+    expect(EXT_CHORD_E_6.baseFret).toBeUndefined();
+    expect(checkGeometryMismatch(EXT_CHORD_E_6)).toEqual([]);
+  });
+
+  it("EXT_CHORD_A_6 (no baseFret): skipped, []", () => {
+    expect(EXT_CHORD_A_6.baseFret).toBeUndefined();
+    expect(checkGeometryMismatch(EXT_CHORD_A_6)).toEqual([]);
+  });
+
+  describe("gripRootFor unit cases", () => {
+    it("uses canonicalRoot when present", () => {
+      expect(
+        gripRootFor({
+          name: "whatever",
+          system: "open",
+          strings: [],
+          fingers: [],
+          barres: [],
+          rootString: 0,
+          canonicalRoot: "G",
+        }),
+      ).toBe("G");
+    });
+
+    it("parses leading root token from name: 'G m7b5 Open' -> 'G'", () => {
+      expect(
+        gripRootFor({
+          name: "G m7b5 Open",
+          system: "barre",
+          strings: [],
+          fingers: [],
+          barres: [],
+          rootString: 0,
+        }),
+      ).toBe("G");
+    });
+
+    it("parses leading root token from name: 'C Minor Open' -> 'C'", () => {
+      expect(
+        gripRootFor({
+          name: "C Minor Open",
+          system: "barre",
+          strings: [],
+          fingers: [],
+          barres: [],
+          rootString: 0,
+        }),
+      ).toBe("C");
+    });
+
+    it("returns undefined when neither canonicalRoot nor a parseable root token exists", () => {
+      expect(
+        gripRootFor({
+          name: "Shell maj7 R37 012",
+          system: "shell",
+          strings: [],
+          fingers: [],
+          barres: [],
+          rootString: 0,
+        }),
+      ).toBeUndefined();
+    });
+  });
+});
+
+describe("checkGeometryMismatch registry-wide validation", () => {
+  it("checkGeometryMismatch returns [] for all shapes with no baseFret", () => {
+    const noBaseFret = chordShapes.all().filter((s) => s.baseFret == null);
+    expect(noBaseFret.length).toBeGreaterThan(0);
+    for (const shape of noBaseFret) {
+      const issues = checkGeometryMismatch(shape);
+      expect(issues).toEqual([]);
+    }
+  });
+
+  // The spec.md lift rule ("let f = raw; while (f < shape.baseFret) f +=
+  // 12;") is implemented verbatim (no lift-rule tuning was viable — see
+  // below). A full registry sweep over all 70 baseFret-carrying shapes
+  // shows it flags 27, not just the 2 seeded #96 fixtures:
+  //
+  //   1. The 2 seeded #96 shapes (OPEN_G_AUG, OPEN_G_M7B5) — genuine
+  //      misordered-interval defects, confirmed by hand against their own
+  //      fret-diagram comments and fingers/barres data.
+  //   2. 5 additional open-chords.ts shapes with the SAME class of genuine
+  //      defect, independently discovered by this sweep (verified by hand
+  //      against each shape's own diagram comment/fingers data — these are
+  //      not artifacts of this check):
+  //        - "G Dominant 7 Open" / "G Major 7 Open": fingers[5] === 0
+  //          (implies open) while the diagram's high-e string is fretted
+  //          (fret 1 / fret 2 respectively) — a fingers-array bug.
+  //        - "E Sus2 Open": same class of fingers-array bug on the D string.
+  //        - "G Sus2 Open": strings[1..3] are cyclically misordered
+  //          (2M/5P/1P recorded as 5P/1P/2M) — a misordered-interval defect,
+  //          the same class as #96.
+  //        - "E m7b5 Open": the D-string interval ("7m") is inconsistent
+  //          with its own fret-diagram comment ("0120xx") and fingers data
+  //          (finger 2, i.e. fretted, not open) — fret 2 on an open-D string
+  //          sounds the root (E), not the 7th (D); a mislabeled interval.
+  //   3. All 20 movable "E Form ... Barre" / "A Form ... Barre" shapes
+  //      (baseFret: 1, no canonicalRoot, barre sits at the nut/fret 0).
+  //      These are NOT defects — this is a structural false-positive class:
+  //      gripRootFor's `parseRootFromName` fallback (per spec.md, verbatim)
+  //      reads the leading "E"/"A" CAGED-form-family letter in these names
+  //      as if it were an authored chord root (there is no canonicalRoot to
+  //      prefer instead), and the lift rule cannot distinguish "this string
+  //      legitimately sits at fret 0 as part of a nut-position barre" from
+  //      "this is a genuine off-by-octave defect" (OPEN_G_AUG's B-string
+  //      defect has the exact same raw=0/finger!=0/baseFret=1 shape). No
+  //      tuning of the lift rule alone can resolve this ambiguity without
+  //      also suppressing the #96 detections it's required to catch (see
+  //      task report). Reported as a known limitation gating the site layer.
+  it("checkGeometryMismatch's registry-wide mismatch set matches the documented, hand-verified list above", () => {
+    const knownMismatching = new Set([
+      // #96 seeded pair
+      "G Augmented Open",
+      "G m7b5 Open",
+      // additional genuine defects discovered by the sweep
+      "G Dominant 7 Open",
+      "G Major 7 Open",
+      "G Sus2 Open",
+      "E Sus2 Open",
+      "E m7b5 Open",
+      // movable barre-at-nut false-positive class (baseFret=1 ambiguity)
+      "E Form Major Barre",
+      "E Form Minor Barre",
+      "E Form 7 Barre",
+      "E Form maj7 Barre",
+      "E Form m7 Barre",
+      "E Form dim Barre",
+      "E Form aug Barre",
+      "E Form sus2 Barre",
+      "E Form sus4 Barre",
+      "E Form m7b5 Barre",
+      "A Form Major Barre",
+      "A Form Minor Barre",
+      "A Form 7 Barre",
+      "A Form maj7 Barre",
+      "A Form m7 Barre",
+      "A Form dim Barre",
+      "A Form aug Barre",
+      "A Form sus2 Barre",
+      "A Form sus4 Barre",
+      "A Form m7b5 Barre",
+    ]);
+    expect(knownMismatching.size).toBe(27);
+
+    const withBaseFret = chordShapes.all().filter((s) => s.baseFret != null);
+    expect(withBaseFret.length).toBe(70);
+
+    const actuallyMismatching = new Set(
+      withBaseFret
+        .filter((shape) => checkGeometryMismatch(shape).length > 0)
+        .map((shape) => shape.name),
+    );
+    expect(actuallyMismatching).toEqual(knownMismatching);
+  });
+
+  it("both #96 known-bad shapes DO mismatch", () => {
+    const gAug = chordShapes.get("G Augmented Open");
+    const gM7b5 = chordShapes.get("G m7b5 Open");
+    expect(gAug).toBeDefined();
+    expect(gM7b5).toBeDefined();
+    expect(checkGeometryMismatch(gAug as ChordShape).length).toBe(1);
+    expect(checkGeometryMismatch(gM7b5 as ChordShape).length).toBe(1);
   });
 });
