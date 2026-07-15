@@ -1,7 +1,7 @@
 # Code Review: feat/shape-visual-audit-library
 
 **Date:** 2026-07-14 | **Base:** main | **Scope:** full
-**Commits:** 34 | **Files Changed:** 26 | **Loop:** 1/2
+**Commits:** 34 | **Files Changed:** 26 | **Loop:** 2/2
 
 ## Affected Packages
 
@@ -9,17 +9,19 @@
 - `site/` (site) — 9 files changed (shapes page: components, utils, layout, page)
 - `docs/` (docs) — 2 files changed (api/audit.md, api/index.md)
 
-## Review Progress
+## Review Progress (Loop 2)
 
 - [x] Phase 1: Setup
-- [x] Phase 2: Lint/Test Fix
+- [x] Phase 2: Lint/Test Fix (clean — lint, build, 1001 tests, site build all green; 0 issues)
 - [x] Phase 3: Architecture Review
-- [x] Phase 4: Architecture Fix
-- [x] Phase 5: Code Simplification Review
-- [x] Phase 6: Code Simplification Fix
-- [x] Phase 7: Specialized Reviews
-- [x] Phase 8: Specialized Fixes
-- [x] Phase 9: Final Verification
+- [ ] Phase 4: Architecture Fix
+- [ ] Phase 5: Code Simplification Review
+- [ ] Phase 6: Code Simplification Fix
+- [ ] Phase 7: Specialized Reviews
+- [ ] Phase 8: Specialized Fixes
+- [ ] Phase 9: Final Verification
+
+(Loop 1 progress: all 9 phases completed — see Loop 1 Summary. PR: #123.)
 
 ## Statistics (Loop 1)
 
@@ -147,6 +149,26 @@ Otherwise clean: no `any`/`as any`, no non-null assertions, discriminated union 
 - CR-026: [Suggestion] `site/app/shapes/components/FilterBar.tsx:134-136` — "Showing N of M" count updates silently; add `aria-live="polite"`. Status: Open
 
 Note: skill map prescribes a `superpowers:code-reviewer` agent for accessibility; that plugin isn't installed, so `feature-dev:code-reviewer` was used.
+
+## Phase 3 (Loop 2): Architecture Review
+
+All loop-1 fix sites verified sound: `sourceFrets` signature change has no stale callers; `expectRegistryClean` preserves assertion strength; discriminated union constructed/narrowed correctly; generic ToggleGroup inference correct; aria-label fret ordering genuinely low-to-high. Docs re-verified fully accurate after the loop-1 code changes. No Critical or Important findings.
+
+### src/ (library)
+
+- CR-027: [Suggestion] `src/audit.ts:5-6` — module-header comment claims imports include `@tonaljs/interval`, but the module only imports `@tonaljs/note`; contradicts actual imports and CLAUDE.md. Status: Open
+- (discarded) The agent also re-reported the CLAUDE.md "six checkX fns" count — already fixed in loop 1 (CR-007); the loop-2 docs agent independently confirmed the current text is correct.
+
+### site/
+
+- CR-028: [Suggestion] `site/app/shapes/components/ShapeCardDiagram.tsx` — aria-label's `fretSummary(builtFrets)` collapses each string to one representative fret, under-describing scale shapes that place multiple notes per string. Status: Open
+- CR-029: [Suggestion] `site/app/shapes/components/ShapeCardDiagram.tsx:522-526` — comment claims `role="img"` stops the card's fret table from being duplicated, but that table is a sibling in ShapeCard, unaffected by this element's role; only the SVG-internals-hiding claim is accurate. Status: Open
+- CR-030: [Suggestion] `site/app/shapes/components/shapeLibraryUtils.ts` — `framesFromNotes` reads as a typo of `fretsFromNotes`. Status: Open
+- CR-031: [Suggestion] `site/app/shapes/components/FilterBar.tsx:142` — "All voicing family" / "All quality" should be plural. Status: Open
+
+### docs
+
+No findings — signatures, worked examples, and CLAUDE.md claims all still match after loop-1 fixes.
 
 ## Phase 8: Specialized Fixes
 
