@@ -11,6 +11,13 @@ import {
 /** Sentinel used for every "no filter applied" dropdown option. */
 export const FILTER_ALL = "all";
 
+/** Kind toggle options for the `ToggleGroup` below — hoisted so it isn't
+ * recreated on every render (mirrors `LEGEND` in ShapeCardDiagram.tsx). */
+const KIND_TOGGLE_OPTIONS = [
+  { value: "scale", label: "Scale" },
+  { value: "chord", label: "Chord" },
+];
+
 export interface FilterBarProps {
   /**
    * The full, unfiltered catalog. Used only to derive dropdown option lists
@@ -72,10 +79,7 @@ export function FilterBar({
   return (
     <div className="mb-4 flex flex-wrap items-center gap-2">
       <ToggleGroup
-        options={[
-          { value: "scale", label: "Scale" },
-          { value: "chord", label: "Chord" },
-        ]}
+        options={KIND_TOGGLE_OPTIONS}
         value={kind}
         onChange={(v) => onKindChange(v as ShapeKind)}
       />
@@ -149,11 +153,12 @@ function ToggleGroup({ options, value, onChange }: ToggleGroupProps) {
       {options.map((opt, i) => {
         const isFirst = i === 0;
         const isLast = i === options.length - 1;
-        const radius = isFirst
-          ? "rounded-l-md"
-          : isLast
-            ? "rounded-r-md"
-            : "";
+        let radius = "";
+        if (isFirst) {
+          radius = "rounded-l-md";
+        } else if (isLast) {
+          radius = "rounded-r-md";
+        }
         const active = value === opt.value;
         return (
           <button

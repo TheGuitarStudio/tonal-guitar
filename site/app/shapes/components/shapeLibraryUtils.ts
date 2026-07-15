@@ -12,7 +12,6 @@ import {
   buildFrettedScale,
   displayRootFor,
   findNearestFret,
-  auditAllShapes,
   STANDARD,
   VERSION,
 } from "tonal-guitar";
@@ -23,33 +22,42 @@ import type {
   FrettedNote,
   ShapeAuditIssue,
   AuditSeverity,
+  auditAllShapes,
 } from "tonal-guitar";
 
 export type ShapeKind = "scale" | "chord";
 
-export interface ShapeCatalogEntry {
-  kind: ShapeKind;
+interface ShapeCatalogEntryBase {
   name: string;
-  shape: ScaleShape | ChordShape;
   index: number;
   renderRoot: string;
   frettedScale: FrettedScale;
   builtFrets: (number | null)[];
-  /**
-   * Only populated for chord shapes with a `baseFret` AND a resolvable grip
-   * root (see `gripRootFor` below) — the source diagram's per-string frets,
-   * reconstructed independently of the build engine's own anchor logic.
-   */
-  sourceFrets?: (number | null)[];
-  /**
-   * The root the source diagram (`sourceFrets`) was authored against. Set
-   * alongside `sourceFrets`. May differ from `renderRoot` — e.g. a shape
-   * without `canonicalRoot` renders at `displayRootFor`'s "C" fallback while
-   * its source grip is authored against the root parsed from its name.
-   */
-  gripRoot?: string;
   issues: ShapeAuditIssue[];
 }
+
+export type ShapeCatalogEntry =
+  | (ShapeCatalogEntryBase & {
+      kind: "scale";
+      shape: ScaleShape;
+    })
+  | (ShapeCatalogEntryBase & {
+      kind: "chord";
+      shape: ChordShape;
+      /**
+       * Only populated for chord shapes with a `baseFret` AND a resolvable grip
+       * root (see `gripRootFor` below) — the source diagram's per-string frets,
+       * reconstructed independently of the build engine's own anchor logic.
+       */
+      sourceFrets?: (number | null)[];
+      /**
+       * The root the source diagram (`sourceFrets`) was authored against. Set
+       * alongside `sourceFrets`. May differ from `renderRoot` — e.g. a shape
+       * without `canonicalRoot` renders at `displayRootFor`'s "C" fallback while
+       * its source grip is authored against the root parsed from its name.
+       */
+      gripRoot?: string;
+    });
 
 export interface ShapeCatalogFilters {
   kind?: ShapeKind;
@@ -239,14 +247,14 @@ export function filterCatalog(
 
     if (filters.voicingFamily !== undefined) {
       if (entry.kind !== "chord") return false;
-      if ((entry.shape as ChordShape).voicingFamily !== filters.voicingFamily) {
+      if (entry.shape.voicingFamily !== filters.voicingFamily) {
         return false;
       }
     }
 
     if (filters.quality !== undefined) {
       if (entry.kind !== "scale") return false;
-      if ((entry.shape as ScaleShape).quality !== filters.quality) return false;
+      if (entry.shape.quality !== filters.quality) return false;
     }
 
     if (filters.nameQuery) {
@@ -285,16 +293,16 @@ export function distinctSystems(entries: ShapeCatalogEntry[]): string[] {
 
 export function distinctVoicingFamilies(entries: ShapeCatalogEntry[]): string[] {
   const values = entries
-    .filter((e) => e.kind === "chord")
-    .map((e) => (e.shape as ChordShape).voicingFamily)
+    .filter((e): e is Extract<ShapeCatalogEntry, { kind: "chord" }> => e.kind === "chord")
+    .map((e) => e.shape.voicingFamily)
     .filter((v): v is NonNullable<typeof v> => v !== undefined);
   return Array.from(new Set(values)).sort();
 }
 
 export function distinctQualities(entries: ShapeCatalogEntry[]): string[] {
   const values = entries
-    .filter((e) => e.kind === "scale")
-    .map((e) => (e.shape as ScaleShape).quality)
+    .filter((e): e is Extract<ShapeCatalogEntry, { kind: "scale" }> => e.kind === "scale")
+    .map((e) => e.shape.quality)
     .filter((v): v is NonNullable<typeof v> => v !== undefined);
   return Array.from(new Set(values)).sort();
 }
@@ -306,8 +314,8 @@ export function distinctQualities(entries: ShapeCatalogEntry[]): string[] {
 const REPO = "TheGuitarStudio/tonal-guitar";
 
 function metadataLines(entry: ShapeCatalogEntry): string[] {
-  const chordShape = entry.kind === "chord" ? (entry.shape as ChordShape) : undefined;
-  const scaleShape = entry.kind === "scale" ? (entry.shape as ScaleShape) : undefined;
+  const chordShape = entry.kind === "chord" ? entry.shape : undefined;
+  const scaleShape = entry.kind === "scale" ? entry.shape : undefined;
 
   const pairs: [string, unknown][] = [
     ["system", entry.shape.system],
@@ -347,7 +355,7 @@ export function buildReportUrl(entry: ShapeCatalogEntry): string {
     `[shape-audit] ${entry.kind}: ${entry.name}` +
     (failingIds.length ? ` — ${failingIds.join(", ")}` : "");
 
-  const chordShape = entry.kind === "chord" ? (entry.shape as ChordShape) : undefined;
+  const chordShape = entry.kind === "chord" ? entry.shape : undefined;
 
   const sections: string[] = [
     `## Shape\n- kind: ${entry.kind}\n- name: ${entry.name}`,
@@ -356,7 +364,7 @@ export function buildReportUrl(entry: ShapeCatalogEntry): string {
     `## Built frets\n${fencedJson(entry.builtFrets)}`,
   ];
 
-  if (entry.sourceFrets) {
+  if (entry.kind === "chord" && entry.sourceFrets) {
     sections.push(
       `## Source frets\n- gripRoot: ${entry.gripRoot ?? "n/a"}\n${fencedJson(entry.sourceFrets)}`,
     );

@@ -322,14 +322,14 @@ export function gripRootFor(shape: ChordShape): string | undefined {
  */
 export function sourceFrets(
   shape: ChordShape,
-  gr: string,
+  gripRoot: string,
   tuning: string[] = STANDARD,
 ): (number | null)[] {
   const baseFret = shape.baseFret as number;
   return shape.strings.map((ivl, i) => {
     if (ivl == null) return null;
     if (shape.fingers[i] === 0) return 0;
-    const targetPc = transpose(gr, ivl);
+    const targetPc = transpose(gripRoot, ivl);
     const raw = (((chroma(targetPc) - chroma(tuning[i])) % 12) + 12) % 12;
     let f = raw;
     while (f < baseFret) f += 12;
@@ -354,11 +354,11 @@ export function checkGeometryMismatch(
 ): ShapeAuditIssue[] {
   if (shape.baseFret == null) return [];
 
-  const gr = gripRootFor(shape);
-  if (gr == null) return [];
+  const gripRoot = gripRootFor(shape);
+  if (gripRoot == null) return [];
 
-  const builtFrets = applyChordShape(shape, gr, tuning).frets;
-  const srcFrets = sourceFrets(shape, gr, tuning);
+  const builtFrets = applyChordShape(shape, gripRoot, tuning).frets;
+  const srcFrets = sourceFrets(shape, gripRoot, tuning);
 
   const mismatchedStrings: number[] = [];
   for (let i = 0; i < shape.strings.length; i++) {
@@ -378,7 +378,7 @@ export function checkGeometryMismatch(
         `Built geometry diverges from the source diagram on string(s) ` +
         `${mismatchedStrings.join(", ")}`,
       details: {
-        gripRoot: gr,
+        gripRoot,
         builtFrets,
         sourceFrets: srcFrets,
         mismatchedStrings,

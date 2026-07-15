@@ -49,6 +49,23 @@ import { CAGED_E } from "./data/caged-scales";
 import { CAGED_DM } from "./data/caged-scales-minor";
 import { PENTA_BOX_1_MINOR } from "./data/pentatonic-minor";
 
+/**
+ * Shared registry-wide assertion: every shape in `shapes` must pass `check`
+ * cleanly (`[]`). Asserts `shapes.length > 0` first (so an empty registry
+ * can't silently pass), then loops with an intent-revealing failure message
+ * naming both the offending shape and `label`.
+ */
+function expectRegistryClean<T extends { name: string }>(
+  shapes: T[],
+  check: (shape: T) => unknown[],
+  label: string,
+): void {
+  expect(shapes.length).toBeGreaterThan(0);
+  for (const shape of shapes) {
+    expect(check(shape), `${shape.name} unexpectedly flagged by ${label}`).toEqual([]);
+  }
+}
+
 describe("displayRootFor", () => {
   it("returns canonicalRoot when set", () => {
     expect(displayRootFor({ canonicalRoot: "C" })).toBe("C");
@@ -431,14 +448,11 @@ describe("checkFingerZeroOnMovable", () => {
   });
 
   it("registry-wide: no currently-registered shape fails checkFingerZeroOnMovable", () => {
-    const allShapes = chordShapes.all();
-    expect(allShapes.length).toBeGreaterThan(0);
-    for (const shape of allShapes) {
-      expect(
-        checkFingerZeroOnMovable(shape),
-        `${shape.name} unexpectedly flagged by checkFingerZeroOnMovable`,
-      ).toEqual([]);
-    }
+    expectRegistryClean(
+      chordShapes.all(),
+      checkFingerZeroOnMovable,
+      "checkFingerZeroOnMovable",
+    );
   });
 });
 
@@ -500,14 +514,11 @@ describe("checkRepeatedFingerNoBarre", () => {
   });
 
   it("registry-wide: no currently-registered shape fails checkRepeatedFingerNoBarre", () => {
-    const allShapes = chordShapes.all();
-    expect(allShapes.length).toBeGreaterThan(0);
-    for (const shape of allShapes) {
-      expect(
-        checkRepeatedFingerNoBarre(shape),
-        `${shape.name} unexpectedly flagged by checkRepeatedFingerNoBarre`,
-      ).toEqual([]);
-    }
+    expectRegistryClean(
+      chordShapes.all(),
+      checkRepeatedFingerNoBarre,
+      "checkRepeatedFingerNoBarre",
+    );
   });
 });
 
@@ -549,14 +560,11 @@ describe("checkChordBuildLoss", () => {
   });
 
   it("registry-wide: no currently-registered chord shape fails checkChordBuildLoss at displayRootFor", () => {
-    const allShapes = chordShapes.all();
-    expect(allShapes.length).toBeGreaterThan(0);
-    for (const shape of allShapes) {
-      expect(
-        checkChordBuildLoss(shape, displayRootFor(shape)),
-        `${shape.name} unexpectedly flagged by checkChordBuildLoss`,
-      ).toEqual([]);
-    }
+    expectRegistryClean(
+      chordShapes.all(),
+      (shape) => checkChordBuildLoss(shape, displayRootFor(shape)),
+      "checkChordBuildLoss",
+    );
   });
 
   it("fully unresolvable root (NoFrettedScale sentinel path): builtCount 0, one error issue", () => {
@@ -627,14 +635,11 @@ describe("checkScaleBuildLoss", () => {
   });
 
   it("registry-wide: no currently-registered scale shape fails checkScaleBuildLoss at 'C' (ScaleShape has no canonicalRoot; 'C' mirrors displayRootFor's default)", () => {
-    const allShapes = allScaleShapes();
-    expect(allShapes.length).toBeGreaterThan(0);
-    for (const shape of allShapes) {
-      expect(
-        checkScaleBuildLoss(shape, "C"),
-        `${shape.name} unexpectedly flagged by checkScaleBuildLoss`,
-      ).toEqual([]);
-    }
+    expectRegistryClean(
+      allScaleShapes(),
+      (shape) => checkScaleBuildLoss(shape, "C"),
+      "checkScaleBuildLoss",
+    );
   });
 });
 
@@ -756,23 +761,19 @@ describe("checkScaleMetadataCompleteness", () => {
   it("registry-wide: all 10 relabelShape-derived scale entries (caged-scales-minor.ts + pentatonic-minor.ts) pass checkScaleMetadataCompleteness cleanly", () => {
     const derived = allScaleShapes().filter((s) => s.parentShape !== undefined);
     expect(derived.length).toBe(10);
-    for (const shape of derived) {
-      expect(
-        checkScaleMetadataCompleteness(shape),
-        `${shape.name} unexpectedly flagged by checkScaleMetadataCompleteness`,
-      ).toEqual([]);
-    }
+    expectRegistryClean(
+      derived,
+      checkScaleMetadataCompleteness,
+      "checkScaleMetadataCompleteness",
+    );
   });
 
   it("registry-wide: no currently-registered scale shape fails checkScaleMetadataCompleteness", () => {
-    const allShapes = allScaleShapes();
-    expect(allShapes.length).toBeGreaterThan(0);
-    for (const shape of allShapes) {
-      expect(
-        checkScaleMetadataCompleteness(shape),
-        `${shape.name} unexpectedly flagged by checkScaleMetadataCompleteness`,
-      ).toEqual([]);
-    }
+    expectRegistryClean(
+      allScaleShapes(),
+      checkScaleMetadataCompleteness,
+      "checkScaleMetadataCompleteness",
+    );
   });
 });
 

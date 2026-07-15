@@ -16,7 +16,7 @@
 - [x] Phase 3: Architecture Review
 - [x] Phase 4: Architecture Fix
 - [x] Phase 5: Code Simplification Review
-- [ ] Phase 6: Code Simplification Fix
+- [x] Phase 6: Code Simplification Fix
 - [ ] Phase 7: Specialized Reviews
 - [ ] Phase 8: Specialized Fixes
 - [ ] Phase 9: Final Verification
@@ -90,5 +90,27 @@ Otherwise clean: no dead code, complexity, comment, or performance issues; the `
 - CR-015: [Suggestion] `ToggleGroup` options array literal recreated per render in `site/app/shapes/components/FilterBar.tsx:74-78` — hoist to module constant like `LEGEND`. Status: Open
 - CR-016: [Suggestion] `auditAllShapes` imported as value in `site/app/shapes/components/shapeLibraryUtils.ts:8-18` but only used in a `typeof` type position — move to the `import type` block. Status: Open
 - CR-017: [Suggestion] Repo slug `"TheGuitarStudio/tonal-guitar"` duplicated in `site/app/shapes/components/shapeLibraryUtils.ts:306` and `site/app/layout.config.tsx:29` — shared constant would avoid drift. Status: Open
+
+## Phase 6: Code Simplification Fixes
+
+### Fixed
+
+- CR-008: Fixed — shared `expectRegistryClean` helper in audit.test.ts replaces all six registry-wide sweep blocks
+- CR-009: Fixed — `gr` renamed to `gripRoot` throughout audit.ts (details object now uses shorthand)
+- CR-010: Fixed — ShapeCard properties block rewritten as pairs array + filter, matching `metadataLines` pattern; casts dropped
+- CR-011: Fixed — `ShapeCatalogEntry` is now a discriminated union (base + scale/chord variants; `sourceFrets`/`gripRoot` chord-only); all ~9 casts removed across shapeLibraryUtils.ts and ShapeCard.tsx. Triage note: exceeded the 20-line guideline but was mechanical and compiler-verified (`tsc --noEmit` + site build). One typing-driven change: `buildReportUrl`'s `if (entry.sourceFrets)` became `if (entry.kind === "chord" && entry.sourceFrets)` — behavior identical.
+- CR-012: Fixed — FilterBar nested ternary replaced with if/else chain
+- CR-015: Fixed — ToggleGroup options hoisted to module-level `KIND_TOGGLE_OPTIONS`
+- CR-016: Fixed — `auditAllShapes` moved to the `import type` block
+
+Triage note: trivial Suggestions (CR-009, CR-015, CR-016) were fixed inline rather than deferred — each was a one-liner cheaper to fix than to file.
+
+### Deferred
+
+- CR-013: GitHub issue #120 — needs a public-API design decision (export audit internals vs sync-guard test vs always-populated details)
+- CR-014: GitHub issue #121 — optional generic-helper abstraction, only two call sites
+- CR-017: GitHub issue #122 — needs a decision on where site-wide constants live
+
+Verification: `npm run lint` + `npm run build` + `npm test` (1001 tests) pass at root; `tsc --noEmit` + `npm run build` pass in site/ (15 pages, /shapes at 4.38 kB).
 - GitHub Issues Created: (none yet)
 - Total Commits: 0 | Total Fixes: 0 | Final Status: IN PROGRESS

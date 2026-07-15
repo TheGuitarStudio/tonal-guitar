@@ -2,7 +2,7 @@
 
 import { memo } from "react";
 import { CHECK_GEOMETRY_MISMATCH } from "tonal-guitar";
-import type { AuditSeverity, ChordShape, ScaleShape, ShapeAuditIssue } from "tonal-guitar";
+import type { AuditSeverity, ChordShape, ShapeAuditIssue } from "tonal-guitar";
 import { buildReportUrl, type ShapeCatalogEntry } from "./shapeLibraryUtils";
 import { ShapeCardDiagram } from "./ShapeCardDiagram";
 
@@ -68,41 +68,34 @@ function barreLabel(barre: ChordShape["barres"][number]): string {
 }
 
 export const ShapeCard = memo(function ShapeCard({ entry }: ShapeCardProps) {
-  const { kind, name, shape, renderRoot, issues, builtFrets, sourceFrets, gripRoot } = entry;
-  const chordShape = kind === "chord" ? (shape as ChordShape) : undefined;
-  const scaleShape = kind === "scale" ? (shape as ScaleShape) : undefined;
+  const { kind, name, shape, renderRoot, issues, builtFrets } = entry;
+  const chordShape = entry.kind === "chord" ? entry.shape : undefined;
+  const scaleShape = entry.kind === "scale" ? entry.shape : undefined;
+  const sourceFrets = entry.kind === "chord" ? entry.sourceFrets : undefined;
+  const gripRoot = entry.kind === "chord" ? entry.gripRoot : undefined;
 
   const sortedIssues = sortIssues(issues);
   const mismatchedStrings = mismatchedStringsFor(issues);
 
-  const properties: [string, string][] = [
+  const propertyPairs: [string, string | undefined][] = [
     ["system", shape.system],
-    ...(chordShape?.voicingFamily !== undefined
-      ? ([["voicingFamily", chordShape.voicingFamily]] as [string, string][])
-      : []),
-    ...(scaleShape?.quality !== undefined
-      ? ([["quality", scaleShape.quality]] as [string, string][])
-      : []),
-    ...(chordShape?.chordType !== undefined
-      ? ([["chordType", chordShape.chordType]] as [string, string][])
-      : []),
-    ...(chordShape?.inversion !== undefined
-      ? ([["inversion", String(chordShape.inversion)]] as [string, string][])
-      : []),
-    ...(chordShape?.canonicalRoot !== undefined
-      ? ([["canonicalRoot", chordShape.canonicalRoot]] as [string, string][])
-      : []),
-    ...(chordShape?.baseFret !== undefined
-      ? ([["baseFret", String(chordShape.baseFret)]] as [string, string][])
-      : []),
+    ["voicingFamily", chordShape?.voicingFamily],
+    ["quality", scaleShape?.quality],
+    ["chordType", chordShape?.chordType],
+    [
+      "inversion",
+      chordShape?.inversion !== undefined ? String(chordShape.inversion) : undefined,
+    ],
+    ["canonicalRoot", chordShape?.canonicalRoot],
+    ["baseFret", chordShape?.baseFret !== undefined ? String(chordShape.baseFret) : undefined],
     ["rootString", String(shape.rootString)],
-    ...(chordShape?.stringSet !== undefined
-      ? ([["stringSet", chordShape.stringSet.join(", ")]] as [string, string][])
-      : []),
-    ...(scaleShape?.parentShape !== undefined
-      ? ([["parentShape", scaleShape.parentShape]] as [string, string][])
-      : []),
+    ["stringSet", chordShape?.stringSet?.join(", ")],
+    ["parentShape", scaleShape?.parentShape],
   ];
+
+  const properties = propertyPairs.filter(
+    (pair): pair is [string, string] => pair[1] !== undefined,
+  );
 
   const stringCount = chordShape?.strings.length ?? entry.frettedScale.tuning.length;
   const stringIndexes = Array.from({ length: stringCount }, (_, i) => i);
