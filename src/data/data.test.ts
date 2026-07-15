@@ -20,6 +20,11 @@ import {
 import { applyChordShape, buildFrettedScale } from "../build";
 import { STANDARD } from "../tuning";
 import { get, all, names } from "../shape";
+import {
+  checkFretSpan,
+  checkFingerZeroOnMovable,
+  checkRepeatedFingerNoBarre,
+} from "../audit";
 
 // ─── Import all curated data files for side-effect registration ─────────────
 import "../data/caged-chords-7th";
@@ -474,13 +479,8 @@ describe("open-chords: build-equivalence tests", () => {
   // ─── Issue #94: playable-span regression for the corrected aug shapes ──────
 
   describe("aug shape fret span stays playable (issue #94)", () => {
-    const maxSpan = (frets: (number | null)[]): number => {
-      const fretted = frets.filter((f): f is number => f !== null && f > 0);
-      return fretted.length ? Math.max(...fretted) - Math.min(...fretted) : 0;
-    };
-
     it("OPEN_E_AUG at its canonical root spans at most 4 frets", () => {
-      expect(maxSpan(buildFrets(OPEN_E_AUG, "E"))).toBeLessThanOrEqual(4);
+      expect(checkFretSpan(OPEN_E_AUG, "E")).toEqual([]);
     });
 
     it("BARRE_E_AUG spans at most 4 frets at every chromatic root", () => {
@@ -500,9 +500,48 @@ describe("open-chords: build-equivalence tests", () => {
       ];
       for (const root of roots) {
         expect(
-          maxSpan(buildFrets(BARRE_E_AUG, root)),
+          checkFretSpan(BARRE_E_AUG, root),
           `BARRE_E_AUG at ${root} exceeds a playable span`,
-        ).toBeLessThanOrEqual(4);
+        ).toEqual([]);
+      }
+    });
+  });
+
+  // ─── Issue #96: registry-wide fret-span sweep for the open-chords registry ─
+  //
+  // Sweeps every shape registered by open-chords.ts (voicingFamily "open" and
+  // "barre" — the 70 shapes asserted by the "TG10" registry-count block
+  // below) through checkFretSpan at each shape's displayable root
+  // (canonicalRoot ?? "C" — barre shapes have no canonicalRoot and are
+  // movable, so "C" stands in as an arbitrary-but-fixed test root). Two
+  // shapes are known-bad (issue #96: their source diagrams don't survive
+  // the build engine's own anchor logic without an unplayable span) and are
+  // allowlisted here so CI stays green until that issue's fix lands — this
+  // does NOT weaken checkFretSpan itself, only which shapes this particular
+  // sweep enforces it against.
+  describe("registry-wide fret-span sweep (issue #96 known issues)", () => {
+    const KNOWN_ISSUES = ["G Augmented Open", "G m7b5 Open"];
+
+    it("every open/barre chord shape not in KNOWN_ISSUES has an empty fret-span audit", () => {
+      const shapes = [
+        ...chordShapes.query({ voicingFamily: "open" }),
+        ...chordShapes.query({ voicingFamily: "barre" }),
+      ];
+      expect(shapes.length).toBeGreaterThan(0);
+
+      for (const shape of shapes) {
+        if (KNOWN_ISSUES.includes(shape.name)) continue;
+        const root = shape.canonicalRoot ?? "C";
+        expect(
+          checkFretSpan(shape, root),
+          `${shape.name} at root "${root}" failed the fret-span check`,
+        ).toEqual([]);
+      }
+    });
+
+    it("KNOWN_ISSUES shapes are still registered (guards against a silently-removed allowlist entry)", () => {
+      for (const name of KNOWN_ISSUES) {
+        expect(chordShapes.get(name), `${name} not registered`).toBeDefined();
       }
     });
   });
@@ -824,34 +863,22 @@ describe("TG10 — Data integrity: chordShapes.all() count after all curated imp
 
 describe("chord-shape fingering/barre invariants (issue #39 audit)", () => {
   it("movable shapes (no canonicalRoot) never use finger 0", () => {
-    const movableShapes = chordShapes
-      .all()
-      .filter((s) => s.canonicalRoot === undefined);
-    expect(movableShapes.length).toBeGreaterThan(0);
-    for (const shape of movableShapes) {
+    const shapes = chordShapes.all();
+    expect(shapes.length).toBeGreaterThan(0);
+    for (const shape of shapes) {
       expect(
-        shape.fingers.includes(0),
+        checkFingerZeroOnMovable(shape),
         `${shape.name} is movable (no canonicalRoot) but asserts finger 0 (open string)`,
-      ).toBe(false);
+      ).toEqual([]);
     }
   });
 
   it("repeated fingers on adjacent strings are backed by a barre entry", () => {
     for (const shape of chordShapes.all()) {
-      const { fingers, barres, name } = shape;
-      for (let i = 0; i < fingers.length - 1; i++) {
-        const finger = fingers[i];
-        if (finger === null || finger === 0 || fingers[i + 1] !== finger)
-          continue;
-        const covered = barres.some(
-          (b) =>
-            b.finger === finger && i >= b.fromString && i + 1 <= b.toString,
-        );
-        expect(
-          covered,
-          `${name}: finger ${finger} repeats on adjacent strings ${i},${i + 1} with no barre entry covering them`,
-        ).toBe(true);
-      }
+      expect(
+        checkRepeatedFingerNoBarre(shape),
+        `${shape.name}: finger repeats on adjacent strings with no barre entry covering them`,
+      ).toEqual([]);
     }
   });
 });
