@@ -64,6 +64,8 @@ See [CHANGELOG.md](./CHANGELOG.md) for full details.
 
 ## API
 
+For automated chord/scale shape correctness and quality checks, see [Audit](docs/api/audit.md) — also viewable live on the deployed Guitar Lab [`/shapes`](https://theguitarstudio.github.io/tonal-guitar/shapes) page.
+
 ### Tuning Constants
 
 Pre-defined tunings as `string[]` arrays (low string to high string):
