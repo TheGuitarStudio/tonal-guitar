@@ -1,8 +1,12 @@
 "use client";
 
-import { memo } from "react";
+import { memo, useCallback, useState } from "react";
 import type { AuditSeverity, ShapeAuditIssue } from "tonal-guitar";
-import { buildReportUrl, type ShapeCatalogEntry } from "./shapeLibraryUtils";
+import {
+  buildReportUrl,
+  REPORT_ISSUE_BASE_URL,
+  type ShapeCatalogEntry,
+} from "./shapeLibraryUtils";
 import { ShapeCardDiagram } from "./ShapeCardDiagram";
 import { ShapeCardChordTable } from "./ShapeCardChordTable";
 
@@ -41,6 +45,16 @@ export const ShapeCard = memo(function ShapeCard({ entry }: ShapeCardProps) {
   const gripRoot = entry.kind === "chord" ? entry.gripRoot : undefined;
 
   const sortedIssues = sortIssues(issues);
+
+  // `buildReportUrl` JSON-stringifies the raw shape and all frets — deferred
+  // until the user shows intent to use the link (hover, focus, or
+  // mousedown), rather than computed eagerly for every card at mount. Until
+  // then the anchor points at a cheap placeholder so it stays a real,
+  // keyboard-focusable link the whole time.
+  const [reportUrl, setReportUrl] = useState<string | undefined>(undefined);
+  const ensureReportUrl = useCallback(() => {
+    setReportUrl((prev) => prev ?? buildReportUrl(entry));
+  }, [entry]);
 
   const propertyPairs: [string, string | undefined][] = [
     ["system", shape.system],
@@ -115,7 +129,10 @@ export const ShapeCard = memo(function ShapeCard({ entry }: ShapeCardProps) {
       )}
 
       <a
-        href={buildReportUrl(entry)}
+        href={reportUrl ?? REPORT_ISSUE_BASE_URL}
+        onPointerEnter={ensureReportUrl}
+        onFocus={ensureReportUrl}
+        onMouseDown={ensureReportUrl}
         target="_blank"
         rel="noopener"
         className="mt-3 inline-block text-xs text-fd-primary hover:underline"
