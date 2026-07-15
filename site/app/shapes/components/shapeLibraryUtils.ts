@@ -1,10 +1,11 @@
 // Pure helpers — no React imports, no "use client". Imports only from
 // "tonal-guitar" (the published library, consumed here via its `file:..`
-// dependency) and this module's own types. In particular this file must NOT
-// import "@tonaljs/*" directly: those packages are `tonal-guitar`'s peer
-// deps, not a declared dependency of `site/`, so a direct import would only
-// happen to resolve locally (via node_modules hoisting up to the repo root)
-// and could break in any environment that installs `site/` on its own.
+// dependency), this module's own types, and pure local `site/lib` constants.
+// In particular this file must NOT import "@tonaljs/*" directly: those
+// packages are `tonal-guitar`'s peer deps, not a declared dependency of
+// `site/`, so a direct import would only happen to resolve locally (via
+// node_modules hoisting up to the repo root) and could break in any
+// environment that installs `site/` on its own.
 import {
   all,
   chordShapes,
@@ -24,6 +25,7 @@ import type {
   AuditSeverity,
   auditAllShapes,
 } from "tonal-guitar";
+import { REPO_SLUG } from "@/lib/repo";
 
 export type ShapeKind = "scale" | "chord";
 
@@ -311,8 +313,6 @@ export function distinctQualities(entries: ShapeCatalogEntry[]): string[] {
 // Report-problem flow
 // ============================================================
 
-const REPO = "TheGuitarStudio/tonal-guitar";
-
 function metadataLines(entry: ShapeCatalogEntry): string[] {
   const chordShape = entry.kind === "chord" ? entry.shape : undefined;
   const scaleShape = entry.kind === "scale" ? entry.shape : undefined;
@@ -387,7 +387,7 @@ export function buildReportUrl(entry: ShapeCatalogEntry): string {
   const body = sections.join("\n\n");
 
   return (
-    `https://github.com/${REPO}/issues/new?labels=bug` +
+    `https://github.com/${REPO_SLUG}/issues/new?labels=bug` +
     `&title=${encodeURIComponent(title)}` +
     `&body=${encodeURIComponent(body)}`
   );
