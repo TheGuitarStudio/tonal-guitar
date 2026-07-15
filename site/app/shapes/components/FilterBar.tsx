@@ -75,6 +75,8 @@ export function FilterBar({
     return distinctQualities(kindEntries);
   }, [kindEntries, kind]);
   const familyOrQualityLabel = kind === "scale" ? "Quality" : "Voicing family";
+  const familyOrQualityPlural =
+    kind === "scale" ? "qualities" : "voicing families";
 
   return (
     <div className="mb-4 flex flex-wrap items-center gap-2">
@@ -100,7 +102,7 @@ export function FilterBar({
         className="rounded-md border border-fd-border bg-fd-background px-3 py-1.5 text-sm"
         aria-label={`Filter by ${familyOrQualityLabel.toLowerCase()}`}
       >
-        <option value={FILTER_ALL}>All {familyOrQualityLabel.toLowerCase()}</option>
+        <option value={FILTER_ALL}>All {familyOrQualityPlural}</option>
         {familyOrQualityOptions.map((v) => (
           <option key={v} value={v}>
             {v}

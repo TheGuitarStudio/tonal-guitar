@@ -19,12 +19,20 @@ interface ShapeCardDiagramProps {
 }
 
 // Per-string fret summary for the diagram's `aria-label` — e.g. "muted, 3,
-// 2, 0, 1, 0" for a 6-string chord. `builtFrets` is already one
-// representative fret per string (or `null` for muted), so this just needs
-// stringifying; no fretboard-specific data beyond what `ShapeCardDiagram`
-// already receives via `entry`.
-function fretSummary(builtFrets: (number | null)[]): string {
-  return builtFrets.map((f) => (f === null ? "muted" : String(f))).join(", ");
+// 2, 0, 1, 0" for a 6-string chord, or "3 5 7, 3 5 7, …" for a scale shape
+// that places several notes on a string. Built from `frettedScale.notes`
+// (every rendered marker) rather than `builtFrets` (one representative fret
+// per string), so the label describes everything the diagram shows.
+function fretSummary(entry: ShapeCatalogEntry): string {
+  const perString: number[][] = entry.frettedScale.tuning.map(() => []);
+  for (const n of entry.frettedScale.notes) {
+    perString[n.string].push(n.fret);
+  }
+  return perString
+    .map((frets) =>
+      frets.length === 0 ? "muted" : [...frets].sort((a, b) => a - b).join(" "),
+    )
+    .join(", ");
 }
 
 /**
@@ -35,7 +43,7 @@ function fretSummary(builtFrets: (number | null)[]): string {
  * once per card doesn't multiply state across the whole grid.
  */
 export function ShapeCardDiagram({ entry }: ShapeCardDiagramProps) {
-  const { frettedScale, renderRoot, name, builtFrets } = entry;
+  const { frettedScale, renderRoot, name } = entry;
 
   if (frettedScale.notes.length === 0) {
     return (
@@ -62,10 +70,9 @@ export function ShapeCardDiagram({ entry }: ShapeCardDiagramProps) {
 
   // `role="img"` collapses the SVG's internals (text, paths, etc.) into a
   // single presentational unit for assistive tech, replaced by this label —
-  // this is also what stops the fret-number table further down the card
-  // (rendered for chords) from being duplicated as an unstructured
-  // character-by-character read-out of the SVG.
-  const diagramLabel = `${name} at ${renderRoot}, frets low to high: ${fretSummary(builtFrets)}`;
+  // without it the SVG's fret numbers and string letters would surface as an
+  // unstructured character-by-character read-out.
+  const diagramLabel = `${name} at ${renderRoot}, frets low to high: ${fretSummary(entry)}`;
 
   return (
     <div

@@ -2,9 +2,8 @@
  * Shape visual/quality audit checks.
  *
  * Dependency tier: required-peer-deps (alongside build.ts). This module
- * imports only ./build, ./shape, ./tuning, and the required-peer Tonal
- * packages (@tonaljs/note, @tonaljs/interval) — it MUST NOT import
- * ./integration or reference @tonaljs/scale, @tonaljs/chord, or
+ * imports only ./build, ./shape, ./tuning, and @tonaljs/note — it MUST NOT
+ * import ./integration or reference @tonaljs/scale, @tonaljs/chord, or
  * @tonaljs/key. See CLAUDE.md's "Dependency layers" section.
  */
 

@@ -162,7 +162,7 @@ export function chordFingeringToFrettedScale(
 // place more than one note on a string; this keeps one representative fret
 // per string so every catalog entry — scale or chord — has a `builtFrets`
 // value with a stable, documented meaning.
-function framesFromNotes(notes: FrettedNote[], tuning: string[]): (number | null)[] {
+function fretsFromNotes(notes: FrettedNote[], tuning: string[]): (number | null)[] {
   const frets: (number | null)[] = tuning.map(() => null);
   for (const n of notes) {
     frets[n.string] = n.fret;
@@ -184,7 +184,7 @@ export function buildCatalog(
     // resolves scale shapes to its "C" fallback.
     const renderRoot = displayRootFor({});
     const frettedScale = buildFrettedScale(shape, renderRoot, STANDARD);
-    const builtFrets = framesFromNotes(frettedScale.notes, STANDARD);
+    const builtFrets = fretsFromNotes(frettedScale.notes, STANDARD);
 
     entries.push({
       kind: "scale",

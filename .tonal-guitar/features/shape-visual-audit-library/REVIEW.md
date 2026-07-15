@@ -14,7 +14,7 @@
 - [x] Phase 1: Setup
 - [x] Phase 2: Lint/Test Fix (clean — lint, build, 1001 tests, site build all green; 0 issues)
 - [x] Phase 3: Architecture Review
-- [ ] Phase 4: Architecture Fix
+- [x] Phase 4: Architecture Fix
 - [ ] Phase 5: Code Simplification Review
 - [ ] Phase 6: Code Simplification Fix
 - [ ] Phase 7: Specialized Reviews
@@ -169,6 +169,18 @@ All loop-1 fix sites verified sound: `sourceFrets` signature change has no stale
 ### docs
 
 No findings — signatures, worked examples, and CLAUDE.md claims all still match after loop-1 fixes.
+
+## Phase 4 (Loop 2): Architecture Fixes
+
+All five Suggestions fixed directly by the lead (each a few lines; agent dispatch would have cost more than the fixes):
+
+- CR-027: Fixed — audit.ts header comment no longer claims `@tonaljs/interval`
+- CR-028: Fixed — `fretSummary` now builds the aria-label from `frettedScale.notes` (all frets per string, sorted), fully describing multi-note-per-string scale shapes; chord output unchanged
+- CR-029: Fixed — misleading `role="img"` comment corrected (drops the sibling-table claim)
+- CR-030: Fixed — `framesFromNotes` renamed to `fretsFromNotes`
+- CR-031: Fixed — filter placeholder now reads "All qualities" / "All voicing families"
+
+Verification: lint + 1001 tests pass at root; `tsc --noEmit` + build pass in site/.
 
 ## Phase 8: Specialized Fixes
 
