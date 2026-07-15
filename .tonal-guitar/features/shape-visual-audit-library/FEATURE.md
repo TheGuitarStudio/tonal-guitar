@@ -37,7 +37,7 @@ Saved to `reviews/research-review.md`. Verdict: proceed to Shape, but tighten sp
 
 | Layer | Task Group | Status | Agent | Notes |
 | ----- | ---------- | ------ | ----- | ----- |
-| 0 | TG1: Audit module scaffold | pending | - | - |
+| 0 | TG1: Audit module scaffold | complete | sonnet | - |
 | 1 | TG6: checkGeometryMismatch spike | pending | - | sequential (shared files) |
 | 1 | TG2: checkFretSpan | pending | - | sequential (shared files) |
 | 1 | TG3: checkFingerZeroOnMovable + checkRepeatedFingerNoBarre | pending | - | sequential (shared files) |
@@ -52,5 +52,7 @@ Saved to `reviews/research-review.md`. Verdict: proceed to Shape, but tighten sp
 | 6 | TG13: Test review and gap analysis | pending | - | - |
 
 ### Oversight Reports
+
+- **Layer 0**: No concerns. Continued.
 
 ### Spec Compliance
