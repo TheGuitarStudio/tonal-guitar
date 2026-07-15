@@ -31,6 +31,31 @@ export interface ShapeAuditOptions {
   maxFretSpan?: number; // default: 4
 }
 
+/**
+ * Always-populated (not just on mismatch) geometry data for a `baseFret`-
+ * carrying chord shape with a resolvable grip root: the root its source
+ * diagram was authored against, and the per-string frets that diagram
+ * implies. See `chordShapeGeometry`/`gripRootFor`/`sourceFrets` below —
+ * this is the same data `checkGeometryMismatch` computes to decide whether
+ * to flag a shape, surfaced unconditionally so consumers (e.g. the Guitar
+ * Lab site's shape library) can render a "source frets" row on every
+ * resolvable card, not only the ones that mismatch.
+ */
+export interface ChordGeometryDetails {
+  gripRoot: string;
+  sourceFrets: (number | null)[];
+}
+
+/**
+ * Per-shape audit output for a single chord shape: its issue list plus
+ * always-populated geometry details (`undefined` when the shape has no
+ * `baseFret` or no resolvable grip root — see `chordShapeGeometry`).
+ */
+export interface ChordShapeAuditResult {
+  issues: ShapeAuditIssue[];
+  geometry?: ChordGeometryDetails;
+}
+
 // ============================================================
 // Check-ID constants
 // ============================================================
@@ -350,6 +375,34 @@ export function sourceFrets(
 }
 
 /**
+ * Computes the always-populated `ChordGeometryDetails` for `shape`: the
+ * grip root its source diagram was authored against, and the per-string
+ * frets that diagram implies (`sourceFrets`, anchored at `shape.baseFret`).
+ * Returns `undefined` under the same two conditions `checkGeometryMismatch`
+ * skips under — no `baseFret`, or no resolvable grip root (see
+ * `gripRootFor`) — since neither yields a source diagram to reconstruct.
+ *
+ * This is the single computation both `checkGeometryMismatch` (which
+ * additionally compares it against the build engine's own reconstruction)
+ * and the aggregate functions (which surface it unconditionally, for every
+ * shape, via `ChordShapeAuditResult.geometry`) are built on.
+ */
+export function chordShapeGeometry(
+  shape: ChordShape,
+  tuning: string[] = STANDARD,
+): ChordGeometryDetails | undefined {
+  if (shape.baseFret == null) return undefined;
+
+  const gripRoot = gripRootFor(shape);
+  if (gripRoot == null) return undefined;
+
+  return {
+    gripRoot,
+    sourceFrets: sourceFrets(shape, gripRoot, shape.baseFret, tuning),
+  };
+}
+
+/**
  * Detects divergence between the build engine's reconstructed geometry
  * (`applyChordShape`, which ignores `baseFret`/`fingers`/`barres`) and the
  * geometry implied by the shape's own source diagram. Applies only to
@@ -364,13 +417,11 @@ export function checkGeometryMismatch(
   shape: ChordShape,
   tuning: string[] = STANDARD,
 ): ShapeAuditIssue[] {
-  if (shape.baseFret == null) return [];
+  const geometry = chordShapeGeometry(shape, tuning);
+  if (geometry == null) return [];
 
-  const gripRoot = gripRootFor(shape);
-  if (gripRoot == null) return [];
-
+  const { gripRoot, sourceFrets: srcFrets } = geometry;
   const builtFrets = applyChordShape(shape, gripRoot, tuning).frets;
-  const srcFrets = sourceFrets(shape, gripRoot, shape.baseFret, tuning);
 
   const mismatchedStrings: number[] = [];
   for (let i = 0; i < shape.strings.length; i++) {
@@ -467,14 +518,27 @@ export function auditScaleShape(
  * index.ts, so this only returns full results once the data modules have
  * been imported — in tests, import `./index` or the relevant data modules
  * first to populate them.
+ *
+ * Chord results are `ChordShapeAuditResult` — `issues` plus an
+ * always-populated `geometry` (via `chordShapeGeometry`), not just on the
+ * shapes `checkGeometryMismatch` flags — so a consumer rendering every card
+ * (e.g. the Guitar Lab site's shape library) can show source-diagram frets
+ * without re-deriving `gripRootFor`/`sourceFrets` itself. Scale shapes have
+ * no comparable geometry concept, so their results remain a plain issue
+ * list.
  */
 export function auditAllShapes(options?: ShapeAuditOptions): {
-  chord: Map<string, ShapeAuditIssue[]>;
+  chord: Map<string, ChordShapeAuditResult>;
   scale: Map<string, ShapeAuditIssue[]>;
 } {
-  const chord = new Map<string, ShapeAuditIssue[]>();
+  const tuning = options?.tuning ?? STANDARD;
+
+  const chord = new Map<string, ChordShapeAuditResult>();
   for (const shape of chordShapes.all()) {
-    chord.set(shape.name, auditChordShape(shape, options));
+    chord.set(shape.name, {
+      issues: auditChordShape(shape, options),
+      geometry: chordShapeGeometry(shape, tuning),
+    });
   }
 
   const scale = new Map<string, ShapeAuditIssue[]>();

@@ -62,6 +62,7 @@ export {
   checkChordMetadataCompleteness,
   checkScaleMetadataCompleteness,
   checkGeometryMismatch,
+  chordShapeGeometry,
   CHECK_FRET_SPAN,
   CHECK_FINGER_ZERO_ON_MOVABLE,
   CHECK_REPEATED_FINGER_NO_BARRE,
@@ -69,7 +70,13 @@ export {
   CHECK_METADATA_COMPLETENESS,
   CHECK_GEOMETRY_MISMATCH,
 } from "./audit";
-export type { AuditSeverity, ShapeAuditIssue, ShapeAuditOptions } from "./audit";
+export type {
+  AuditSeverity,
+  ShapeAuditIssue,
+  ShapeAuditOptions,
+  ChordGeometryDetails,
+  ChordShapeAuditResult,
+} from "./audit";
 
 // Pattern generators
 export {
