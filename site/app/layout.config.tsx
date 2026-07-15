@@ -5,6 +5,7 @@ import {
   ExternalLinkIcon,
   LayoutGridIcon,
 } from "lucide-react";
+import { REPO_URL } from "@/lib/repo";
 
 export const baseOptions: HomeLayoutProps = {
   nav: {
@@ -29,7 +30,7 @@ export const baseOptions: HomeLayoutProps = {
     {
       text: "Repository",
       icon: <ExternalLinkIcon />,
-      url: "https://github.com/TheGuitarStudio/tonal-guitar",
+      url: REPO_URL,
     },
   ],
 };
