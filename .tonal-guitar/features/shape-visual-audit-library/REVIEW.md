@@ -18,7 +18,7 @@
 - [x] Phase 5: Code Simplification Review
 - [x] Phase 6: Code Simplification Fix
 - [x] Phase 7: Specialized Reviews
-- [ ] Phase 8: Specialized Fixes
+- [x] Phase 8: Specialized Fixes
 - [ ] Phase 9: Final Verification
 
 ## Statistics
@@ -137,5 +137,24 @@ Otherwise clean: no `any`/`as any`, no non-null assertions, discriminated union 
 - CR-026: [Suggestion] `site/app/shapes/components/FilterBar.tsx:134-136` — "Showing N of M" count updates silently; add `aria-live="polite"`. Status: Open
 
 Note: skill map prescribes a `superpowers:code-reviewer` agent for accessibility; that plugin isn't installed, so `feature-dev:code-reviewer` was used.
+
+## Phase 8: Specialized Fixes
+
+### Fixed
+
+- CR-018: Fixed — `mismatchedStringsFor` validates elements with a `typeof v === "number"` type-predicate filter instead of the blind cast
+- CR-019: Fixed — `sourceFrets` now takes `baseFret: number` as an explicit parameter; internal cast removed; caller and test call site updated (docs needed no change — the doc only shows `sourceFrets` as a details field, not a signature)
+- CR-020: Fixed — `ToggleGroup` made generic over its value type; `KIND_TOGGLE_OPTIONS` typed with `ShapeKind`; cast removed
+- CR-021 + CR-022: Fixed together — diagram wrapper now has `role="img"` with a computed aria-label ("name at root, frets low to high: …"); gives scale cards accessible content and makes SVG internals presentational for chord cards
+- CR-023: Fixed — `aria-pressed={active}` on toggle buttons
+- CR-024: Fixed — light-mode badge/mismatch text darkened to `text-amber-700`/`text-red-700` (≥4.5:1 verified against the 10%-tint backgrounds), original shades kept for dark mode via `dark:` variants
+- CR-025: Fixed — sr-only `<h2>Shape results</h2>` added above the grid in ShapeLibrary
+- CR-026: Fixed inline (trivial Suggestion) — `aria-live="polite"` on the results count
+
+### Deferred / Won't Fix
+
+- (none)
+
+Verification: `npm run lint` + `npm run build` + `npm test` pass at root; `tsc --noEmit` + `npm run build` pass in site/.
 - GitHub Issues Created: (none yet)
 - Total Commits: 0 | Total Fixes: 0 | Final Status: IN PROGRESS

@@ -137,7 +137,7 @@ describe("checkGeometryMismatch fixtures", () => {
   it("OPEN_C_MAJOR: sourceFrets reproduces baseFret as min fretted fret; built == source", () => {
     const gr = gripRootFor(OPEN_C_MAJOR);
     expect(gr).toBe("C");
-    const src = sourceFrets(OPEN_C_MAJOR, gr as string);
+    const src = sourceFrets(OPEN_C_MAJOR, gr as string, OPEN_C_MAJOR.baseFret as number);
     const fretted = src.filter((f): f is number => f != null && f > 0);
     expect(Math.min(...fretted)).toBe(OPEN_C_MAJOR.baseFret);
     const issues = checkGeometryMismatch(OPEN_C_MAJOR);

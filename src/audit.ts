@@ -314,8 +314,9 @@ export function gripRootFor(shape: ChordShape): string | undefined {
  * until it falls at or above `baseFret`, matching where the source diagram
  * places it.
  *
- * Only called once `shape.baseFret != null` has already been confirmed by
- * `checkGeometryMismatch` — the non-null assertion below relies on that.
+ * `baseFret` is taken as an explicit parameter rather than read off
+ * `shape.baseFret` so the dependency is visible at every call site;
+ * `checkGeometryMismatch` passes its already null-checked value.
  *
  * Exported (but not re-exported from ./index) so tests can exercise it
  * directly — it is otherwise an internal helper of checkGeometryMismatch.
@@ -323,9 +324,9 @@ export function gripRootFor(shape: ChordShape): string | undefined {
 export function sourceFrets(
   shape: ChordShape,
   gripRoot: string,
+  baseFret: number,
   tuning: string[] = STANDARD,
 ): (number | null)[] {
-  const baseFret = shape.baseFret as number;
   return shape.strings.map((ivl, i) => {
     if (ivl == null) return null;
     if (shape.fingers[i] === 0) return 0;
@@ -358,7 +359,7 @@ export function checkGeometryMismatch(
   if (gripRoot == null) return [];
 
   const builtFrets = applyChordShape(shape, gripRoot, tuning).frets;
-  const srcFrets = sourceFrets(shape, gripRoot, tuning);
+  const srcFrets = sourceFrets(shape, gripRoot, shape.baseFret, tuning);
 
   const mismatchedStrings: number[] = [];
   for (let i = 0; i < shape.strings.length; i++) {

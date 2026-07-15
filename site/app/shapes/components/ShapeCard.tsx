@@ -24,10 +24,10 @@ function severityRank(severity: AuditSeverity): number {
 
 function badgeClassFor(severity: AuditSeverity): string {
   if (severity === "error") {
-    return "bg-red-500/10 text-red-600 border border-red-500/40";
+    return "bg-red-500/10 text-red-700 dark:text-red-600 border border-red-500/40";
   }
   if (severity === "warning") {
-    return "bg-amber-500/10 text-amber-600 border border-amber-500/40";
+    return "bg-amber-500/10 text-amber-700 dark:text-amber-600 border border-amber-500/40";
   }
   return "border border-fd-border bg-fd-muted text-fd-muted-foreground";
 }
@@ -41,7 +41,10 @@ function sortIssues(issues: ShapeAuditIssue[]): ShapeAuditIssue[] {
 function mismatchedStringsFor(issues: ShapeAuditIssue[]): Set<number> {
   const issue = issues.find((i) => i.id === CHECK_GEOMETRY_MISMATCH);
   const raw = issue?.details?.mismatchedStrings;
-  return new Set(Array.isArray(raw) ? (raw as number[]) : []);
+  const validated = Array.isArray(raw)
+    ? raw.filter((v): v is number => typeof v === "number")
+    : [];
+  return new Set(validated);
 }
 
 function intervalCell(shape: ChordShape, i: number): string {
@@ -191,7 +194,7 @@ export const ShapeCard = memo(function ShapeCard({ entry }: ShapeCardProps) {
                       key={i}
                       className={`px-1 text-center ${
                         mismatchedStrings.has(i)
-                          ? "bg-amber-500/10 text-amber-600"
+                          ? "bg-amber-500/10 text-amber-700 dark:text-amber-600"
                           : ""
                       }`}
                     >

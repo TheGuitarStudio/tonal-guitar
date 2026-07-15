@@ -18,6 +18,15 @@ interface ShapeCardDiagramProps {
   entry: ShapeCatalogEntry;
 }
 
+// Per-string fret summary for the diagram's `aria-label` — e.g. "muted, 3,
+// 2, 0, 1, 0" for a 6-string chord. `builtFrets` is already one
+// representative fret per string (or `null` for muted), so this just needs
+// stringifying; no fretboard-specific data beyond what `ShapeCardDiagram`
+// already receives via `entry`.
+function fretSummary(builtFrets: (number | null)[]): string {
+  return builtFrets.map((f) => (f === null ? "muted" : String(f))).join(", ");
+}
+
 /**
  * Trimmed, controls-less adapter over `<Fretboard>` for the shape library's
  * 159-card grid. Unlike `FretboardDiagram` (which carries per-instance
@@ -26,7 +35,7 @@ interface ShapeCardDiagramProps {
  * once per card doesn't multiply state across the whole grid.
  */
 export function ShapeCardDiagram({ entry }: ShapeCardDiagramProps) {
-  const { frettedScale, renderRoot } = entry;
+  const { frettedScale, renderRoot, name, builtFrets } = entry;
 
   if (frettedScale.notes.length === 0) {
     return (
@@ -51,8 +60,19 @@ export function ShapeCardDiagram({ entry }: ShapeCardDiagramProps) {
     intervalNumber: n.intervalNumber,
   }));
 
+  // `role="img"` collapses the SVG's internals (text, paths, etc.) into a
+  // single presentational unit for assistive tech, replaced by this label —
+  // this is also what stops the fret-number table further down the card
+  // (rendered for chords) from being duplicated as an unstructured
+  // character-by-character read-out of the SVG.
+  const diagramLabel = `${name} at ${renderRoot}, frets low to high: ${fretSummary(builtFrets)}`;
+
   return (
-    <div className="overflow-x-auto text-fd-foreground">
+    <div
+      role="img"
+      aria-label={diagramLabel}
+      className="overflow-x-auto text-fd-foreground"
+    >
       <Fretboard
         tuning={frettedScale.tuning}
         markers={markers}

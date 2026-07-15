@@ -96,6 +96,8 @@ export function ShapeLibrary() {
         ))}
       </div>
 
+      <h2 className="sr-only">Shape results</h2>
+
       {shownEntries.length === 0 ? (
         <p className="text-sm text-fd-muted-foreground">
           No shapes match the current filters.

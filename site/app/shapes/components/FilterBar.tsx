@@ -13,7 +13,7 @@ export const FILTER_ALL = "all";
 
 /** Kind toggle options for the `ToggleGroup` below — hoisted so it isn't
  * recreated on every render (mirrors `LEGEND` in ShapeCardDiagram.tsx). */
-const KIND_TOGGLE_OPTIONS = [
+const KIND_TOGGLE_OPTIONS: { value: ShapeKind; label: string }[] = [
   { value: "scale", label: "Scale" },
   { value: "chord", label: "Chord" },
 ];
@@ -78,11 +78,7 @@ export function FilterBar({
 
   return (
     <div className="mb-4 flex flex-wrap items-center gap-2">
-      <ToggleGroup
-        options={KIND_TOGGLE_OPTIONS}
-        value={kind}
-        onChange={(v) => onKindChange(v as ShapeKind)}
-      />
+      <ToggleGroup options={KIND_TOGGLE_OPTIONS} value={kind} onChange={onKindChange} />
 
       <select
         value={system}
@@ -131,23 +127,25 @@ export function FilterBar({
         Failing only
       </label>
 
-      <span className="text-sm text-fd-muted-foreground">
+      <span className="text-sm text-fd-muted-foreground" aria-live="polite">
         Showing {shownCount} of {totalCount}
       </span>
     </div>
   );
 }
 
-interface ToggleGroupProps {
-  options: { value: string; label: string }[];
-  value: string;
-  onChange: (v: string) => void;
+interface ToggleGroupProps<V extends string> {
+  options: { value: V; label: string }[];
+  value: V;
+  onChange: (v: V) => void;
 }
 
-// Copied verbatim from
+// Adapted from
 // `site/app/experiments/components/FretboardDiagram.tsx`'s (non-exported)
-// `ToggleGroup` helper.
-function ToggleGroup({ options, value, onChange }: ToggleGroupProps) {
+// `ToggleGroup` helper — made generic over its value type so callers (e.g.
+// `KIND_TOGGLE_OPTIONS`'s `ShapeKind` values) don't need to cast in
+// `onChange`.
+function ToggleGroup<V extends string>({ options, value, onChange }: ToggleGroupProps<V>) {
   return (
     <div className="inline-flex rounded-md border border-fd-border text-xs">
       {options.map((opt, i) => {
@@ -164,6 +162,7 @@ function ToggleGroup({ options, value, onChange }: ToggleGroupProps) {
           <button
             key={opt.value}
             type="button"
+            aria-pressed={active}
             onClick={() => onChange(opt.value)}
             className={`${radius} px-3 py-1 transition-colors ${
               active
