@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  auditAllShapes,
+  auditChordShape,
+  auditScaleShape,
   checkChordBuildLoss,
   checkChordMetadataCompleteness,
   checkFingerZeroOnMovable,
@@ -11,6 +14,7 @@ import {
   CHECK_BUILD_LOSS,
   CHECK_FINGER_ZERO_ON_MOVABLE,
   CHECK_FRET_SPAN,
+  CHECK_GEOMETRY_MISMATCH,
   CHECK_METADATA_COMPLETENESS,
   CHECK_REPEATED_FINGER_NO_BARRE,
   displayRootFor,
@@ -28,6 +32,7 @@ import type {
   ShapeAuditOptions as ShapeAuditOptionsFromIndex,
 } from "./index";
 import { VERSION } from "./version";
+import { STANDARD } from "./tuning";
 import { all as allScaleShapes, chordShapes, get as getScaleShape, ChordShape, ScaleShape } from "./shape";
 import {
   BARRE_E_SUS2,
@@ -726,5 +731,128 @@ describe("checkScaleMetadataCompleteness", () => {
         `${shape.name} unexpectedly flagged by checkScaleMetadataCompleteness`,
       ).toEqual([]);
     }
+  });
+});
+
+// ============================================================
+// auditChordShape / auditScaleShape / auditAllShapes — Task Group 7
+// ============================================================
+
+describe("auditChordShape", () => {
+  it("OPEN_G_AUG (#96 known-bad): combines checkFretSpan (error) + checkGeometryMismatch (warning), using displayRootFor as the default root", () => {
+    expect(OPEN_G_AUG.canonicalRoot).toBe("G");
+    const issues = auditChordShape(OPEN_G_AUG);
+
+    const fretSpanIssues = issues.filter((i) => i.id === CHECK_FRET_SPAN);
+    const geometryIssues = issues.filter((i) => i.id === CHECK_GEOMETRY_MISMATCH);
+    expect(fretSpanIssues.length).toBe(1);
+    expect(fretSpanIssues[0].severity).toBe("error");
+    expect(geometryIssues.length).toBe(1);
+    expect(geometryIssues[0].severity).toBe("warning");
+
+    // No other check fires for this shape.
+    expect(issues.length).toBe(2);
+
+    // Confirms the default root matches displayRootFor(shape), not a
+    // hardcoded literal.
+    expect(checkFretSpan(OPEN_G_AUG, displayRootFor(OPEN_G_AUG))).toEqual(
+      fretSpanIssues,
+    );
+  });
+
+  it("auditChordShape(shape, { root: 'D' }) overrides the default root", () => {
+    const defaultIssues = auditChordShape(OPEN_C_MAJOR);
+    const overriddenIssues = auditChordShape(OPEN_C_MAJOR, { root: "D" });
+
+    // Applying the C-shape grip at D transposes every fretted note up by
+    // a whole step, changing the built frets (and therefore, potentially,
+    // the fret-span/geometry results) relative to the default root.
+    const defaultFretSpan = checkFretSpan(OPEN_C_MAJOR, "C");
+    const overriddenFretSpan = checkFretSpan(OPEN_C_MAJOR, "D");
+    expect(auditChordShape(OPEN_C_MAJOR, { root: "D" })).toEqual(
+      auditChordShape(OPEN_C_MAJOR, { root: "D", tuning: undefined }),
+    );
+    expect(defaultIssues).not.toBe(overriddenIssues);
+    expect(overriddenFretSpan).toEqual(
+      checkFretSpan(OPEN_C_MAJOR, "D", STANDARD),
+    );
+    expect(defaultFretSpan).toEqual(checkFretSpan(OPEN_C_MAJOR, "C", STANDARD));
+  });
+});
+
+describe("auditScaleShape", () => {
+  it("runs only checkScaleBuildLoss + checkScaleMetadataCompleteness — never fret-span/finger/geometry", () => {
+    const gShape = getScaleShape("G Shape");
+    expect(gShape).toBeDefined();
+
+    const issues = auditScaleShape(gShape as ScaleShape);
+    const expected = [
+      ...checkScaleBuildLoss(gShape as ScaleShape, "C"),
+      ...checkScaleMetadataCompleteness(gShape as ScaleShape),
+    ];
+    expect(issues).toEqual(expected);
+
+    // None of the chord-only check IDs ever appear.
+    const chordOnlyIds = new Set([
+      CHECK_FRET_SPAN,
+      CHECK_FINGER_ZERO_ON_MOVABLE,
+      CHECK_REPEATED_FINGER_NO_BARRE,
+      CHECK_GEOMETRY_MISMATCH,
+    ]);
+    for (const issue of issues) {
+      expect(chordOnlyIds.has(issue.id)).toBe(false);
+    }
+  });
+
+  it("registry-wide: auditScaleShape never emits a chord-only check ID for any registered scale shape", () => {
+    const chordOnlyIds = new Set([
+      CHECK_FRET_SPAN,
+      CHECK_FINGER_ZERO_ON_MOVABLE,
+      CHECK_REPEATED_FINGER_NO_BARRE,
+      CHECK_GEOMETRY_MISMATCH,
+    ]);
+    for (const shape of allScaleShapes()) {
+      const issues = auditScaleShape(shape);
+      for (const issue of issues) {
+        expect(chordOnlyIds.has(issue.id)).toBe(false);
+      }
+    }
+  });
+});
+
+describe("auditAllShapes", () => {
+  it("returns { chord: Map, scale: Map } keyed by shape.name, sized to the registries", () => {
+    const { chord, scale } = auditAllShapes();
+
+    expect(chord).toBeInstanceOf(Map);
+    expect(scale).toBeInstanceOf(Map);
+    expect(chord.size).toBe(chordShapes.all().length);
+    expect(scale.size).toBe(allScaleShapes().length);
+
+    for (const shape of chordShapes.all()) {
+      expect(chord.has(shape.name)).toBe(true);
+    }
+    for (const shape of allScaleShapes()) {
+      expect(scale.has(shape.name)).toBe(true);
+    }
+  });
+
+  it("never throws for the full registry", () => {
+    expect(() => auditAllShapes()).not.toThrow();
+  });
+
+  it("spot-check: chord.get('G Augmented Open') and chord.get('G m7b5 Open') both contain at least one error-severity issue (regression guard for #96 staying visible)", () => {
+    const { chord } = auditAllShapes();
+
+    const gAug = chord.get("G Augmented Open");
+    const gM7b5 = chord.get("G m7b5 Open");
+    expect(gAug).toBeDefined();
+    expect(gM7b5).toBeDefined();
+    expect((gAug as ShapeAuditIssue[]).some((i) => i.severity === "error")).toBe(
+      true,
+    );
+    expect((gM7b5 as ShapeAuditIssue[]).some((i) => i.severity === "error")).toBe(
+      true,
+    );
   });
 });

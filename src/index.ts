@@ -48,8 +48,27 @@ export type { Fingering } from "./build";
 // Version
 export { VERSION } from "./version";
 
-// Shape audit (scaffold — see CHECK_* constants and checkX/auditX in Group 7)
-export { displayRootFor } from "./audit";
+// Shape audit
+export {
+  auditChordShape,
+  auditScaleShape,
+  auditAllShapes,
+  displayRootFor,
+  checkFretSpan,
+  checkFingerZeroOnMovable,
+  checkRepeatedFingerNoBarre,
+  checkChordBuildLoss,
+  checkScaleBuildLoss,
+  checkChordMetadataCompleteness,
+  checkScaleMetadataCompleteness,
+  checkGeometryMismatch,
+  CHECK_FRET_SPAN,
+  CHECK_FINGER_ZERO_ON_MOVABLE,
+  CHECK_REPEATED_FINGER_NO_BARRE,
+  CHECK_BUILD_LOSS,
+  CHECK_METADATA_COMPLETENESS,
+  CHECK_GEOMETRY_MISMATCH,
+} from "./audit";
 export type { AuditSeverity, ShapeAuditIssue, ShapeAuditOptions } from "./audit";
 
 // Pattern generators

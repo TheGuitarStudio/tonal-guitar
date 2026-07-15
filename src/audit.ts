@@ -9,7 +9,7 @@
  */
 
 import { applyChordShape, buildFrettedScale } from "./build";
-import { ChordShape, ScaleShape } from "./shape";
+import { all, chordShapes, ChordShape, ScaleShape } from "./shape";
 import { STANDARD } from "./tuning";
 import { chroma, transpose } from "@tonaljs/note";
 
@@ -388,11 +388,75 @@ export function checkGeometryMismatch(
 }
 
 // ============================================================
-// Aggregate functions — implemented in Task Group 7
+// Aggregate functions
 // ============================================================
 
-// auditChordShape — implemented in Task Group 7
+/**
+ * Runs all six chord checks (1–6: fret-span, finger-zero-on-movable,
+ * repeated-finger-no-barre, chord build-loss, chord metadata-completeness,
+ * geometry-mismatch) against a single chord shape and returns the combined
+ * issue list. `root` defaults to `displayRootFor(shape)`, `tuning` defaults
+ * to `STANDARD`, and `options.maxFretSpan` (if provided) is piped into
+ * `checkFretSpan`.
+ */
+export function auditChordShape(
+  shape: ChordShape,
+  options: ShapeAuditOptions = {},
+): ShapeAuditIssue[] {
+  const root = options.root ?? displayRootFor(shape);
+  const tuning = options.tuning ?? STANDARD;
 
-// auditScaleShape — implemented in Task Group 7
+  return [
+    ...checkFretSpan(shape, root, tuning, options.maxFretSpan),
+    ...checkFingerZeroOnMovable(shape),
+    ...checkRepeatedFingerNoBarre(shape),
+    ...checkChordBuildLoss(shape, root, tuning),
+    ...checkChordMetadataCompleteness(shape),
+    ...checkGeometryMismatch(shape, tuning),
+  ];
+}
 
-// auditAllShapes — implemented in Task Group 7
+/**
+ * Runs the two checks that apply to scale shapes — build-loss and
+ * metadata-completeness — never fret-span/finger/geometry, which are
+ * chord-only. `root` defaults to `"C"` (`ScaleShape` has no `canonicalRoot`
+ * field, so `displayRootFor` isn't applicable here — its default resolves to
+ * "C" too, mirroring `checkScaleBuildLoss`'s registry-wide test convention);
+ * `tuning` defaults to `STANDARD`.
+ */
+export function auditScaleShape(
+  shape: ScaleShape,
+  options: ShapeAuditOptions = {},
+): ShapeAuditIssue[] {
+  const root = options.root ?? "C";
+  const tuning = options.tuning ?? STANDARD;
+
+  return [
+    ...checkScaleBuildLoss(shape, root, tuning),
+    ...checkScaleMetadataCompleteness(shape),
+  ];
+}
+
+/**
+ * Audits every currently-registered chord and scale shape, keyed by
+ * `shape.name`. Note: the registries are populated by side-effect imports in
+ * index.ts, so this only returns full results once the data modules have
+ * been imported — in tests, import `./index` or the relevant data modules
+ * first to populate them.
+ */
+export function auditAllShapes(options?: ShapeAuditOptions): {
+  chord: Map<string, ShapeAuditIssue[]>;
+  scale: Map<string, ShapeAuditIssue[]>;
+} {
+  const chord = new Map<string, ShapeAuditIssue[]>();
+  for (const shape of chordShapes.all()) {
+    chord.set(shape.name, auditChordShape(shape, options));
+  }
+
+  const scale = new Map<string, ShapeAuditIssue[]>();
+  for (const shape of all()) {
+    scale.set(shape.name, auditScaleShape(shape, options));
+  }
+
+  return { chord, scale };
+}
