@@ -1,8 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  checkFingerZeroOnMovable,
   checkFretSpan,
   checkGeometryMismatch,
+  checkRepeatedFingerNoBarre,
+  CHECK_FINGER_ZERO_ON_MOVABLE,
   CHECK_FRET_SPAN,
+  CHECK_REPEATED_FINGER_NO_BARRE,
   displayRootFor,
   gripRootFor,
   sourceFrets,
@@ -28,6 +32,7 @@ import {
 } from "./data/open-chords";
 import { SHELL_SHAPES } from "./data/jazz-shells";
 import { EXT_CHORD_E_6, EXT_CHORD_A_6 } from "./data/extended-chords";
+import { CAGED_CHORD_E } from "./data/caged-chords";
 
 describe("displayRootFor", () => {
   it("returns canonicalRoot when set", () => {
@@ -351,5 +356,121 @@ describe("checkFretSpan", () => {
       5,
     );
     expect(raisedMaxSpanIssues).toEqual([]);
+  });
+});
+
+// ============================================================
+// checkFingerZeroOnMovable / checkRepeatedFingerNoBarre — Task Group 3
+// ============================================================
+
+describe("checkFingerZeroOnMovable", () => {
+  it("movable shape (no canonicalRoot) with finger 0: one error issue with details.fingers", () => {
+    const movableWithOpenFinger: ChordShape = {
+      name: "Synthetic Movable Bad",
+      system: "test",
+      strings: ["1P", "5P", "1P", "3M", "5P", "1P"],
+      fingers: [1, 0, 4, 2, 1, 1],
+      barres: [],
+      rootString: 0,
+    };
+    const issues = checkFingerZeroOnMovable(movableWithOpenFinger);
+    expect(issues.length).toBe(1);
+    expect(issues[0].id).toBe(CHECK_FINGER_ZERO_ON_MOVABLE);
+    expect(issues[0].severity).toBe("error");
+    expect(issues[0].details).toBeDefined();
+    expect((issues[0].details as { fingers: unknown }).fingers).toEqual(
+      movableWithOpenFinger.fingers,
+    );
+  });
+
+  it("movable shape (no canonicalRoot) with no finger 0: []", () => {
+    expect(CAGED_CHORD_E.canonicalRoot).toBeUndefined();
+    expect(checkFingerZeroOnMovable(CAGED_CHORD_E)).toEqual([]);
+  });
+
+  it("open shape (canonicalRoot set) with finger 0: [] (movable-only check)", () => {
+    expect(OPEN_C_MAJOR.canonicalRoot).toBe("C");
+    expect(OPEN_C_MAJOR.fingers.includes(0)).toBe(true);
+    expect(checkFingerZeroOnMovable(OPEN_C_MAJOR)).toEqual([]);
+  });
+
+  it("registry-wide: no currently-registered shape fails checkFingerZeroOnMovable", () => {
+    const allShapes = chordShapes.all();
+    expect(allShapes.length).toBeGreaterThan(0);
+    for (const shape of allShapes) {
+      expect(
+        checkFingerZeroOnMovable(shape),
+        `${shape.name} unexpectedly flagged by checkFingerZeroOnMovable`,
+      ).toEqual([]);
+    }
+  });
+});
+
+describe("checkRepeatedFingerNoBarre", () => {
+  it("adjacent repeated fingers covered by a matching barres entry: []", () => {
+    // CAGED_CHORD_E: fingers [1,3,4,2,1,1], barre {fret:0, fromString:0,
+    // toString:5, finger:1} covers the repeated finger-1 pair on strings 4,5.
+    expect(checkRepeatedFingerNoBarre(CAGED_CHORD_E)).toEqual([]);
+  });
+
+  it("adjacent repeated fingers NOT covered by any barres entry: one error issue per pair", () => {
+    const uncoveredRepeat: ChordShape = {
+      name: "Synthetic Uncovered Repeat",
+      system: "test",
+      strings: ["1P", "5P", "1P", "3M", "5P", "1P"],
+      fingers: [1, 2, 2, 3, 4, 4],
+      barres: [],
+      rootString: 0,
+    };
+    const issues = checkRepeatedFingerNoBarre(uncoveredRepeat);
+    expect(issues.length).toBe(2);
+    for (const issue of issues) {
+      expect(issue.id).toBe(CHECK_REPEATED_FINGER_NO_BARRE);
+      expect(issue.severity).toBe("error");
+    }
+    expect((issues[0].details as { finger: number; strings: number[] })).toEqual({
+      finger: 2,
+      strings: [1, 2],
+    });
+    expect((issues[1].details as { finger: number; strings: number[] })).toEqual({
+      finger: 4,
+      strings: [4, 5],
+    });
+  });
+
+  it("repeated finger 0 (open) on adjacent strings: [] (excluded per spec semantics)", () => {
+    const repeatedOpen: ChordShape = {
+      name: "Synthetic Repeated Open",
+      system: "test",
+      strings: ["1P", "5P", null, "3M", "5P", "1P"],
+      fingers: [0, 0, null, 2, 3, 4],
+      barres: [],
+      rootString: 0,
+      canonicalRoot: "C",
+    };
+    expect(checkRepeatedFingerNoBarre(repeatedOpen)).toEqual([]);
+  });
+
+  it("repeated finger null (muted) on adjacent strings: [] (excluded per spec semantics)", () => {
+    const repeatedNull: ChordShape = {
+      name: "Synthetic Repeated Null",
+      system: "test",
+      strings: [null, null, "1P", "3M", "5P", "1P"],
+      fingers: [null, null, 1, 2, 3, 4],
+      barres: [],
+      rootString: 2,
+    };
+    expect(checkRepeatedFingerNoBarre(repeatedNull)).toEqual([]);
+  });
+
+  it("registry-wide: no currently-registered shape fails checkRepeatedFingerNoBarre", () => {
+    const allShapes = chordShapes.all();
+    expect(allShapes.length).toBeGreaterThan(0);
+    for (const shape of allShapes) {
+      expect(
+        checkRepeatedFingerNoBarre(shape),
+        `${shape.name} unexpectedly flagged by checkRepeatedFingerNoBarre`,
+      ).toEqual([]);
+    }
   });
 });

@@ -92,9 +92,58 @@ export function checkFretSpan(
   ];
 }
 
-// checkFingerZeroOnMovable — implemented in Task Group 3
+/**
+ * Flags movable shapes (`canonicalRoot === undefined`) that assert finger 0
+ * (an open string) anywhere in `fingers`. Movable shapes are, by definition,
+ * never played with an open string — promotes the `data.test.ts:826-836`
+ * (issue #39) invariant to a first-class check. Static: no `applyChordShape`
+ * call.
+ */
+export function checkFingerZeroOnMovable(shape: ChordShape): ShapeAuditIssue[] {
+  if (shape.canonicalRoot !== undefined) return [];
+  if (!shape.fingers.includes(0)) return [];
 
-// checkRepeatedFingerNoBarre — implemented in Task Group 3
+  return [
+    {
+      id: CHECK_FINGER_ZERO_ON_MOVABLE,
+      severity: "error",
+      message: "Movable shape (no canonicalRoot) asserts finger 0 (open string)",
+      details: { fingers: shape.fingers },
+    },
+  ];
+}
+
+/**
+ * Flags adjacent-string pairs that share a repeated (non-null, non-zero)
+ * finger number with no `barres` entry covering both strings — implying a
+ * simultaneous press with the same finger on two strings that isn't backed
+ * by an actual barre. Promotes the `data.test.ts:839-855` (issue #39)
+ * invariant to a first-class check, emitting one issue per uncovered pair.
+ * Static: no `applyChordShape` call.
+ */
+export function checkRepeatedFingerNoBarre(shape: ChordShape): ShapeAuditIssue[] {
+  const { fingers, barres } = shape;
+  const issues: ShapeAuditIssue[] = [];
+
+  for (let i = 0; i < fingers.length - 1; i++) {
+    const finger = fingers[i];
+    if (finger === null || finger === 0 || fingers[i + 1] !== finger) continue;
+
+    const covered = barres.some(
+      (b) => b.finger === finger && i >= b.fromString && i + 1 <= b.toString,
+    );
+    if (covered) continue;
+
+    issues.push({
+      id: CHECK_REPEATED_FINGER_NO_BARRE,
+      severity: "error",
+      message: `Finger ${finger} repeats on adjacent strings ${i}, ${i + 1} with no barre entry covering them`,
+      details: { finger, strings: [i, i + 1] },
+    });
+  }
+
+  return issues;
+}
 
 // checkBuildLoss — implemented in Task Group 4
 
