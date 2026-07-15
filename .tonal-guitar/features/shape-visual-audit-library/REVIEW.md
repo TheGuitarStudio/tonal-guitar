@@ -17,7 +17,7 @@
 - [x] Phase 4: Architecture Fix
 - [x] Phase 5: Code Simplification Review
 - [x] Phase 6: Code Simplification Fix
-- [ ] Phase 7: Specialized Reviews
+- [x] Phase 7: Specialized Reviews
 - [ ] Phase 8: Specialized Fixes
 - [ ] Phase 9: Final Verification
 
@@ -112,5 +112,30 @@ Triage note: trivial Suggestions (CR-009, CR-015, CR-016) were fixed inline rath
 - CR-017: GitHub issue #122 — needs a decision on where site-wide constants live
 
 Verification: `npm run lint` + `npm run build` + `npm test` (1001 tests) pass at root; `tsc --noEmit` + `npm run build` pass in site/ (15 pages, /shapes at 4.38 kB).
+
+## Phase 7: Specialized Reviews
+
+### Security
+
+No findings. Verified: no `dangerouslySetInnerHTML`/`eval`; `buildReportUrl` host is hardcoded and both interpolated segments fully `encodeURIComponent`-encoded; all report data originates from compile-time registries, never user input; filter inputs used only for array filtering; the one `target="_blank"` link has `rel="noopener"`; no URL/query-param parsing exists; library changes introduce no logging/secrets/dynamic execution.
+
+### Type Safety
+
+- CR-018: [Critical] `site/app/shapes/components/ShapeCard.tsx:44` — `issue?.details?.mismatchedStrings` (typed `unknown`) is cast `raw as number[]` after only an `Array.isArray` check; element types unvalidated. Guard with a `typeof v === "number"` filter/predicate. Status: Open
+- CR-019: [Important] `src/audit.ts:328` — exported `sourceFrets` does `shape.baseFret as number` with no internal guard; called directly with an undefined `baseFret`, the octave-lift loop silently no-ops producing wrong-but-plausible frets. Accept `baseFret: number` as an explicit parameter (like `gripRoot`) or guard loudly. Status: Open
+- CR-020: [Important] `site/app/shapes/components/FilterBar.tsx:16-19,84` — `KIND_TOGGLE_OPTIONS` typed `{value: string}[]` then `v as ShapeKind` cast at the call site; type the array's `value` as the literal union (making `ToggleGroup` generic) so the cast disappears and future edits are compiler-checked. Status: Open
+
+Otherwise clean: no `any`/`as any`, no non-null assertions, discriminated union consumed correctly everywhere, explicit return types present, index accesses bounded.
+
+### Accessibility
+
+- CR-021: [Critical] `site/app/shapes/components/ShapeCard.tsx:146` + `ShapeCardDiagram.tsx:54` — scale-shape cards render the fret/interval table only for chords, and the `Fretboard` SVG has no `aria-label`/`role="img"`/`<title>`, so screen-reader users get zero content for the ~27 scale cards. Status: Open
+- CR-022: [Important] `site/app/shapes/components/ShapeCardDiagram.tsx:54-65` — diagram not marked decorative where the chord table duplicates it; SVG text nodes surface as an unstructured character stream. Status: Open
+- CR-023: [Important] `site/app/shapes/components/FilterBar.tsx:164-176` — Scale/Chord toggle conveys selection by styling only; no `aria-pressed`. Status: Open
+- CR-024: [Important] `site/app/shapes/components/ShapeCard.tsx:25-33,192-197` — `text-amber-600` on `bg-amber-500/10` (~2.95:1) and `text-red-600` (~4.24:1) fail WCAG AA 4.5:1 for the 11px badge/mismatch text in light theme. Status: Open
+- CR-025: [Important] `site/app/shapes/components/ShapeCard.tsx:111` — cards use `<h3>` but the page has only an `<h1>`; h1→h3 skips a level. Status: Open
+- CR-026: [Suggestion] `site/app/shapes/components/FilterBar.tsx:134-136` — "Showing N of M" count updates silently; add `aria-live="polite"`. Status: Open
+
+Note: skill map prescribes a `superpowers:code-reviewer` agent for accessibility; that plugin isn't installed, so `feature-dev:code-reviewer` was used.
 - GitHub Issues Created: (none yet)
 - Total Commits: 0 | Total Fixes: 0 | Final Status: IN PROGRESS
