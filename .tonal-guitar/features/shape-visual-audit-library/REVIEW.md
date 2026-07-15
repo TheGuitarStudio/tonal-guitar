@@ -18,7 +18,7 @@
 - [x] Phase 5: Code Simplification Review
 - [x] Phase 6: Code Simplification Fix
 - [x] Phase 7: Specialized Reviews
-- [ ] Phase 8: Specialized Fixes
+- [x] Phase 8: Specialized Fixes
 - [ ] Phase 9: Final Verification
 
 (Loop 1 progress: all 9 phases completed — see Loop 1 Summary. PR: #123.)
@@ -223,6 +223,15 @@ All loop-1/loop-2 fixes verified correct (aria-pressed placement, notes-derived 
 
 - CR-035: [Important] `site/app/shapes/components/ShapeCard.tsx:153-207` — chord fingering table has no header/data associations: column `<th>`s lack `scope="col"` and row-label cells ("interval", "finger", "built fret", "source fret") are plain `<td>`s; table navigation gives screen-reader users no row/column context. Status: Open
 - CR-036: [Important] `site/app/shapes/components/ShapeCard.tsx:187-205` — mismatched source-fret cells are distinguished by color alone; no text/aria cue identifies which strings mismatch for colorblind or screen-reader users. Status: Open
+
+## Phase 8 (Loop 2): Specialized Fixes
+
+Both fixed directly by the lead:
+
+- CR-035: Fixed — column `<th>`s now carry `scope="col"`; the four row-label cells converted to `<th scope="row">` (with `text-left font-normal` preserving the visual style)
+- CR-036: Fixed — mismatched source-fret cells now append a visible `*` (aria-hidden) plus an sr-only " (mismatch)" suffix, so the flag survives without color
+
+Verification: `tsc --noEmit` + site build pass; lint + 999 tests pass at root.
 
 ## Phase 8: Specialized Fixes
 

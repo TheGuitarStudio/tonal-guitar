@@ -151,9 +151,15 @@ export const ShapeCard = memo(function ShapeCard({ entry }: ShapeCardProps) {
           <table className="w-full border-collapse font-mono text-[11px]">
             <thead>
               <tr>
-                <th className="pr-2 text-left text-fd-muted-foreground">string</th>
+                <th scope="col" className="pr-2 text-left text-fd-muted-foreground">
+                  string
+                </th>
                 {stringIndexes.map((i) => (
-                  <th key={i} className="px-1 text-center text-fd-muted-foreground">
+                  <th
+                    key={i}
+                    scope="col"
+                    className="px-1 text-center text-fd-muted-foreground"
+                  >
                     {i}
                   </th>
                 ))}
@@ -161,7 +167,9 @@ export const ShapeCard = memo(function ShapeCard({ entry }: ShapeCardProps) {
             </thead>
             <tbody>
               <tr>
-                <td className="pr-2 text-fd-muted-foreground">interval</td>
+                <th scope="row" className="pr-2 text-left font-normal text-fd-muted-foreground">
+                  interval
+                </th>
                 {stringIndexes.map((i) => (
                   <td key={i} className="px-1 text-center">
                     {intervalCell(chordShape, i)}
@@ -169,7 +177,9 @@ export const ShapeCard = memo(function ShapeCard({ entry }: ShapeCardProps) {
                 ))}
               </tr>
               <tr>
-                <td className="pr-2 text-fd-muted-foreground">finger</td>
+                <th scope="row" className="pr-2 text-left font-normal text-fd-muted-foreground">
+                  finger
+                </th>
                 {stringIndexes.map((i) => (
                   <td key={i} className="px-1 text-center">
                     {fingerCell(chordShape, i)}
@@ -177,7 +187,9 @@ export const ShapeCard = memo(function ShapeCard({ entry }: ShapeCardProps) {
                 ))}
               </tr>
               <tr>
-                <td className="pr-2 text-fd-muted-foreground">built fret</td>
+                <th scope="row" className="pr-2 text-left font-normal text-fd-muted-foreground">
+                  built fret
+                </th>
                 {stringIndexes.map((i) => (
                   <td key={i} className="px-1 text-center">
                     {fretCell(chordShape, builtFrets, i)}
@@ -186,9 +198,9 @@ export const ShapeCard = memo(function ShapeCard({ entry }: ShapeCardProps) {
               </tr>
               {showSourceFrets && (
                 <tr>
-                  <td className="pr-2 text-fd-muted-foreground">
+                  <th scope="row" className="pr-2 text-left font-normal text-fd-muted-foreground">
                     source fret{sourceAtDifferentRoot ? ` (source at ${gripRoot})` : ""}
-                  </td>
+                  </th>
                   {stringIndexes.map((i) => (
                     <td
                       key={i}
@@ -199,6 +211,14 @@ export const ShapeCard = memo(function ShapeCard({ entry }: ShapeCardProps) {
                       }`}
                     >
                       {fretCell(chordShape, sourceFrets ?? [], i)}
+                      {/* Non-color mismatch cue: the highlight alone is
+                          invisible to colorblind and screen-reader users. */}
+                      {mismatchedStrings.has(i) && (
+                        <>
+                          <span aria-hidden="true">*</span>
+                          <span className="sr-only"> (mismatch)</span>
+                        </>
+                      )}
                     </td>
                   ))}
                 </tr>
