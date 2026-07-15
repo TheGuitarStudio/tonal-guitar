@@ -16,7 +16,7 @@ tonal-guitar is a standalone TypeScript library for guitar fretboard math, shape
 | `npm run test:coverage` | Tests with coverage |
 | `npm run lint` | ESLint check |
 | `npm run format` | Prettier format |
-| `npm run release` | Publish to npm (sources .env for NPM_TOKEN; see .env.example) |
+| `npm run release` | Publish to npm (sources .env for NPM_TOKEN; see .env.example) (also bump `src/version.ts` `VERSION`) |
 
 ### Running a single test
 
@@ -37,6 +37,9 @@ src/
 ├── shape.ts                  # Types (FrettedNote, ScaleShape, etc.) + registries
 ├── shape.test.ts             # VoicingFamily, VoicingPatternDictionary, chordShapes.query tests
 ├── build.ts                  # buildFrettedScale, applyChordShape
+├── audit.ts                   # Shape-quality invariant checks (eight checkX fns: six chord + two scale, + audit aggregates)
+├── audit.test.ts              # Audit check + aggregate tests (incl. registry-wide sweeps)
+├── version.ts                 # VERSION constant (bumped alongside package.json at release)
 ├── transform.ts               # Shape relabeling (relabelShape)
 ├── transform.test.ts          # relabelShape tests
 ├── walker.ts                 # Bidirectional pattern walker
@@ -78,7 +81,7 @@ src/
 `tuning.ts`, `shape.ts`, `pattern.ts`, `notation.ts`, `walker.ts`, `sequence.ts`, `arpeggio.ts`, `connect.ts`, `data/*` — **except** `data/caged-scales-minor.ts` and `data/pentatonic-minor.ts`, which call `relabelShape` at import time and therefore transitively require `@tonaljs/interval` via `transform.ts` (see below). Every other `data/*` file remains zero-Tonal-dep.
 
 **Required peer deps** (`@tonaljs/note`, `@tonaljs/interval`):
-`fretboard.ts`, `build.ts`, `transform.ts`, `output/alphatex.ts`, `output/ascii-tab.ts` — `transform.ts` imports `@tonaljs/interval` (`semitones`) directly, and `./shape` for types only; it MUST NOT import `@tonaljs/scale`/`@tonaljs/chord`/`@tonaljs/key` or `./integration`, so `data/caged-scales-minor.ts`/`data/pentatonic-minor.ts` can call it at import time with zero optional peers.
+`fretboard.ts`, `build.ts`, `audit.ts`, `transform.ts`, `output/alphatex.ts`, `output/ascii-tab.ts` — `audit.ts` imports only `./build`, `./shape`, `./tuning`, and `@tonaljs/note`; it MUST NOT import `./integration` or optional Tonal peers. `transform.ts` imports `@tonaljs/interval` (`semitones`) directly, and `./shape` for types only; it MUST NOT import `@tonaljs/scale`/`@tonaljs/chord`/`@tonaljs/key` or `./integration`, so `data/caged-scales-minor.ts`/`data/pentatonic-minor.ts` can call it at import time with zero optional peers.
 
 **Optional peer deps** (`@tonaljs/scale`, `@tonaljs/chord`, `@tonaljs/key`):
 `integration.ts` only — `buildFromScale`, `relatedScales`, `identifyChord`, `analyzeInKey`, `isShapeCompatible`, `modeShapes`, `relabelShapeToScale` (the last is an integration-tier wrapper over `transform.ts`'s pure `relabelShape`, adding only the `@tonaljs/scale` name-resolution step)
@@ -107,6 +110,8 @@ pattern.ts           ← no internal deps
 notation.ts          ← no internal deps
 fretboard.ts         ← tuning
 build.ts             ← fretboard, shape, tuning
+audit.ts             ← build, shape, tuning — also imports @tonaljs/note directly
+version.ts           ← no internal deps
 transform.ts         ← shape (types only) — also imports @tonaljs/interval directly
 walker.ts            ← shape (types only)
 sequence.ts          ← walker, shape

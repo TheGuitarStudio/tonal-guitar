@@ -1,5 +1,10 @@
 import { type HomeLayoutProps } from "fumadocs-ui/home-layout";
-import { BookOpenIcon, FlaskConicalIcon, ExternalLinkIcon } from "lucide-react";
+import {
+  BookOpenIcon,
+  FlaskConicalIcon,
+  ExternalLinkIcon,
+  LayoutGridIcon,
+} from "lucide-react";
 
 export const baseOptions: HomeLayoutProps = {
   nav: {
@@ -17,9 +22,14 @@ export const baseOptions: HomeLayoutProps = {
       url: "/experiments",
     },
     {
+      text: "Shapes",
+      icon: <LayoutGridIcon />,
+      url: "/shapes",
+    },
+    {
       text: "Repository",
       icon: <ExternalLinkIcon />,
-      url: "https://github.com/coryleistikow/tonal-guitar",
+      url: "https://github.com/TheGuitarStudio/tonal-guitar",
     },
   ],
 };

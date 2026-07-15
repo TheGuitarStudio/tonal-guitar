@@ -1,0 +1,67 @@
+# Feature: Shape Visual Audit Library
+
+**Issue:** #97 | **Started:** 2026-07-14
+
+## Pipeline Progress
+
+- [x] Phase 1: Research
+- [x] Phase 2: Shape
+- [x] Phase 3: Plan
+- [x] Phase 4: Implement
+
+## Context
+
+- **Origin:** /idea #97
+- **Branch:** feat/shape-visual-audit-library
+- **Priority:** P1
+- **Size:** M
+
+## Artifacts
+
+| Phase     | File        | Status  | Loops | Reviewed |
+| --------- | ----------- | ------- | ----- | -------- |
+| Research  | research.md | complete | 1     | yes      |
+| Shape     | spec.md     | complete | 1     | no       |
+| Plan      | tasks.md    | complete | 1     | no       |
+| Implement | FEATURE.md  | complete | 2     | no       |
+
+## Loop History
+
+## Review History
+
+### 2026-07-14 — Research review (adversarial, via Codex)
+
+Saved to `reviews/research-review.md`. Verdict: proceed to Shape, but tighten spec first. Key findings: (1) **factual correction** — `baseFret` IS set on all 70 open-chords shapes (research claimed unset; corrected in research.md), the real issue is `applyChordShape` ignores it; (2) **biggest risk** — built geometry vs. source-diagram geometry may disagree for `baseFret > 1` shapes; validate with a pre-UI spike; (3) recommends adding build-loss + metadata-completeness badges, a deterministic `displayRootForChordShape` helper, structured audit-issue API (`id`/`severity`/`message`), failures-first default view, and a stable issue-body schema as the `/fix` input contract; (4) defer the voicingFamily/baseFret badge unless semantics are made precise.
+
+## Phase 4: Implement
+
+| Layer | Task Group | Status | Agent | Notes |
+| ----- | ---------- | ------ | ----- | ----- |
+| 0 | TG1: Audit module scaffold | complete | sonnet | - |
+| 1 | TG6: checkGeometryMismatch spike | complete | sonnet | found 5 new data defects; lead fix: gripRootFor restricted to "Open" names |
+| 1 | TG2: checkFretSpan | complete | sonnet | - |
+| 1 | TG3: checkFingerZeroOnMovable + checkRepeatedFingerNoBarre | complete | sonnet | - |
+| 1 | TG4: checkChordBuildLoss + checkScaleBuildLoss | complete | sonnet | - |
+| 1 | TG5: checkChordMetadataCompleteness + checkScaleMetadataCompleteness | complete | sonnet | - |
+| 2 | TG7: Aggregate helpers + finalize public API | complete | sonnet | auditScaleShape root defaults "C" (type-safe, same runtime) |
+| 2 | TG8: data.test.ts refactor | complete | sonnet | span sweep scoped to open/barre shapes (CAGED majors + R73 shells have pre-existing span issues) |
+| 3 | TG9: shapeLibraryUtils.ts | complete | sonnet | sourceFrets re-derived via public API (no direct @tonaljs dep in site) |
+| 3 | TG12: docs/api/audit.md + README | complete | sonnet | docs/api not wired into site nav (pre-existing) |
+| 4 | TG10: FilterBar, ShapeCardDiagram, ShapeCard | complete | sonnet | lead fixed 2 oversight concerns in FilterBar |
+| 5 | TG11: ShapeLibrary container + page/layout/nav | complete | sonnet | CAGED base majors sort first (genuine errors, lower index); #96 pair still above all clean shapes |
+| 6 | TG13: Test review and gap analysis | complete | sonnet | +4 tests; all Quality Criteria mapped |
+
+### Oversight Reports
+
+- **Layer 0**: No concerns. Continued.
+- **Layer 1**: No concerns. Continued. Spike outcome: gripRootFor name-parsing restricted to "<Root> ... Open" convention (lead fix, spec's naming premise was wrong for the 20 barre shapes); geometry sweep flags 7 shapes — 2 known #96 + 5 newly discovered genuine data defects (G Dominant 7 / G Major 7 / G Sus2 / E Sus2 / E m7b5 Open), documented in audit.test.ts.
+- **Layer 2**: No concerns. Continued. Two documented deviations approved: auditScaleShape "C" default; fret-span sweep scoped to open/barre families (2-item KNOWN_ISSUES allowlist per spec).
+- **Layer 3**: 2 minor concerns, both resolved: gripRoot field on ShapeCatalogEntry (intentional, needed by ShapeCard); docs/api/index.md missing Audit entry (lead fixed inline).
+- **Layer 4**: 2 concerns, both fixed by lead: FilterBar system options now scoped to selected kind; type toggle made strict binary scale|chord (removed "All" state) per spec.
+- **Layer 5**: No concerns. Continued. Noted: default failures-first view leads with "C Shape Major"/"G Shape Major" (genuine fret-span errors discovered during implementation) ahead of the #96 pair — correct data-driven behavior of the spec'd sort.
+- **Layer 6**: Test-only layer; TG13 report mapped every spec Quality Criteria bullet to a test or manual-verification note. Oversight folded into the Loop 1 spec-compliance review.
+
+### Spec Compliance
+
+- **Loop 1**: 1 gap found (partial — CLAUDE.md missing audit.ts/version.ts in dependency-layer docs), 1 fixed. 50 requirements implemented, 0 missing.
+- **Loop 2**: 0 gaps remaining. Loop-1 fix verified; fresh sweep of user stories, visual design, report-body format, quality-criteria edge cases, and static-export constraints found nothing new.

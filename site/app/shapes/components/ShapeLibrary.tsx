@@ -1,0 +1,114 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import { auditAllShapes } from "tonal-guitar";
+import {
+  buildCatalog,
+  filterCatalog,
+  sortFailuresFirst,
+  type ShapeCatalogFilters,
+  type ShapeKind,
+} from "./shapeLibraryUtils";
+import { FilterBar, FILTER_ALL } from "./FilterBar";
+import { LEGEND } from "./ShapeCardDiagram";
+import { ShapeCard } from "./ShapeCard";
+
+/**
+ * Owns all filter state for the shape library. Renders the filter controls,
+ * a single page-level interval legend (shared across every card in the
+ * grid, not duplicated per-card), and the failures-first grid of
+ * `<ShapeCard>`s.
+ */
+export function ShapeLibrary() {
+  // Runs exactly once — `auditAllShapes()` walks the full scale/chord
+  // registries and is not cheap to repeat on every render.
+  const auditResult = useMemo(() => auditAllShapes(), []);
+  const catalog = useMemo(() => buildCatalog(auditResult), [auditResult]);
+
+  // Default view: chord shapes, no filters, failures sorted first — this is
+  // where the live #96 defects are, so it's the most useful landing state.
+  const [kind, setKind] = useState<ShapeKind>("chord");
+  const [system, setSystem] = useState(FILTER_ALL);
+  const [familyOrQuality, setFamilyOrQuality] = useState(FILTER_ALL);
+  const [nameQuery, setNameQuery] = useState("");
+  const [failingOnly, setFailingOnly] = useState(false);
+
+  function handleKindChange(nextKind: ShapeKind) {
+    setKind(nextKind);
+    // Scale and chord shapes use disjoint system/family value sets, so any
+    // previously selected filter is meaningless (or invalid) after a kind
+    // switch — reset both back to "no filter".
+    setSystem(FILTER_ALL);
+    setFamilyOrQuality(FILTER_ALL);
+  }
+
+  const filters: ShapeCatalogFilters = useMemo(() => {
+    const f: ShapeCatalogFilters = { kind };
+    if (system !== FILTER_ALL) f.system = system;
+    if (familyOrQuality !== FILTER_ALL) {
+      if (kind === "chord") f.voicingFamily = familyOrQuality;
+      else f.quality = familyOrQuality;
+    }
+    if (nameQuery) f.nameQuery = nameQuery;
+    if (failingOnly) f.failingOnly = true;
+    return f;
+  }, [kind, system, familyOrQuality, nameQuery, failingOnly]);
+
+  // Failures-first sort is the default and is always applied after
+  // filtering — it's not a user-toggleable option.
+  const shownEntries = useMemo(
+    () => sortFailuresFirst(filterCatalog(catalog, filters)),
+    [catalog, filters],
+  );
+
+  const totalCount = useMemo(
+    () => catalog.filter((e) => e.kind === kind).length,
+    [catalog, kind],
+  );
+
+  return (
+    <div>
+      <FilterBar
+        entries={catalog}
+        kind={kind}
+        onKindChange={handleKindChange}
+        system={system}
+        onSystemChange={setSystem}
+        familyOrQuality={familyOrQuality}
+        onFamilyOrQualityChange={setFamilyOrQuality}
+        nameQuery={nameQuery}
+        onNameQueryChange={setNameQuery}
+        failingOnly={failingOnly}
+        onFailingOnlyChange={setFailingOnly}
+        shownCount={shownEntries.length}
+        totalCount={totalCount}
+      />
+
+      <div className="mb-4 flex flex-wrap gap-3 text-xs text-fd-muted-foreground">
+        {LEGEND.map(({ color, label }) => (
+          <span key={label}>
+            <span
+              className="mr-1 inline-block h-2.5 w-2.5 rounded-full"
+              style={{ backgroundColor: color }}
+            />
+            {label}
+          </span>
+        ))}
+      </div>
+
+      <h2 className="sr-only">Shape results</h2>
+
+      {shownEntries.length === 0 ? (
+        <p className="text-sm text-fd-muted-foreground">
+          No shapes match the current filters.
+        </p>
+      ) : (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {shownEntries.map((entry) => (
+            <ShapeCard key={`${entry.kind}-${entry.name}`} entry={entry} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
