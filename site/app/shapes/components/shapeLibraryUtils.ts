@@ -313,6 +313,14 @@ export function distinctQualities(entries: ShapeCatalogEntry[]): string[] {
 
 const REPO = "TheGuitarStudio/tonal-guitar";
 
+// Cheap placeholder for the "Report a problem" link's initial `href` — keeps
+// the anchor a real, focusable link (correct role, valid destination) before
+// `buildReportUrl` has run. `buildReportUrl` JSON-stringifies the shape and
+// all frets, which is wasteful to do for every one of the ~159 cards up
+// front when almost none of the links are ever clicked; callers should swap
+// in the full `buildReportUrl(entry)` href lazily, on interaction.
+export const REPORT_ISSUE_BASE_URL = `https://github.com/${REPO}/issues/new?labels=bug`;
+
 function metadataLines(entry: ShapeCatalogEntry): string[] {
   const chordShape = entry.kind === "chord" ? entry.shape : undefined;
   const scaleShape = entry.kind === "scale" ? entry.shape : undefined;
