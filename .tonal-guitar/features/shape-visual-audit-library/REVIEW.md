@@ -17,7 +17,7 @@
 - [x] Phase 4: Architecture Fix
 - [x] Phase 5: Code Simplification Review
 - [x] Phase 6: Code Simplification Fix
-- [ ] Phase 7: Specialized Reviews
+- [x] Phase 7: Specialized Reviews
 - [ ] Phase 8: Specialized Fixes
 - [ ] Phase 9: Final Verification
 
@@ -206,6 +206,23 @@ All three fixed directly by the lead:
 - CR-034: Fixed — dead `export { displayRootFor }` re-export and its misleading comment removed from shapeLibraryUtils.ts
 
 Verification: lint + 999 tests (11 files) pass at root; `tsc --noEmit` + build pass in site/.
+
+## Phase 7 (Loop 2): Specialized Reviews
+
+### Security
+
+No findings — the loop-2 delta (labels, comments, tests, rename) introduces no new injection surface, encoding weakening, or link changes.
+
+### Type Safety
+
+No findings — all loop-1 fix sites and the loop-2 delta verified clean.
+
+### Accessibility
+
+All loop-1/loop-2 fixes verified correct (aria-pressed placement, notes-derived fretSummary with no shared-array bug, consistent dark: variant pairing, label associations). Two pre-existing issues loop 1 missed:
+
+- CR-035: [Important] `site/app/shapes/components/ShapeCard.tsx:153-207` — chord fingering table has no header/data associations: column `<th>`s lack `scope="col"` and row-label cells ("interval", "finger", "built fret", "source fret") are plain `<td>`s; table navigation gives screen-reader users no row/column context. Status: Open
+- CR-036: [Important] `site/app/shapes/components/ShapeCard.tsx:187-205` — mismatched source-fret cells are distinguished by color alone; no text/aria cue identifies which strings mismatch for colorblind or screen-reader users. Status: Open
 
 ## Phase 8: Specialized Fixes
 
