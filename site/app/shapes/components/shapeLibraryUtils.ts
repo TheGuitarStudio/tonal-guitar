@@ -291,20 +291,30 @@ export function distinctSystems(entries: ShapeCatalogEntry[]): string[] {
   return Array.from(new Set(entries.map((e) => e.shape.system))).sort();
 }
 
-export function distinctVoicingFamilies(entries: ShapeCatalogEntry[]): string[] {
+/**
+ * Generic distinct-value extractor: narrows `entries` to the given `kind`,
+ * maps each entry through `extractor`, drops `undefined`, then dedupes and
+ * sorts. Shared by `distinctVoicingFamilies` (chord/voicingFamily) and
+ * `distinctQualities` (scale/quality).
+ */
+function distinctValuesForKind<K extends ShapeCatalogEntry["kind"]>(
+  entries: ShapeCatalogEntry[],
+  kind: K,
+  extractor: (entry: Extract<ShapeCatalogEntry, { kind: K }>) => string | undefined,
+): string[] {
   const values = entries
-    .filter((e): e is Extract<ShapeCatalogEntry, { kind: "chord" }> => e.kind === "chord")
-    .map((e) => e.shape.voicingFamily)
+    .filter((e): e is Extract<ShapeCatalogEntry, { kind: K }> => e.kind === kind)
+    .map(extractor)
     .filter((v): v is NonNullable<typeof v> => v !== undefined);
   return Array.from(new Set(values)).sort();
 }
 
+export function distinctVoicingFamilies(entries: ShapeCatalogEntry[]): string[] {
+  return distinctValuesForKind(entries, "chord", (e) => e.shape.voicingFamily);
+}
+
 export function distinctQualities(entries: ShapeCatalogEntry[]): string[] {
-  const values = entries
-    .filter((e): e is Extract<ShapeCatalogEntry, { kind: "scale" }> => e.kind === "scale")
-    .map((e) => e.shape.quality)
-    .filter((v): v is NonNullable<typeof v> => v !== undefined);
-  return Array.from(new Set(values)).sort();
+  return distinctValuesForKind(entries, "scale", (e) => e.shape.quality);
 }
 
 // ============================================================
