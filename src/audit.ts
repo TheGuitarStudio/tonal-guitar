@@ -7,7 +7,7 @@
  * @tonaljs/key. See CLAUDE.md's "Dependency layers" section.
  */
 
-import { applyChordShape, buildFrettedScale } from "./build";
+import { applyChordShape, buildFrettedScale, Fingering } from "./build";
 import { all, chordShapes, ChordShape, ScaleShape } from "./shape";
 import { STANDARD } from "./tuning";
 import { chroma, transpose } from "@tonaljs/note";
@@ -61,14 +61,20 @@ export function displayRootFor(shape: { canonicalRoot?: string }): string {
  * muted strings (`null`) and open strings (`fret === 0`) before taking
  * `max - min`, so an open-string drone never inflates the span. Boundary is
  * strict — `span === maxSpan` does not flag.
+ *
+ * `prebuilt`, if supplied, is used in place of an internal `applyChordShape`
+ * call — lets `auditChordShape` hoist one shared build across the checks
+ * that use identical (shape, root, tuning) arguments. Standalone callers
+ * omit it and get the original self-contained behavior.
  */
 export function checkFretSpan(
   shape: ChordShape,
   root: string,
   tuning: string[] = STANDARD,
   maxSpan = 4,
+  prebuilt?: Fingering,
 ): ShapeAuditIssue[] {
-  const { frets } = applyChordShape(shape, root, tuning);
+  const { frets } = prebuilt ?? applyChordShape(shape, root, tuning);
   const fretted = frets.filter((f): f is number => f !== null && f > 0);
   const span = fretted.length ? Math.max(...fretted) - Math.min(...fretted) : 0;
 
@@ -147,13 +153,19 @@ export function checkRepeatedFingerNoBarre(shape: ChordShape): ShapeAuditIssue[]
  * fret-window logic in `buildFrettedScale` (invoked via `applyChordShape`)
  * couldn't resolve one of the shape's own intervals (e.g. an unparseable
  * interval string) and quietly dropped the note instead of placing it.
+ *
+ * `prebuilt`, if supplied, is used in place of an internal `applyChordShape`
+ * call — lets `auditChordShape` hoist one shared build across the checks
+ * that use identical (shape, root, tuning) arguments. Standalone callers
+ * omit it and get the original self-contained behavior.
  */
 export function checkChordBuildLoss(
   shape: ChordShape,
   root: string,
   tuning: string[] = STANDARD,
+  prebuilt?: Fingering,
 ): ShapeAuditIssue[] {
-  const { frets } = applyChordShape(shape, root, tuning);
+  const { frets } = prebuilt ?? applyChordShape(shape, root, tuning);
   const playedCount = shape.strings.filter((s) => s != null).length;
   const builtCount = frets.filter((f) => f != null).length;
 
@@ -398,6 +410,17 @@ export function checkGeometryMismatch(
  * issue list. `root` defaults to `displayRootFor(shape)`, `tuning` defaults
  * to `STANDARD`, and `options.maxFretSpan` (if provided) is piped into
  * `checkFretSpan`.
+ *
+ * `applyChordShape(shape, root, tuning)` is built once here and threaded
+ * into `checkFretSpan`/`checkChordBuildLoss` (their `prebuilt` param) since
+ * both call it with the exact same arguments (CR-001) — avoids two
+ * redundant rebuilds per audited shape. `checkGeometryMismatch` is NOT
+ * given the shared build: it reconstructs against `gripRootFor(shape)`
+ * (`canonicalRoot`, falling back to a name-parsed root), which diverges
+ * from `root` whenever `options.root` overrides the default or
+ * `canonicalRoot` is undefined — see audit.test.ts's "overrides the default
+ * root" case, where `checkGeometryMismatch` keeps using the shape's own
+ * grip root regardless of the override.
  */
 export function auditChordShape(
   shape: ChordShape,
@@ -405,12 +428,13 @@ export function auditChordShape(
 ): ShapeAuditIssue[] {
   const root = options.root ?? displayRootFor(shape);
   const tuning = options.tuning ?? STANDARD;
+  const built = applyChordShape(shape, root, tuning);
 
   return [
-    ...checkFretSpan(shape, root, tuning, options.maxFretSpan),
+    ...checkFretSpan(shape, root, tuning, options.maxFretSpan, built),
     ...checkFingerZeroOnMovable(shape),
     ...checkRepeatedFingerNoBarre(shape),
-    ...checkChordBuildLoss(shape, root, tuning),
+    ...checkChordBuildLoss(shape, root, tuning, built),
     ...checkChordMetadataCompleteness(shape),
     ...checkGeometryMismatch(shape, tuning),
   ];
