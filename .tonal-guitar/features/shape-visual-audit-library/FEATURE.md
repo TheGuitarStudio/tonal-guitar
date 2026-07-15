@@ -47,7 +47,7 @@ Saved to `reviews/research-review.md`. Verdict: proceed to Shape, but tighten sp
 | 2 | TG8: data.test.ts refactor | complete | sonnet | span sweep scoped to open/barre shapes (CAGED majors + R73 shells have pre-existing span issues) |
 | 3 | TG9: shapeLibraryUtils.ts | complete | sonnet | sourceFrets re-derived via public API (no direct @tonaljs dep in site) |
 | 3 | TG12: docs/api/audit.md + README | complete | sonnet | docs/api not wired into site nav (pre-existing) |
-| 4 | TG10: FilterBar, ShapeCardDiagram, ShapeCard | pending | - | - |
+| 4 | TG10: FilterBar, ShapeCardDiagram, ShapeCard | complete | sonnet | lead fixed 2 oversight concerns in FilterBar |
 | 5 | TG11: ShapeLibrary container + page/layout/nav | pending | - | - |
 | 6 | TG13: Test review and gap analysis | pending | - | - |
 
@@ -57,5 +57,6 @@ Saved to `reviews/research-review.md`. Verdict: proceed to Shape, but tighten sp
 - **Layer 1**: No concerns. Continued. Spike outcome: gripRootFor name-parsing restricted to "<Root> ... Open" convention (lead fix, spec's naming premise was wrong for the 20 barre shapes); geometry sweep flags 7 shapes — 2 known #96 + 5 newly discovered genuine data defects (G Dominant 7 / G Major 7 / G Sus2 / E Sus2 / E m7b5 Open), documented in audit.test.ts.
 - **Layer 2**: No concerns. Continued. Two documented deviations approved: auditScaleShape "C" default; fret-span sweep scoped to open/barre families (2-item KNOWN_ISSUES allowlist per spec).
 - **Layer 3**: 2 minor concerns, both resolved: gripRoot field on ShapeCatalogEntry (intentional, needed by ShapeCard); docs/api/index.md missing Audit entry (lead fixed inline).
+- **Layer 4**: 2 concerns, both fixed by lead: FilterBar system options now scoped to selected kind; type toggle made strict binary scale|chord (removed "All" state) per spec.
 
 ### Spec Compliance
