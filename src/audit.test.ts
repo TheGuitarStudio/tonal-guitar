@@ -316,7 +316,7 @@ describe("checkGeometryMismatch registry-wide validation", () => {
 });
 
 // ============================================================
-// checkFretSpan — Task Group 2
+// checkFretSpan
 // ============================================================
 
 describe("checkFretSpan", () => {
@@ -396,7 +396,7 @@ describe("checkFretSpan", () => {
 });
 
 // ============================================================
-// checkFingerZeroOnMovable / checkRepeatedFingerNoBarre — Task Group 3
+// checkFingerZeroOnMovable / checkRepeatedFingerNoBarre
 // ============================================================
 
 describe("checkFingerZeroOnMovable", () => {
@@ -512,7 +512,7 @@ describe("checkRepeatedFingerNoBarre", () => {
 });
 
 // ============================================================
-// checkChordBuildLoss / checkScaleBuildLoss — Task Group 4
+// checkChordBuildLoss / checkScaleBuildLoss
 // ============================================================
 
 describe("checkChordBuildLoss", () => {
@@ -639,8 +639,7 @@ describe("checkScaleBuildLoss", () => {
 });
 
 // ============================================================
-// checkChordMetadataCompleteness / checkScaleMetadataCompleteness —
-// Task Group 5
+// checkChordMetadataCompleteness / checkScaleMetadataCompleteness
 // ============================================================
 
 describe("checkChordMetadataCompleteness", () => {
@@ -778,7 +777,7 @@ describe("checkScaleMetadataCompleteness", () => {
 });
 
 // ============================================================
-// auditChordShape / auditScaleShape / auditAllShapes — Task Group 7
+// auditChordShape / auditScaleShape / auditAllShapes
 // ============================================================
 
 describe("auditChordShape", () => {

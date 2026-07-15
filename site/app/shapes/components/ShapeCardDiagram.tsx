@@ -5,7 +5,7 @@ import type { ShapeCatalogEntry } from "./shapeLibraryUtils";
 
 // Kept in sync with the legend used by
 // `site/app/experiments/components/FretboardDiagram.tsx` — rendered ONCE at
-// page level by the `ShapeLibrary` container (Task Group 11), not per-card.
+// page level by the `ShapeLibrary` container, not per-card.
 export const LEGEND = [
   { color: "#ef4444", label: "Root" },
   { color: "#3b82f6", label: "3rd" },

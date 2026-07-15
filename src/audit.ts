@@ -52,7 +52,7 @@ export function displayRootFor(shape: { canonicalRoot?: string }): string {
 }
 
 // ============================================================
-// Individual checks — implemented in later task groups
+// Individual checks
 // ============================================================
 
 /**
@@ -274,7 +274,7 @@ export function checkScaleMetadataCompleteness(shape: ScaleShape): ShapeAuditIss
 }
 
 // ============================================================
-// checkGeometryMismatch — Task Group 6
+// checkGeometryMismatch
 // ============================================================
 
 // Matches a leading root-letter token, e.g. "G" or "Bb", but only in names
