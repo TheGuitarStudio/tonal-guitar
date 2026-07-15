@@ -161,6 +161,12 @@ checkGeometryMismatch(chordShapes.get("G Augmented Open"));
 // }]
 ```
 
+### chordShapeGeometry
+
+`chordShapeGeometry(shape: ChordShape, tuning?: string[]) => ChordGeometryDetails | undefined` (default `tuning = STANDARD`)
+
+The geometry computation `checkGeometryMismatch` is built on, exposed standalone: reconstructs the grip root and source-diagram frets for `shape` without also building and comparing against the build engine's own reconstruction. Returns `undefined` under the same two skip conditions as `checkGeometryMismatch` (no `baseFret`, or no resolvable grip root). This is what `auditAllShapes` calls to populate every chord result's `geometry` field (see below) -- most callers should read `geometry` off the aggregate result rather than calling this directly.
+
 ## Aggregate Functions
 
 ### auditChordShape
@@ -187,7 +193,7 @@ Runs only the two checks that apply to scale shapes -- build-loss and metadata-c
 
 ### auditAllShapes
 
-`auditAllShapes(options?: ShapeAuditOptions) => { chord: Map<string, ShapeAuditIssue[]>, scale: Map<string, ShapeAuditIssue[]> }`
+`auditAllShapes(options?: ShapeAuditOptions) => { chord: Map<string, ChordShapeAuditResult>, scale: Map<string, ShapeAuditIssue[]> }`
 
 Audits every currently-registered chord and scale shape, keyed by `shape.name`:
 
@@ -195,11 +201,31 @@ Audits every currently-registered chord and scale shape, keyed by `shape.name`:
 import * as Guitar from "tonal-guitar"; // side-effect imports populate the registries
 
 const { chord, scale } = Guitar.auditAllShapes();
-chord.get("G Augmented Open"); // => [fret-span error, geometry-mismatch warning]
-[...chord.entries()].filter(([, issues]) => issues.some((i) => i.severity === "error"));
+chord.get("G Augmented Open");
+// => {
+//   issues: [fret-span error, geometry-mismatch warning],
+//   geometry: { gripRoot: "G", sourceFrets: [3, null, 1, 12, 12, 11] },
+// }
+[...chord.entries()].filter(([, result]) => result.issues.some((i) => i.severity === "error"));
 ```
 
 The registries are populated by side-effect imports in `index.ts`, so this only returns full results once the data modules have been imported -- import `./index` (or the relevant `data/*` modules) first if calling it standalone.
+
+#### ChordShapeAuditResult / ChordGeometryDetails
+
+```ts
+interface ChordGeometryDetails {
+  gripRoot: string;
+  sourceFrets: (number | null)[];
+}
+
+interface ChordShapeAuditResult {
+  issues: ShapeAuditIssue[];
+  geometry?: ChordGeometryDetails;
+}
+```
+
+Chord results carry `geometry` **unconditionally** for every shape with a `baseFret` and a resolvable grip root (see `checkGeometryMismatch` above for exactly what "resolvable" means) -- not only the shapes that actually mismatch. This is the same `gripRoot`/`sourceFrets` computation `checkGeometryMismatch` uses internally to decide whether to flag a shape (via the shared `chordShapeGeometry(shape, tuning?)` helper), surfaced for every card so a consumer like the Guitar Lab site's shape library can render a "source frets" row without re-deriving the grip-root/source-fret math itself. `geometry` is `undefined` under the same two conditions the check skips: no `baseFret`, or no resolvable grip root (shell/extended/CAGED-7th shapes, and the movable "E/A Form ... Barre" shapes). Scale results remain a plain `ShapeAuditIssue[]` -- there is no comparable geometry concept for scale shapes.
 
 ## VERSION
 

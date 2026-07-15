@@ -11,7 +11,6 @@ import {
   applyChordShape,
   buildFrettedScale,
   displayRootFor,
-  findNearestFret,
   STANDARD,
   VERSION,
 } from "tonal-guitar";
@@ -46,8 +45,10 @@ export type ShapeCatalogEntry =
       shape: ChordShape;
       /**
        * Only populated for chord shapes with a `baseFret` AND a resolvable grip
-       * root (see `gripRootFor` below) — the source diagram's per-string frets,
-       * reconstructed independently of the build engine's own anchor logic.
+       * root — mirrors `auditAllShapes`'s per-shape `geometry.sourceFrets`
+       * (see `src/audit.ts`'s `chordShapeGeometry`): the source diagram's
+       * per-string frets, reconstructed independently of the build engine's
+       * own anchor logic.
        */
       sourceFrets?: (number | null)[];
       /**
@@ -70,69 +71,6 @@ export interface ShapeCatalogFilters {
   nameQuery?: string;
   /** When true, only entries with `issues.length > 0` are kept. */
   failingOnly?: boolean;
-}
-
-// ============================================================
-// Grip-root / source-frets math — re-derived from src/audit.ts
-// ============================================================
-//
-// `gripRootFor` and `sourceFrets` are internal (non-exported) helpers of
-// `src/audit.ts`'s `checkGeometryMismatch`. They are re-derived here,
-// byte-for-byte faithful to that source, because the UI needs a
-// source-frets row on every resolvable `baseFret` card, not just the ones
-// with a mismatch (the `CHECK_GEOMETRY_MISMATCH` issue's `details` are only
-// populated when a mismatch actually fires).
-//
-// The one difference from audit.ts's implementation is mechanical: audit.ts
-// computes the target pitch class via `@tonaljs/note`'s `transpose`/`chroma`
-// directly. This module cannot import `@tonaljs/note` (see file-header
-// comment), so instead it reads the already-computed `.pc` field off the
-// `FrettedNote`s returned by `applyChordShape(shape, gripRoot, tuning)` —
-// `pc` is intrinsically `transpose(gripRoot, interval)` normalized to a
-// pitch class (see `src/build.ts`), independent of which fret/octave the
-// build engine's own window logic happens to choose — then feeds that pitch
-// class into the exported `findNearestFret` to get the same chroma-distance
-// "raw" fret audit.ts computes inline. The octave-lift loop
-// (`while (f < baseFret) f += 12`) is plain arithmetic, copied verbatim.
-
-// Matches a leading root-letter token, but only in names that follow the
-// authored-grip `"<Root> ... Open"` convention (see open-chords.ts) —
-// copied verbatim from src/audit.ts's `OPEN_NAME_ROOT_RE`.
-const OPEN_NAME_ROOT_RE = /^([A-G](#|b)?)\s.*\bOpen$/;
-
-function parseRootFromName(name: string): string | undefined {
-  const match = OPEN_NAME_ROOT_RE.exec(name);
-  return match ? match[1] : undefined;
-}
-
-function gripRootFor(shape: ChordShape): string | undefined {
-  return shape.canonicalRoot ?? parseRootFromName(shape.name);
-}
-
-function computeSourceFrets(
-  shape: ChordShape,
-  gripRoot: string,
-  tuning: string[],
-): (number | null)[] {
-  const baseFret = shape.baseFret as number;
-  // Build once at the grip root to recover each played string's pitch
-  // class (`transpose(gripRoot, interval)`, pre-computed as `.pc`).
-  const builtAtGripRoot = applyChordShape(shape, gripRoot, tuning);
-
-  return shape.strings.map((ivl, i) => {
-    if (ivl == null) return null; // muted string
-    if (shape.fingers[i] === 0) return 0; // open string
-
-    const note = builtAtGripRoot.positions.find((p) => p.string === i);
-    if (!note) return null; // build engine couldn't resolve this interval
-
-    const raw = findNearestFret(tuning, i, note.pc);
-    if (raw == null) return null;
-
-    let f = raw;
-    while (f < baseFret) f += 12;
-    return f;
-  });
 }
 
 // ============================================================
@@ -203,15 +141,10 @@ export function buildCatalog(
     const frettedScale = chordFingeringToFrettedScale(shape, renderRoot, STANDARD);
     const builtFrets = applyChordShape(shape, renderRoot, STANDARD).frets;
 
-    let sourceFrets: (number | null)[] | undefined;
-    let gripRoot: string | undefined;
-    if (shape.baseFret != null) {
-      const gr = gripRootFor(shape);
-      if (gr != null) {
-        sourceFrets = computeSourceFrets(shape, gr, STANDARD);
-        gripRoot = gr;
-      }
-    }
+    // `auditAllShapes` already computes gripRoot/sourceFrets (as
+    // `geometry`) for every resolvable `baseFret` shape, not just the ones
+    // `CHECK_GEOMETRY_MISMATCH` flags — no need to re-derive it here.
+    const chordResult = auditResult.chord.get(shape.name);
 
     entries.push({
       kind: "chord",
@@ -221,9 +154,9 @@ export function buildCatalog(
       renderRoot,
       frettedScale,
       builtFrets,
-      sourceFrets,
-      gripRoot,
-      issues: auditResult.chord.get(shape.name) ?? [],
+      sourceFrets: chordResult?.geometry?.sourceFrets,
+      gripRoot: chordResult?.geometry?.gripRoot,
+      issues: chordResult?.issues ?? [],
     });
   });
 

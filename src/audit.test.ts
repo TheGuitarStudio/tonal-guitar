@@ -11,6 +11,7 @@ import {
   checkRepeatedFingerNoBarre,
   checkScaleBuildLoss,
   checkScaleMetadataCompleteness,
+  chordShapeGeometry,
   CHECK_BUILD_LOSS,
   CHECK_FINGER_ZERO_ON_MOVABLE,
   CHECK_FRET_SPAN,
@@ -930,11 +931,93 @@ describe("auditAllShapes", () => {
     const gM7b5 = chord.get("G m7b5 Open");
     expect(gAug).toBeDefined();
     expect(gM7b5).toBeDefined();
-    expect((gAug as ShapeAuditIssue[]).some((i) => i.severity === "error")).toBe(
+    expect(gAug?.issues.some((i) => i.severity === "error")).toBe(true);
+    expect(gM7b5?.issues.some((i) => i.severity === "error")).toBe(true);
+  });
+
+  it("chord results are { issues, geometry } — issues match auditChordShape's own output", () => {
+    const { chord } = auditAllShapes();
+    for (const shape of chordShapes.all()) {
+      const result = chord.get(shape.name);
+      expect(result).toBeDefined();
+      expect(result?.issues).toEqual(auditChordShape(shape));
+      expect(result?.geometry).toEqual(chordShapeGeometry(shape, STANDARD));
+    }
+  });
+
+  it("geometry is populated for a resolvable-grip-root shape even when it does NOT mismatch (OPEN_C_MAJOR)", () => {
+    const { chord } = auditAllShapes();
+    const result = chord.get(OPEN_C_MAJOR.name);
+    expect(result?.geometry).toBeDefined();
+    expect(result?.geometry?.gripRoot).toBe("C");
+    expect(result?.issues.some((i) => i.id === CHECK_GEOMETRY_MISMATCH)).toBe(
+      false,
+    );
+  });
+
+  it("geometry is populated for a mismatching shape too (OPEN_G_AUG), independent of the issue firing", () => {
+    const { chord } = auditAllShapes();
+    const result = chord.get(OPEN_G_AUG.name);
+    expect(result?.geometry).toBeDefined();
+    expect(result?.geometry?.gripRoot).toBe("G");
+    expect(result?.issues.some((i) => i.id === CHECK_GEOMETRY_MISMATCH)).toBe(
       true,
     );
-    expect((gM7b5 as ShapeAuditIssue[]).some((i) => i.severity === "error")).toBe(
-      true,
+  });
+
+  it("geometry is undefined for shapes with no baseFret (jazz shell)", () => {
+    const { chord } = auditAllShapes();
+    const shell = SHELL_SHAPES.find((s) => s.name === "Shell maj7 R37 012");
+    expect(shell).toBeDefined();
+    const result = chord.get((shell as ChordShape).name);
+    expect(result?.geometry).toBeUndefined();
+  });
+
+  it("geometry is undefined for movable barre shapes with no resolvable grip root", () => {
+    const { chord } = auditAllShapes();
+    const noGripRoot = chordShapes
+      .all()
+      .filter((s) => s.baseFret != null && gripRootFor(s) == null);
+    expect(noGripRoot.length).toBeGreaterThan(0);
+    for (const shape of noGripRoot) {
+      expect(chord.get(shape.name)?.geometry).toBeUndefined();
+    }
+  });
+
+  it("options.tuning threads into geometry's sourceFrets computation", () => {
+    const dropD = ["D2", "A2", "D3", "G3", "B3", "E4"];
+    const { chord } = auditAllShapes({ tuning: dropD });
+    const result = chord.get(OPEN_C_MAJOR.name);
+    expect(result?.geometry).toEqual(chordShapeGeometry(OPEN_C_MAJOR, dropD));
+  });
+});
+
+describe("chordShapeGeometry", () => {
+  it("OPEN_C_MAJOR: gripRoot 'C', sourceFrets matches the exported sourceFrets() helper", () => {
+    const geometry = chordShapeGeometry(OPEN_C_MAJOR);
+    expect(geometry).toBeDefined();
+    expect(geometry?.gripRoot).toBe("C");
+    expect(geometry?.sourceFrets).toEqual(
+      sourceFrets(OPEN_C_MAJOR, "C", OPEN_C_MAJOR.baseFret as number),
+    );
+  });
+
+  it("returns undefined when shape.baseFret is null (jazz shell)", () => {
+    const shell = SHELL_SHAPES.find((s) => s.name === "Shell maj7 R37 012");
+    expect(chordShapeGeometry(shell as ChordShape)).toBeUndefined();
+  });
+
+  it("returns undefined when there is no resolvable grip root (movable E/A Form barre shape)", () => {
+    const noGripRoot = chordShapes
+      .all()
+      .find((s) => s.baseFret != null && gripRootFor(s) == null);
+    expect(noGripRoot).toBeDefined();
+    expect(chordShapeGeometry(noGripRoot as ChordShape)).toBeUndefined();
+  });
+
+  it("defaults tuning to STANDARD", () => {
+    expect(chordShapeGeometry(OPEN_C_MAJOR)).toEqual(
+      chordShapeGeometry(OPEN_C_MAJOR, STANDARD),
     );
   });
 });
