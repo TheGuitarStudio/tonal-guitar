@@ -45,6 +45,13 @@ export type { FretboardPosition } from "./fretboard";
 export { buildFrettedScale, applyChordShape } from "./build";
 export type { Fingering } from "./build";
 
+// Version
+export { VERSION } from "./version";
+
+// Shape audit (scaffold — see CHECK_* constants and checkX/auditX in Group 7)
+export { displayRootFor } from "./audit";
+export type { AuditSeverity, ShapeAuditIssue, ShapeAuditOptions } from "./audit";
+
 // Pattern generators
 export {
   ascendingIntervals,

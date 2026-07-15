@@ -16,7 +16,7 @@ tonal-guitar is a standalone TypeScript library for guitar fretboard math, shape
 | `npm run test:coverage` | Tests with coverage |
 | `npm run lint` | ESLint check |
 | `npm run format` | Prettier format |
-| `npm run release` | Publish to npm (sources .env for NPM_TOKEN; see .env.example) |
+| `npm run release` | Publish to npm (sources .env for NPM_TOKEN; see .env.example) (also bump `src/version.ts` `VERSION`) |
 
 ### Running a single test
 
