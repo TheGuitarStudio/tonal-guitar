@@ -168,7 +168,7 @@ Based on the mode, determine the active feature:
      REPO=$(git worktree list --porcelain | head -1 | sed 's/^worktree //')  # main checkout — herdr rejects linked worktrees
      PANE=$(herdr worktree create --cwd "$REPO" --branch feat/{slug} --base origin/feat/{slug} --no-focus --json \
        | python3 -c 'import sys,json;print(json.load(sys.stdin)["result"]["root_pane"]["pane_id"])')
-     herdr pane run "$PANE" "claude" && herdr wait output "$PANE" --match ">" --timeout 20000
+     herdr pane run "$PANE" "claude" && herdr wait output "$PANE" --match "❯" --timeout 20000
      herdr pane run "$PANE" "Read .tonal-guitar/features/{slug}/FEATURE.md and continue the current pipeline phase."
      ```
    - The branch guard (Step 1.5) enforces you're on the correct branch before proceeding.

@@ -178,7 +178,7 @@ herdr worktree commands must run against the main checkout; `git rev-parse --sho
 REPO=$(git worktree list --porcelain | head -1 | sed 's/^worktree //')  # main checkout — herdr rejects linked worktrees
 PANE=$(herdr worktree create --cwd "$REPO" --branch chore/reflect-{YYYY-MM-DD} --base origin/main --no-focus --json \
   | python3 -c 'import sys,json;print(json.load(sys.stdin)["result"]["root_pane"]["pane_id"])')
-herdr pane run "$PANE" "claude" && herdr wait output "$PANE" --match ">" --timeout 20000
+herdr pane run "$PANE" "claude" && herdr wait output "$PANE" --match "❯" --timeout 20000
 herdr pane run "$PANE" "Implement the approved reflect changes."
 ```
 

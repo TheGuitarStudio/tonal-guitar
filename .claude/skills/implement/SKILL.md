@@ -266,10 +266,11 @@ git merge impl/{slug}/tg{N}-{group-name-slug} --no-edit
 Merge each sub-branch sequentially. Order within a layer is arbitrary (same-layer groups modify
 independent code by design).
 
-**Step 5.6 — Cleanup**: Remove worktrees and sub-branches (use the `$WS` workspace id recorded in Step 5.2):
+**Step 5.6 — Cleanup**: Remove worktrees and sub-branches (use the `$WS` workspace id recorded in Step 5.2). `herdr worktree remove` does NOT delete the git branch — delete it explicitly after the merge in Step 5.5, or `impl/*` branches accumulate until someone notices them during `/tree --prune`:
 
 ```bash
 herdr worktree remove --workspace "$WS" --force --json
+git branch -D impl/{slug}/tg{N}-{group-name-slug}   # safe: merged into feat/{slug} in Step 5.5
 ```
 
 **Step 5.7 — Setup verification**: Re-run setup on the merged feature branch.
