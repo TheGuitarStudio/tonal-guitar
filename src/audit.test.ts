@@ -32,6 +32,7 @@ import type {
   ShapeAuditOptions as ShapeAuditOptionsFromIndex,
 } from "./index";
 import { VERSION } from "./version";
+import { applyChordShape } from "./build";
 import { STANDARD } from "./tuning";
 import { all as allScaleShapes, chordShapes, get as getScaleShape, ChordShape, ScaleShape } from "./shape";
 import {
@@ -348,6 +349,27 @@ describe("checkFretSpan", () => {
     expect(issues).toEqual([]);
   });
 
+  it("all strings open or muted: fretted array is empty, span defaults to 0, no issue", () => {
+    // Exercises the `fretted.length ? max - min : 0` ternary's false
+    // branch directly: root "E" against tuning[0] ("E2") builds string 0
+    // at fret 0 (open) via applyChordShape, and every other string is
+    // muted — so there is no fret > 0 anywhere and `fretted` is empty,
+    // which must compute span as 0 rather than throw on
+    // Math.max(...[])/Math.min(...[]).
+    const allOpenOrMuted: ChordShape = {
+      name: "Synthetic All Open Or Muted",
+      system: "test",
+      strings: ["1P", null, null, null, null, null],
+      fingers: [0, null, null, null, null, null],
+      barres: [],
+      rootString: 0,
+      canonicalRoot: "E",
+    };
+    const built = applyChordShape(allOpenOrMuted, "E");
+    expect(built.frets.some((f) => f !== null && f > 0)).toBe(false);
+    expect(checkFretSpan(allOpenOrMuted, "E")).toEqual([]);
+  });
+
   it("custom maxSpan override moves the pass/fail boundary", () => {
     // "Shell m7 R73 012" applied at C spans exactly 5 frets: fails the
     // default maxSpan (4) but passes when maxSpan is raised to 5.
@@ -535,6 +557,27 @@ describe("checkChordBuildLoss", () => {
         `${shape.name} unexpectedly flagged by checkChordBuildLoss`,
       ).toEqual([]);
     }
+  });
+
+  it("fully unresolvable root (NoFrettedScale sentinel path): builtCount 0, one error issue", () => {
+    // "H" is not a valid Tonal note letter, so applyChordShape's underlying
+    // buildFrettedScale call short-circuits to the NoFrettedScale sentinel
+    // (empty: true, notes: []) before placing anything — every played
+    // string is dropped, not just one, exercising the total-loss path
+    // (as opposed to the single-dropped-interval case above).
+    const issues = checkChordBuildLoss(OPEN_C_MAJOR, "H");
+    expect(issues.length).toBe(1);
+    expect(issues[0].id).toBe(CHECK_BUILD_LOSS);
+    expect(issues[0].severity).toBe("error");
+    const playedCount = OPEN_C_MAJOR.strings.filter((s) => s != null).length;
+    const details = issues[0].details as {
+      playedCount: number;
+      builtCount: number;
+      frets: (number | null)[];
+    };
+    expect(details.playedCount).toBe(playedCount);
+    expect(details.builtCount).toBe(0);
+    expect(details.frets.every((f) => f === null)).toBe(true);
   });
 });
 
@@ -778,6 +821,22 @@ describe("auditChordShape", () => {
     );
     expect(defaultFretSpan).toEqual(checkFretSpan(OPEN_C_MAJOR, "C", STANDARD));
   });
+
+  it("auditChordShape(shape, { maxFretSpan }) threads through to checkFretSpan without affecting checkGeometryMismatch", () => {
+    // OPEN_G_AUG's ~10-fret span fails the default maxFretSpan (4), but
+    // raising it above the actual span clears only the fret-span error —
+    // the geometry-mismatch warning (which doesn't take a maxSpan) still
+    // fires, confirming maxFretSpan is wired to the right check only.
+    const defaultIssues = auditChordShape(OPEN_G_AUG);
+    expect(defaultIssues.some((i) => i.id === CHECK_FRET_SPAN)).toBe(true);
+
+    const raisedIssues = auditChordShape(OPEN_G_AUG, { maxFretSpan: 20 });
+    expect(raisedIssues.some((i) => i.id === CHECK_FRET_SPAN)).toBe(false);
+    expect(raisedIssues.some((i) => i.id === CHECK_GEOMETRY_MISMATCH)).toBe(true);
+    expect(raisedIssues).toEqual(
+      checkGeometryMismatch(OPEN_G_AUG, STANDARD),
+    );
+  });
 });
 
 describe("auditScaleShape", () => {
@@ -817,6 +876,23 @@ describe("auditScaleShape", () => {
         expect(chordOnlyIds.has(issue.id)).toBe(false);
       }
     }
+  });
+
+  it("auditScaleShape(shape, { root, tuning }) threads both overrides into checkScaleBuildLoss", () => {
+    // Default root "C" builds CAGED_E cleanly; overriding root to the
+    // unresolvable "H" flips it to the NoFrettedScale sentinel build-loss
+    // path, and an explicit tuning override is honored identically to the
+    // default STANDARD tuning — confirming both ShapeAuditOptions fields
+    // reach checkScaleBuildLoss, not just root.
+    expect(auditScaleShape(CAGED_E)).toEqual([]);
+
+    const overridden = auditScaleShape(CAGED_E, { root: "H" });
+    expect(overridden.some((i) => i.id === CHECK_BUILD_LOSS)).toBe(true);
+    expect(overridden).toEqual(checkScaleBuildLoss(CAGED_E, "H", STANDARD));
+
+    expect(auditScaleShape(CAGED_E, { root: "E", tuning: STANDARD })).toEqual(
+      auditScaleShape(CAGED_E, { root: "E" }),
+    );
   });
 });
 
