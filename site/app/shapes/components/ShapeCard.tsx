@@ -17,19 +17,14 @@ interface ShapeCardProps {
 const CARD_INTRINSIC_SIZE = "auto 480px";
 
 function severityRank(severity: AuditSeverity): number {
-  if (severity === "error") return 0;
-  if (severity === "warning") return 1;
-  return 2;
+  return severity === "error" ? 0 : 1;
 }
 
 function badgeClassFor(severity: AuditSeverity): string {
   if (severity === "error") {
     return "bg-red-500/10 text-red-700 dark:text-red-600 border border-red-500/40";
   }
-  if (severity === "warning") {
-    return "bg-amber-500/10 text-amber-700 dark:text-amber-600 border border-amber-500/40";
-  }
-  return "border border-fd-border bg-fd-muted text-fd-muted-foreground";
+  return "bg-amber-500/10 text-amber-700 dark:text-amber-600 border border-amber-500/40";
 }
 
 function sortIssues(issues: ShapeAuditIssue[]): ShapeAuditIssue[] {

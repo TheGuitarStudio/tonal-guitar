@@ -16,7 +16,7 @@ import { chroma, transpose } from "@tonaljs/note";
 // Core types
 // ============================================================
 
-export type AuditSeverity = "error" | "warning" | "info";
+export type AuditSeverity = "error" | "warning";
 
 export interface ShapeAuditIssue {
   id: string; // one of the CHECK_* constants
