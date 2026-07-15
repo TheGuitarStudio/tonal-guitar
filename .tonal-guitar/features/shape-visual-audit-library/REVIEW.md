@@ -15,7 +15,7 @@
 - [x] Phase 2: Lint/Test Fix
 - [x] Phase 3: Architecture Review
 - [x] Phase 4: Architecture Fix
-- [ ] Phase 5: Code Simplification Review
+- [x] Phase 5: Code Simplification Review
 - [ ] Phase 6: Code Simplification Fix
 - [ ] Phase 7: Specialized Reviews
 - [ ] Phase 8: Specialized Fixes
@@ -70,5 +70,25 @@ Verified clean: all documented signatures in `docs/api/audit.md` match real expo
 ### Won't Fix
 
 - CR-003: Measured the trade-off: client-side `auditAllShapes()` + catalog build costs ~11ms one-time (8.8ms audit + 1.8ms builds), while server-building would inline ~200KB of serialized catalog JSON into the static page (measured 187KB for the approximate entry set) against a total first-load JS of 111KB. Also `auditAllShapes()` returns `Map`s, which don't serialize across the RSC boundary without conversion. The current client-side build is the better trade.
+
+## Phase 5: Code Simplification Review
+
+### src/ (library)
+
+- CR-008: [Important] Six near-identical "registry-wide: no registered shape fails checkX" blocks in `src/audit.test.ts:434-449,503-518,552-566,630-644,756-776` — same three-line sweep shape varying only in source array, check invocation, and label; a shared `expectRegistryClean(shapes, check, label)` helper would collapse ~50 lines. Status: Open
+- CR-009: [Suggestion] Terse local `gr` for "grip root" in `src/audit.ts:305-388` — rename to `gripRoot` so call sites are self-explanatory (details object already writes `gripRoot: gr`). Status: Open
+
+Otherwise clean: no dead code, complexity, comment, or performance issues; the `data.test.ts` refactor to reuse audit checks is genuine deduplication.
+
+### site/
+
+- CR-010: [Important] `site/app/shapes/components/ShapeCard.tsx:78-105` — properties array built via seven near-identical conditional spreads with manual casts; mirror `metadataLines`' pairs-then-filter pattern to drop the casts and halve the block. Status: Open
+- CR-011: [Important] `ShapeCatalogEntry.shape` typed `ScaleShape | ChordShape` without tying to the `kind` discriminant — forces ~9 unsafe `as ChordShape`/`as ScaleShape` casts across ShapeCard.tsx and shapeLibraryUtils.ts; a discriminated union removes every cast. Status: Open
+- CR-012: [Important] Nested ternary in `site/app/shapes/components/FilterBar.tsx:152-156` radius calculation — use if/else chain. Status: Open
+- CR-013: [Important] `site/app/shapes/components/shapeLibraryUtils.ts:90-128` — byte-for-byte reimplementation of `src/audit.ts` non-exported internals (`OPEN_NAME_ROOT_RE`, `gripRootFor`, `computeSourceFrets`) with nothing enforcing sync; durable fix is exporting the helper from the library instead of re-deriving in site. Status: Open
+- CR-014: [Suggestion] `distinctVoicingFamilies`/`distinctQualities` in `site/app/shapes/components/shapeLibraryUtils.ts:286-300` structurally identical — could collapse to a generic helper; only two call sites, optional. Status: Open
+- CR-015: [Suggestion] `ToggleGroup` options array literal recreated per render in `site/app/shapes/components/FilterBar.tsx:74-78` — hoist to module constant like `LEGEND`. Status: Open
+- CR-016: [Suggestion] `auditAllShapes` imported as value in `site/app/shapes/components/shapeLibraryUtils.ts:8-18` but only used in a `typeof` type position — move to the `import type` block. Status: Open
+- CR-017: [Suggestion] Repo slug `"TheGuitarStudio/tonal-guitar"` duplicated in `site/app/shapes/components/shapeLibraryUtils.ts:306` and `site/app/layout.config.tsx:29` — shared constant would avoid drift. Status: Open
 - GitHub Issues Created: (none yet)
 - Total Commits: 0 | Total Fixes: 0 | Final Status: IN PROGRESS
