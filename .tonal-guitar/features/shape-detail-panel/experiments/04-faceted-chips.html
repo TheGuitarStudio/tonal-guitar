@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="en" class="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Experiment 04 — Faceted chips (Proposal A)</title>
+<style>
+  :root {
+    --bg: #0a0a0a; --card: #111113; --border: #27272a; --border-soft: #1c1c1f;
+    --fg: #fafafa; --muted: #a1a1aa; --faint: #71717a;
+    --primary: #e4e4e7; --primary-fg: #18181b;
+    --red: #f87171; --amber: #fbbf24; --blue: #60a5fa; --green:#4ade80; --pink:#f472b6;
+    --chip: #1f1f23; --chip-active: #3f3f46;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--fg); font: 14px/1.5 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+
+  .expnav { display:flex; gap:12px; padding:8px 20px; background:#060607; border-bottom:1px solid var(--border-soft); font-size:12px; color:var(--faint); position:sticky; top:0; z-index:60;}
+  .expnav b { color: var(--muted); font-weight:600;}
+  .expnav a { color:var(--faint); text-decoration:none; padding:2px 8px; border-radius:6px;}
+  .expnav a.on { background:var(--chip-active); color:var(--fg);}
+  .expnav a:hover { color: var(--fg);}
+
+  .page { max-width: 1240px; margin: 0 auto; padding: 24px 20px 80px; transition: margin-right .2s ease; }
+  body.panel-open .page { margin-right: 440px; }
+  h1 { font-size: 26px; font-weight: 700; }
+  .sub { color: var(--muted); margin: 6px 0 16px; max-width: 780px; font-size:13px;}
+
+  /* sticky facet bar */
+  .facets { position: sticky; top: 33px; z-index: 50; background: color-mix(in srgb, var(--bg) 90%, transparent); backdrop-filter: blur(8px); padding: 8px 0 10px; border-bottom: 1px solid var(--border-soft); display:flex; flex-direction:column; gap:8px;}
+  .facetrow { display:flex; flex-wrap:wrap; gap:6px; align-items:center;}
+  .facetrow .lbl { color:var(--faint); font-size:11px; text-transform:uppercase; letter-spacing:.05em; width:58px; flex:none;}
+  .chip { background:var(--chip); border:1px solid var(--border-soft); color:var(--muted); font-size:12px; padding:3px 11px; border-radius:999px; cursor:pointer; user-select:none;}
+  .chip.on { background:var(--chip-active); color:var(--fg); border-color:var(--border);}
+  .chip.off0 { opacity:.35; }
+  .chip .n { color:var(--faint); font-size:10px; margin-left:4px;}
+  .chip.root { padding:3px 9px; min-width:30px; text-align:center;}
+  .facetrow select, .facetrow input[type=text] { background:var(--card); color:var(--fg); border:1px solid var(--border); border-radius:8px; padding:4px 9px; font-size:12.5px;}
+  .count { color:var(--faint); font-size:12px; margin-left:auto;}
+  .typechips { display:flex; gap:6px; flex-wrap:wrap; }
+
+  /* family tag colors reused in chips + card badges */
+  .fam-open  { --fc:#86efac; --fb:#14532d; --fbg:#052e16; }
+  .fam-barre { --fc:#93c5fd; --fb:#1e3a8a; --fbg:#0c1b3a; }
+  .fam-caged { --fc:#fcd34d; --fb:#713f12; --fbg:#2a1a05; }
+  .fam-shell { --fc:#f9a8d4; --fb:#831843; --fbg:#2d0a1c; }
+  .fam-drop2 { --fc:#c4b5fd; --fb:#4c1d95; --fbg:#1e1040; }
+  .chip.fam.on { color:var(--fc); border-color:var(--fb); background:var(--fbg); }
+  .tag { font-size:9.5px; text-transform:uppercase; letter-spacing:.04em; padding:1.5px 7px; border-radius:999px; border:1px solid var(--fb,var(--border)); color:var(--fc,var(--muted)); background:var(--fbg,transparent);}
+  .tag.fr { --fc:var(--muted); --fb:var(--border); --fbg:transparent; }
+  .tag.err { --fc:var(--red); --fb:#7f1d1d; --fbg:#2a0a0a; }
+  .tag.star { --fc:#fde68a; --fb:#78350f; --fbg:#2a1a05; }
+
+  section.grp { margin-top: 24px; }
+  .grphead { display:flex; align-items:baseline; gap:10px; border-bottom:1px solid var(--border-soft); padding-bottom:6px; margin-bottom:12px;}
+  .grphead h2 { font-size:16px; font-weight:650;}
+  .grphead .badge-count { color:var(--faint); font-size:12px;}
+  .showall { margin:10px 0 0; background:none; border:1px dashed var(--border); color:var(--muted); font-size:12px; padding:6px 14px; border-radius:8px; cursor:pointer;}
+  .showall:hover { color:var(--fg); border-color:#3f3f46;}
+
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(148px,1fr)); gap:10px; }
+  .card { color:var(--fg); font:inherit; background:var(--card); border:1px solid var(--border); border-radius:10px; padding:9px; cursor:pointer; transition: border-color .12s, transform .12s; text-align:left; width:100%;}
+  .card:hover { border-color:#3f3f46; transform: translateY(-1px);}
+  .card.sel { border-color:#e4e4e7; }
+  .card:focus-visible { outline:2px solid var(--blue); outline-offset:2px;}
+  .cardtop { display:flex; align-items:center; gap:5px; margin-bottom:5px; flex-wrap:wrap;}
+  .cardtop .name { font-weight:650; font-size:12.5px;}
+  svg.diagram { display:block; width:100%; height:auto; }
+
+  .legend { display:flex; gap:12px; font-size:11px; color:var(--faint); margin:8px 0 0;}
+  .legend i { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:4px;}
+
+  /* non-modal slide-over panel (D-005) */
+  .panel { position:fixed; top:0; right:0; bottom:0; width:430px; max-width:92vw; background:#0e0e10; border-left:1px solid var(--border); z-index:100; transform:translateX(102%); transition:transform .2s ease; overflow-y:auto; padding:18px 20px 40px;}
+  .panel.open { transform:translateX(0); box-shadow: -24px 0 60px rgba(0,0,0,.5);}
+  .panelclose { position:absolute; top:12px; right:12px; background:var(--chip); border:1px solid var(--border); color:var(--muted); width:28px; height:28px; border-radius:8px; cursor:pointer; font-size:14px;}
+  .panelclose:hover { color:var(--fg);}
+  .panel h2 { font-size:20px; font-weight:700; display:flex; align-items:center; gap:8px;}
+  .panel .sysline { color:var(--faint); font-size:12px; margin:2px 0 10px;}
+  .stepper { display:flex; align-items:center; gap:8px; margin:10px 0; }
+  .stepper button { background:var(--chip); border:1px solid var(--border); color:var(--muted); border-radius:8px; padding:4px 12px; cursor:pointer; font-size:12.5px;}
+  .stepper button:hover { color:var(--fg);}
+  .stepper .pos { color:var(--faint); font-size:12px;}
+  .bigdiagram { background:var(--card); border:1px solid var(--border-soft); border-radius:12px; padding:10px;}
+  .panel h3 { font-size:11.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--faint); margin:18px 0 8px; font-weight:650;}
+  .scalerow { display:flex; justify-content:space-between; background:var(--card); border:1px solid var(--border-soft); border-radius:8px; padding:6px 11px; font-size:13px; margin-bottom:5px;}
+  .scalerow .why { color:var(--faint); font-size:11px;}
+  .empty { color:var(--faint); font-size:12.5px; background:var(--card); border:1px dashed var(--border); border-radius:8px; padding:10px; }
+  .footer-hint { color:var(--faint); font-size:12px; margin-top:26px;}
+</style>
+</head>
+<body>
+<nav class="expnav"><b>design experiments</b>
+  <a href="01-slide-over.html">01 slide-over</a>
+  <a href="02-docked-panel.html">02 docked panel</a>
+  <a href="03-page-morph.html">03 page morph</a>
+  <a class="on" href="04-faceted-chips.html">04 faceted chips</a>
+</nav>
+
+<div class="page">
+  <h1>Shape Library</h1>
+  <p class="sub">Proposal A from the filter research: <b>quality-group chips</b> that expand into type chips · <b>voicing-family multi-select toggles with live counts</b> (grey at zero, click to toggle off/on) · <b>root strip</b> · sort by base fret · <b>spotlight tier</b> (★ featured shapes first, rest behind "Show all") · interval-colored dots · non-modal swap panel with a Prev/Next voicing stepper.</p>
+
+  <div class="facets">
+    <div class="facetrow">
+      <span class="lbl">Quality</span>
+      <span class="chip qg on" data-g="all">All</span>
+      <span class="chip qg" data-g="triads">Triads</span>
+      <span class="chip qg" data-g="sevenths">Sevenths</span>
+      <span class="typechips" id="typechips"></span>
+      <span class="count" id="count"></span>
+    </div>
+    <div class="facetrow">
+      <span class="lbl">Voicing</span>
+      <span id="famchips"></span>
+    </div>
+    <div class="facetrow">
+      <span class="lbl">Root</span>
+      <span id="rootchips"></span>
+      <select id="sort" style="margin-left:14px">
+        <option value="fret">Sort: base fret ↑</option>
+        <option value="name">Sort: name</option>
+      </select>
+      <input type="text" id="q" placeholder="Search (m7b5, ø, half-dim…)">
+    </div>
+  </div>
+
+  <div class="legend">
+    <span><i style="background:var(--red)"></i>Root</span>
+    <span><i style="background:var(--blue)"></i>3rd</span>
+    <span><i style="background:var(--green)"></i>5th</span>
+    <span><i style="background:var(--pink)"></i>7th</span>
+    <span><i style="background:var(--amber)"></i>other</span>
+    <span>★ = spotlight (featured) shape</span>
+  </div>
+
+  <div id="groups"></div>
+  <p class="footer-hint">Esc closes the panel · counts update live against the other active filters · zero-count chips grey out but stay visible</p>
+</div>
+
+<aside class="panel" id="panel" aria-label="Shape details">
+  <button class="panelclose" id="close" aria-label="Close">✕</button>
+  <div id="panelBody"></div>
+</aside>
+
+<script>
+const IVCOLOR = { "1":"#f87171", "3":"#60a5fa", "5":"#4ade80", "7":"#f472b6" };
+function diagram(frets, baseFret, w, iv) {
+  w = w || 190; iv = iv || [];
+  const strings = 6, fretsShown = 4, h = w * 1.02;
+  const padT = 24, padL = 17, padR = 17, padB = 10;
+  const gw = w - padL - padR, gh = h - padT - padB;
+  const sx = i => padL + gw * i / (strings - 1);
+  const fy = f => padT + gh * f / fretsShown;
+  let s = `<svg class="diagram" viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg">`;
+  if (baseFret === 1) s += `<rect x="${padL-1}" y="${padT-4}" width="${gw+2}" height="4" fill="#d4d4d8" rx="1.5"/>`;
+  else s += `<text x="${padL-8}" y="${fy(0.62)}" fill="#a1a1aa" font-size="${w*.058}" text-anchor="end">${baseFret}</text>`;
+  for (let i=0;i<strings;i++) s += `<line x1="${sx(i)}" y1="${padT}" x2="${sx(i)}" y2="${h-padB}" stroke="#3f3f46" stroke-width="1"/>`;
+  for (let f=0;f<=fretsShown;f++) s += `<line x1="${padL}" y1="${fy(f)}" x2="${w-padR}" y2="${fy(f)}" stroke="#3f3f46" stroke-width="1"/>`;
+  const r = w*.055;
+  frets.forEach((f,i) => {
+    const c = IVCOLOR[iv[i]] || "#fbbf24";
+    if (f === null) s += `<text x="${sx(i)}" y="${padT-7}" fill="#71717a" font-size="${w*.06}" text-anchor="middle">✕</text>`;
+    else if (f === 0) s += `<circle cx="${sx(i)}" cy="${padT-10}" r="${r*.6}" fill="none" stroke="${c}" stroke-width="1.6"/>`;
+    else s += `<circle cx="${sx(i)}" cy="${fy(f-0.5)}" r="${r}" fill="${c}"/>`;
+  });
+  return s + `</svg>`;
+}
+
+// root, q (chordType), fam, frets, iv, base, feat(ured), fail
+const S = (root,q,fam,frets,iv,base,feat,fail) => ({root,q,fam,frets,iv,base,feat:!!feat,fail:!!fail});
+const SHAPES = [
+  S("E","maj","open",[0,2,2,1,0,0],["1","5","1","3","5","1"],1,true),
+  S("A","maj","open",[null,0,2,2,2,0],["x","1","5","1","3","5"],1,true),
+  S("D","maj","open",[null,null,0,2,3,2],["x","x","1","5","1","3"],1,false),
+  S("G","maj","open",[3,2,0,0,0,3],["1","3","5","1","3","1"],1,true),
+  S("C","maj","open",[null,3,2,0,1,0],["x","1","3","5","1","3"],1,true),
+  S("F","maj","barre",[1,3,3,2,1,1],["1","5","1","3","5","1"],1,false),
+  S("G","maj","caged",[1,3,3,2,1,1],["1","5","1","3","5","1"],3,false),
+  S("C","maj","caged",[null,1,3,3,3,1],["x","1","5","1","3","5"],3,false),
+  S("A","maj","barre",[1,3,3,2,1,1],["1","5","1","3","5","1"],5,false),
+  S("E","m","open",[0,2,2,0,0,0],["1","5","1","3","5","1"],1,true),
+  S("A","m","open",[null,0,2,2,1,0],["x","1","5","1","3","5"],1,true),
+  S("D","m","open",[null,null,0,2,3,1],["x","x","1","5","1","3"],1,false),
+  S("B","m","barre",[null,2,4,4,3,2],["x","1","5","1","3","5"],1,false),
+  S("G","m","barre",[1,3,3,1,1,1],["1","5","1","3","5","1"],3,false),
+  S("E","7","open",[0,2,0,1,0,0],["1","5","7","3","5","1"],1,true),
+  S("A","7","open",[null,0,2,0,2,0],["x","1","5","7","3","5"],1,true),
+  S("D","7","open",[null,null,0,2,1,2],["x","x","1","5","7","3"],1,false),
+  S("G","7","open",[3,2,0,0,0,1],["1","3","5","1","3","7"],1,false),
+  S("B","7","open",[null,2,1,2,0,2],["x","1","3","7","1","5"],1,false),
+  S("G","7","shell",[3,null,3,4,null,null],["1","x","7","3","x","x"],1,false),
+  S("C","7","caged",[null,1,3,1,3,1],["x","1","5","7","3","5"],3,false),
+  S("C","maj7","open",[null,3,2,0,0,0],["x","1","3","5","7","3"],1,true),
+  S("E","maj7","open",[0,2,1,1,0,null],["1","5","7","3","5","x"],1,false),
+  S("G","maj7","barre",[1,3,2,2,1,1],["1","5","7","3","5","1"],3,false,true),
+  S("A","maj7","caged",[1,3,2,2,1,1],["1","5","7","3","5","1"],5,false),
+  S("C","maj7","drop2",[null,1,3,2,3,null],["x","1","5","7","3","x"],3,false),
+  S("F","maj7","shell",[1,null,2,2,null,null],["1","x","7","3","x","x"],1,false),
+  S("E","m7","open",[0,2,0,0,0,0],["1","5","7","3","5","1"],1,true),
+  S("A","m7","open",[null,0,2,0,1,0],["x","1","5","7","3","5"],1,true),
+  S("D","m7","open",[null,null,0,2,1,1],["x","x","1","5","7","3"],1,false),
+  S("E","m7","barre",[null,1,3,1,2,1],["x","1","5","7","3","5"],7,false),
+  S("G","m7","shell",[1,null,1,1,null,null],["1","x","7","3","x","x"],3,false),
+  S("D","m7","shell",[null,1,3,2,null,null],["x","1","7","3","x","x"],5,false),
+  S("C","m7","drop2",[null,1,3,1,3,null],["x","1","5","7","3","x"],3,false),
+  S("E","m7b5","open",[0,1,0,0,3,0],["1","5","7","3","7","1"],1,true),
+  S("E","m7b5","caged",[null,1,2,1,2,null],["x","1","5","7","3","x"],7,false),
+  S("B","m7b5","shell",[null,2,3,2,null,null],["x","1","7","3","x","x"],1,false),
+];
+const FAMS = [["open","Open"],["barre","Barre"],["caged","CAGED"],["shell","Shell"],["drop2","Drop 2"]];
+const GROUPS = { all:null, triads:["maj","m"], sevenths:["maj7","7","m7","m7b5"] };
+const QLABEL = { "maj":"Major", "m":"Minor", "7":"Dominant 7", "maj7":"Major 7", "m7":"Minor 7", "m7b5":"Half-diminished (m7b5)" };
+const QORDER = ["maj","m","7","maj7","m7","m7b5"];
+const ALIASES = { "ø":"m7b5", "half-dim":"m7b5", "halfdim":"m7b5", "Δ":"maj7", "dom":"7" };
+const ROOTS = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
+const COLLAPSE_AT = 5; // groups longer than this collapse to featured+first rows
+
+let qGroup = "all", typesOn = new Set(), famsOn = new Set(FAMS.map(f=>f[0]));
+let root = "any", sort = "fret", search = "", selected = -1;
+const expanded = new Set();
+
+const sym = s => s.root + (s.q === "maj" ? "" : s.q);
+function matches(s, ignore) {
+  const g = GROUPS[qGroup];
+  if (ignore !== "quality" && g && !g.includes(s.q)) return false;
+  if (ignore !== "quality" && typesOn.size && !typesOn.has(s.q)) return false;
+  if (ignore !== "fam" && !famsOn.has(s.fam)) return false;
+  if (ignore !== "root" && root !== "any" && s.root !== root) return false;
+  if (search) {
+    const needle = (ALIASES[search.toLowerCase()] || search).toLowerCase();
+    if (!sym(s).toLowerCase().includes(needle)) return false;
+  }
+  return true;
+}
+
+function renderFacets() {
+  // quality group chips
+  document.querySelectorAll(".qg").forEach(c => c.classList.toggle("on", c.dataset.g === qGroup));
+  // type chips for the selected group
+  const g = GROUPS[qGroup];
+  document.getElementById("typechips").innerHTML = !g ? "" :
+    g.map(t => `<span class="chip tc ${!typesOn.size || typesOn.has(t) ? "on":""}" data-t="${t}">${t}${t==="m7b5"?" (ø7)":""}</span>`).join("");
+  // family chips with live counts (counted ignoring the fam facet itself)
+  document.getElementById("famchips").innerHTML = FAMS.map(([f,label]) => {
+    const n = SHAPES.filter(s => s.fam === f && matches(s, "fam")).length;
+    return `<span class="chip fam fam-${f} ${famsOn.has(f)?"on":""} ${n===0?"off0":""}" data-f="${f}">${label}<span class="n">${n}</span></span>`;
+  }).join("");
+  // root chips
+  document.getElementById("rootchips").innerHTML =
+    `<span class="chip root ${root==="any"?"on":""}" data-r="any">Any</span>` +
+    ROOTS.map(r => {
+      const n = SHAPES.filter(s => s.root === r && matches(s, "root")).length;
+      return `<span class="chip root ${root===r?"on":""} ${n===0?"off0":""}" data-r="${r}">${r}</span>`;
+    }).join("");
+}
+
+function card(s, i) {
+  return `<button class="card ${i===selected?"sel":""}" onclick="openPanel(${i})">
+    <div class="cardtop"><span class="name">${sym(s)}</span>
+      ${s.feat?`<span class="tag star">★</span>`:""}
+      <span class="tag fam-${s.fam}">${FAMS.find(f=>f[0]===s.fam)[1]}</span>
+      ${s.base>1?`<span class="tag fr">fr ${s.base}</span>`:""}
+      ${s.fail?`<span class="tag err">✕</span>`:""}</div>
+    ${diagram(s.frets, s.base, 190, s.iv)}
+  </button>`;
+}
+
+function render() {
+  renderFacets();
+  const shown = SHAPES.map((s,i)=>[s,i]).filter(([s])=>matches(s));
+  const groups = {};
+  shown.forEach(([s,i]) => (groups[s.q] ??= []).push([s,i]));
+  const sorter = ([a],[b]) => sort === "fret" ? a.base - b.base : sym(a).localeCompare(sym(b));
+  document.getElementById("groups").innerHTML = QORDER.filter(q=>groups[q]).map(q => {
+    let items = groups[q].sort(sorter);
+    items = [...items.filter(([s])=>s.feat), ...items.filter(([s])=>!s.feat)];  // spotlight first
+    const total = items.length, isExp = expanded.has(q);
+    const cut = (!isExp && total > COLLAPSE_AT) ? items.slice(0, COLLAPSE_AT) : items;
+    return `<section class="grp">
+      <div class="grphead"><h2>${QLABEL[q]}</h2><span class="badge-count">${total} shape${total>1?"s":""}</span></div>
+      <div class="grid">${cut.map(([s,i])=>card(s,i)).join("")}</div>
+      ${cut.length < total ? `<button class="showall" onclick="expanded.add('${q}');render()">Show all ${total} ▾</button>`
+        : (isExp && total > COLLAPSE_AT ? `<button class="showall" onclick="expanded.delete('${q}');render()">Collapse ▴</button>` : "")}
+    </section>`;
+  }).join("") || `<p style="color:var(--faint);margin-top:30px">No shapes match the current filters.</p>`;
+  document.getElementById("count").textContent = `${shown.length} of ${SHAPES.length}`;
+}
+
+document.querySelector(".facets").addEventListener("click", e => {
+  const qg = e.target.closest(".qg"), tc = e.target.closest(".tc"),
+        fam = e.target.closest(".fam"), rt = e.target.closest(".root");
+  if (qg) { qGroup = qg.dataset.g; typesOn.clear(); }
+  else if (tc) {
+    const t = tc.dataset.t, g = GROUPS[qGroup];
+    if (!typesOn.size) g.forEach(x => typesOn.add(x));   // first narrow: start from all-on
+    typesOn.has(t) ? typesOn.delete(t) : typesOn.add(t);
+    if (typesOn.size === g.length) typesOn.clear();       // all on == no narrow
+  }
+  else if (fam) { const f = fam.dataset.f; famsOn.has(f) ? famsOn.delete(f) : famsOn.add(f); }
+  else if (rt) { root = rt.dataset.r; }
+  else return;
+  render();
+});
+document.getElementById("sort").onchange = e => { sort = e.target.value; render(); };
+document.getElementById("q").oninput = e => { search = e.target.value.trim(); render(); };
+
+// non-modal panel with sibling-voicing stepper
+const panel = document.getElementById("panel");
+function siblings(i) { const q = SHAPES[i].q; return SHAPES.map((s,j)=>[s,j]).filter(([s])=>s.q===q); }
+function openPanel(i) {
+  const s = SHAPES[i], sibs = siblings(i), pos = sibs.findIndex(([,j])=>j===i);
+  const prev = sibs[(pos-1+sibs.length)%sibs.length][1], next = sibs[(pos+1)%sibs.length][1];
+  document.getElementById("panelBody").innerHTML = `
+    <h2>${sym(s)} <span class="tag fam-${s.fam}">${FAMS.find(f=>f[0]===s.fam)[1]}</span>${s.feat?` <span class="tag star">★ spotlight</span>`:""}</h2>
+    <div class="sysline">base fret ${s.base} · root ${s.root}${s.fail?" · <span style='color:var(--red)'>failing audit</span>":""}</div>
+    <div class="stepper">
+      <button onclick="openPanel(${prev})">◀ Prev</button>
+      <span class="pos">voicing ${pos+1} of ${sibs.length} (${QLABEL[s.q]})</span>
+      <button onclick="openPanel(${next})">Next ▶</button>
+    </div>
+    <div class="bigdiagram">${diagram(s.frets, s.base, 330, s.iv)}</div>
+    <h3>Identified chord</h3>
+    <div class="scalerow"><span><b>${sym(s)}</b></span><span class="why">${QLABEL[s.q]}</span></div>
+    <h3>Scales over ${sym(s)}</h3>
+    <div class="scalerow"><span>(populated from scalesContainingChord)</span><span class="why">root-anchored</span></div>
+    <h3>Alternate fingerings</h3>
+    <div class="empty">Stepper above walks the same ${sibs.length} sibling voicings — thumbnails could sit here too.</div>
+  `;
+  panel.classList.add("open"); document.body.classList.add("panel-open");
+  selected = i; render();
+}
+function closePanel(){ panel.classList.remove("open"); document.body.classList.remove("panel-open"); selected = -1; render(); }
+document.getElementById("close").onclick = closePanel;
+addEventListener("keydown", e => { if (e.key === "Escape") closePanel(); });
+
+render();
+</script>
+</body>
+</html>
