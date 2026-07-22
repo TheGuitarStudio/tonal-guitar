@@ -4,7 +4,7 @@
 
 ## Pipeline Progress
 
-- [ ] Phase 1: Research
+- [x] Phase 1: Research
 - [ ] Phase 2: Shape
 - [ ] Phase 3: Plan
 - [ ] Phase 4: Implement
@@ -28,7 +28,7 @@ Shape Library page (better filtering and organization).
 
 | Phase     | File        | Status  | Loops | Reviewed |
 | --------- | ----------- | ------- | ----- | -------- |
-| Research  | research.md | pending | 0     | no       |
+| Research  | research.md | complete | 0     | no       |
 | Shape     | spec.md     | pending | 0     | no       |
 | Plan      | tasks.md    | pending | 0     | no       |
 | Implement | FEATURE.md  | pending | 0     | no       |
