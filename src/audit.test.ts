@@ -22,7 +22,11 @@ import {
   gripRootFor,
   sourceFrets,
 } from "./audit";
-import type { AuditSeverity, ShapeAuditIssue, ShapeAuditOptions } from "./audit";
+import type {
+  AuditSeverity,
+  ShapeAuditIssue,
+  ShapeAuditOptions,
+} from "./audit";
 import {
   displayRootFor as displayRootForFromIndex,
   VERSION as VERSION_FROM_INDEX,
@@ -35,7 +39,13 @@ import type {
 import { VERSION } from "./version";
 import { applyChordShape } from "./build";
 import { STANDARD } from "./tuning";
-import { all as allScaleShapes, chordShapes, get as getScaleShape, ChordShape, ScaleShape } from "./shape";
+import {
+  all as allScaleShapes,
+  chordShapes,
+  get as getScaleShape,
+  ChordShape,
+  ScaleShape,
+} from "./shape";
 import {
   BARRE_E_SUS2,
   OPEN_C_MAJOR,
@@ -64,7 +74,10 @@ function expectRegistryClean<T extends { name: string }>(
 ): void {
   expect(shapes.length).toBeGreaterThan(0);
   for (const shape of shapes) {
-    expect(check(shape), `${shape.name} unexpectedly flagged by ${label}`).toEqual([]);
+    expect(
+      check(shape),
+      `${shape.name} unexpectedly flagged by ${label}`,
+    ).toEqual([]);
   }
 }
 
@@ -125,7 +138,7 @@ describe("audit scaffolding — type-only compile checks", () => {
 });
 
 describe("VERSION", () => {
-  it("is exported from ./version as \"0.1.0\"", () => {
+  it('is exported from ./version as "0.1.0"', () => {
     expect(VERSION).toBe("0.1.0");
   });
 
@@ -139,7 +152,11 @@ describe("checkGeometryMismatch fixtures", () => {
   it("OPEN_C_MAJOR: sourceFrets reproduces baseFret as min fretted fret; built == source", () => {
     const gr = gripRootFor(OPEN_C_MAJOR);
     expect(gr).toBe("C");
-    const src = sourceFrets(OPEN_C_MAJOR, gr as string, OPEN_C_MAJOR.baseFret as number);
+    const src = sourceFrets(
+      OPEN_C_MAJOR,
+      gr as string,
+      OPEN_C_MAJOR.baseFret as number,
+    );
     const fretted = src.filter((f): f is number => f != null && f > 0);
     expect(Math.min(...fretted)).toBe(OPEN_C_MAJOR.baseFret);
     const issues = checkGeometryMismatch(OPEN_C_MAJOR);
@@ -154,19 +171,14 @@ describe("checkGeometryMismatch fixtures", () => {
     expect(issues).toEqual([]);
   });
 
-  it("OPEN_G_AUG (#96 known-bad): built diverges from source", () => {
+  it("OPEN_G_AUG (issue #96, fixed): built matches source, no mismatch", () => {
     const issues = checkGeometryMismatch(OPEN_G_AUG);
-    expect(issues.length).toBe(1);
-    expect(issues[0].id).toBe("geometry-mismatch");
-    const details = issues[0].details as { mismatchedStrings: number[] };
-    expect(details.mismatchedStrings.length).toBeGreaterThan(0);
+    expect(issues).toEqual([]);
   });
 
-  it("OPEN_G_M7B5 (#96 known-bad): built diverges from source", () => {
+  it("OPEN_G_M7B5 (issue #96, fixed): built matches source, no mismatch", () => {
     const issues = checkGeometryMismatch(OPEN_G_M7B5);
-    expect(issues.length).toBe(1);
-    const details = issues[0].details as { mismatchedStrings: number[] };
-    expect(details.mismatchedStrings.length).toBeGreaterThan(0);
+    expect(issues).toEqual([]);
   });
 
   it("jazz shell (no baseFret): skipped, []", () => {
@@ -273,18 +285,17 @@ describe("checkGeometryMismatch registry-wide validation", () => {
   // CAGED-form-family letter misread as an authored chord root, producing a
   // structural false-positive class — a nut-position barre grip (fret 0
   // with a non-zero finger) is indistinguishable from a genuine
-  // off-by-octave defect (OPEN_G_AUG's B-string defect has the exact same
-  // raw=0/finger!=0/baseFret=1 signature). Those 20 shapes are therefore
-  // skipped (no grip root), per the spec's "if neither yields a root, skip
-  // the check" rule.
+  // off-by-octave defect. Those 20 shapes are therefore skipped (no grip
+  // root), per the spec's "if neither yields a root, skip the check" rule.
   //
   // A full registry sweep over the remaining 50 `"<Root> ... Open"` shapes
-  // flags 2 — only the 2 seeded #96 fixtures (OPEN_G_AUG, OPEN_G_M7B5),
-  // genuine misordered-interval defects confirmed by hand against their own
-  // fret-diagram comments and fingers/barres data.
-  //
-  //   This sweep previously flagged 5 additional shapes with the same class
-  //   of genuine defect, all since fixed:
+  // now flags none. It originally flagged 7 shapes, all genuine defects
+  // verified by hand against each shape's own diagram comment/fingers data,
+  // and all since fixed:
+  //        - OPEN_G_AUG / OPEN_G_M7B5 (#96): misordered-interval defects
+  //          (string 5 encoded "5A" instead of "1P"; strings 4-5's "3m"/"7m"
+  //          swapped), each also producing an unplayable fret span — see
+  //          data.test.ts's "G family open shapes" regression tests.
   //        - "G Sus2 Open" (#112): strings[1..3] were cyclically misordered
   //          (2M/5P/1P recorded as 5P/1P/2M) — a misordered-interval defect,
   //          the same class as #96. Fixed; see OPEN_G_SUS2 in
@@ -301,12 +312,8 @@ describe("checkGeometryMismatch registry-wide validation", () => {
   //          shows fretted — a fingers-array bug, fixed by assigning the
   //          fretted string a nonzero finger.
   it("checkGeometryMismatch's registry-wide mismatch set matches the documented, hand-verified list above", () => {
-    const knownMismatching = new Set([
-      // #96 seeded pair
-      "G Augmented Open",
-      "G m7b5 Open",
-    ]);
-    expect(knownMismatching.size).toBe(2);
+    const knownMismatching = new Set<string>([]);
+    expect(knownMismatching.size).toBe(0);
 
     const withBaseFret = chordShapes.all().filter((s) => s.baseFret != null);
     expect(withBaseFret.length).toBe(70);
@@ -319,13 +326,13 @@ describe("checkGeometryMismatch registry-wide validation", () => {
     expect(actuallyMismatching).toEqual(knownMismatching);
   });
 
-  it("both #96 known-bad shapes DO mismatch", () => {
+  it("both formerly-#96-known-bad shapes no longer mismatch", () => {
     const gAug = chordShapes.get("G Augmented Open");
     const gM7b5 = chordShapes.get("G m7b5 Open");
     expect(gAug).toBeDefined();
     expect(gM7b5).toBeDefined();
-    expect(checkGeometryMismatch(gAug as ChordShape).length).toBe(1);
-    expect(checkGeometryMismatch(gM7b5 as ChordShape).length).toBe(1);
+    expect(checkGeometryMismatch(gAug as ChordShape)).toEqual([]);
+    expect(checkGeometryMismatch(gM7b5 as ChordShape)).toEqual([]);
   });
 
   it("OPEN_G_SUS2 (#112 fixed): built frets match the 300033 diagram exactly, no mismatch", () => {
@@ -363,22 +370,12 @@ describe("checkFretSpan", () => {
     expect(checkFretSpan(OPEN_C_MAJOR, "C")).toEqual([]);
   });
 
-  it("OPEN_G_AUG (#96 known-bad, 10-fret span): one error issue with span > 4", () => {
-    const issues = checkFretSpan(OPEN_G_AUG, "G");
-    expect(issues.length).toBe(1);
-    expect(issues[0].id).toBe(CHECK_FRET_SPAN);
-    expect(issues[0].severity).toBe("error");
-    const details = issues[0].details as { span: number };
-    expect(details.span).toBeGreaterThan(4);
+  it("OPEN_G_AUG (issue #96, fixed): no longer exceeds the playable span", () => {
+    expect(checkFretSpan(OPEN_G_AUG, "G")).toEqual([]);
   });
 
-  it("OPEN_G_M7B5 (#96 known-bad): one error issue with span > 4", () => {
-    const issues = checkFretSpan(OPEN_G_M7B5, "G");
-    expect(issues.length).toBe(1);
-    expect(issues[0].id).toBe(CHECK_FRET_SPAN);
-    expect(issues[0].severity).toBe("error");
-    const details = issues[0].details as { span: number };
-    expect(details.span).toBeGreaterThan(4);
+  it("OPEN_G_M7B5 (issue #96, fixed): no longer exceeds the playable span", () => {
+    expect(checkFretSpan(OPEN_G_M7B5, "G")).toEqual([]);
   });
 
   it("boundary: span === maxSpan (4) does not flag (strict >, not >=)", () => {
@@ -544,11 +541,11 @@ describe("checkRepeatedFingerNoBarre", () => {
       expect(issue.id).toBe(CHECK_REPEATED_FINGER_NO_BARRE);
       expect(issue.severity).toBe("error");
     }
-    expect((issues[0].details as { finger: number; strings: number[] })).toEqual({
+    expect(issues[0].details as { finger: number; strings: number[] }).toEqual({
       finger: 2,
       strings: [1, 2],
     });
-    expect((issues[1].details as { finger: number; strings: number[] })).toEqual({
+    expect(issues[1].details as { finger: number; strings: number[] }).toEqual({
       finger: 4,
       strings: [4, 5],
     });
@@ -848,12 +845,38 @@ describe("checkScaleMetadataCompleteness", () => {
 // ============================================================
 
 describe("auditChordShape", () => {
-  it("OPEN_G_AUG (#96 known-bad): combines checkFretSpan (error) + checkGeometryMismatch (warning), using displayRootFor as the default root", () => {
-    expect(OPEN_G_AUG.canonicalRoot).toBe("G");
-    const issues = auditChordShape(OPEN_G_AUG);
+  // Issue #96 originally shipped OPEN_G_AUG with a misordered interval
+  // (string 5 encoded "5A" instead of "1P") that both blew the playable
+  // fret span AND diverged from its own source diagram — the only
+  // registered shape combining a checkFretSpan error with a
+  // checkGeometryMismatch warning. OPEN_G_AUG is now fixed (see
+  // data.test.ts's "G family open shapes" regression tests), so this
+  // fixture reproduces that pre-fix shape verbatim to keep exercising the
+  // "combines an error + a warning" wiring in auditChordShape/auditAllShapes
+  // independent of any single production shape's correctness.
+  const buggyAugFixture: ChordShape = {
+    name: "Synthetic Bad Aug Fixture (pre-#96-fix OPEN_G_AUG)",
+    system: "open",
+    strings: ["1P", null, "5A", "1P", "3M", "5A"],
+    fingers: [2, null, 3, 1, 1, 4],
+    barres: [{ fret: 1, fromString: 3, toString: 4, finger: 1 }],
+    rootString: 0,
+    chordType: "aug",
+    voicingFamily: "open",
+    stringSet: [0, 2, 3, 4, 5],
+    inversion: 0,
+    canonicalRoot: "G",
+    baseFret: 1,
+  };
+
+  it("synthetic fixture: combines checkFretSpan (error) + checkGeometryMismatch (warning), using displayRootFor as the default root", () => {
+    expect(buggyAugFixture.canonicalRoot).toBe("G");
+    const issues = auditChordShape(buggyAugFixture);
 
     const fretSpanIssues = issues.filter((i) => i.id === CHECK_FRET_SPAN);
-    const geometryIssues = issues.filter((i) => i.id === CHECK_GEOMETRY_MISMATCH);
+    const geometryIssues = issues.filter(
+      (i) => i.id === CHECK_GEOMETRY_MISMATCH,
+    );
     expect(fretSpanIssues.length).toBe(1);
     expect(fretSpanIssues[0].severity).toBe("error");
     expect(geometryIssues.length).toBe(1);
@@ -864,9 +887,9 @@ describe("auditChordShape", () => {
 
     // Confirms the default root matches displayRootFor(shape), not a
     // hardcoded literal.
-    expect(checkFretSpan(OPEN_G_AUG, displayRootFor(OPEN_G_AUG))).toEqual(
-      fretSpanIssues,
-    );
+    expect(
+      checkFretSpan(buggyAugFixture, displayRootFor(buggyAugFixture)),
+    ).toEqual(fretSpanIssues);
   });
 
   it("auditChordShape(shape, { root: 'D' }) overrides the default root", () => {
@@ -889,18 +912,20 @@ describe("auditChordShape", () => {
   });
 
   it("auditChordShape(shape, { maxFretSpan }) threads through to checkFretSpan without affecting checkGeometryMismatch", () => {
-    // OPEN_G_AUG's ~10-fret span fails the default maxFretSpan (4), but
+    // The fixture's ~10-fret span fails the default maxFretSpan (4), but
     // raising it above the actual span clears only the fret-span error —
     // the geometry-mismatch warning (which doesn't take a maxSpan) still
     // fires, confirming maxFretSpan is wired to the right check only.
-    const defaultIssues = auditChordShape(OPEN_G_AUG);
+    const defaultIssues = auditChordShape(buggyAugFixture);
     expect(defaultIssues.some((i) => i.id === CHECK_FRET_SPAN)).toBe(true);
 
-    const raisedIssues = auditChordShape(OPEN_G_AUG, { maxFretSpan: 20 });
+    const raisedIssues = auditChordShape(buggyAugFixture, { maxFretSpan: 20 });
     expect(raisedIssues.some((i) => i.id === CHECK_FRET_SPAN)).toBe(false);
-    expect(raisedIssues.some((i) => i.id === CHECK_GEOMETRY_MISMATCH)).toBe(true);
+    expect(raisedIssues.some((i) => i.id === CHECK_GEOMETRY_MISMATCH)).toBe(
+      true,
+    );
     expect(raisedIssues).toEqual(
-      checkGeometryMismatch(OPEN_G_AUG, STANDARD),
+      checkGeometryMismatch(buggyAugFixture, STANDARD),
     );
   });
 });
@@ -983,15 +1008,15 @@ describe("auditAllShapes", () => {
     expect(() => auditAllShapes()).not.toThrow();
   });
 
-  it("spot-check: chord.get('G Augmented Open') and chord.get('G m7b5 Open') both contain at least one error-severity issue (regression guard for #96 staying visible)", () => {
+  it("spot-check: chord.get('G Augmented Open') and chord.get('G m7b5 Open') no longer contain any error-severity issue (issue #96 fixed)", () => {
     const { chord } = auditAllShapes();
 
     const gAug = chord.get("G Augmented Open");
     const gM7b5 = chord.get("G m7b5 Open");
     expect(gAug).toBeDefined();
     expect(gM7b5).toBeDefined();
-    expect(gAug?.issues.some((i) => i.severity === "error")).toBe(true);
-    expect(gM7b5?.issues.some((i) => i.severity === "error")).toBe(true);
+    expect(gAug?.issues.some((i) => i.severity === "error")).toBe(false);
+    expect(gM7b5?.issues.some((i) => i.severity === "error")).toBe(false);
   });
 
   it("chord results are { issues, geometry } — issues match auditChordShape's own output", () => {
@@ -1014,13 +1039,29 @@ describe("auditAllShapes", () => {
     );
   });
 
-  it("geometry is populated for a mismatching shape too (OPEN_G_AUG), independent of the issue firing", () => {
+  // With every formerly-mismatching registry shape now fixed (#96, #111,
+  // #112, #113), the registry no longer exercises the "geometry populated
+  // while the mismatch issue fires" case here — that wiring is covered by
+  // the synthetic pre-#96-fix fixture in the auditChordShape block above.
+  // This sweep instead asserts geometry is populated for EVERY chord shape
+  // with a baseFret and a resolvable grip root (the movable "E/A Form ...
+  // Barre" shapes have a baseFret but no grip root, so geometry is
+  // intentionally undefined for them — covered by the test below),
+  // independent of any issue firing.
+  it("geometry is populated for every baseFret-bearing chord shape with a resolvable grip root, independent of the issue firing", () => {
     const { chord } = auditAllShapes();
-    const result = chord.get(OPEN_G_AUG.name);
-    expect(result?.geometry).toBeDefined();
-    expect(result?.geometry?.gripRoot).toBe("G");
-    expect(result?.issues.some((i) => i.id === CHECK_GEOMETRY_MISMATCH)).toBe(
-      true,
+    const withGripRoot = chordShapes
+      .all()
+      .filter((s) => s.baseFret != null && gripRootFor(s) != null);
+    expect(withGripRoot.length).toBeGreaterThan(0);
+    for (const shape of withGripRoot) {
+      const result = chord.get(shape.name);
+      expect(result?.geometry, `${shape.name} missing geometry`).toBeDefined();
+    }
+    const gSus2 = chord.get("G Sus2 Open");
+    expect(gSus2?.geometry?.gripRoot).toBe("G");
+    expect(gSus2?.issues.some((i) => i.id === CHECK_GEOMETRY_MISMATCH)).toBe(
+      false,
     );
   });
 
