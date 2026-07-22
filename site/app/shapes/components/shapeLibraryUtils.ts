@@ -253,6 +253,63 @@ export function distinctQualities(entries: ShapeCatalogEntry[]): string[] {
 }
 
 // ============================================================
+// URL state (deep-linkable filters)
+// ============================================================
+
+/**
+ * Filter state as it round-trips through the URL query string. Every field
+ * is optional: absent means "default" (chord kind, no filter). Values are
+ * NOT validated against the catalog — an unknown system/family simply
+ * filters to zero results, which is honest for a stale shared link.
+ */
+export interface ShapesUrlState {
+  kind?: ShapeKind;
+  system?: string;
+  familyOrQuality?: string;
+  nameQuery?: string;
+  failingOnly?: boolean;
+}
+
+/** Query params: `kind`, `system`, `family`, `q`, `failing=1`. */
+export function parseShapesUrlState(search: string): ShapesUrlState {
+  const params = new URLSearchParams(search);
+  const state: ShapesUrlState = {};
+
+  const kind = params.get("kind");
+  if (kind === "scale" || kind === "chord") state.kind = kind;
+
+  const system = params.get("system");
+  if (system) state.system = system;
+
+  const family = params.get("family");
+  if (family) state.familyOrQuality = family;
+
+  const q = params.get("q");
+  if (q) state.nameQuery = q;
+
+  if (params.get("failing") === "1") state.failingOnly = true;
+
+  return state;
+}
+
+/**
+ * Inverse of `parseShapesUrlState`. Default values are omitted so the
+ * unfiltered landing view keeps a bare `/shapes` URL. Returns either "" or
+ * a string starting with "?".
+ */
+export function serializeShapesUrlState(state: ShapesUrlState): string {
+  const params = new URLSearchParams();
+  if (state.kind && state.kind !== "chord") params.set("kind", state.kind);
+  if (state.system) params.set("system", state.system);
+  if (state.familyOrQuality) params.set("family", state.familyOrQuality);
+  if (state.nameQuery) params.set("q", state.nameQuery);
+  if (state.failingOnly) params.set("failing", "1");
+
+  const qs = params.toString();
+  return qs ? `?${qs}` : "";
+}
+
+// ============================================================
 // Report-problem flow
 // ============================================================
 

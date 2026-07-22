@@ -1,10 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { auditAllShapes } from "tonal-guitar";
 import {
   buildCatalog,
   filterCatalog,
+  parseShapesUrlState,
+  serializeShapesUrlState,
   sortFailuresFirst,
   type ShapeCatalogFilters,
   type ShapeKind,
@@ -40,6 +42,39 @@ export function ShapeLibrary() {
   const [familyOrQuality, setFamilyOrQuality] = useState(FILTER_ALL);
   const [nameQuery, setNameQuery] = useState("");
   const [failingOnly, setFailingOnly] = useState(false);
+
+  // Deep-linkable filters. The page is statically exported, so the first
+  // (hydration) render must match the parameter-free server HTML — the URL
+  // is only read after mount, then mirrored back via replaceState. The
+  // `urlStateLoaded` flag keeps the mirror effect from clearing the query
+  // string on the initial default-state render.
+  const [urlStateLoaded, setUrlStateLoaded] = useState(false);
+
+  useEffect(() => {
+    const parsed = parseShapesUrlState(window.location.search);
+    if (parsed.kind) setKind(parsed.kind);
+    if (parsed.system) setSystem(parsed.system);
+    if (parsed.familyOrQuality) setFamilyOrQuality(parsed.familyOrQuality);
+    if (parsed.nameQuery) setNameQuery(parsed.nameQuery);
+    if (parsed.failingOnly) setFailingOnly(true);
+    setUrlStateLoaded(true);
+  }, []);
+
+  useEffect(() => {
+    if (!urlStateLoaded) return;
+    const qs = serializeShapesUrlState({
+      kind,
+      system: system === FILTER_ALL ? undefined : system,
+      familyOrQuality: familyOrQuality === FILTER_ALL ? undefined : familyOrQuality,
+      nameQuery: nameQuery || undefined,
+      failingOnly,
+    });
+    window.history.replaceState(
+      null,
+      "",
+      window.location.pathname + qs + window.location.hash,
+    );
+  }, [urlStateLoaded, kind, system, familyOrQuality, nameQuery, failingOnly]);
 
   function handleKindChange(nextKind: ShapeKind) {
     setKind(nextKind);
