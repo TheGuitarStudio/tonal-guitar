@@ -1043,13 +1043,18 @@ describe("auditAllShapes", () => {
   // #112, #113), the registry no longer exercises the "geometry populated
   // while the mismatch issue fires" case here — that wiring is covered by
   // the synthetic pre-#96-fix fixture in the auditChordShape block above.
-  // This sweep instead asserts geometry is populated for EVERY
-  // baseFret-bearing chord shape, independent of any issue firing.
-  it("geometry is populated for every baseFret-bearing chord shape, independent of the issue firing", () => {
+  // This sweep instead asserts geometry is populated for EVERY chord shape
+  // with a baseFret and a resolvable grip root (the movable "E/A Form ...
+  // Barre" shapes have a baseFret but no grip root, so geometry is
+  // intentionally undefined for them — covered by the test below),
+  // independent of any issue firing.
+  it("geometry is populated for every baseFret-bearing chord shape with a resolvable grip root, independent of the issue firing", () => {
     const { chord } = auditAllShapes();
-    const withBaseFret = chordShapes.all().filter((s) => s.baseFret != null);
-    expect(withBaseFret.length).toBeGreaterThan(0);
-    for (const shape of withBaseFret) {
+    const withGripRoot = chordShapes
+      .all()
+      .filter((s) => s.baseFret != null && gripRootFor(s) != null);
+    expect(withGripRoot.length).toBeGreaterThan(0);
+    for (const shape of withGripRoot) {
       const result = chord.get(shape.name);
       expect(result?.geometry, `${shape.name} missing geometry`).toBeDefined();
     }
