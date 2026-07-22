@@ -808,15 +808,20 @@ export const OPEN_E_SUS4: ChordShape = {
 
 /**
  * E half-diminished (m7b5) open (0120xx = 0,1,2,0,x,x)
- * Notes: E Bb D G → intervals: 1P 5d 7m 3m
- * Same voicing as Edim but with m7b5 chordType — this shape is Em7b5's root voicing.
- * Note: Edim uses the same frets but with "dim" chordType (a diminished triad: 1P 3m 5d — no 7th).
- * Em7b5 = E,G,Bb,D and this voicing has E,Bb,D,G all four tones.
+ * Notes: E Bb E G → intervals: 1P 5d 1P 3m
+ * Issue #113: strings[2] was recorded as "7m", but fret 2 on the open-D
+ * string sounds E (the root, 1P), not D (7m) — the interval label was wrong,
+ * not the fret. Corrected to "1P".
+ * Note: this means the m7 (D) is NOT actually present in this grip — despite
+ * the "m7b5" chordType/name, this voicing doubles the root instead of adding
+ * a 7th, so it sounds only a diminished triad (1P 5d 3m), identical in
+ * pitch to OPEN_E_DIM. Left as-is: this fix corrects only the mislabeled
+ * interval per #113, not the shape's completeness or naming.
  */
 export const OPEN_E_M7B5: ChordShape = {
   name: "E m7b5 Open",
   system: "open",
-  strings: ["1P", "5d", "7m", "3m", null, null],
+  strings: ["1P", "5d", "1P", "3m", null, null],
   fingers: [0, 1, 2, 0, null, null],
   barres: [],
   rootString: 0,
