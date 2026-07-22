@@ -576,13 +576,13 @@ export const OPEN_G_AUG: ChordShape = {
 
 /**
  * G sus2 (300033 = 3,0,0,0,3,3)
- * Notes: G D G A D G → intervals: 1P 5P 1P 2M 5P 1P
+ * Notes: G A D G D G → intervals: 1P 2M 5P 1P 5P 1P
  */
 export const OPEN_G_SUS2: ChordShape = {
   name: "G Sus2 Open",
   system: "open",
-  strings: ["1P", "5P", "1P", "2M", "5P", "1P"],
-  fingers: [2, 1, 0, 0, 3, 4],
+  strings: ["1P", "2M", "5P", "1P", "5P", "1P"],
+  fingers: [2, 0, 0, 0, 3, 4],
   barres: [],
   rootString: 0,
   chordType: "sus2",
