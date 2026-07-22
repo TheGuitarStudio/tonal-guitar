@@ -65,6 +65,19 @@ sort/categorize chord libraries: toggleable category chips (on/off), root picker
 type pickers, sort orders, etc. Findings will drive another experiment round and
 D-006. Still open: mobile presentation.
 
+**Follow-up 4 (after experiment 04): Lock the filter model?**
+**Answer:** Yes — faceted chips (Proposal A) locked as D-006, with amendments:
+- All displayed data must come from the tonal-guitar library or Tonal.js — the page
+  showcases the library; no site-side musical data. The `featured` spotlight flag
+  becomes library shape metadata.
+- Drop interval color-coding for v1; a later optional toggle can show per-note
+  interval labels instead.
+- **Scales and scale shapes must be in this page too** — same treatment as chords
+  (kind toggle stays; scale facets = system/quality; same grid + panel).
+- Purpose: base for seeing all shapes, testing/auditing them, professional review.
+  A future edit layer (edits saved to a file fed back into the library) is
+  anticipated but out of scope.
+
 ## Visual Assets
 
 ### Files Provided:

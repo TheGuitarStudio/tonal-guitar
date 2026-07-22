@@ -125,3 +125,41 @@ model = focus stays in grid, Esc closes, panel is a complementary landmark regio
 **Open (pending research):** Filtering/sorting model — user wants exploration of how
 existing chord tools categorize (toggleable category chips, root pickers, type pickers,
 sort orders). Web research dispatched; will become D-006.
+
+---
+
+## D-006: Filter/sort model — faceted chips (Proposal A), library-sourced data, scales included
+
+**Context:** Filter-research survey (see `filter-research.md`) produced three
+proposals; experiment 04 implemented Proposal A; user evaluated it in browser.
+
+**Decision:** Adopt Proposal A (experiment 04) with amendments:
+
+1. **Facets:** quality-group chips expanding to multi-select type chips; voicing-family
+   multi-select chips with live counts (grey at zero); chromatic root strip;
+   sort default base-fret ascending; spotlight (★ featured) tier first with
+   "Show all N" per group; alias-aware search (ø / half-dim → m7b5).
+2. **No interval color-coding** on dots in v1. Later (optional, not this slice): a
+   toggle that shows the interval label of each note. Dots stay monochrome.
+3. **All displayed data MUST come from the tonal-guitar library (or Tonal.js).** The
+   page is a showcase of the library — no site-side curated musical data. Implication:
+   the spotlight/`featured` flag is library shape metadata (new optional field on
+   shape types + registry data), not a site-side list; chord symbols, groupings,
+   counts, scales, and panel content all derive from registries + library functions
+   at render time.
+4. **Scales and scale shapes are first-class in the same page.** The existing
+   scale/chord kind toggle stays; scale shapes (CAGED, 3NPS, pentatonic boxes, minor
+   variants) get the equivalent treatment: facets appropriate to scales (system,
+   quality), same compact grid + non-modal panel (panel content: related scales/modes,
+   compatible-shape context, parentShape lineage, sibling-shape stepper).
+
+**Purpose framing (drives spec priorities):** this page is the base for (a) seeing
+every chord/scale shape in the library, (b) testing and auditing them, (c) having
+professionals review correctness. The audit surface (failing-first pinned section,
+badges, report flow) remains first-class. A future **edit layer** (edits saved to a
+file that can be fed back into the library data) is explicitly anticipated but out of
+scope for this feature — the design should not preclude it.
+
+**Rationale:** User selection after clicking through experiment 04; amendments are
+verbatim user constraints. Library-sourced data also matches the audit-library spec's
+"derived, never hardcoded" rule.
