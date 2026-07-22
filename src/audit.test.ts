@@ -45,7 +45,7 @@ import {
 } from "./data/open-chords";
 import { SHELL_SHAPES } from "./data/jazz-shells";
 import { EXT_CHORD_E_6, EXT_CHORD_A_6 } from "./data/extended-chords";
-import { CAGED_CHORD_E } from "./data/caged-chords";
+import { CAGED_CHORD_C, CAGED_CHORD_E, CAGED_CHORD_G } from "./data/caged-chords";
 import { CAGED_E } from "./data/caged-scales";
 import { CAGED_DM } from "./data/caged-scales-minor";
 import { PENTA_BOX_1_MINOR } from "./data/pentatonic-minor";
@@ -386,6 +386,44 @@ describe("checkFretSpan", () => {
     const built = applyChordShape(allOpenOrMuted, "E");
     expect(built.frets.some((f) => f !== null && f > 0)).toBe(false);
     expect(checkFretSpan(allOpenOrMuted, "E")).toEqual([]);
+  });
+
+  it("CAGED_CHORD_C (#114 regression): builds to the open C-major grip at root C and passes checkFretSpan at every chromatic root", () => {
+    // Prior to #114's fix, strings[1]/strings[2] ("A" and "D" strings) held
+    // swapped intervals (3M/1P instead of 1P/3M), anchoring the shape an
+    // octave away from the intended grip and producing a 6-fret span.
+    const built = applyChordShape(CAGED_CHORD_C, "C");
+    expect(built.frets).toEqual([null, 3, 2, 0, 1, 0]);
+    expect(checkFretSpan(CAGED_CHORD_C, "C")).toEqual([]);
+
+    const roots = [
+      "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B",
+    ];
+    for (const root of roots) {
+      expect(
+        checkFretSpan(CAGED_CHORD_C, root),
+        `CAGED_CHORD_C at root "${root}" unexpectedly failed checkFretSpan`,
+      ).toEqual([]);
+    }
+  });
+
+  it("CAGED_CHORD_G (#114 regression): builds to the open G-major grip at root G and passes checkFretSpan at every chromatic root", () => {
+    // Prior to #114's fix, strings[5] (the high-e string) held "5P" instead
+    // of "1P", so it resolved to a fret an octave away from the rest of the
+    // grip, producing a 10-fret span.
+    const built = applyChordShape(CAGED_CHORD_G, "G");
+    expect(built.frets).toEqual([3, 2, 0, 0, 0, 3]);
+    expect(checkFretSpan(CAGED_CHORD_G, "G")).toEqual([]);
+
+    const roots = [
+      "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B",
+    ];
+    for (const root of roots) {
+      expect(
+        checkFretSpan(CAGED_CHORD_G, root),
+        `CAGED_CHORD_G at root "${root}" unexpectedly failed checkFretSpan`,
+      ).toEqual([]);
+    }
   });
 
   it("custom maxSpan override moves the pass/fail boundary", () => {
