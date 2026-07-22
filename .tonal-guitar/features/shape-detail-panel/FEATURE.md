@@ -28,7 +28,7 @@ Shape Library page (better filtering and organization).
 
 | Phase     | File        | Status  | Loops | Reviewed |
 | --------- | ----------- | ------- | ----- | -------- |
-| Research  | research.md | complete | 0     | no       |
+| Research  | research.md | complete | 0     | yes      |
 | Shape     | spec.md     | pending | 0     | no       |
 | Plan      | tasks.md    | pending | 0     | no       |
 | Implement | FEATURE.md  | pending | 0     | no       |
@@ -36,3 +36,5 @@ Shape Library page (better filtering and organization).
 ## Loop History
 
 ## Review History
+
+- **2026-07-21 — research-review.md (Codex, via /codex):** Endorsed component placement and scope; pushed to (1) define "scales containing this chord" precisely (favor chroma-subset sweep over curated mapping; helper belongs in `src/integration.ts` with tests, not site utils; resolve root semantics + omitted-tone handling; prototype early), (2) lock the interaction model as first-slice requirements (URL `shape` param decided not optional, button semantics/focus/keyboard, mobile sheet behavior, selectable alternate-fingering thumbnails), (3) make infrastructure explicit (declared `@tonaljs/*` site deps, static-export verification, bundle-size check / lazy-load panel). Raised visual-reorg risk to medium-high (audit failures-first invariant); challenged "no library work required" and the vagueness of "visual reorganization pass".
