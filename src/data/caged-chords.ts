@@ -48,7 +48,7 @@ export const CAGED_CHORD_D: ChordShape = {
 export const CAGED_CHORD_C: ChordShape = {
   name: "C Shape Major",
   system: "caged",
-  strings: [null, "3M", "1P", "5P", "1P", "3M"],
+  strings: [null, "1P", "3M", "5P", "1P", "3M"],
   fingers: [null, 4, 3, 1, 2, 1],
   barres: [{ fret: 0, fromString: 3, toString: 5, finger: 1 }],
   rootString: 1,
@@ -60,7 +60,7 @@ export const CAGED_CHORD_C: ChordShape = {
 export const CAGED_CHORD_G: ChordShape = {
   name: "G Shape Major",
   system: "caged",
-  strings: ["1P", "3M", "5P", "1P", "3M", "5P"],
+  strings: ["1P", "3M", "5P", "1P", "3M", "1P"],
   fingers: [2, 1, 4, 4, 4, 3],
   barres: [{ fret: 0, fromString: 2, toString: 4, finger: 4 }],
   rootString: 0,
