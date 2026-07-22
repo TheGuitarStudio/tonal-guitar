@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="en" class="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Experiment 01 — Slide-over panel</title>
+<style>
+  :root {
+    --bg: #0a0a0a; --card: #111113; --border: #27272a; --border-soft: #1c1c1f;
+    --fg: #fafafa; --muted: #a1a1aa; --faint: #71717a;
+    --primary: #e4e4e7; --primary-fg: #18181b;
+    --red: #f87171; --amber: #fbbf24; --green: #4ade80; --blue: #60a5fa; --pink: #f472b6; --orange: #fb923c;
+    --chip: #1f1f23; --chip-active: #3f3f46;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--fg); font: 14px/1.5 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  a { color: inherit; }
+
+  .expnav { display:flex; gap:12px; padding:8px 20px; background:#060607; border-bottom:1px solid var(--border-soft); font-size:12px; color:var(--faint); position:sticky; top:0; z-index:60;}
+  .expnav b { color: var(--muted); font-weight:600;}
+  .expnav a { color:var(--faint); text-decoration:none; padding:2px 8px; border-radius:6px;}
+  .expnav a.on { background:var(--chip-active); color:var(--fg);}
+  .expnav a:hover { color: var(--fg);}
+
+  .page { max-width: 1200px; margin: 0 auto; padding: 28px 20px 80px; }
+  h1 { font-size: 26px; font-weight: 700; }
+  .sub { color: var(--muted); margin: 6px 0 20px; max-width: 720px;}
+
+  /* sticky filter bar */
+  .filterbar { position: sticky; top: 33px; z-index: 50; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(8px); padding: 10px 0; border-bottom: 1px solid var(--border-soft); display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+  .toggle { display:inline-flex; border:1px solid var(--border); border-radius:8px; overflow:hidden; font-size:12px;}
+  .toggle button { background:none; border:0; color:var(--muted); padding:6px 12px; cursor:pointer;}
+  .toggle button.on { background:var(--primary); color:var(--primary-fg); font-weight:600;}
+  select, input[type=text] { background:var(--card); color:var(--fg); border:1px solid var(--border); border-radius:8px; padding:6px 10px; font-size:13px;}
+  .count { color:var(--faint); font-size:12px; margin-left:auto;}
+
+  /* voicing-family sub-filter chips */
+  .chips { display:flex; gap:6px; flex-wrap:wrap; padding:10px 0 2px; }
+  .chips .lbl { color:var(--faint); font-size:12px; align-self:center; margin-right:2px;}
+  .chip { background:var(--chip); border:1px solid var(--border-soft); color:var(--muted); font-size:12px; padding:4px 12px; border-radius:999px; cursor:pointer; user-select:none;}
+  .chip.on { background:var(--chip-active); color:var(--fg); border-color:var(--border);}
+  .chip .n { color:var(--faint); font-size:10px; margin-left:4px;}
+
+  /* sections */
+  section.grp { margin-top: 26px; }
+  .grphead { display:flex; align-items:baseline; gap:10px; border-bottom:1px solid var(--border-soft); padding-bottom:6px; margin-bottom:14px;}
+  .grphead h2 { font-size:17px; font-weight:650;}
+  .grphead .badge-count { color:var(--faint); font-size:12px;}
+  .grphead.warn h2 { color: var(--amber); }
+
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:14px; }
+
+  /* cards: chord entity name + voicing tag */
+  .card { color:var(--fg); font:inherit; background:var(--card); border:1px solid var(--border); border-radius:12px; padding:14px; cursor:pointer; transition: border-color .12s, transform .12s; text-align:left; width:100%;}
+  .card:hover { border-color:#3f3f46; transform: translateY(-1px);}
+  .card:focus-visible { outline:2px solid var(--blue); outline-offset:2px;}
+  .cardtop { display:flex; align-items:center; gap:8px; margin-bottom:8px;}
+  .cardtop .name { font-weight:650; font-size:15px;}
+  .tag { font-size:10.5px; text-transform:uppercase; letter-spacing:.04em; padding:2px 8px; border-radius:999px; border:1px solid var(--border); color:var(--muted);}
+  .tag.open { color:#86efac; border-color:#14532d; background:#052e16;}
+  .tag.barre { color:#93c5fd; border-color:#1e3a8a; background:#0c1b3a;}
+  .tag.caged { color:#fcd34d; border-color:#713f12; background:#2a1a05;}
+  .tag.shell { color:#f9a8d4; border-color:#831843; background:#2d0a1c;}
+  .tag.drop2 { color:#c4b5fd; border-color:#4c1d95; background:#1e1040;}
+  .tag.err { color:var(--red); border-color:#7f1d1d; background:#2a0a0a;}
+  .cardmeta { color:var(--faint); font-size:11.5px; margin-top:8px; display:flex; gap:10px;}
+
+  svg.diagram { display:block; width:100%; height:auto; }
+
+  /* slide-over panel */
+  .backdrop { position:fixed; inset:0; background:rgba(0,0,0,.5); opacity:0; pointer-events:none; transition:opacity .18s; z-index:90;}
+  .backdrop.open { opacity:1; pointer-events:auto;}
+  .panel { position:fixed; top:0; right:0; bottom:0; width:440px; max-width:92vw; background:#0e0e10; border-left:1px solid var(--border); z-index:100; transform:translateX(102%); transition:transform .2s ease; overflow-y:auto; padding:20px 22px 40px;}
+  .panel.open { transform:translateX(0); box-shadow: -24px 0 60px rgba(0,0,0,.5);}
+  .panelclose { position:absolute; top:14px; right:14px; background:var(--chip); border:1px solid var(--border); color:var(--muted); width:28px; height:28px; border-radius:8px; cursor:pointer; font-size:14px;}
+  .panelclose:hover { color:var(--fg);}
+  .panel h2 { font-size:22px; font-weight:700; display:flex; align-items:center; gap:10px;}
+  .panel .sysline { color:var(--faint); font-size:12px; margin:4px 0 14px;}
+  .panel h3 { font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--faint); margin:22px 0 10px; font-weight:650;}
+  .bigdiagram { background:var(--card); border:1px solid var(--border-soft); border-radius:12px; padding:12px;}
+  .idline { font-size:14px; margin-top:2px;}
+  .idline .alt { color:var(--faint); font-size:12px;}
+  .scalelist { display:flex; flex-direction:column; gap:6px;}
+  .scalerow { display:flex; justify-content:space-between; background:var(--card); border:1px solid var(--border-soft); border-radius:8px; padding:7px 12px; font-size:13px;}
+  .scalerow .why { color:var(--faint); font-size:11.5px;}
+  details.more { margin-top:8px;}
+  details.more summary { color:var(--muted); font-size:12.5px; cursor:pointer;}
+  details.more .scalelist { margin-top:8px;}
+  .thumbrow { display:grid; grid-template-columns:repeat(3,1fr); gap:10px;}
+  .thumb { position:relative; background:var(--card); border:1px solid var(--border-soft); border-radius:10px; padding:8px; cursor:pointer; text-align:center;}
+  .thumb:hover { border-color:#3f3f46;}
+  .thumb .tname { font-size:11px; color:var(--muted); margin-top:4px;}
+  /* hover-to-enlarge */
+  .thumb .zoom { display:none; position:absolute; bottom:calc(100% + 8px); left:50%; transform:translateX(-50%); width:230px; background:#101012; border:1px solid var(--border); border-radius:12px; padding:12px; z-index:20; box-shadow:0 12px 40px rgba(0,0,0,.6);}
+  .thumb:hover .zoom { display:block;}
+  .empty { color:var(--faint); font-size:13px; background:var(--card); border:1px dashed var(--border); border-radius:8px; padding:12px; }
+  .kbd { border:1px solid var(--border); border-bottom-width:2px; border-radius:4px; padding:0 5px; font-size:11px; color:var(--muted);}
+  .footer-hint { color:var(--faint); font-size:12px; margin-top:26px;}
+</style>
+</head>
+<body>
+<nav class="expnav"><b>design experiments</b>
+  <a class="on" href="01-slide-over.html">01 slide-over</a>
+  <a href="02-docked-panel.html">02 docked panel</a>
+  <a href="03-page-morph.html">03 page morph</a>
+</nav>
+
+<div class="page">
+  <h1>Shape Library</h1>
+  <p class="sub">Chord-first taxonomy: the card is the <em>chord + voicing</em>, the name is the chord entity ("Em7b5"), and the voicing family is a tag. Click any card to open the slide-over detail panel. Hover the alternate-fingering thumbnails inside the panel to enlarge.</p>
+
+  <div class="filterbar">
+    <span class="toggle"><button class="on">Chord</button><button>Scale</button></span>
+    <select><option>All roots</option><option>C</option><option>D</option><option>E</option><option>G</option><option>A</option></select>
+    <select><option>All qualities</option><option>maj</option><option>m</option><option>7</option><option>maj7</option><option>m7</option><option>m7b5</option></select>
+    <input type="text" placeholder="Search chords…">
+    <label style="font-size:12.5px;color:var(--muted);display:inline-flex;gap:6px;align-items:center;"><input type="checkbox"> Failing only</label>
+    <span class="count" id="count"></span>
+  </div>
+
+  <div class="chips" id="chips">
+    <span class="lbl">Voicing:</span>
+    <span class="chip on" data-f="all">All</span>
+    <span class="chip" data-f="open">Open <span class="n">12</span></span>
+    <span class="chip" data-f="barre">Barre <span class="n">9</span></span>
+    <span class="chip" data-f="caged">CAGED <span class="n">25</span></span>
+    <span class="chip" data-f="shell">Shell <span class="n">8</span></span>
+    <span class="chip" data-f="drop2">Drop 2 <span class="n">4</span></span>
+  </div>
+
+  <section class="grp" id="warnGrp">
+    <div class="grphead warn"><h2>⚠ Needs attention</h2><span class="badge-count">1 shape failing audit</span></div>
+    <div class="grid" id="warnGrid"></div>
+  </section>
+
+  <div id="groups"></div>
+
+  <p class="footer-hint">Press <span class="kbd">Esc</span> to close the panel · failing shapes stay pinned on top regardless of grouping</p>
+</div>
+
+<div class="backdrop" id="backdrop"></div>
+<aside class="panel" id="panel" aria-label="Shape details">
+  <button class="panelclose" id="close" aria-label="Close">✕</button>
+  <div id="panelBody"></div>
+</aside>
+
+<script>
+// ---- mini chord diagram renderer (vertical chart, low string left) ----
+function diagram(frets, baseFret, w) {
+  w = w || 200;
+  const strings = 6, fretsShown = 4, h = w * 1.05;
+  const padT = 26, padL = 18, padR = 18, padB = 12;
+  const gw = w - padL - padR, gh = h - padT - padB;
+  const sx = i => padL + gw * i / (strings - 1);
+  const fy = f => padT + gh * f / fretsShown;
+  let s = `<svg class="diagram" viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg">`;
+  // nut or basefret label
+  if (baseFret === 1) s += `<rect x="${padL-1}" y="${padT-4}" width="${gw+2}" height="4" fill="#d4d4d8" rx="1.5"/>`;
+  else s += `<text x="${padL-9}" y="${fy(0.6)}" fill="#a1a1aa" font-size="${w*.055}" text-anchor="end">${baseFret}</text>`;
+  for (let i=0;i<strings;i++) s += `<line x1="${sx(i)}" y1="${padT}" x2="${sx(i)}" y2="${h-padB}" stroke="#3f3f46" stroke-width="1"/>`;
+  for (let f=0;f<=fretsShown;f++) s += `<line x1="${padL}" y1="${fy(f)}" x2="${w-padR}" y2="${fy(f)}" stroke="#3f3f46" stroke-width="1"/>`;
+  const r = w*.052;
+  frets.forEach((f,i) => {
+    if (f === null) s += `<text x="${sx(i)}" y="${padT-8}" fill="#71717a" font-size="${w*.06}" text-anchor="middle">✕</text>`;
+    else if (f === 0) s += `<circle cx="${sx(i)}" cy="${padT-11}" r="${r*.62}" fill="none" stroke="#a1a1aa" stroke-width="1.4"/>`;
+    else s += `<circle cx="${sx(i)}" cy="${fy(f-0.5)}" r="${r}" fill="#e4e4e7"/>`;
+  });
+  return s + `</svg>`;
+}
+
+// ---- demo data: chord entity + voicing tag; real registry-derived grips ----
+const SHAPES = [
+  { chord:"Em7b5", fam:"open",  famLabel:"Open",  frets:[0,1,0,0,3,0], base:1, fail:false, sys:"open",
+    id:["Em7b5","E half-diminished"],
+    scalesRoot:[["E Locrian","from F major"],["E Locrian ♮2","from G melodic minor"],["E dim. whole-half","symmetric"]],
+    scalesOther:[["F major","contains E–G–B♭–D"],["G melodic minor","contains E–G–B♭–D"],["A♭ major","contains E♭? — demo row"]],
+    alts:[ {n:"E-shape · CAGED", frets:[null,1,2,1,2,null], base:7}, {n:"Shell · str 5–3", frets:[null,2,1,2,null,null], base:6} ],
+    inv:[["Root position","this shape"],["1st inversion","not registered"],["2nd inversion","not registered"]] },
+  { chord:"Em7", fam:"open", famLabel:"Open", frets:[0,2,0,0,0,0], base:1, fail:false, sys:"open",
+    id:["Em7"], scalesRoot:[["E Dorian","from D major"],["E Aeolian","from G major"],["E minor pentatonic",""]],
+    scalesOther:[["G major",""],["D major",""],["C major",""]],
+    alts:[ {n:"Barre · A-shape", frets:[null,1,3,1,2,1], base:7}, {n:"Shell · str 6–4", frets:[0,null,0,0,null,null], base:1}, {n:"Drop 2 · str 4–1", frets:[null,null,1,3,2,2], base:2} ],
+    inv:[["Root position","this shape"],["1st inversion","Drop 2 · str 4–1"],["2nd inversion","not registered"]] },
+  { chord:"E7", fam:"open", famLabel:"Open", frets:[0,2,0,1,0,0], base:1, fail:false, sys:"open" },
+  { chord:"Emaj7", fam:"open", famLabel:"Open", frets:[0,2,1,1,0,null], base:1, fail:false, sys:"open" },
+  { chord:"Am7", fam:"open", famLabel:"Open", frets:[null,0,2,0,1,0], base:1, fail:false, sys:"open" },
+  { chord:"Cmaj7", fam:"open", famLabel:"Open", frets:[null,3,2,0,0,0], base:1, fail:false, sys:"open" },
+  { chord:"Gmaj7", fam:"barre", famLabel:"Barre", frets:[1,3,2,2,1,1], base:3, fail:true, sys:"barre",
+    failMsg:"geometry-mismatch" },
+  { chord:"Cmaj7", fam:"caged", famLabel:"CAGED · A", frets:[null,1,3,2,3,1], base:3, fail:false, sys:"caged" },
+  { chord:"Dm7", fam:"shell", famLabel:"Shell", frets:[null,1,3,2,null,null], base:5, fail:false, sys:"jazz-shell" },
+  { chord:"G7", fam:"shell", famLabel:"Shell", frets:[3,null,3,4,null,null], base:1, fail:false, sys:"jazz-shell" },
+  { chord:"Cmaj7", fam:"drop2", famLabel:"Drop 2", frets:[null,1,3,2,3,null], base:3, fail:false, sys:"drop2" },
+  { chord:"Fmaj7", fam:"drop2", famLabel:"Drop 2", frets:[null,null,1,3,3,3], base:3, fail:false, sys:"drop2" },
+];
+const QUALITY = c => c.replace(/^[A-G][#b]?/, "") || "maj";
+const QLABEL = { "maj":"Major", "maj7":"Major 7", "m7":"Minor 7", "7":"Dominant 7", "m7b5":"Half-diminished (m7b5)" };
+
+// ---- render grouped grid ----
+function card(s, i) {
+  return `<button class="card" data-i="${i}" onclick="openPanel(${i})">
+    <div class="cardtop"><span class="name">${s.chord}</span>
+      <span class="tag ${s.fam}">${s.famLabel}</span>
+      ${s.fail ? `<span class="tag err">audit ✕</span>`:""}</div>
+    ${diagram(s.frets, s.base)}
+    <div class="cardmeta"><span>root ${s.chord[0]}</span><span>base fret ${s.base}</span><span>${s.sys}</span></div>
+  </button>`;
+}
+function render(famFilter) {
+  const failing = [], groups = {};
+  SHAPES.forEach((s,i) => {
+    if (famFilter !== "all" && s.fam !== famFilter) return;
+    if (s.fail) { failing.push([s,i]); return; }
+    (groups[QUALITY(s.chord)] ??= []).push([s,i]);
+  });
+  document.getElementById("warnGrid").innerHTML = failing.map(([s,i])=>card(s,i)).join("");
+  document.getElementById("warnGrp").style.display = failing.length ? "" : "none";
+  document.getElementById("groups").innerHTML = Object.entries(groups).map(([q, items]) => `
+    <section class="grp">
+      <div class="grphead"><h2>${QLABEL[q] ?? q}</h2><span class="badge-count">${items.length} voicing${items.length>1?"s":""}</span></div>
+      <div class="grid">${items.map(([s,i])=>card(s,i)).join("")}</div>
+    </section>`).join("");
+  const shown = failing.length + Object.values(groups).flat().length;
+  document.getElementById("count").textContent = `Showing ${shown} of ${SHAPES.length}`;
+}
+render("all");
+
+document.getElementById("chips").addEventListener("click", e => {
+  const chip = e.target.closest(".chip"); if (!chip) return;
+  document.querySelectorAll(".chip").forEach(c=>c.classList.remove("on"));
+  chip.classList.add("on"); render(chip.dataset.f);
+});
+
+// ---- panel ----
+const panel = document.getElementById("panel"), backdrop = document.getElementById("backdrop");
+function openPanel(i) {
+  const s = SHAPES[i];
+  const scalesRoot = s.scalesRoot || [["(demo rows on Em7 / Em7b5 cards)",""]];
+  const scalesOther = s.scalesOther || [];
+  const alts = s.alts || [];
+  const inv = s.inv || [];
+  document.getElementById("panelBody").innerHTML = `
+    <h2>${s.chord} <span class="tag ${s.fam}">${s.famLabel}</span></h2>
+    <div class="sysline">system: ${s.sys} · base fret ${s.base} · rendered at ${s.chord[0]}</div>
+    <div class="bigdiagram">${diagram(s.frets, s.base, 340)}</div>
+
+    <h3>Identified chord</h3>
+    <div class="idline">${(s.id||[s.chord]).map((n,j)=> j===0 ? `<b>${n}</b>` : `<span class="alt"> · also ${n}</span>`).join("")}</div>
+
+    <h3>Scales over ${s.chord}</h3>
+    <div class="scalelist">${scalesRoot.map(([n,w])=>`<div class="scalerow"><span>${n}</span><span class="why">${w}</span></div>`).join("")}</div>
+    ${scalesOther.length ? `<details class="more"><summary>Other parent scales (any root) — ${scalesOther.length}</summary>
+      <div class="scalelist">${scalesOther.map(([n,w])=>`<div class="scalerow"><span>${n}</span><span class="why">${w}</span></div>`).join("")}</details>`:""}
+
+    <h3>Alternate fingerings</h3>
+    ${alts.length ? `<div class="thumbrow">${alts.map(a=>`
+      <div class="thumb">${diagram(a.frets, a.base, 110)}<div class="tname">${a.n}</div>
+        <div class="zoom">${diagram(a.frets, a.base, 205)}<div class="tname">${a.n}</div></div>
+      </div>`).join("")}</div>`
+    : `<div class="empty">No other fingerings of ${s.chord} are registered yet. <a href="#" style="color:var(--muted)">Report / suggest one →</a></div>`}
+
+    <h3>Inversions</h3>
+    ${inv.length ? `<div class="scalelist">${inv.map(([n,w])=>`<div class="scalerow"><span>${n}</span><span class="why">${w}</span></div>`).join("")}</div>`
+    : `<div class="empty">No inversion metadata for this chord type yet.</div>`}
+  `;
+  panel.classList.add("open"); backdrop.classList.add("open");
+}
+function closePanel(){ panel.classList.remove("open"); backdrop.classList.remove("open"); }
+document.getElementById("close").onclick = closePanel;
+backdrop.onclick = closePanel;
+addEventListener("keydown", e => { if (e.key === "Escape") closePanel(); });
+</script>
+</body>
+</html>

@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="en" class="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Experiment 03 — Page morph (chord-entity view)</title>
+<style>
+  :root {
+    --bg: #0a0a0a; --card: #111113; --border: #27272a; --border-soft: #1c1c1f;
+    --fg: #fafafa; --muted: #a1a1aa; --faint: #71717a;
+    --primary: #e4e4e7; --primary-fg: #18181b;
+    --red: #f87171; --amber: #fbbf24; --blue: #60a5fa;
+    --chip: #1f1f23; --chip-active: #3f3f46;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--fg); font: 14px/1.5 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+
+  .expnav { display:flex; gap:12px; padding:8px 20px; background:#060607; border-bottom:1px solid var(--border-soft); font-size:12px; color:var(--faint); position:sticky; top:0; z-index:60;}
+  .expnav b { color: var(--muted); font-weight:600;}
+  .expnav a { color:var(--faint); text-decoration:none; padding:2px 8px; border-radius:6px;}
+  .expnav a.on { background:var(--chip-active); color:var(--fg);}
+  .expnav a:hover { color: var(--fg);}
+
+  .page { max-width: 1200px; margin: 0 auto; padding: 28px 20px 80px; }
+  h1 { font-size: 26px; font-weight: 700; }
+  .sub { color: var(--muted); margin: 6px 0 20px; max-width: 760px;}
+
+  .filterbar { position: sticky; top: 33px; z-index: 50; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(8px); padding: 10px 0; border-bottom: 1px solid var(--border-soft); display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+  select, input[type=text] { background:var(--card); color:var(--fg); border:1px solid var(--border); border-radius:8px; padding:6px 10px; font-size:13px;}
+  .count { color:var(--faint); font-size:12px; margin-left:auto;}
+
+  .crumb { display:none; align-items:center; gap:8px; font-size:13px; color:var(--muted); margin-top:16px;}
+  body.morphed .crumb { display:flex; }
+  .crumb a { color:var(--blue); text-decoration:none; cursor:pointer;}
+
+  /* ===== index view: chord-entity tiles ===== */
+  .entitygrid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:14px; margin-top:22px;}
+  body.morphed .entitygrid, body.morphed .idxhead { display:none; }
+  .entity { color:var(--fg); font:inherit; background:var(--card); border:1px solid var(--border); border-radius:12px; padding:16px; cursor:pointer; transition:border-color .12s, transform .12s; text-align:left; width:100%;}
+  .entity:hover { border-color:#3f3f46; transform:translateY(-1px);}
+  .entity .ename { font-size:19px; font-weight:700;}
+  .entity .esub { color:var(--faint); font-size:12px; margin:2px 0 10px;}
+  .fams { display:flex; flex-wrap:wrap; gap:5px;}
+  .tag { font-size:10.5px; text-transform:uppercase; letter-spacing:.04em; padding:2px 8px; border-radius:999px; border:1px solid var(--border); color:var(--muted);}
+  .tag.open { color:#86efac; border-color:#14532d; background:#052e16;}
+  .tag.barre { color:#93c5fd; border-color:#1e3a8a; background:#0c1b3a;}
+  .tag.caged { color:#fcd34d; border-color:#713f12; background:#2a1a05;}
+  .tag.shell { color:#f9a8d4; border-color:#831843; background:#2d0a1c;}
+  .tag.drop2 { color:#c4b5fd; border-color:#4c1d95; background:#1e1040;}
+  .tag.err { color:var(--red); border-color:#7f1d1d; background:#2a0a0a;}
+  .tag.missing { color:var(--faint); border-style:dashed; background:none;}
+  .idxhead { margin-top:26px; display:flex; align-items:baseline; gap:10px; border-bottom:1px solid var(--border-soft); padding-bottom:6px;}
+  .idxhead h2 { font-size:17px; font-weight:650;}
+  .idxhead .badge-count { color:var(--faint); font-size:12px;}
+
+  /* ===== morphed view: one chord entity, voicings grouped by family ===== */
+  .chordview { display:none; }
+  body.morphed .chordview { display:block; animation: fadein .18s ease; }
+  @keyframes fadein { from { opacity:0; transform:translateY(6px);} to { opacity:1; transform:none;} }
+  .chordhero { display:flex; align-items:baseline; gap:14px; margin-top:18px; flex-wrap:wrap;}
+  .chordhero h2 { font-size:32px; font-weight:800;}
+  .chordhero .idalt { color:var(--faint); font-size:13px;}
+  .context { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:16px;}
+  @media (max-width: 800px){ .context { grid-template-columns:1fr; } }
+  .ctxbox { background:var(--card); border:1px solid var(--border-soft); border-radius:12px; padding:14px 16px;}
+  .ctxbox h3 { font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--faint); margin-bottom:10px; font-weight:650;}
+  .scalerow { display:flex; justify-content:space-between; padding:5px 0; font-size:13px; border-bottom:1px solid var(--border-soft);}
+  .scalerow:last-child { border-bottom:0;}
+  .scalerow .why { color:var(--faint); font-size:11.5px;}
+  details.more summary { color:var(--muted); font-size:12.5px; cursor:pointer; margin-top:8px;}
+
+  section.famgrp { margin-top: 28px; }
+  .famhead { display:flex; align-items:center; gap:10px; border-bottom:1px solid var(--border-soft); padding-bottom:6px; margin-bottom:14px;}
+  .famhead h3 { font-size:15px; font-weight:650;}
+  .famhead .badge-count { color:var(--faint); font-size:12px;}
+  .vgrid { display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:14px; }
+  .vcard { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:12px; }
+  .vcard:hover { border-color:#3f3f46;}
+  .vmeta { color:var(--faint); font-size:11.5px; margin-top:6px; display:flex; gap:10px; justify-content:space-between;}
+  svg.diagram { display:block; width:100%; height:auto; }
+  .emptyfam { color:var(--faint); font-size:13px; background:var(--card); border:1px dashed var(--border); border-radius:10px; padding:14px; }
+  .footer-hint { color:var(--faint); font-size:12px; margin-top:26px;}
+</style>
+</head>
+<body>
+<nav class="expnav"><b>design experiments</b>
+  <a href="01-slide-over.html">01 slide-over</a>
+  <a href="02-docked-panel.html">02 docked panel</a>
+  <a class="on" href="03-page-morph.html">03 page morph</a>
+</nav>
+
+<div class="page">
+  <h1>Shape Library</h1>
+  <p class="sub">Page-morph: the index is a grid of <em>chord entities</em> ("Em7", "Cmaj7") showing which voicing families exist for each. Clicking one morphs the whole page into that chord's view — full musical context up top, every registered voicing below grouped by family, with dashed tags marking families that have no registered shape yet.</p>
+
+  <div class="filterbar">
+    <select><option>All roots</option><option>C</option><option>E</option><option>G</option></select>
+    <select><option>All qualities</option><option>maj7</option><option>m7</option><option>m7b5</option><option>7</option></select>
+    <input type="text" placeholder="Search chords…">
+    <span class="count" id="count"></span>
+  </div>
+
+  <div class="crumb"><a id="back">← All chords</a><span>/</span><span id="crumbName"></span></div>
+
+  <div class="idxhead"><h2>Seventh chords</h2><span class="badge-count" id="idxcount"></span></div>
+  <div class="entitygrid" id="entities"></div>
+
+  <div class="chordview" id="chordview"></div>
+
+  <p class="footer-hint">This view is also natural for deep links: /shapes?chord=Em7 — and the browser back button un-morphs.</p>
+</div>
+
+<script>
+function diagram(frets, baseFret, w) {
+  w = w || 190;
+  const strings = 6, fretsShown = 4, h = w * 1.05;
+  const padT = 26, padL = 18, padR = 18, padB = 12;
+  const gw = w - padL - padR, gh = h - padT - padB;
+  const sx = i => padL + gw * i / (strings - 1);
+  const fy = f => padT + gh * f / fretsShown;
+  let s = `<svg class="diagram" viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg">`;
+  if (baseFret === 1) s += `<rect x="${padL-1}" y="${padT-4}" width="${gw+2}" height="4" fill="#d4d4d8" rx="1.5"/>`;
+  else s += `<text x="${padL-9}" y="${fy(0.6)}" fill="#a1a1aa" font-size="${w*.055}" text-anchor="end">${baseFret}</text>`;
+  for (let i=0;i<strings;i++) s += `<line x1="${sx(i)}" y1="${padT}" x2="${sx(i)}" y2="${h-padB}" stroke="#3f3f46" stroke-width="1"/>`;
+  for (let f=0;f<=fretsShown;f++) s += `<line x1="${padL}" y1="${fy(f)}" x2="${w-padR}" y2="${fy(f)}" stroke="#3f3f46" stroke-width="1"/>`;
+  const r = w*.052;
+  frets.forEach((f,i) => {
+    if (f === null) s += `<text x="${sx(i)}" y="${padT-8}" fill="#71717a" font-size="${w*.06}" text-anchor="middle">✕</text>`;
+    else if (f === 0) s += `<circle cx="${sx(i)}" cy="${padT-11}" r="${r*.62}" fill="none" stroke="#a1a1aa" stroke-width="1.4"/>`;
+    else s += `<circle cx="${sx(i)}" cy="${fy(f-0.5)}" r="${r}" fill="#e4e4e7"/>`;
+  });
+  return s + `</svg>`;
+}
+
+const FAM_LABELS = { open:"Open", barre:"Barre", caged:"CAGED", shell:"Shell", drop2:"Drop 2" };
+const ALL_FAMS = ["open","barre","caged","shell","drop2"];
+
+const CHORDS = [
+  { name:"Em7", idalt:"E minor seventh · E–G–B–D",
+    scalesRoot:[["E Dorian","from D major"],["E Aeolian","from G major"],["E minor pentatonic",""]],
+    scalesOther:[["G major",""],["D major",""],["C major",""]],
+    voicings:{
+      open:[{n:"Open", frets:[0,2,0,0,0,0], base:1}],
+      barre:[{n:"A-shape barre", frets:[null,1,3,1,2,1], base:7}],
+      caged:[],
+      shell:[{n:"Shell · str 6–4", frets:[0,null,0,0,null,null], base:1}],
+      drop2:[{n:"Drop 2 · str 4–1", frets:[null,null,1,3,2,2], base:2}],
+    }},
+  { name:"Em7b5", idalt:"E half-diminished · E–G–B♭–D",
+    scalesRoot:[["E Locrian","from F major"],["E Locrian ♮2","from G melodic minor"]],
+    scalesOther:[["F major",""],["G melodic minor",""]],
+    voicings:{
+      open:[{n:"Open", frets:[0,1,0,0,3,0], base:1}],
+      barre:[], caged:[{n:"E-shape", frets:[null,1,2,1,2,null], base:7}], shell:[], drop2:[],
+    }},
+  { name:"E7", idalt:"E dominant seventh · E–G♯–B–D",
+    scalesRoot:[["E Mixolydian","from A major"],["E blues",""]], scalesOther:[["A major",""]],
+    voicings:{ open:[{n:"Open", frets:[0,2,0,1,0,0], base:1}], barre:[{n:"A-shape barre", frets:[null,1,3,1,3,1], base:7}], caged:[], shell:[{n:"Shell · str 6–4", frets:[0,null,1,1,null,null], base:1}], drop2:[] }},
+  { name:"Emaj7", idalt:"E major seventh · E–G♯–B–D♯",
+    scalesRoot:[["E Ionian","E major"],["E Lydian","from B major"]], scalesOther:[["B major",""]],
+    voicings:{ open:[{n:"Open", frets:[0,2,1,1,0,null], base:1}], barre:[], caged:[], shell:[], drop2:[] }},
+  { name:"Cmaj7", idalt:"C major seventh · C–E–G–B",
+    scalesRoot:[["C Ionian","C major"],["C Lydian","from G major"]], scalesOther:[["G major",""]],
+    voicings:{ open:[{n:"Open", frets:[null,3,2,0,0,0], base:1}], barre:[], caged:[{n:"A-shape", frets:[null,1,3,2,3,1], base:3}], shell:[], drop2:[{n:"Drop 2 · str 5–2", frets:[null,1,3,2,3,null], base:3}] }},
+  { name:"Am7", idalt:"A minor seventh · A–C–E–G",
+    scalesRoot:[["A Dorian","from G major"],["A Aeolian","from C major"]], scalesOther:[["C major",""],["G major",""]],
+    voicings:{ open:[{n:"Open", frets:[null,0,2,0,1,0], base:1}], barre:[], caged:[], shell:[], drop2:[] }},
+  { name:"G7", idalt:"G dominant seventh · G–B–D–F",
+    scalesRoot:[["G Mixolydian","from C major"]], scalesOther:[["C major",""]],
+    voicings:{ open:[{n:"Open", frets:[3,2,0,0,0,1], base:1}], barre:[], caged:[], shell:[{n:"Shell · str 6–4", frets:[3,null,3,4,null,null], base:1}], drop2:[] }},
+  { name:"Dm7", idalt:"D minor seventh · D–F–A–C",
+    scalesRoot:[["D Dorian","from C major"]], scalesOther:[["C major",""],["F major",""]],
+    voicings:{ open:[{n:"Open", frets:[null,null,0,2,1,1], base:1}], barre:[], caged:[], shell:[{n:"Shell · str 5–3", frets:[null,1,3,2,null,null], base:5}], drop2:[] }},
+];
+
+// index view
+function renderIndex() {
+  document.getElementById("entities").innerHTML = CHORDS.map((c,i) => {
+    const total = ALL_FAMS.reduce((n,f)=>n + c.voicings[f].length, 0);
+    return `<button class="entity" onclick="morph(${i})">
+      <div class="ename">${c.name}</div>
+      <div class="esub">${total} registered voicing${total!==1?"s":""}</div>
+      <div class="fams">${ALL_FAMS.map(f => c.voicings[f].length
+        ? `<span class="tag ${f}">${FAM_LABELS[f]} ${c.voicings[f].length}</span>`
+        : ``).join("")}</div>
+    </button>`;
+  }).join("");
+  document.getElementById("idxcount").textContent = `${CHORDS.length} chords`;
+  document.getElementById("count").textContent = `Showing ${CHORDS.length} chords`;
+}
+renderIndex();
+
+// morphed chord-entity view
+function morph(i) {
+  const c = CHORDS[i];
+  document.getElementById("crumbName").textContent = c.name;
+  document.getElementById("chordview").innerHTML = `
+    <div class="chordhero"><h2>${c.name}</h2><span class="idalt">${c.idalt}</span></div>
+    <div class="context">
+      <div class="ctxbox"><h3>Scales over ${c.name}</h3>
+        ${c.scalesRoot.map(([n,w])=>`<div class="scalerow"><span>${n}</span><span class="why">${w}</span></div>`).join("")}
+        ${c.scalesOther.length?`<details class="more"><summary>Other parent scales — ${c.scalesOther.length}</summary>
+          ${c.scalesOther.map(([n,w])=>`<div class="scalerow"><span>${n}</span><span class="why">${w}</span></div>`).join("")}</details>`:""}
+      </div>
+      <div class="ctxbox"><h3>Inversions</h3>
+        <div class="scalerow"><span>Root position</span><span class="why">registered</span></div>
+        <div class="scalerow"><span>1st inversion</span><span class="why">not registered</span></div>
+        <div class="scalerow"><span>2nd inversion</span><span class="why">not registered</span></div>
+      </div>
+    </div>
+    ${ALL_FAMS.map(f => `
+      <section class="famgrp">
+        <div class="famhead"><span class="tag ${f}">${FAM_LABELS[f]}</span>
+          <span class="badge-count">${c.voicings[f].length || "none registered"}</span></div>
+        ${c.voicings[f].length
+          ? `<div class="vgrid">${c.voicings[f].map(v=>`
+              <div class="vcard">${diagram(v.frets, v.base)}<div class="vmeta"><span>${v.n}</span><span>base ${v.base}</span></div></div>`).join("")}</div>`
+          : `<div class="emptyfam">No ${FAM_LABELS[f].toLowerCase()} voicing of ${c.name} registered yet — a registry gap, not an error.</div>`}
+      </section>`).join("")}
+  `;
+  document.body.classList.add("morphed");
+  document.getElementById("count").textContent = c.name;
+  scrollTo({top:0});
+}
+document.getElementById("back").onclick = () => document.body.classList.remove("morphed");
+addEventListener("keydown", e => { if (e.key === "Escape") document.body.classList.remove("morphed"); });
+</script>
+</body>
+</html>
