@@ -58,6 +58,8 @@ import {
   OPEN_D_M7B5,
   OPEN_E_DIM,
   OPEN_E_AUG,
+  OPEN_G_AUG,
+  OPEN_G_M7B5,
   BARRE_E_DIM,
   BARRE_E_AUG,
   BARRE_E_MAJOR,
@@ -354,6 +356,52 @@ describe("open-chords: build-equivalence tests", () => {
     it("G Major Open applied to G produces 3,2,0,0,0,3", () => {
       expect(buildFrets(OPEN_G_MAJOR, "G")).toEqual([3, 2, 0, 0, 0, 3]);
     });
+
+    // Issue #96 regression: string 5 was encoded "5A" instead of "1P", which
+    // resolved to frets 3,x,1,0,0,11 — an unplayable 10-fret span instead of
+    // the open 3x1003 grip.
+    it("G Augmented Open applied to G produces 3,x,1,0,0,3", () => {
+      expect(buildFrets(OPEN_G_AUG, "G")).toEqual([3, null, 1, 0, 0, 3]);
+    });
+
+    it("G Augmented Open has only aug triad intervals", () => {
+      const augIntervals = new Set(["1P", "3M", "5A"]);
+      const positions = buildPositions(OPEN_G_AUG, "G");
+      expect(positions.length).toBe(5);
+      for (const p of positions) {
+        expect(
+          augIntervals.has(p.interval),
+          `OPEN_G_AUG: unexpected interval ${p.interval}`,
+        ).toBe(true);
+      }
+    });
+
+    it("G Augmented Open at its canonical root spans at most 4 frets", () => {
+      expect(checkFretSpan(OPEN_G_AUG, "G")).toEqual([]);
+    });
+
+    // Issue #96 regression: strings 4-5 had "3m"/"7m" swapped, which resolved
+    // to frets x,x,3,4,9,11 at F — an unplayable 8-fret span instead of the
+    // compact xx5666-style grip.
+    it("G m7b5 Open applied to F produces x,x,3,4,4,4", () => {
+      expect(buildFrets(OPEN_G_M7B5, "F")).toEqual([null, null, 3, 4, 4, 4]);
+    });
+
+    it("G m7b5 Open has only m7b5 intervals", () => {
+      const m7b5Intervals = new Set(["1P", "5d", "7m", "3m"]);
+      const positions = buildPositions(OPEN_G_M7B5, "F");
+      expect(positions.length).toBe(4);
+      for (const p of positions) {
+        expect(
+          m7b5Intervals.has(p.interval),
+          `OPEN_G_M7B5: unexpected interval ${p.interval}`,
+        ).toBe(true);
+      }
+    });
+
+    it("G m7b5 Open spans at most 4 frets at F", () => {
+      expect(checkFretSpan(OPEN_G_M7B5, "F")).toEqual([]);
+    });
   });
 
   describe("E family open shapes", () => {
@@ -503,20 +551,20 @@ describe("open-chords: build-equivalence tests", () => {
     });
   });
 
-  // ─── Issue #96: registry-wide fret-span sweep for the open-chords registry ─
+  // ─── Issue #96 (resolved): registry-wide fret-span sweep for the
+  // open-chords registry ──────────────────────────────────────────────────
   //
   // Sweeps every shape registered by open-chords.ts (voicingFamily "open" and
   // "barre" — the 70 shapes asserted by the "TG10" registry-count block
   // below) through checkFretSpan at each shape's displayable root
   // (canonicalRoot ?? "C" — barre shapes have no canonicalRoot and are
-  // movable, so "C" stands in as an arbitrary-but-fixed test root). Two
-  // shapes are known-bad (issue #96: their source diagrams don't survive
-  // the build engine's own anchor logic without an unplayable span) and are
-  // allowlisted here so CI stays green until that issue's fix lands — this
-  // does NOT weaken checkFretSpan itself, only which shapes this particular
-  // sweep enforces it against.
+  // movable, so "C" stands in as an arbitrary-but-fixed test root).
+  // Previously "G Augmented Open" and "G m7b5 Open" were allowlisted here as
+  // known-bad (issue #96); both are now fixed (see the "G family open
+  // shapes" regression tests above) and the allowlist is empty, so this
+  // sweep enforces checkFretSpan against the full registry unconditionally.
   describe("registry-wide fret-span sweep (issue #96 known issues)", () => {
-    const KNOWN_ISSUES = ["G Augmented Open", "G m7b5 Open"];
+    const KNOWN_ISSUES: string[] = [];
 
     it("every open/barre chord shape not in KNOWN_ISSUES has an empty fret-span audit", () => {
       const shapes = [
@@ -532,12 +580,6 @@ describe("open-chords: build-equivalence tests", () => {
           checkFretSpan(shape, root),
           `${shape.name} at root "${root}" failed the fret-span check`,
         ).toEqual([]);
-      }
-    });
-
-    it("KNOWN_ISSUES shapes are still registered (guards against a silently-removed allowlist entry)", () => {
-      for (const name of KNOWN_ISSUES) {
-        expect(chordShapes.get(name), `${name} not registered`).toBeDefined();
       }
     });
   });

@@ -556,15 +556,15 @@ export const OPEN_G_DIM: ChordShape = {
 };
 
 /**
- * G augmented (3x2113)
- * Notes: G D# G B D# G → intervals: 1P 5A 1P 3M 5A 1P (strings 0,2,3,4,5)
+ * G augmented (3x1003)
+ * Notes: G D# G B G → intervals: 1P 5A 1P 3M 1P (strings 0,2,3,4,5)
  */
 export const OPEN_G_AUG: ChordShape = {
   name: "G Augmented Open",
   system: "open",
-  strings: ["1P", null, "5A", "1P", "3M", "5A"],
-  fingers: [2, null, 3, 1, 1, 4],
-  barres: [{ fret: 1, fromString: 3, toString: 4, finger: 1 }],
+  strings: ["1P", null, "5A", "1P", "3M", "1P"],
+  fingers: [3, null, 1, 0, 0, 4],
+  barres: [],
   rootString: 0,
   chordType: "aug",
   voicingFamily: "open",
@@ -613,13 +613,13 @@ export const OPEN_G_SUS4: ChordShape = {
 };
 
 /**
- * G half-diminished (m7b5) movable grip at fret 5 (xx5678)
- * Notes: G Db Bb F → intervals: 1P 5d 3m 7m; omits 3m on lower strings but all four tones present.
+ * G half-diminished (m7b5) movable grip at fret 5 (xx5666)
+ * Notes: G Db F Bb → intervals: 1P 5d 7m 3m
  */
 export const OPEN_G_M7B5: ChordShape = {
   name: "G m7b5 Open",
   system: "barre",
-  strings: [null, null, "1P", "5d", "3m", "7m"],
+  strings: [null, null, "1P", "5d", "7m", "3m"],
   fingers: [null, null, 1, 2, 3, 4],
   barres: [],
   rootString: 2,
