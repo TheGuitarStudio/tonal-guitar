@@ -42,6 +42,7 @@ import {
   OPEN_C_MINOR,
   OPEN_G_AUG,
   OPEN_G_M7B5,
+  OPEN_G_SUS2,
 } from "./data/open-chords";
 import { SHELL_SHAPES } from "./data/jazz-shells";
 import { EXT_CHORD_E_6, EXT_CHORD_A_6 } from "./data/extended-chords";
@@ -278,39 +279,34 @@ describe("checkGeometryMismatch registry-wide validation", () => {
   // the check" rule.
   //
   // A full registry sweep over the remaining 50 `"<Root> ... Open"` shapes
-  // flags 7, not just the 2 seeded #96 fixtures:
+  // flags 2 — only the 2 seeded #96 fixtures (OPEN_G_AUG, OPEN_G_M7B5),
+  // genuine misordered-interval defects confirmed by hand against their own
+  // fret-diagram comments and fingers/barres data.
   //
-  //   1. The 2 seeded #96 shapes (OPEN_G_AUG, OPEN_G_M7B5) — genuine
-  //      misordered-interval defects, confirmed by hand against their own
-  //      fret-diagram comments and fingers/barres data.
-  //   2. 5 additional open-chords.ts shapes with the SAME class of genuine
-  //      defect, independently discovered by this sweep (verified by hand
-  //      against each shape's own diagram comment/fingers data — these are
-  //      not artifacts of this check):
-  //        - "G Dominant 7 Open" / "G Major 7 Open": fingers[5] === 0
-  //          (implies open) while the diagram's high-e string is fretted
-  //          (fret 1 / fret 2 respectively) — a fingers-array bug.
-  //        - "E Sus2 Open": same class of fingers-array bug on the D string.
-  //        - "G Sus2 Open": strings[1..3] are cyclically misordered
+  //   This sweep previously flagged 5 additional shapes with the same class
+  //   of genuine defect, all since fixed:
+  //        - "G Sus2 Open" (#112): strings[1..3] were cyclically misordered
   //          (2M/5P/1P recorded as 5P/1P/2M) — a misordered-interval defect,
-  //          the same class as #96.
-  //        - "E m7b5 Open": the D-string interval ("7m") is inconsistent
-  //          with its own fret-diagram comment ("0120xx") and fingers data
-  //          (finger 2, i.e. fretted, not open) — fret 2 on an open-D string
-  //          sounds the root (E), not the 7th (D); a mislabeled interval.
+  //          the same class as #96. Fixed; see OPEN_G_SUS2 in
+  //          data/open-chords.ts.
+  //        - "E m7b5 Open" (#113): the D-string interval ("7m") was
+  //          inconsistent with its own fret-diagram comment ("0120xx") and
+  //          fingers data — fret 2 on an open-D string sounds the root (E),
+  //          not the 7th (D). Now fixed to "1P" — though the corrected shape
+  //          doubles the root instead of sounding a 7th (no 7m present at
+  //          all), so "m7b5" is a partial/misleading name for what it
+  //          actually sounds. That naming question is out of scope for #113.
+  //        - "G Dominant 7 Open" / "G Major 7 Open" / "E Sus2 Open" (#111):
+  //          fingers[i] === 0 (implies open) on a string the diagram comment
+  //          shows fretted — a fingers-array bug, fixed by assigning the
+  //          fretted string a nonzero finger.
   it("checkGeometryMismatch's registry-wide mismatch set matches the documented, hand-verified list above", () => {
     const knownMismatching = new Set([
       // #96 seeded pair
       "G Augmented Open",
       "G m7b5 Open",
-      // additional genuine defects discovered by the sweep
-      "G Dominant 7 Open",
-      "G Major 7 Open",
-      "G Sus2 Open",
-      "E Sus2 Open",
-      "E m7b5 Open",
     ]);
-    expect(knownMismatching.size).toBe(7);
+    expect(knownMismatching.size).toBe(2);
 
     const withBaseFret = chordShapes.all().filter((s) => s.baseFret != null);
     expect(withBaseFret.length).toBe(70);
@@ -330,6 +326,31 @@ describe("checkGeometryMismatch registry-wide validation", () => {
     expect(gM7b5).toBeDefined();
     expect(checkGeometryMismatch(gAug as ChordShape).length).toBe(1);
     expect(checkGeometryMismatch(gM7b5 as ChordShape).length).toBe(1);
+  });
+
+  it("OPEN_G_SUS2 (#112 fixed): built frets match the 300033 diagram exactly, no mismatch", () => {
+    expect(checkGeometryMismatch(OPEN_G_SUS2)).toEqual([]);
+
+    const { frets } = applyChordShape(OPEN_G_SUS2, "G", STANDARD);
+    expect(frets).toEqual([3, 0, 0, 0, 3, 3]);
+  });
+
+  // #111 regression: these three shapes each had fingers[i] === 0 on a
+  // string their own fret-diagram comment shows fretted (see open-chords.ts
+  // OPEN_G_DOM7/OPEN_G_MAJ7/OPEN_E_SUS2), which sourceFrets read as "open,"
+  // producing a false geometry-mismatch against the build engine's fretted
+  // reconstruction. Fixed by assigning the fretted string a nonzero finger;
+  // asserts they no longer mismatch.
+  it("#111 fixed shapes (G Dominant 7 Open, G Major 7 Open, E Sus2 Open) no longer mismatch", () => {
+    const gDom7 = chordShapes.get("G Dominant 7 Open");
+    const gMaj7 = chordShapes.get("G Major 7 Open");
+    const eSus2 = chordShapes.get("E Sus2 Open");
+    expect(gDom7).toBeDefined();
+    expect(gMaj7).toBeDefined();
+    expect(eSus2).toBeDefined();
+    expect(checkGeometryMismatch(gDom7 as ChordShape)).toEqual([]);
+    expect(checkGeometryMismatch(gMaj7 as ChordShape)).toEqual([]);
+    expect(checkGeometryMismatch(eSus2 as ChordShape)).toEqual([]);
   });
 });
 
