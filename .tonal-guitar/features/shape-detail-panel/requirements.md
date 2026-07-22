@@ -51,8 +51,19 @@ existing `chordType` / `voicingFamily` / `canonicalRoot` metadata.)
 
 ### Follow-up Questions
 
-Deferred to the design-experiment round: panel presentation form, taxonomy/grouping
-feel, thumbnail hover behavior, mobile presentation.
+**Follow-up 1 (after browsing the experiments): Which panel presentation?**
+**Answer:** Slide-over — but non-modal: the rest of the page stays interactive; clicking
+another chord card replaces the panel content in place. (Logged as D-005.)
+
+**Follow-up 2: Card density?**
+**Answer:** Cards should be a bit smaller so more chords fit on screen — "seeing more
+at a glance is helpful." Compact card = name + voicing tag + diagram only.
+
+**Follow-up 3: Filtering/sorting model?**
+**Answer:** Needs more exploration. Research dispatched on how existing chord tools
+sort/categorize chord libraries: toggleable category chips (on/off), root pickers,
+type pickers, sort orders, etc. Findings will drive another experiment round and
+D-006. Still open: mobile presentation.
 
 ## Visual Assets
 

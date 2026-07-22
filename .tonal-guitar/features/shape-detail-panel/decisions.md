@@ -97,3 +97,31 @@ browser; the winning direction gets encoded in spec.md.
 **Rationale:** User request. Presentation is the highest-variance UX call in the
 feature; an hour of mockups beats respinning the implementation later. Fully
 reversible.
+
+---
+
+## D-005: Panel form — non-modal slide-over with click-to-swap; compact card grid
+
+**Context:** User evaluated the three D-004 experiments in browser.
+
+**Options Considered:** slide-over (01), docked master-detail (02), page-morph (03).
+
+**Decision:** Slide-over wins, but **non-modal**: no backdrop, no focus trap; the page
+stays fully interactive while the panel is open. Clicking any other card swaps its
+details into the open panel; the selected card gets a highlighted border; page content
+shifts left so the panel covers nothing. Close via ✕ or Esc. Additionally: **cards get
+significantly smaller/denser** — seeing more chords at a glance is a primary goal, so
+per-card metadata is trimmed (name + voicing tag + diagram) with detail deferred to
+the panel.
+
+**Rationale:** User feedback verbatim: likes the slide-over but wants to "keep the rest
+of the page interactive allowing you to click on other chords and just have it replace
+in the side panel," and wants chord examples "a bit smaller so we can get more on
+there — seeing more at a glance is helpful." Experiment 01 was updated in place to
+this behavior and re-verified. Note for spec: non-modal means no focus trap; keyboard
+model = focus stays in grid, Esc closes, panel is a complementary landmark region
+(`role="complementary"`/`aria-live` on swaps).
+
+**Open (pending research):** Filtering/sorting model — user wants exploration of how
+existing chord tools categorize (toggleable category chips, root pickers, type pickers,
+sort orders). Web research dispatched; will become D-006.

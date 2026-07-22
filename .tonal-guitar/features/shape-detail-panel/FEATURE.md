@@ -29,7 +29,7 @@ Shape Library page (better filtering and organization).
 | Phase     | File        | Status  | Loops | Reviewed |
 | --------- | ----------- | ------- | ----- | -------- |
 | Research  | research.md | complete | 0     | yes      |
-| Shape     | spec.md     | pending | 0     | no       |
+| Shape     | spec.md     | in-progress | 0     | no       |
 | Plan      | tasks.md    | pending | 0     | no       |
 | Implement | FEATURE.md  | pending | 0     | no       |
 

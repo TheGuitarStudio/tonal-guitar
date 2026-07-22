@@ -22,7 +22,8 @@
   .expnav a.on { background:var(--chip-active); color:var(--fg);}
   .expnav a:hover { color: var(--fg);}
 
-  .page { max-width: 1200px; margin: 0 auto; padding: 28px 20px 80px; }
+  .page { max-width: 1200px; margin: 0 auto; padding: 28px 20px 80px; transition: margin-right .2s ease; }
+  body.panel-open .page { margin-right: 450px; }
   h1 { font-size: 26px; font-weight: 700; }
   .sub { color: var(--muted); margin: 6px 0 20px; max-width: 720px;}
 
@@ -48,14 +49,15 @@
   .grphead .badge-count { color:var(--faint); font-size:12px;}
   .grphead.warn h2 { color: var(--amber); }
 
-  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:14px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:10px; }
 
-  /* cards: chord entity name + voicing tag */
-  .card { color:var(--fg); font:inherit; background:var(--card); border:1px solid var(--border); border-radius:12px; padding:14px; cursor:pointer; transition: border-color .12s, transform .12s; text-align:left; width:100%;}
+  /* cards: chord entity name + voicing tag — compact for density */
+  .card { color:var(--fg); font:inherit; background:var(--card); border:1px solid var(--border); border-radius:10px; padding:10px; cursor:pointer; transition: border-color .12s, transform .12s; text-align:left; width:100%;}
   .card:hover { border-color:#3f3f46; transform: translateY(-1px);}
+  .card.sel { border-color:#e4e4e7; }
   .card:focus-visible { outline:2px solid var(--blue); outline-offset:2px;}
-  .cardtop { display:flex; align-items:center; gap:8px; margin-bottom:8px;}
-  .cardtop .name { font-weight:650; font-size:15px;}
+  .cardtop { display:flex; align-items:center; gap:6px; margin-bottom:6px; flex-wrap:wrap;}
+  .cardtop .name { font-weight:650; font-size:13px;}
   .tag { font-size:10.5px; text-transform:uppercase; letter-spacing:.04em; padding:2px 8px; border-radius:999px; border:1px solid var(--border); color:var(--muted);}
   .tag.open { color:#86efac; border-color:#14532d; background:#052e16;}
   .tag.barre { color:#93c5fd; border-color:#1e3a8a; background:#0c1b3a;}
@@ -67,9 +69,7 @@
 
   svg.diagram { display:block; width:100%; height:auto; }
 
-  /* slide-over panel */
-  .backdrop { position:fixed; inset:0; background:rgba(0,0,0,.5); opacity:0; pointer-events:none; transition:opacity .18s; z-index:90;}
-  .backdrop.open { opacity:1; pointer-events:auto;}
+  /* non-modal slide-over panel — page stays interactive; clicking another card swaps content */
   .panel { position:fixed; top:0; right:0; bottom:0; width:440px; max-width:92vw; background:#0e0e10; border-left:1px solid var(--border); z-index:100; transform:translateX(102%); transition:transform .2s ease; overflow-y:auto; padding:20px 22px 40px;}
   .panel.open { transform:translateX(0); box-shadow: -24px 0 60px rgba(0,0,0,.5);}
   .panelclose { position:absolute; top:14px; right:14px; background:var(--chip); border:1px solid var(--border); color:var(--muted); width:28px; height:28px; border-radius:8px; cursor:pointer; font-size:14px;}
@@ -107,7 +107,7 @@
 
 <div class="page">
   <h1>Shape Library</h1>
-  <p class="sub">Chord-first taxonomy: the card is the <em>chord + voicing</em>, the name is the chord entity ("Em7b5"), and the voicing family is a tag. Click any card to open the slide-over detail panel. Hover the alternate-fingering thumbnails inside the panel to enlarge.</p>
+  <p class="sub">Non-modal slide-over: the page stays fully interactive while the panel is open — click any other card and its details <em>swap into</em> the panel (selected card gets a bright border). Content shifts left so nothing is covered. Compact cards for more chords at a glance. Hover the alternate-fingering thumbnails inside the panel to enlarge.</p>
 
   <div class="filterbar">
     <span class="toggle"><button class="on">Chord</button><button>Scale</button></span>
@@ -138,7 +138,6 @@
   <p class="footer-hint">Press <span class="kbd">Esc</span> to close the panel · failing shapes stay pinned on top regardless of grouping</p>
 </div>
 
-<div class="backdrop" id="backdrop"></div>
 <aside class="panel" id="panel" aria-label="Shape details">
   <button class="panelclose" id="close" aria-label="Close">✕</button>
   <div id="panelBody"></div>
@@ -192,21 +191,37 @@ const SHAPES = [
   { chord:"G7", fam:"shell", famLabel:"Shell", frets:[3,null,3,4,null,null], base:1, fail:false, sys:"jazz-shell" },
   { chord:"Cmaj7", fam:"drop2", famLabel:"Drop 2", frets:[null,1,3,2,3,null], base:3, fail:false, sys:"drop2" },
   { chord:"Fmaj7", fam:"drop2", famLabel:"Drop 2", frets:[null,null,1,3,3,3], base:3, fail:false, sys:"drop2" },
+  { chord:"E", fam:"open", famLabel:"Open", frets:[0,2,2,1,0,0], base:1, fail:false, sys:"open" },
+  { chord:"A", fam:"open", famLabel:"Open", frets:[null,0,2,2,2,0], base:1, fail:false, sys:"open" },
+  { chord:"D", fam:"open", famLabel:"Open", frets:[null,null,0,2,3,2], base:1, fail:false, sys:"open" },
+  { chord:"G", fam:"open", famLabel:"Open", frets:[3,2,0,0,0,3], base:1, fail:false, sys:"open" },
+  { chord:"C", fam:"open", famLabel:"Open", frets:[null,3,2,0,1,0], base:1, fail:false, sys:"open" },
+  { chord:"F", fam:"barre", famLabel:"Barre · E", frets:[1,3,3,2,1,1], base:1, fail:false, sys:"barre" },
+  { chord:"G", fam:"caged", famLabel:"CAGED · E", frets:[1,3,3,2,1,1], base:3, fail:false, sys:"caged" },
+  { chord:"C", fam:"caged", famLabel:"CAGED · A", frets:[null,1,3,3,3,1], base:3, fail:false, sys:"caged" },
+  { chord:"Em", fam:"open", famLabel:"Open", frets:[0,2,2,0,0,0], base:1, fail:false, sys:"open" },
+  { chord:"Am", fam:"open", famLabel:"Open", frets:[null,0,2,2,1,0], base:1, fail:false, sys:"open" },
+  { chord:"Dm", fam:"open", famLabel:"Open", frets:[null,null,0,2,3,1], base:1, fail:false, sys:"open" },
+  { chord:"Bm", fam:"barre", famLabel:"Barre · A", frets:[null,2,4,4,3,2], base:1, fail:false, sys:"barre" },
+  { chord:"A7", fam:"open", famLabel:"Open", frets:[null,0,2,0,2,0], base:1, fail:false, sys:"open" },
+  { chord:"D7", fam:"open", famLabel:"Open", frets:[null,null,0,2,1,2], base:1, fail:false, sys:"open" },
+  { chord:"B7", fam:"open", famLabel:"Open", frets:[null,2,1,2,0,2], base:1, fail:false, sys:"open" },
 ];
 const QUALITY = c => c.replace(/^[A-G][#b]?/, "") || "maj";
-const QLABEL = { "maj":"Major", "maj7":"Major 7", "m7":"Minor 7", "7":"Dominant 7", "m7b5":"Half-diminished (m7b5)" };
+const QLABEL = { "maj":"Major", "m":"Minor", "maj7":"Major 7", "m7":"Minor 7", "7":"Dominant 7", "m7b5":"Half-diminished (m7b5)" };
+let selected = -1, curFilter = "all";
 
 // ---- render grouped grid ----
 function card(s, i) {
-  return `<button class="card" data-i="${i}" onclick="openPanel(${i})">
+  return `<button class="card ${i===selected?"sel":""}" data-i="${i}" onclick="openPanel(${i})">
     <div class="cardtop"><span class="name">${s.chord}</span>
       <span class="tag ${s.fam}">${s.famLabel}</span>
-      ${s.fail ? `<span class="tag err">audit ✕</span>`:""}</div>
+      ${s.fail ? `<span class="tag err">✕</span>`:""}</div>
     ${diagram(s.frets, s.base)}
-    <div class="cardmeta"><span>root ${s.chord[0]}</span><span>base fret ${s.base}</span><span>${s.sys}</span></div>
   </button>`;
 }
-function render(famFilter) {
+function render() {
+  const famFilter = curFilter;
   const failing = [], groups = {};
   SHAPES.forEach((s,i) => {
     if (famFilter !== "all" && s.fam !== famFilter) return;
@@ -223,16 +238,16 @@ function render(famFilter) {
   const shown = failing.length + Object.values(groups).flat().length;
   document.getElementById("count").textContent = `Showing ${shown} of ${SHAPES.length}`;
 }
-render("all");
+render();
 
 document.getElementById("chips").addEventListener("click", e => {
   const chip = e.target.closest(".chip"); if (!chip) return;
   document.querySelectorAll(".chip").forEach(c=>c.classList.remove("on"));
-  chip.classList.add("on"); render(chip.dataset.f);
+  chip.classList.add("on"); curFilter = chip.dataset.f; render();
 });
 
-// ---- panel ----
-const panel = document.getElementById("panel"), backdrop = document.getElementById("backdrop");
+// ---- panel (non-modal: no backdrop, page stays clickable) ----
+const panel = document.getElementById("panel");
 function openPanel(i) {
   const s = SHAPES[i];
   const scalesRoot = s.scalesRoot || [["(demo rows on Em7 / Em7b5 cards)",""]];
@@ -263,11 +278,11 @@ function openPanel(i) {
     ${inv.length ? `<div class="scalelist">${inv.map(([n,w])=>`<div class="scalerow"><span>${n}</span><span class="why">${w}</span></div>`).join("")}</div>`
     : `<div class="empty">No inversion metadata for this chord type yet.</div>`}
   `;
-  panel.classList.add("open"); backdrop.classList.add("open");
+  panel.classList.add("open"); document.body.classList.add("panel-open");
+  selected = i; render();
 }
-function closePanel(){ panel.classList.remove("open"); backdrop.classList.remove("open"); }
+function closePanel(){ panel.classList.remove("open"); document.body.classList.remove("panel-open"); selected = -1; render(); }
 document.getElementById("close").onclick = closePanel;
-backdrop.onclick = closePanel;
 addEventListener("keydown", e => { if (e.key === "Escape") closePanel(); });
 </script>
 </body>
