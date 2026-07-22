@@ -14,7 +14,7 @@ This is consistent with the experiment code. The question is whether `rootString
 
 **Status (chord-column path): RESOLVED (R-5.4)**. `toAsciiTab` now accepts `FrettedNote[][]` (grouped input). In the grouped path, each beat occupies one column whose width is `Math.max(1, max fret digit width in the group)`, so multi-digit frets (e.g. fret 10 alongside fret 5) align correctly across all string rows.
 
-**Status (sequential path): unchanged**. When a flat `FrettedNote[]` is passed and notes across different strings have different fret widths, the tab lines can still be misaligned because each note is emitted as its own column without cross-string width coordination. This case is uncommon in practice (sequential runs rarely span fret 10+ positions mid-phrase) and remains tracked for a future iteration.
+**Status (sequential path): RESOLVED**. Verified against current code (spark triage, 2026-07-15): the flat-input path routes through the same `normalizeGroups` column normalization (`src/output/util.ts`), so singleton columns pad unplayed strings to the column's max fret width — a mixed 1-/2-digit fret sequence (e.g. frets 9/12/11/5 across strings) produces uniformly-wide, vertically-aligned lines. Q2 is fully resolved; a flat-path regression test would be a welcome addition.
 
 ## Q3: `analyzeInKey` chord matching limitations
 

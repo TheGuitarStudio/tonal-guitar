@@ -139,5 +139,5 @@ index.ts             ← re-exports everything
 - [x] Interactive experiments page (site/ — Guitar Lab)
 - [x] Deploy site to GitHub Pages
 - [x] Task 2.5: 7/8-string rootString auto-adjustment logic
-- [ ] ASCII tab column alignment for multi-digit frets (QUESTIONS.md Q2)
+- [x] ASCII tab column alignment for multi-digit frets (QUESTIONS.md Q2)
 - [x] Consider `analyzeInKey` chord name normalization (QUESTIONS.md Q3)
