@@ -303,10 +303,10 @@ describe("checkGeometryMismatch registry-wide validation", () => {
   //        - "E m7b5 Open" (#113): the D-string interval ("7m") was
   //          inconsistent with its own fret-diagram comment ("0120xx") and
   //          fingers data — fret 2 on an open-D string sounds the root (E),
-  //          not the 7th (D). Now fixed to "1P" — though the corrected shape
-  //          doubles the root instead of sounding a 7th (no 7m present at
-  //          all), so "m7b5" is a partial/misleading name for what it
-  //          actually sounds. That naming question is out of scope for #113.
+  //          not the 7th (D). Fixed to "1P" in #113 — which left the shape
+  //          with no 7th at all (pitch-identical to OPEN_E_DIM). #138 then
+  //          replaced the grip entirely with a true m7b5 voicing (010030)
+  //          that includes the 7m.
   //        - "G Dominant 7 Open" / "G Major 7 Open" / "E Sus2 Open" (#111):
   //          fingers[i] === 0 (implies open) on a string the diagram comment
   //          shows fretted — a fingers-array bug, fixed by assigning the

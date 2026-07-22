@@ -413,20 +413,20 @@ describe("open-chords: build-equivalence tests", () => {
       expect(buildFrets(OPEN_E_M7, "E")).toEqual([0, 2, 0, 0, 0, 0]);
     });
 
-    it("Em7b5 Open applied to E produces frets 0,1,2,0,x,x (root doubled, no 7th)", () => {
-      expect(buildFrets(OPEN_E_M7B5, "E")).toEqual([0, 1, 2, 0, null, null]);
+    it("Em7b5 Open applied to E produces frets 0,1,0,0,3,0", () => {
+      expect(buildFrets(OPEN_E_M7B5, "E")).toEqual([0, 1, 0, 0, 3, 0]);
     });
 
-    it("Em7b5 Open's D-string interval is 1P (root), not 7m — issue #113 regression guard", () => {
-      // Fret 2 on the open-D string sounds E (the root), not D (a 7m from
-      // E). The corrected shape therefore doubles the root instead of
-      // sounding a 7th: 1P, 5d, 1P, 3m — no 7m present at all.
+    it("Em7b5 Open sounds all four chord tones including the 7m — issue #138 regression guard", () => {
+      // The pre-#138 grip (0120xx) doubled the root and had no 7th, making
+      // it pitch-identical to OPEN_E_DIM. The replacement grip must sound a
+      // true half-diminished seventh: 1P, 3m, 5d, and 7m (D).
       const positions = buildPositions(OPEN_E_M7B5, "E");
       const intervals = positions.map((p) => p.interval);
       expect(intervals).toContain("1P");
       expect(intervals).toContain("5d");
       expect(intervals).toContain("3m");
-      expect(intervals).not.toContain("7m");
+      expect(intervals).toContain("7m");
     });
 
     it("E Diminished Open applied to E produces frets 0,1,2,0,x,x (true dim triad)", () => {
