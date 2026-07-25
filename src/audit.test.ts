@@ -841,6 +841,76 @@ describe("checkScaleMetadataCompleteness", () => {
 });
 
 // ============================================================
+// `featured` metadata field — audit interaction (shape-detail-panel TG1)
+// ============================================================
+
+describe("featured metadata field — audit interaction", () => {
+  it("checkChordMetadataCompleteness: a chord shape with featured set but missing chordType/voicingFamily still only reports the existing metadata-completeness warning (no new issue for featured)", () => {
+    const shape: ChordShape = { ...CAGED_CHORD_E, featured: true };
+    const issues = checkChordMetadataCompleteness(shape);
+    expect(issues.length).toBe(1);
+    expect(issues[0].id).toBe(CHECK_METADATA_COMPLETENESS);
+    const details = issues[0].details as { missing: string[] };
+    expect(details.missing).toEqual(
+      expect.arrayContaining(["chordType", "voicingFamily"]),
+    );
+    expect(details.missing).not.toContain("featured");
+    // Identical to the unfeatured baseline — featured is invisible to this check.
+    expect(issues).toEqual(checkChordMetadataCompleteness(CAGED_CHORD_E));
+  });
+
+  it("checkScaleMetadataCompleteness: a scale shape with featured set but no quality/parentShape passes cleanly", () => {
+    const gShape = getScaleShape("G Shape");
+    expect(gShape).toBeDefined();
+    const shape: ScaleShape = { ...(gShape as ScaleShape), featured: true };
+    expect(checkScaleMetadataCompleteness(shape)).toEqual([]);
+  });
+
+  it("a failing + featured chord shape still ranks as failing: featured alone never appears in ShapeAuditIssue[]", () => {
+    // "Shell m7 R73 012" (SHELL_SHAPES) is a known-failing fixture elsewhere
+    // in this file: applied at root "C" it spans 5 frets, exceeding the
+    // default maxSpan of 4 — a real checkFretSpan error, not a synthetic one.
+    const shellM7R73 = SHELL_SHAPES.find(
+      (s) =>
+        s.chordType === "m7" &&
+        s.name.includes("R73") &&
+        JSON.stringify(s.stringSet) === "[0,1,2]",
+    );
+    expect(shellM7R73).toBeDefined();
+
+    const unfeaturedIssues = auditChordShape(shellM7R73 as ChordShape, { root: "C" });
+    expect(unfeaturedIssues.some((i) => i.id === CHECK_FRET_SPAN)).toBe(true);
+
+    const featuredShape: ChordShape = { ...(shellM7R73 as ChordShape), featured: true };
+    const featuredIssues = auditChordShape(featuredShape, { root: "C" });
+
+    // featured is still failing — the fret-span error is still present —
+    // and the issue list is byte-for-byte identical to the unfeatured case.
+    expect(featuredIssues.some((i) => i.id === CHECK_FRET_SPAN)).toBe(true);
+    expect(featuredIssues).toEqual(unfeaturedIssues);
+    // featured never surfaces as its own issue id or inside any issue's details.
+    for (const issue of featuredIssues) {
+      expect(issue.id).not.toBe("featured");
+      expect(JSON.stringify(issue)).not.toContain("featured");
+    }
+  });
+
+  it("a failing + featured scale shape: featured alone never appears in ShapeAuditIssue[]", () => {
+    const featuredShape: ScaleShape = { ...CAGED_DM, parentShape: undefined, featured: true };
+    const unfeaturedShape: ScaleShape = { ...CAGED_DM, parentShape: undefined };
+
+    const featuredIssues = auditScaleShape(featuredShape);
+    const unfeaturedIssues = auditScaleShape(unfeaturedShape);
+
+    expect(featuredIssues).toEqual(unfeaturedIssues);
+    for (const issue of featuredIssues) {
+      expect(issue.id).not.toBe("featured");
+      expect(JSON.stringify(issue)).not.toContain("featured");
+    }
+  });
+});
+
+// ============================================================
 // auditChordShape / auditScaleShape / auditAllShapes
 // ============================================================
 

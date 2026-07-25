@@ -171,6 +171,71 @@ describe("chordShapes.query", () => {
 });
 
 // ============================================================
+// `featured` metadata field (shape-detail-panel Task Group 1)
+// ============================================================
+
+describe("featured metadata field", () => {
+  afterEach(() => {
+    removeAllScales();
+    chordShapes.removeAll();
+  });
+
+  it("chordShapes.add()/get() round-trip a featured: true entry unchanged", () => {
+    const shape: ChordShape = {
+      name: "__test_featured_chord__",
+      system: "caged",
+      strings: ["1P", "5P", "1P", "3M", "5P", "1P"],
+      fingers: [1, 3, 4, 2, 1, 1],
+      barres: [],
+      rootString: 0,
+      featured: true,
+    };
+    chordShapes.add(shape);
+    const retrieved = chordShapes.get("__test_featured_chord__");
+    expect(retrieved?.featured).toBe(true);
+    expect(retrieved).toEqual(shape);
+  });
+
+  it("chordShapes.add()/get() round-trip a shape with featured omitted as undefined", () => {
+    const shape: ChordShape = {
+      name: "__test_unfeatured_chord__",
+      system: "caged",
+      strings: ["1P", "5P", "1P", "3M", "5P", "1P"],
+      fingers: [1, 3, 4, 2, 1, 1],
+      barres: [],
+      rootString: 0,
+    };
+    chordShapes.add(shape);
+    expect(chordShapes.get("__test_unfeatured_chord__")?.featured).toBeUndefined();
+  });
+
+  it("add()/get() round-trip a featured: true scale shape unchanged", () => {
+    const shape: ScaleShape = {
+      name: "__test_featured_scale__",
+      system: "caged",
+      strings: [["1P"], ["3M"], null, null, null, null],
+      rootString: 0,
+      featured: true,
+    };
+    addScale(shape);
+    const retrieved = getScale("__test_featured_scale__");
+    expect(retrieved?.featured).toBe(true);
+    expect(retrieved).toEqual(shape);
+  });
+
+  it("add()/get() round-trip a scale shape with featured omitted as undefined", () => {
+    const shape: ScaleShape = {
+      name: "__test_unfeatured_scale__",
+      system: "caged",
+      strings: [["1P"], ["3M"], null, null, null, null],
+      rootString: 0,
+    };
+    addScale(shape);
+    expect(getScale("__test_unfeatured_scale__")?.featured).toBeUndefined();
+  });
+});
+
+// ============================================================
 // CR-038: Registry hostile-key safety (Map-backed indices)
 // ============================================================
 

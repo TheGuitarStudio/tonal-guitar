@@ -27,6 +27,12 @@ export interface ScaleShape {
   span?: number; // optional fret span hint
   quality?: string; // interval-frame quality tag, e.g. "major" | "minor" | "minor-pentatonic"
   parentShape?: string; // name of the source shape a relabeled entry was derived from, e.g. "G Shape"
+  // Optional/curated spotlight-tier flag (site "Shape Detail Panel" feature,
+  // D-006 amendment 3): marks the canonical representative shape per
+  // (system, quality) group for catalog display purposes only. Not required,
+  // has no default, and is intentionally NOT referenced by
+  // checkScaleMetadataCompleteness — see audit.ts's dependency-layer note.
+  featured?: boolean;
 }
 
 export type VoicingFamily =
@@ -57,6 +63,13 @@ export interface ChordShape {
   omittedIntervals?: string[];
   canonicalRoot?: string;
   baseFret?: number;
+  // Optional/curated spotlight-tier flag (site "Shape Detail Panel" feature,
+  // D-006 amendment 3): marks the canonical representative shape per
+  // chordType for catalog display purposes only (e.g. the open-position
+  // voicing, or lowest-baseFret movable form). Not required, has no
+  // default, and is intentionally NOT referenced by
+  // checkChordMetadataCompleteness — see audit.ts's dependency-layer note.
+  featured?: boolean;
 }
 
 export interface Barre {
