@@ -13,6 +13,13 @@ interface LazyShapeCardProps {
    * so there's nothing for server/client rendering to disagree about.
    */
   eager: boolean;
+  /** Forwarded to `<ShapeCard>` once mounted — invoked with the full entry
+   * when the card is clicked/activated. Defaults to a no-op so callers that
+   * don't care about selection (none currently) don't have to pass one. */
+  onSelect?: (entry: ShapeCatalogEntry) => void;
+  /** Forwarded to `<ShapeCard>` once mounted — whether this card is the
+   * currently selected/open entry. */
+  isSelected?: boolean;
 }
 
 // Mirrors `ShapeCard`'s own `CARD_INTRINSIC_SIZE` estimate — reserves
@@ -43,7 +50,12 @@ const ROOT_MARGIN = "600px 0px";
  * `LazyShapeCard` instances (with their own fresh mount decision) for any
  * that are newly shown — no manual reset needed here.
  */
-export function LazyShapeCard({ entry, eager }: LazyShapeCardProps) {
+export function LazyShapeCard({
+  entry,
+  eager,
+  onSelect = () => {},
+  isSelected = false,
+}: LazyShapeCardProps) {
   const placeholderRef = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(eager);
 
@@ -78,10 +90,7 @@ export function LazyShapeCard({ entry, eager }: LazyShapeCardProps) {
   }, [visible]);
 
   if (visible) {
-    // `onSelect`/`isSelected` are no-ops for now — a later task group wires
-    // real selection state (and the detail panel) through `ShapeLibrary`
-    // and down through this component.
-    return <ShapeCard entry={entry} onSelect={() => {}} isSelected={false} />;
+    return <ShapeCard entry={entry} onSelect={onSelect} isSelected={isSelected} />;
   }
 
   // Unmounted placeholder: no focusable content and `aria-hidden`, so it

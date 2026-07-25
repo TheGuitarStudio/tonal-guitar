@@ -229,9 +229,13 @@ export function ShapeDetailPanel({
 
   if (!entry || !detail) return null;
 
+  // Below `md`, the panel is a FULL-HEIGHT bottom sheet (`inset-0`, spec's
+  // "Mobile behavior") rather than a capped bottom drawer — it covers the
+  // single-column grid entirely since the page can't shift left on a phone.
+  // `translate-y-full -> translate-y-0` still drives the slide-in.
   const wrapperClassName = [
-    "fixed inset-x-0 bottom-0 z-40 flex max-h-[85vh] flex-col overflow-y-auto",
-    "rounded-t-xl border-t border-fd-border bg-fd-background p-4 pt-3 shadow-2xl",
+    "fixed inset-0 z-40 flex flex-col overflow-y-auto",
+    "border-t border-fd-border bg-fd-background p-4 pt-3 shadow-2xl",
     "transition-transform duration-300 ease-out",
     entered ? "translate-y-0" : "translate-y-full",
     "md:sticky md:top-4 md:inset-x-auto md:bottom-auto md:z-auto md:max-h-[calc(100vh-2rem)]",
