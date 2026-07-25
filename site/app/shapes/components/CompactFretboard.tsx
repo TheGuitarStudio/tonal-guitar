@@ -1,13 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import {
-  Fretboard,
-  defaultTheme,
-  type FretboardTheme,
-  type FretMarker,
-} from "fretboard-ui";
+import { Fretboard, type FretMarker } from "fretboard-ui";
 import type { FrettedScale } from "tonal-guitar";
+import { MONOCHROME_THEME } from "./ShapeCardDiagram";
 
 /**
  * Minimal shape `CompactFretboard` needs to render a thumbnail — the full
@@ -47,36 +43,11 @@ const THUMBNAIL_LAYOUT = {
 // page.
 const ENLARGED_LAYOUT = { orientation: "horizontal" as const };
 
-// --- Monochrome theme -------------------------------------------------
-//
-// `<Fretboard theme>` shallow-merges `intervalColors` with
-// `defaultTheme.intervalColors` (see `Fretboard.tsx`), and `resolveColor`
-// falls through marker.color -> marker.role -> theme.intervalColors[interval]
-// -> theme.defaultMarker. Markers built here never set `role`, so making
-// every dot the same color requires overriding *every* key already present
-// in `defaultTheme.intervalColors`, not just the average/first one — plus
-// `rootMarker`/`ghostMarker`/`highlightMarker`, which `resolveColor` checks
-// before `intervalColors`.
-//
-// TODO(shape-detail-panel): Task Group 10 (`ShapeCardDiagram.tsx`) lands an
-// equivalent monochrome theme override and is expected to export a shared
-// constant for both consumers. That task group had not landed in this
-// branch at the time `CompactFretboard.tsx` was written, so the constant is
-// duplicated here — dedupe into a shared import once both have merged.
-const MONOCHROME_MARKER_COLOR = defaultTheme.defaultMarker;
-
-const MONOCHROME_THEME: Partial<FretboardTheme> = {
-  defaultMarker: MONOCHROME_MARKER_COLOR,
-  rootMarker: MONOCHROME_MARKER_COLOR,
-  ghostMarker: MONOCHROME_MARKER_COLOR,
-  highlightMarker: MONOCHROME_MARKER_COLOR,
-  intervalColors: Object.fromEntries(
-    Object.keys(defaultTheme.intervalColors).map((interval) => [
-      interval,
-      MONOCHROME_MARKER_COLOR,
-    ]),
-  ),
-};
+// Monochrome theme override — canonical constant now lives in
+// `ShapeCardDiagram.tsx` (Task Group 10), imported above rather than
+// duplicated here. See that module's comment for why every
+// `intervalColors` key (plus `rootMarker`/`ghostMarker`/`highlightMarker`)
+// must be overridden, not just `defaultMarker`.
 
 function buildMarkers(entry: CompactFretboardEntry): FretMarker[] {
   return entry.frettedScale.notes.map((n) => ({
