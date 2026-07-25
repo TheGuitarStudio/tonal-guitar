@@ -53,8 +53,8 @@ Shape Library page (better filtering and organization).
 | 1 | TG10: `ShapeCard.tsx` + `ShapeCardDiagram.tsx` — compact, monochrome, clickable card | complete | sonnet | also touched LazyShapeCard.tsx (real call site) |
 | 2 | TG4: Wire `scalesContainingChord` public function + edge cases + docs entry | complete | sonnet | fixed L1 ranking-tiebreak concern |
 | 2 | TG9: `FilterBar.tsx` rework — faceted chips | complete | sonnet | browser-verified interactively |
-| 3 | TG6: API docs + README updates | pending | - | - |
-| 3 | TG12: `shapeDetailUtils.ts` — pure detail-derivation logic | pending | - | - |
+| 3 | TG6: API docs + README updates | complete | sonnet | examples verified against dist |
+| 3 | TG12: `shapeDetailUtils.ts` — pure detail-derivation logic | complete | sonnet | - |
 | 4 | TG13: `ShapeDetailPanel.tsx` — the non-modal slide-over | pending | - | - |
 | 5 | TG14: `ShapeLibrary.tsx` wiring — selection, grouped grid, failing-pinned section | pending | - | - |
 | 6 | TG15: Infrastructure — explicit `@tonaljs/*` deps + bundle/static-export verification | pending | - | - |
@@ -65,5 +65,6 @@ Shape Library page (better filtering and organization).
 - **Layer 0**: No concerns. Continued.
 - **Layer 1**: 1 concern — `rankContainingScales` corpus-index tiebreak misses aeolian→minor normalization (index -1); handed to TG4 to fix when wiring the public function. Continued.
 - **Layer 2**: No concerns (L1 tiebreak concern confirmed fixed). Continued.
+- **Layer 3**: No concerns. Continued.
 
 ### Spec Compliance
