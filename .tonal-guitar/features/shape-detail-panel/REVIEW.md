@@ -15,7 +15,7 @@
 - [x] Phase 2: Lint/Test Fix
 - [x] Phase 3: Architecture Review
 - [x] Phase 4: Architecture Fix
-- [ ] Phase 5: Code Simplification Review
+- [x] Phase 5: Code Simplification Review
 - [ ] Phase 6: Code Simplification Fix
 - [ ] Phase 7: Specialized Reviews
 - [ ] Phase 8: Specialized Fixes
@@ -64,6 +64,25 @@ Clean: dependency layers, sentinel error handling, public API surface, hydration
 ### Won't Fix
 
 - (none)
+
+## Phase 5: Code Simplification Review
+
+### src (library)
+
+- CR-011: [Suggestion] `scalesContainingChord` uses let-reassignment for `limitPerGroup` capping (`src/integration.ts:511-542`) — a tiny `capGroup(list, limit)` helper lets both groups be `const`.
+
+### site
+
+- CR-012: [Important] Dead code: `filterCatalog` + `ShapeCatalogFilters` in `shapeLibraryUtils.ts:71-82,178-211` — exported, never consumed; leftover predicate-filter design.
+- CR-013: [Suggestion] Dead code: `sortChordEntries` in `shapeLibraryUtils.ts:482-488` — unused.
+- CR-014: [Important] Nested ternary building inversion group labels in `shapeDetailUtils.ts:187-194` — extract `groupLabelFor` with if/else.
+- CR-015: [Important] `buildDetail` scale branch calls `scaleSiblings` AND `siblingScaleStepper` which recomputes `scaleSiblings` internally (`ShapeDetailPanel.tsx:137-138`, `shapeDetailUtils.ts:337-344`) — stepper should accept the precomputed list like the chord path.
+- CR-016: [Important] DRY: `severityRank`/`badgeClassFor`/issue-badge JSX duplicated between `ShapeCard.tsx:25-34,96-108` and `ShapeDetailPanel.tsx:292-325` — hoist to `shapeLibraryUtils.ts` + one shared `IssueBadges` component.
+- CR-017: [Important] DRY: `fretSummary` + marker-building/fret-range logic duplicated between `ShapeCardDiagram.tsx:44-87` and `CompactFretboard.tsx:52-80` — export from `ShapeCardDiagram.tsx` alongside `MONOCHROME_THEME`.
+- CR-018: [Important] `ShapeCard`'s `memo()` is defeated: `handleSelectEntry` (`ShapeLibrary.tsx:199`) is a fresh closure each render (no `useCallback`) and `LazyShapeCard` isn't memoized — every facet/search keystroke re-renders all visible cards.
+- CR-019: [Suggestion] `FeaturedMark` component exists in `ShapeDetailPanel.tsx:327-333` but `ShapeCard.tsx:77-81` re-renders the identical ★ markup inline.
+- CR-020: [Suggestion] `siblingAt(offset)` bounds-check closure duplicated between `ChordDetailView` and `ScaleDetailView` (`ShapeDetailPanel.tsx:407-412,784-789`).
+- CR-021: [Suggestion] `ShapeDetailPanel.tsx` is 928 lines — well decomposed internally, but `ChordDetailView`/`ScaleDetailView` (+ sections) belong in their own files.
 
 ## Statistics
 
