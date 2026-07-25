@@ -43,10 +43,10 @@ Shape Library page (better filtering and organization).
 
 | Layer | Task Group | Status | Agent | Notes |
 | ----- | ---------- | ------ | ----- | ----- |
-| 0 | TG1: `featured` metadata field on shape types | pending | - | - |
-| 0 | TG2: `scalesContainingChord` — types + stub + registration | pending | - | - |
-| 0 | TG7: `shapeLibraryUtils.ts` — URL state extension | pending | - | - |
-| 0 | TG11: `CompactFretboard.tsx` — thumbnail diagram adapter | pending | - | - |
+| 0 | TG1: `featured` metadata field on shape types | complete | sonnet | - |
+| 0 | TG2: `scalesContainingChord` — types + stub + registration | complete | sonnet | - |
+| 0 | TG7: `shapeLibraryUtils.ts` — URL state extension | complete | sonnet | - |
+| 0 | TG11: `CompactFretboard.tsx` — thumbnail diagram adapter | complete | sonnet | - |
 | 1 | TG3: Chord→scales chroma sweep, containment, and ranking | pending | - | - |
 | 1 | TG5: Featured shape curation (registry data) | pending | - | - |
 | 1 | TG8: `shapeLibraryUtils.ts` — facet, grouping, and sort helpers | pending | - | - |
@@ -61,5 +61,7 @@ Shape Library page (better filtering and organization).
 | 7 | TG16: Test review and gap analysis | pending | - | - |
 
 ### Oversight Reports
+
+- **Layer 0**: No concerns. Continued.
 
 ### Spec Compliance
