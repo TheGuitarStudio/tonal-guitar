@@ -12,6 +12,11 @@
   },
   "dependencies": {
     "@coderline/alphatab": "^1.8.2",
+    "@tonaljs/chord": "^6.1.0",
+    "@tonaljs/interval": "^5.1.0",
+    "@tonaljs/key": "^4.11.0",
+    "@tonaljs/note": "^4.12.0",
+    "@tonaljs/scale": "^4.13.0",
     "fretboard-ui": "file:../packages/fretboard-ui",
     "fumadocs-core": "^13.4.10",
     "fumadocs-mdx": "^10.0.2",
