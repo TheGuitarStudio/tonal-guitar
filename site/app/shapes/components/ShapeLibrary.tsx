@@ -323,7 +323,14 @@ export function ShapeLibrary() {
   // (below) derives its own internal ordering (spotlight-first, then the
   // active sort) from this matched set; the "Needs attention" section is
   // computed independently, straight off the full per-kind catalog, so it
-  // stays pinned regardless of these facets (D-004).
+  // stays pinned regardless of these facets (D-004). Entries with
+  // `issues.length > 0` are excluded here whenever `failingOnly` is off —
+  // they already render unconditionally in the pinned section above, so
+  // including them here too would double-render them (and double-highlight
+  // the selected one) with no additional information. When `failingOnly` is
+  // explicitly checked, the grouped grid narrows to failing entries only
+  // (optionally further narrowed by facets), which pinned's facet-ignorant
+  // "Needs attention" view can't do.
   const matchedEntries = useMemo(() => {
     if (kind === "chord") {
       const chordEntries = catalog.filter(
@@ -332,7 +339,7 @@ export function ShapeLibrary() {
       return chordEntries.filter(
         (e) =>
           chordEntryMatchesSelection(e, chordSelection) &&
-          (!failingOnly || e.issues.length > 0),
+          (failingOnly ? e.issues.length > 0 : e.issues.length === 0),
       );
     }
 
@@ -342,7 +349,7 @@ export function ShapeLibrary() {
     return scaleEntries.filter(
       (e) =>
         scaleEntryMatchesSelection(e, scaleSelection) &&
-        (!failingOnly || e.issues.length > 0),
+        (failingOnly ? e.issues.length > 0 : e.issues.length === 0),
     );
   }, [catalog, kind, chordSelection, scaleSelection, failingOnly]);
 

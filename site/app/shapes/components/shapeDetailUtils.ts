@@ -40,14 +40,16 @@ export { buildReportUrl } from "./shapeLibraryUtils";
 // ============================================================
 
 /**
- * The chord name the rest of the chord-entry helpers key off: the first
- * `identifyChord(entry.builtFrets, STANDARD)` result when Tonal can name the
- * built voicing, else `` `${renderRoot}${chordType}` `` when the shape at
- * least carries a `chordType`, else `undefined` (e.g. an unidentifiable
- * voicing on one of the 5 base CAGED majors, which have neither).
+ * The chord name the rest of the chord-entry helpers key off, derived from an
+ * already-computed `identifyChord` result: its first entry when Tonal can
+ * name the built voicing, else `` `${renderRoot}${chordType}` `` when the
+ * shape at least carries a `chordType`, else `undefined` (e.g. an
+ * unidentifiable voicing on one of the 5 base CAGED majors, which have
+ * neither). Factored out of `chordDetailFor` so that helper can derive both
+ * `chordName` and `identified` from a single `identifyChord` call rather than
+ * re-invoking it.
  */
-export function resolveChordName(entry: ChordCatalogEntry): string | undefined {
-  const identified = identifyChord(entry.builtFrets, STANDARD);
+function chordNameFromIdentified(entry: ChordCatalogEntry, identified: string[]): string | undefined {
   if (identified.length > 0) return identified[0];
 
   if (entry.shape.chordType !== undefined) {
@@ -57,18 +59,33 @@ export function resolveChordName(entry: ChordCatalogEntry): string | undefined {
   return undefined;
 }
 
+export interface ChordDetailResult {
+  /** Full `identifyChord(entry.builtFrets, STANDARD)` result — first entry is
+   * "primary", the rest are alternates. `[]` renders the "Could not identify
+   * these notes" state. */
+  identified: string[];
+  /** Heading text for "Scales over {chord}"; `undefined` means that section
+   * is skipped entirely. */
+  chordName: string | undefined;
+  /** `scalesContainingChord(chordName)`, or `undefined` when `chordName`
+   * couldn't be derived at all. */
+  scales: ScalesContainingChordResult | undefined;
+}
+
 /**
- * "Scales over {chord}" panel data — `undefined` (skip the section) when
- * `resolveChordName` can't derive a chord name at all. `scalesContainingChord`
- * itself never throws and already degrades to empty groups for an
- * unresolvable chord name, so this only adds the "no chord name" case on top.
+ * Single-pass chord-entry detail: one `identifyChord` call feeds `identified`,
+ * `chordName`, and (via `scalesContainingChord`) `scales` — collapsing what
+ * was previously three separate `identifyChord` invocations per chord
+ * selection (`identified` directly, `resolveChordName`, and
+ * `scalesOverChord`'s own `resolveChordName` re-derivation) into one, and
+ * keeping the `identifyChord`/`STANDARD` calls out of `ShapeDetailPanel.tsx`
+ * entirely.
  */
-export function scalesOverChord(
-  entry: ChordCatalogEntry,
-): ScalesContainingChordResult | undefined {
-  const chordName = resolveChordName(entry);
-  if (chordName === undefined) return undefined;
-  return scalesContainingChord(chordName);
+export function chordDetailFor(entry: ChordCatalogEntry): ChordDetailResult {
+  const identified = identifyChord(entry.builtFrets, STANDARD);
+  const chordName = chordNameFromIdentified(entry, identified);
+  const scales = chordName === undefined ? undefined : scalesContainingChord(chordName);
+  return { identified, chordName, scales };
 }
 
 /**
@@ -282,21 +299,25 @@ export function compatibleShapesForEntry(entry: ScaleCatalogEntry): CompatibleSh
 }
 
 /**
- * Same-`(system, quality)` sibling stepper for scale entries, mirroring
- * `siblingStepper`'s chord counterpart. `catalog` is the full shape catalog
- * (as built by `buildCatalog`) rather than a pre-filtered list — scale
- * shapes have no registry-level query helper analogous to
- * `chordShapes.query`, so the sibling set is derived here by filtering scale
- * entries to `entry`'s `(system, quality)` pair, ordered by name (matching
- * `sortScaleEntries`). Entries with `quality: undefined` are only grouped
- * with other `quality: undefined` entries of the same `system`, never
- * conflated with a defined quality.
+ * Same-`(system, quality)` siblings for a scale entry, INCLUDING `entry`
+ * itself and sorted by name — the single source of truth for this sibling
+ * set, shared by `siblingScaleStepper` (below) and by
+ * `ShapeDetailPanel.tsx`'s own sibling-stepper navigation, mirroring how
+ * `chordTypeSiblings` is shared by the chord path's stepper/inversions/
+ * alternate-fingering helpers. `catalog` is the full shape catalog (as built
+ * by `buildCatalog`) rather than a pre-filtered list — scale shapes have no
+ * registry-level query helper analogous to `chordShapes.query`, so the
+ * sibling set is derived here by filtering scale entries to `entry`'s
+ * `(system, quality)` pair, ordered by name (matching `sortScaleEntries`).
+ * Entries with `quality: undefined` are only grouped with other
+ * `quality: undefined` entries of the same `system`, never conflated with a
+ * defined quality.
  */
-export function siblingScaleStepper(
+export function scaleSiblings(
   entry: ScaleCatalogEntry,
   catalog: readonly ShapeCatalogEntry[],
-): SiblingStepperInfo {
-  const siblings = catalog
+): ScaleCatalogEntry[] {
+  return catalog
     .filter(
       (candidate): candidate is ScaleCatalogEntry =>
         candidate.kind === "scale" &&
@@ -304,7 +325,20 @@ export function siblingScaleStepper(
         candidate.shape.quality === entry.shape.quality,
     )
     .sort((a, b) => a.name.localeCompare(b.name));
+}
 
+/**
+ * Same-`(system, quality)` sibling stepper for scale entries, mirroring
+ * `siblingStepper`'s chord counterpart. Built on `scaleSiblings` so the
+ * index it returns is always meaningful against that same list — callers
+ * needing the sibling list itself (e.g. for Prev/Next navigation) should call
+ * `scaleSiblings` directly rather than recomputing it.
+ */
+export function siblingScaleStepper(
+  entry: ScaleCatalogEntry,
+  catalog: readonly ShapeCatalogEntry[],
+): SiblingStepperInfo {
+  const siblings = scaleSiblings(entry, catalog);
   const index = siblings.findIndex((candidate) => candidate.name === entry.name);
   return { index, total: siblings.length };
 }

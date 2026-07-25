@@ -501,8 +501,10 @@ export interface ScalesContainingChordOptions {
  * independently (see `rankContainingScales`) and, if `options.limitPerGroup`
  * is set, capped after ranking.
  *
- * Never throws. Unresolvable/empty chord, or no matches, returns
- * `{ chord: "", root: "", rootAnchored: [], otherRoots: [] }`.
+ * Never throws. An unresolvable/empty chord returns the all-empty sentinel
+ * `{ chord: "", root: "", rootAnchored: [], otherRoots: [] }`. A chord that
+ * resolves but matches no scales instead returns populated `chord`/`root`
+ * with `rootAnchored: []` and `otherRoots: []`.
  *
  * spec §Library `scalesContainingChord`
  */
@@ -513,7 +515,7 @@ export function scalesContainingChord(
   const resolved = resolveChordTones(chord);
   if (!resolved) return { ...EmptyScalesContainingChordResult };
 
-  const corpus = options?.corpus ?? DEFAULT_SCALE_CORPUS;
+  const corpus = [...new Set(options?.corpus ?? DEFAULT_SCALE_CORPUS)];
   const tolerateMissing = options?.tolerateMissing ?? 0;
   const limitPerGroup = options?.limitPerGroup;
 

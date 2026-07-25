@@ -11,10 +11,8 @@ import type {
 } from "./shapeLibraryUtils";
 import {
   ANY_ROOT,
-  CHROMATIC_ROOTS,
   chordQualityGroupFacets,
   chordRootCounts,
-  chordRootSelectionResult,
   chordTypeLabel,
   distinctVoicingFamilies,
   scaleQualityCounts,

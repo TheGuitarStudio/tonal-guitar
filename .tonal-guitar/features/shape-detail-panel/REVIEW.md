@@ -14,7 +14,7 @@
 - [x] Phase 1: Setup
 - [x] Phase 2: Lint/Test Fix
 - [x] Phase 3: Architecture Review
-- [ ] Phase 4: Architecture Fix
+- [x] Phase 4: Architecture Fix
 - [ ] Phase 5: Code Simplification Review
 - [ ] Phase 6: Code Simplification Fix
 - [ ] Phase 7: Specialized Reviews
@@ -44,6 +44,26 @@ All green on first run — no fixes needed. `npm run lint` pass, `npm run build`
 - CR-010: [Suggestion] Unused imports `CHROMATIC_ROOTS`/`chordRootSelectionResult` in `FilterBar.tsx:14/17` — dead imports; root-chip labeling diverged from its intended data source.
 
 Clean: dependency layers, sentinel error handling, public API surface, hydration safety, peer-dep boundary, replaceState/pushState history model.
+
+## Phase 4: Architecture Fixes
+
+### Fixed
+
+- CR-001: Fixed — JSDoc now distinguishes unresolvable-chord sentinel from resolved-but-no-matches result
+- CR-004: Fixed — corpus deduped via `[...new Set(corpus)]` at dispatch; new duplicate-corpus test (1071 tests)
+- CR-005: Fixed — shared `scaleSiblings(entry, catalog)` in `shapeDetailUtils.ts`; panel-local duplicate deleted; `siblingScaleStepper` uses it internally
+- CR-006: Fixed — failing entries excluded from grouped grid (pinned section is their home); D-004 checked first, doesn't require double placement; `failingOnly` toggle still narrows the grouped grid to failures
+- CR-007/CR-008: Fixed — single-pass `chordDetailFor(entry)` helper; panel no longer imports `identifyChord`/`STANDARD`; dead `resolveChordName`/`scalesOverChord` exports removed
+- CR-009: Fixed — `groupScaleEntriesByQuality` + orphaned `otherScaleGroupLabel` removed
+- CR-010: Fixed — unused FilterBar imports removed
+
+### Deferred
+
+- CR-002/CR-003: GitHub issue #156 — sweep perf refactors (precomputed corpus table, comparator chroma hoist)
+
+### Won't Fix
+
+- (none)
 
 ## Statistics
 

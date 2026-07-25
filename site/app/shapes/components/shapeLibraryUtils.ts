@@ -754,11 +754,6 @@ function otherChordGroupLabel(bucket: ChordCatalogEntry[]): string {
   return "Other";
 }
 
-function otherScaleGroupLabel(bucket: ScaleCatalogEntry[]): string {
-  const system = commonValue(bucket, (e) => e.shape.system);
-  return system ? `Other (${system})` : "Other";
-}
-
 /**
  * Groups chord entries by `chordType` (spec 8.6). Entries with no
  * `chordType` — the 5 base CAGED majors in `src/data/caged-chords.ts` — are
@@ -824,50 +819,6 @@ export function groupScaleEntriesBySystem(
     .map((system) =>
       buildGroup(system, system, buckets.get(system)!, compareByName, expanded.has(system)),
     );
-}
-
-/**
- * Groups scale entries by `quality` (spec 8.6's "(or quality)" alternative).
- * `quality` is optional, so entries without one bucket into a trailing
- * "Other" group labeled from their shared `system`.
- */
-export function groupScaleEntriesByQuality(
-  entries: ScaleCatalogEntry[],
-  options: { expandedGroups?: ReadonlySet<string> } = {},
-): ShapeGroup<ScaleCatalogEntry>[] {
-  const expanded = options.expandedGroups ?? new Set<string>();
-  const buckets = new Map<string, ScaleCatalogEntry[]>();
-  const other: ScaleCatalogEntry[] = [];
-  for (const entry of entries) {
-    const quality = entry.shape.quality;
-    if (quality === undefined) {
-      other.push(entry);
-      continue;
-    }
-    const bucket = buckets.get(quality);
-    if (bucket) bucket.push(entry);
-    else buckets.set(quality, [entry]);
-  }
-
-  const groups = [...buckets.keys()]
-    .sort((a, b) => a.localeCompare(b))
-    .map((quality) =>
-      buildGroup(quality, quality, buckets.get(quality)!, compareByName, expanded.has(quality)),
-    );
-
-  if (other.length > 0) {
-    groups.push(
-      buildGroup(
-        OTHER_GROUP_KEY,
-        otherScaleGroupLabel(other),
-        other,
-        compareByName,
-        expanded.has(OTHER_GROUP_KEY),
-      ),
-    );
-  }
-
-  return groups;
 }
 
 // ============================================================

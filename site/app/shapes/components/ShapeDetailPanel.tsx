@@ -10,12 +10,10 @@
 // compatible shapes, the report-problem URL) is computed once in
 // `buildDetail`, invoked from a single `useMemo` keyed on `entry` — never for
 // the full ~159-entry catalog. `buildDetail` itself only calls the pure
-// helpers in `shapeDetailUtils.ts` (plus `identifyChord`/`STANDARD` directly
-// from "tonal-guitar", the same top-level-computation pattern
-// `ShapeLibrary.tsx` already uses for `auditAllShapes()`) — no Tonal calls
-// happen inline in JSX.
+// helpers in `shapeDetailUtils.ts` — every Tonal-touching call (including
+// `identifyChord`/`STANDARD`) lives there, keeping this component free of
+// direct library calls in JSX.
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { identifyChord, STANDARD } from "tonal-guitar";
 import type {
   AuditSeverity,
   ChordShape,
@@ -32,12 +30,12 @@ import {
 import {
   alternateFingerings,
   buildReportUrl,
+  chordDetailFor,
   chordTypeSiblings,
   compatibleShapesForEntry,
   inversionGroups,
   relatedScalesForEntry,
-  resolveChordName,
-  scalesOverChord,
+  scaleSiblings,
   siblingScaleStepper,
   siblingStepper,
   type CompatibleShapesResult,
@@ -78,10 +76,13 @@ interface ChordDetail {
   kind: "chord";
   entry: ChordCatalogEntry;
   /** Full `identifyChord` result — first entry is "primary", the rest are
-   * alternates. `[]` renders the "Could not identify these notes" state. */
+   * alternates. `[]` renders the "Could not identify these notes" state.
+   * `identified`, `chordName`, and `scales` all come from a single
+   * `chordDetailFor(entry)` call (one `identifyChord` pass — see
+   * `shapeDetailUtils.ts`), not three separate re-derivations. */
   identified: string[];
-  /** `resolveChordName(entry)` — heading text for "Scales over {chord}";
-   * `undefined` means that section is skipped entirely. */
+  /** Heading text for "Scales over {chord}"; `undefined` means that section
+   * is skipped entirely. */
   chordName: string | undefined;
   scales: ScalesContainingChordResult | undefined;
   /** `chordTypeSiblings(entry)` — INCLUDES `entry` itself; shared by the
@@ -97,11 +98,9 @@ interface ScaleDetail {
   kind: "scale";
   entry: ScaleCatalogEntry;
   /** Same-`(system, quality)` siblings, INCLUDING `entry`, sorted by name —
-   * mirrors `siblingScaleStepper`'s internal filter/sort exactly so the
-   * stepper's `index` lines up with this array for Prev/Next navigation.
-   * `shapeDetailUtils.siblingScaleStepper` only returns `{index, total}`
-   * (no shape list), so this is recomputed locally rather than duplicating
-   * that module. */
+   * `shapeDetailUtils.scaleSiblings`, the same list `siblingScaleStepper`
+   * derives its `index`/`total` from internally, so the stepper's `index`
+   * always lines up with this array for Prev/Next navigation. */
   siblings: ScaleCatalogEntry[];
   stepper: SiblingStepperInfo;
   related: Array<{ root: string; scale: string }>;
@@ -111,32 +110,19 @@ interface ScaleDetail {
 
 type PanelDetail = ChordDetail | ScaleDetail;
 
-function scaleSiblingsFor(
-  entry: ScaleCatalogEntry,
-  catalog: readonly ShapeCatalogEntry[],
-): ScaleCatalogEntry[] {
-  return catalog
-    .filter(
-      (candidate): candidate is ScaleCatalogEntry =>
-        candidate.kind === "scale" &&
-        candidate.shape.system === entry.shape.system &&
-        candidate.shape.quality === entry.shape.quality,
-    )
-    .sort((a, b) => a.name.localeCompare(b.name));
-}
-
 function buildDetail(
   entry: ShapeCatalogEntry,
   catalog: readonly ShapeCatalogEntry[],
 ): PanelDetail {
   if (entry.kind === "chord") {
     const siblings = chordTypeSiblings(entry);
+    const { identified, chordName, scales } = chordDetailFor(entry);
     return {
       kind: "chord",
       entry,
-      identified: identifyChord(entry.builtFrets, STANDARD),
-      chordName: resolveChordName(entry),
-      scales: scalesOverChord(entry),
+      identified,
+      chordName,
+      scales,
       siblings,
       stepper: siblingStepper(entry, siblings),
       alternates: alternateFingerings(entry),
@@ -148,7 +134,7 @@ function buildDetail(
   return {
     kind: "scale",
     entry,
-    siblings: scaleSiblingsFor(entry, catalog),
+    siblings: scaleSiblings(entry, catalog),
     stepper: siblingScaleStepper(entry, catalog),
     related: relatedScalesForEntry(entry),
     compatible: compatibleShapesForEntry(entry),

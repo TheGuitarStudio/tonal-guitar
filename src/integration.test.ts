@@ -1997,5 +1997,22 @@ describe("TG4 — chord->scales chroma sweep, containment, and ranking", () => {
       }
       expect(result.rootAnchored.map((s) => s.name)).toContain("C major");
     });
+
+    it("literal duplicate entries in options.corpus produce no duplicate candidates", () => {
+      const deduped = scalesContainingChord("Cmaj7", { corpus: ["major"] });
+      const withDuplicates = scalesContainingChord("Cmaj7", {
+        corpus: ["major", "major", "major"],
+      });
+      const key = (s: { root: string; scaleType: string }) =>
+        `${s.root}|${s.scaleType}`;
+
+      for (const group of ["rootAnchored", "otherRoots"] as const) {
+        expect(withDuplicates[group].map(key)).toEqual(
+          deduped[group].map(key),
+        );
+        const keys = withDuplicates[group].map(key);
+        expect(new Set(keys).size).toBe(keys.length);
+      }
+    });
   });
 });
