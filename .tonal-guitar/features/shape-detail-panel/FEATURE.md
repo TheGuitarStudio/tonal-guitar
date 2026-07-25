@@ -55,7 +55,7 @@ Shape Library page (better filtering and organization).
 | 2 | TG9: `FilterBar.tsx` rework — faceted chips | complete | sonnet | browser-verified interactively |
 | 3 | TG6: API docs + README updates | complete | sonnet | examples verified against dist |
 | 3 | TG12: `shapeDetailUtils.ts` — pure detail-derivation logic | complete | sonnet | - |
-| 4 | TG13: `ShapeDetailPanel.tsx` — the non-modal slide-over | pending | - | - |
+| 4 | TG13: `ShapeDetailPanel.tsx` — the non-modal slide-over | complete | sonnet | hardware-back + mobile full-height handed to TG14 |
 | 5 | TG14: `ShapeLibrary.tsx` wiring — selection, grouped grid, failing-pinned section | pending | - | - |
 | 6 | TG15: Infrastructure — explicit `@tonaljs/*` deps + bundle/static-export verification | pending | - | - |
 | 7 | TG16: Test review and gap analysis | pending | - | - |
@@ -66,5 +66,6 @@ Shape Library page (better filtering and organization).
 - **Layer 1**: 1 concern — `rankContainingScales` corpus-index tiebreak misses aeolian→minor normalization (index -1); handed to TG4 to fix when wiring the public function. Continued.
 - **Layer 2**: No concerns (L1 tiebreak concern confirmed fixed). Continued.
 - **Layer 3**: No concerns. Continued.
+- **Layer 4**: 1 concern — mobile sheet is capped-height (`max-h-[85vh]`) vs spec's full-height `inset-0`; handed to TG14 alongside the deferred hardware-back wiring. Continued.
 
 ### Spec Compliance
