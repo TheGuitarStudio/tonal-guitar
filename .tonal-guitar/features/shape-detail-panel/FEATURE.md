@@ -7,7 +7,7 @@
 - [x] Phase 1: Research
 - [x] Phase 2: Shape
 - [x] Phase 3: Plan
-- [ ] Phase 4: Implement
+- [x] Phase 4: Implement
 
 ## Context
 
@@ -31,7 +31,7 @@ Shape Library page (better filtering and organization).
 | Research  | research.md | complete | 0     | yes      |
 | Shape     | spec.md     | complete | 0     | no       |
 | Plan      | tasks.md    | complete | 0     | no       |
-| Implement | FEATURE.md  | pending | 0     | no       |
+| Implement | FEATURE.md  | complete | 0     | no       |
 
 ## Loop History
 
@@ -58,7 +58,7 @@ Shape Library page (better filtering and organization).
 | 4 | TG13: `ShapeDetailPanel.tsx` — the non-modal slide-over | complete | sonnet | hardware-back + mobile full-height handed to TG14 |
 | 5 | TG14: `ShapeLibrary.tsx` wiring — selection, grouped grid, failing-pinned section | complete | sonnet | browser-verified; fixed L4 mobile-sheet + hardware-back |
 | 6 | TG15: Infrastructure — explicit `@tonaljs/*` deps + bundle/static-export verification | complete | sonnet | 118 kB first load; panel in 20 kB lazy chunk |
-| 7 | TG16: Test review and gap analysis | pending | - | - |
+| 7 | TG16: Test review and gap analysis | complete | sonnet | +2 strategic tests; site checklist pass (mobile visual n/a) |
 
 ### Oversight Reports
 
@@ -69,5 +69,6 @@ Shape Library page (better filtering and organization).
 - **Layer 4**: 1 concern — mobile sheet is capped-height (`max-h-[85vh]`) vs spec's full-height `inset-0`; handed to TG14 alongside the deferred hardware-back wiring. Continued.
 - **Layer 5**: No concerns (both L4 items confirmed fixed). Continued.
 - **Layer 6**: No concerns. Continued.
+- **Layer 7**: TG16 audit — all spec test expectations covered; 2 gap tests added; site manual checklist pass (mobile breakpoint code-reviewed, not visually exercisable in automation).
 
 ### Spec Compliance
