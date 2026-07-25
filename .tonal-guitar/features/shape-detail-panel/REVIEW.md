@@ -17,7 +17,7 @@
 - [x] Phase 4: Architecture Fix
 - [x] Phase 5: Code Simplification Review
 - [x] Phase 6: Code Simplification Fix
-- [ ] Phase 7: Specialized Reviews
+- [x] Phase 7: Specialized Reviews
 - [ ] Phase 8: Specialized Fixes
 - [ ] Phase 9: Final Verification
 
@@ -106,6 +106,25 @@ Clean: dependency layers, sentinel error handling, public API surface, hydration
 ### Won't Fix
 
 - (none)
+
+## Phase 7: Specialized Reviews
+
+### Security
+
+0 findings. No XSS sinks; `buildReportUrl` encodes via `encodeURIComponent` against a hardcoded base; `parseShapesUrlState` has no dynamic-key assignment (no prototype-pollution vector); history API fed only by `URLSearchParams`-built strings; no secrets; dependency additions are the official Tonal peer family.
+
+### Type Safety
+
+- CR-022: [Important] Unvalidated `as ChordQualityGroup` cast of URL param in `ShapeLibrary.tsx:116` — `parseShapesUrlState` validates `kind` and `sort` against their literal unions but passes `qualityGroup` through as bare `string`; a stale `?qualityGroup=` link violates the union. Validate at parse time (type the field `ChordQualityGroup | undefined`).
+
+Cleared: no `any`/`as any` anywhere; Tonal `getChord`/`getScale` results guarded; `.find()` results guarded; optional shape fields explicitly checked; the two discriminant-correlated casts reviewed and judged sound.
+
+### Accessibility
+
+- CR-023: [Critical] Focus lost to `<body>` on panel close when there is no captured trigger (deep-linked `?shape=` open) — `ShapeLibrary.tsx:251-264` only refocuses `lastTriggerRef.current`, which stays null for URL-opened panels; add a stable fallback focus target.
+- CR-024: [Important] "Showing N of M" `aria-live` region re-announces per search keystroke (`FilterBar.tsx:143-145`) — debounce the live-region text independent of instant filtering.
+- CR-025: [Important] Root-strip chips convey zero-match via opacity alone (`FilterBar.tsx:287-298`) — other facet rows show a visible count; root chips bury it in `title`/`aria-label`. Add a visible count.
+- CR-026: [Important] Panel is last in DOM/tab order and focus never moves into it on open (`ShapeLibrary.tsx:497`) — keyboard users must tab through the whole grid to reach it; focus the panel container (`tabIndex={-1}`) on open per the non-modal disclosure pattern.
 
 ## Statistics
 
