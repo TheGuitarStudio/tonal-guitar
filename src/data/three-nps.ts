@@ -22,6 +22,10 @@ export const NPS_PATTERN_1: ScaleShape = {
     ["2M", "3M", "4P"],  // high E
   ],
   rootString: 0,
+  // Featured (D-006 amendment 3, spec §Library): the canonical (system,
+  // quality) representative for the 3NPS pattern set — Pattern 1 (Ionian)
+  // is the root/starting pattern.
+  featured: true,
 };
 
 export const NPS_PATTERN_2: ScaleShape = {

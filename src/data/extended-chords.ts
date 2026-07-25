@@ -156,6 +156,10 @@ export const EXT_CHORD_E_6: ChordShape = {
   voicingFamily: "extended",
   inversion: 0,
   stringSet: [0, 1, 2, 3, 4],
+  // Featured (D-006 amendment 3): canonical shape for chordType "6" — no
+  // open-position voicing is registered elsewhere, so the E-form movable
+  // shape is the spotlight pick.
+  featured: true,
 };
 
 /**
@@ -208,6 +212,9 @@ export const EXT_CHORD_E_M6: ChordShape = {
   voicingFamily: "extended",
   inversion: 0,
   stringSet: [0, 1, 2, 3, 4, 5],
+  // Featured (D-006 amendment 3): canonical shape for chordType "m6" — no
+  // open-position voicing is registered elsewhere.
+  featured: true,
 };
 
 /**
@@ -252,6 +259,9 @@ export const EXT_CHORD_E_9: ChordShape = {
   voicingFamily: "extended",
   inversion: 0,
   stringSet: [0, 1, 2, 3, 4, 5],
+  // Featured (D-006 amendment 3): canonical shape for chordType "9" — no
+  // open-position voicing is registered elsewhere.
+  featured: true,
 };
 
 /**
@@ -302,6 +312,9 @@ export const EXT_CHORD_E_MAJ9: ChordShape = {
   voicingFamily: "extended",
   inversion: 0,
   stringSet: [0, 1, 2, 3, 4, 5],
+  // Featured (D-006 amendment 3): canonical shape for chordType "maj9" — no
+  // open-position voicing is registered elsewhere.
+  featured: true,
 };
 
 /**
@@ -348,6 +361,9 @@ export const EXT_CHORD_E_M9: ChordShape = {
   voicingFamily: "extended",
   inversion: 0,
   stringSet: [0, 1, 2, 3, 4, 5],
+  // Featured (D-006 amendment 3): canonical shape for chordType "m9" — no
+  // open-position voicing is registered elsewhere.
+  featured: true,
 };
 
 /**
@@ -400,6 +416,9 @@ export const EXT_CHORD_E_ADD9: ChordShape = {
   voicingFamily: "extended",
   inversion: 0,
   stringSet: [0, 1, 2, 3, 4, 5],
+  // Featured (D-006 amendment 3): canonical shape for chordType "add9" — no
+  // open-position voicing is registered elsewhere.
+  featured: true,
 };
 
 /**
@@ -452,6 +471,9 @@ export const EXT_CHORD_E_13: ChordShape = {
   voicingFamily: "extended",
   inversion: 0,
   stringSet: [0, 1, 2, 3, 4, 5],
+  // Featured (D-006 amendment 3): canonical shape for chordType "13" — no
+  // open-position voicing is registered elsewhere.
+  featured: true,
 };
 
 /**
@@ -504,6 +526,9 @@ export const EXT_CHORD_E_DIM7: ChordShape = {
   voicingFamily: "extended",
   inversion: 0,
   stringSet: [0, 2, 3, 4],
+  // Featured (D-006 amendment 3): canonical shape for chordType "dim7" — no
+  // open-position voicing is registered elsewhere.
+  featured: true,
 };
 
 /**
@@ -552,6 +577,9 @@ export const EXT_CHORD_E_MMAJ7: ChordShape = {
   voicingFamily: "extended",
   inversion: 0,
   stringSet: [0, 1, 2, 3, 4, 5],
+  // Featured (D-006 amendment 3): canonical shape for chordType "mMaj7" —
+  // no open-position voicing is registered elsewhere.
+  featured: true,
 };
 
 /**
@@ -605,6 +633,10 @@ export const EXT_CHORD_E_7SUS4: ChordShape = {
   voicingFamily: "extended",
   inversion: 0,
   stringSet: [0, 1, 2, 3, 4, 5],
+  // Featured (D-006 amendment 3): canonical shape for chordType "7sus4" —
+  // this is a separate spotlight from plain "sus4" (open-chords.ts), which
+  // has no 7th.
+  featured: true,
 };
 
 /**
@@ -656,6 +688,9 @@ export const EXT_CHORD_E_69: ChordShape = {
   voicingFamily: "extended",
   inversion: 0,
   stringSet: [0, 1, 2, 3, 4],
+  // Featured (D-006 amendment 3): canonical shape for chordType "6/9" — no
+  // open-position voicing is registered elsewhere.
+  featured: true,
 };
 
 /**
@@ -709,6 +744,9 @@ export const EXT_CHORD_E_7B9: ChordShape = {
   voicingFamily: "extended",
   inversion: 0,
   stringSet: [0, 1, 2, 3, 4, 5],
+  // Featured (D-006 amendment 3): canonical shape for chordType "7b9" — no
+  // open-position voicing is registered elsewhere.
+  featured: true,
 };
 
 /**
@@ -762,6 +800,9 @@ export const EXT_CHORD_E_7SHARP9: ChordShape = {
   voicingFamily: "extended",
   inversion: 0,
   stringSet: [0, 1, 2, 3, 4, 5],
+  // Featured (D-006 amendment 3): canonical shape for chordType "7#9" — no
+  // open-position voicing is registered elsewhere.
+  featured: true,
 };
 
 /**
@@ -826,6 +867,9 @@ export const EXT_CHORD_E_7SHARP5: ChordShape = {
   voicingFamily: "extended",
   inversion: 0,
   stringSet: [0, 2, 3, 4, 5],
+  // Featured (D-006 amendment 3): canonical shape for chordType "7#5" — no
+  // open-position voicing is registered elsewhere.
+  featured: true,
 };
 
 /**
@@ -881,6 +925,9 @@ export const EXT_CHORD_E_7B5: ChordShape = {
   voicingFamily: "extended",
   inversion: 0,
   stringSet: [0, 1, 2, 3],
+  // Featured (D-006 amendment 3): canonical shape for chordType "7b5" — no
+  // open-position voicing is registered elsewhere.
+  featured: true,
 };
 
 /**

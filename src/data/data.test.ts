@@ -20,7 +20,7 @@ import {
 import { applyChordShape, buildFrettedScale } from "../build";
 import { STANDARD } from "../tuning";
 import { get, all, names } from "../shape";
-import { checkFretSpan } from "../audit";
+import { checkFretSpan, checkChordMetadataCompleteness } from "../audit";
 
 // ─── Import all curated data files for side-effect registration ─────────────
 import "../data/caged-chords-7th";
@@ -1109,5 +1109,249 @@ describe("R5.3 — minor-derived scale-shape registrations: +10 total", () => {
     );
     expect(derivedMinorShapes.length).toBe(10);
     expect(names().length).toBe(27);
+  });
+});
+
+// ─── TG5: featured shape curation (registry data) ────────────────────────────
+//
+// `featured` (src/shape.ts) is optional/curated library data — the
+// spotlight/★ tier for the site's Shape Library Detail Side Panel
+// (D-006 amendment 3). Per feature spec §Library, the flagging rule is:
+//   "flag the canonical shape per common chord type — the open-position
+//    voicing if one exists, else the lowest-baseFret movable form,
+//    targeting 1-2 per chordType. For triads flag the five open CAGED
+//    majors/minors; for scales flag one representative shape per
+//    (system, quality)."
+// The "five open CAGED majors/minors" clause is an explicit, spec-called-out
+// exception to the general 1-2-per-chordType guidance for the "M"/"m" triad
+// types specifically — every genuinely open-position triad shape is
+// flagged, not just one canonical pick (see the dedicated triad tests
+// below). All other chordType groups get exactly one canonical pick.
+
+describe("TG5 — featured chord shape curation", () => {
+  const TRIAD_TYPES = new Set(["M", "m"]);
+
+  function chordShapesByType(): Map<string, ChordShape[]> {
+    const byType = new Map<string, ChordShape[]>();
+    for (const shape of chordShapes.all()) {
+      if (shape.chordType === undefined) continue;
+      const list = byType.get(shape.chordType) ?? [];
+      list.push(shape);
+      byType.set(shape.chordType, list);
+    }
+    return byType;
+  }
+
+  it("every chordType group (chordType defined) with >=1 registered shape has 1-2 featured entries, except the M/m triad exception (<=5)", () => {
+    const byType = chordShapesByType();
+    expect(byType.size).toBeGreaterThan(0);
+
+    for (const [chordType, shapes] of byType) {
+      const featuredCount = shapes.filter((s) => s.featured).length;
+      expect(
+        featuredCount,
+        `chordType "${chordType}" has zero featured shapes`,
+      ).toBeGreaterThanOrEqual(1);
+
+      if (TRIAD_TYPES.has(chordType)) {
+        expect(
+          featuredCount,
+          `chordType "${chordType}" (triad exception) exceeds 5 featured shapes`,
+        ).toBeLessThanOrEqual(5);
+      } else {
+        expect(
+          featuredCount,
+          `chordType "${chordType}" has more than 2 featured shapes`,
+        ).toBeLessThanOrEqual(2);
+      }
+    }
+  });
+
+  it('chordType "M" flags all 5 open-position CAGED major triads', () => {
+    const featured = chordShapes
+      .query({ chordType: "M" })
+      .filter((s) => s.featured)
+      .map((s) => s.name)
+      .sort();
+    expect(featured).toEqual(
+      [
+        "A Major Open",
+        "C Major Open",
+        "D Major Open",
+        "E Major Open",
+        "G Major Open",
+      ].sort(),
+    );
+  });
+
+  it('chordType "m" flags the 4 genuinely open-position CAGED minor triads (C Minor Open is a barre grip, excluded per CR-009)', () => {
+    const featured = chordShapes
+      .query({ chordType: "m" })
+      .filter((s) => s.featured)
+      .map((s) => s.name)
+      .sort();
+    expect(featured).toEqual(
+      ["A Minor Open", "D Minor Open", "E Minor Open", "G Minor Open"].sort(),
+    );
+    expect(featured).not.toContain("C Minor Open");
+  });
+
+  it("all featured M/m triad shapes are true open-position voicings (voicingFamily 'open'), never barre", () => {
+    const featuredTriads = chordShapes
+      .all()
+      .filter(
+        (s) =>
+          s.featured && (s.chordType === "M" || s.chordType === "m"),
+      );
+    expect(featuredTriads.length).toBeGreaterThan(0);
+    for (const shape of featuredTriads) {
+      expect(shape.voicingFamily, `${shape.name} should be open`).toBe(
+        "open",
+      );
+    }
+  });
+
+  it("non-triad chordType groups each flag exactly the expected canonical (open-preferred, else E-form movable) shape", () => {
+    const expected: Record<string, string> = {
+      // Open-position canonical picks (open-chords.ts) — C family preferred
+      // where a true open voicing is registered for it; m7's C-family form
+      // is a barre grip (OPEN_C_M7), so E takes the spotlight instead.
+      "7": "C Dominant 7 Open",
+      maj7: "C Major 7 Open",
+      m7: "E Minor 7 Open",
+      dim: "C Diminished Open",
+      aug: "C Augmented Open",
+      sus2: "C Sus2 Open",
+      sus4: "C Sus4 Open",
+      m7b5: "C m7b5 Open",
+      // No open-position voicing exists for these types anywhere in the
+      // registry — the E-form movable shape (extended-chords.ts) is
+      // canonical.
+      "6": "E Shape 6",
+      m6: "E Shape m6",
+      "9": "E Shape 9",
+      maj9: "E Shape maj9",
+      m9: "E Shape m9",
+      add9: "E Shape add9",
+      "13": "E Shape 13",
+      dim7: "E Shape dim7",
+      mMaj7: "E Shape mMaj7",
+      "7sus4": "E Shape 7sus4",
+      "6/9": "E Shape 6/9",
+      "7b9": "E Shape 7b9",
+      "7#9": "E Shape 7#9",
+      "7#5": "E Shape 7#5",
+      "7b5": "E Shape 7b5",
+    };
+
+    for (const [chordType, name] of Object.entries(expected)) {
+      const featured = chordShapes
+        .query({ chordType })
+        .filter((s) => s.featured);
+      expect(
+        featured.length,
+        `chordType "${chordType}" featured count`,
+      ).toBe(1);
+      expect(featured[0].name, `chordType "${chordType}" featured shape`).toBe(
+        name,
+      );
+    }
+  });
+
+  it("caged-chords-7th.ts and jazz-shells.ts contribute no featured shapes (their chordTypes — maj7/m7/7/m7b5 — are already covered by the open-chords.ts canonical picks)", () => {
+    const cagedSeventhFeatured = chordShapes
+      .query({ voicingFamily: "caged" })
+      .filter((s) => s.chordType !== undefined && s.featured);
+    expect(cagedSeventhFeatured).toEqual([]);
+
+    const shellFeatured = chordShapes
+      .query({ voicingFamily: "shell" })
+      .filter((s) => s.featured);
+    expect(shellFeatured).toEqual([]);
+  });
+
+  it("caged-chords.ts's 5 base major triad shapes (chordType undefined) contribute no featured shapes — open-position major triads already cover every root", () => {
+    const cagedTriadNames = [
+      "E Shape Major",
+      "A Shape Major",
+      "D Shape Major",
+      "C Shape Major",
+      "G Shape Major",
+    ];
+    for (const name of cagedTriadNames) {
+      const shape = chordShapes.get(name);
+      expect(shape, `${name} not registered`).toBeDefined();
+      expect(shape!.featured, `${name} should not be featured`).toBeFalsy();
+    }
+  });
+
+  it("exactly 32 chord shapes are flagged featured across the registry (17 open-chords.ts + 15 extended-chords.ts)", () => {
+    expect(chordShapes.all().filter((s) => s.featured).length).toBe(32);
+  });
+
+  it("featured entries don't trigger a metadata-completeness audit issue that mentions 'featured' — the field is optional/curated and not checked by checkChordMetadataCompleteness", () => {
+    const featuredChords = chordShapes.all().filter((s) => s.featured);
+    expect(featuredChords.length).toBeGreaterThan(0);
+    for (const shape of featuredChords) {
+      const issues = checkChordMetadataCompleteness(shape);
+      for (const issue of issues) {
+        expect(issue.message.toLowerCase()).not.toContain("featured");
+        expect(issue.details?.missing).not.toContain("featured");
+      }
+    }
+  });
+});
+
+describe("TG5 — featured scale shape curation", () => {
+  it("every (system, quality) group has exactly one featured representative", () => {
+    const byGroup = new Map<string, ScaleShape[]>();
+    for (const shape of all()) {
+      const key = `${shape.system}::${shape.quality ?? ""}`;
+      const list = byGroup.get(key) ?? [];
+      list.push(shape);
+      byGroup.set(key, list);
+    }
+    // 5 groups: caged/(major), caged/minor, pentatonic/(major),
+    // pentatonic/minor-pentatonic, 3nps/(major).
+    expect(byGroup.size).toBe(5);
+
+    for (const [key, shapes] of byGroup) {
+      const featuredCount = shapes.filter((s) => s.featured).length;
+      expect(featuredCount, `group "${key}" featured count`).toBe(1);
+    }
+  });
+
+  it('CAGED major/minor representative is "E Shape" / "Em Shape"', () => {
+    expect(get("E Shape")?.featured).toBe(true);
+    expect(get("Em Shape")?.featured).toBe(true);
+  });
+
+  it('pentatonic major/minor representative is "Pentatonic Box 1" / "Pentatonic Box 1 Minor"', () => {
+    expect(get("Pentatonic Box 1")?.featured).toBe(true);
+    expect(get("Pentatonic Box 1 Minor")?.featured).toBe(true);
+  });
+
+  it('3NPS representative is "3NPS Pattern 1 (Ionian)"', () => {
+    expect(get("3NPS Pattern 1 (Ionian)")?.featured).toBe(true);
+  });
+
+  it("Em Shape (minor CAGED) keeps its relabelShape-derived fields alongside featured", () => {
+    const shape = get("Em Shape");
+    expect(shape).toBeDefined();
+    expect(shape!.quality).toBe("minor");
+    expect(shape!.parentShape).toBe("G Shape");
+    expect(shape!.featured).toBe(true);
+  });
+
+  it("Pentatonic Box 1 Minor keeps its relabelShape-derived fields alongside featured", () => {
+    const shape = get("Pentatonic Box 1 Minor");
+    expect(shape).toBeDefined();
+    expect(shape!.quality).toBe("minor-pentatonic");
+    expect(shape!.parentShape).toBe("Pentatonic Box 1");
+    expect(shape!.featured).toBe(true);
+  });
+
+  it("exactly 5 scale shapes are flagged featured across the registry", () => {
+    expect(all().filter((s) => s.featured).length).toBe(5);
   });
 });

@@ -22,6 +22,9 @@ export const CAGED_E: ScaleShape = {
     ["7M", "1P", "2M"],
   ],
   rootString: 0,
+  // Featured (D-006 amendment 3, spec §Library): the canonical (system,
+  // quality) representative for major CAGED scale shapes.
+  featured: true,
 };
 
 export const CAGED_D: ScaleShape = {

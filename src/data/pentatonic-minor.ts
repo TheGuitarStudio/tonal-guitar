@@ -51,14 +51,18 @@ function relabelOrThrow(
   return result;
 }
 
-export const PENTA_BOX_1_MINOR: ScaleShape = relabelOrThrow(
-  PENTA_BOX_1,
-  MINOR_PENTA_INTERVALS,
-  {
+// Featured (D-006 amendment 3, spec §Library): the canonical (system,
+// quality) representative for minor pentatonic box shapes. relabelOrThrow's
+// RelabelOptions has no `featured` field (transform.ts stays free of this
+// site-only concern), so the flag is spread onto the derived object here
+// rather than threaded through relabelShape.
+export const PENTA_BOX_1_MINOR: ScaleShape = {
+  ...relabelOrThrow(PENTA_BOX_1, MINOR_PENTA_INTERVALS, {
     name: "Pentatonic Box 1 Minor",
     quality: "minor-pentatonic",
-  },
-);
+  }),
+  featured: true,
+};
 
 export const PENTA_BOX_2_MINOR: ScaleShape = relabelOrThrow(
   PENTA_BOX_2,
