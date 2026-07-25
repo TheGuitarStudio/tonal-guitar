@@ -1661,3 +1661,96 @@ describe("TG2 — scalesContainingChord scaffolding (types, stub, exports)", () 
     });
   });
 });
+
+// ---------------------------------------------------------------------------
+// TG3 — chord->scales chroma sweep, containment, and ranking
+// spec.md §Library `scalesContainingChord`
+//
+// The computational core (`resolveChordTones`, `sweepCorpus`,
+// `partitionByRoot`, `rankContainingScales`) is implemented as internal,
+// non-exported helpers in `src/integration.ts` (see the block right after
+// the `scalesContainingChord` stub). `scalesContainingChord` itself still
+// unconditionally returns the empty sentinel (asserted above, TG2) — wiring
+// the stub to dispatch to these helpers is a later task group's job.
+//
+// Because the helpers are intentionally not exported (no "export escape
+// hatch" per the task brief), the scenarios below are recorded as
+// `it.todo` — they document the exact enumerated spec expectations so the
+// task group that wires the public function can flip each one to a real
+// assertion against `scalesContainingChord(...)` directly, rather than
+// against the internal helpers. A prototype run of the helper logic against
+// these exact scenarios (outside the test suite) confirmed the expected
+// containment/partition/ranking behavior; see the corpus-normalization note
+// above `resolveChordTones` for one naming wrinkle worth carrying into that
+// task group's assertions ("aeolian" candidates surface as "minor" per
+// Tonal's canonical scale-type naming, e.g. "C aeolian" -> "C minor").
+// ---------------------------------------------------------------------------
+
+describe("TG3 — chord->scales chroma sweep, containment, and ranking", () => {
+  describe("corpus sweep", () => {
+    it.todo(
+      "sweeps all 12 chromatic roots x all 11 DEFAULT_SCALE_CORPUS types (132 candidates) for a resolved chord's chroma set",
+    );
+  });
+
+  describe("containment (strict subset, tolerateMissing: 0 default)", () => {
+    it.todo(
+      'scalesContainingChord("Cmaj7").rootAnchored includes "C major" and "C lydian"',
+    );
+    it.todo(
+      'scalesContainingChord("Cmaj7").rootAnchored excludes "C mixolydian" and "C dorian"',
+    );
+    it.todo(
+      'scalesContainingChord("Cm7").rootAnchored includes C dorian / C aeolian (canonical "C minor") / C phrygian',
+    );
+    it.todo(
+      'scalesContainingChord("Cm7").rootAnchored excludes "C major"',
+    );
+    it.todo(
+      "every returned scale's chroma set is a strict superset of the chord's chroma set (containment invariant)",
+    );
+    it.todo(
+      "an unknown/unresolvable chord name yields both groups empty (rootAnchored: [], otherRoots: [])",
+    );
+  });
+
+  describe("partition (rootAnchored vs otherRoots)", () => {
+    it.todo(
+      'scalesContainingChord("Cmaj7").otherRoots includes "G major", "E phrygian", and the A-rooted aeolian/minor candidate',
+    );
+    it.todo(
+      "rootAnchored and otherRoots are disjoint — no candidate (by name) appears in both groups",
+    );
+    it.todo(
+      "a candidate lands in rootAnchored iff its scale tonic chroma equals the chord root chroma",
+    );
+  });
+
+  describe("ranking (deterministic, no reliance on Array#sort non-determinism)", () => {
+    it.todo(
+      "within a group, candidates sort by extraTones ascending (tightest fit first)",
+    );
+    it.todo(
+      "ties on extraTones sort by DEFAULT_SCALE_CORPUS index ascending",
+    );
+    it.todo(
+      "ties on extraTones + corpus index sort by root-chroma distance from the chord root ascending",
+    );
+    it.todo("remaining ties sort by name ascending");
+    it.todo(
+      "output is stable across repeated calls with the same input (same order every time)",
+    );
+  });
+
+  describe("tolerateMissing", () => {
+    it.todo(
+      "tolerateMissing: 0 (default) always yields omittedTones: [] on every candidate",
+    );
+    it.todo(
+      'scalesContainingChord("Cm7", { tolerateMissing: 1 }) admits scales missing exactly one chord tone and populates omittedTones with the missing tone(s)',
+    );
+    it.todo(
+      "tolerateMissing: N never admits a candidate missing more than N chord tones",
+    );
+  });
+});
