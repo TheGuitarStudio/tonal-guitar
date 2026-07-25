@@ -1,9 +1,9 @@
 "use client";
 
 import { memo } from "react";
-import type { AuditSeverity, ShapeAuditIssue } from "tonal-guitar";
 import type { ShapeCatalogEntry } from "./shapeLibraryUtils";
 import { ShapeCardDiagram } from "./ShapeCardDiagram";
+import { FeaturedMark, IssueBadges } from "./IssueBadges";
 
 interface ShapeCardProps {
   entry: ShapeCatalogEntry;
@@ -21,23 +21,6 @@ interface ShapeCardProps {
 // table, chord table, and report link no longer render here (see
 // `docs`/spec's "Compact card anatomy").
 const CARD_INTRINSIC_SIZE = "auto 220px";
-
-function severityRank(severity: AuditSeverity): number {
-  return severity === "error" ? 0 : 1;
-}
-
-function badgeClassFor(severity: AuditSeverity): string {
-  if (severity === "error") {
-    return "bg-red-500/10 text-red-700 dark:text-red-600 border border-red-500/40";
-  }
-  return "bg-amber-500/10 text-amber-700 dark:text-amber-600 border border-amber-500/40";
-}
-
-function sortIssues(issues: ShapeAuditIssue[]): ShapeAuditIssue[] {
-  // Array#sort is a stable sort in every JS engine this targets, so issues
-  // sharing a severity keep their original relative order.
-  return [...issues].sort((a, b) => severityRank(a.severity) - severityRank(b.severity));
-}
 
 /**
  * Compact, monochrome, clickable shape card — chord symbol/display name,
@@ -57,7 +40,6 @@ export const ShapeCard = memo(function ShapeCard({
 
   const familyOrQualityTag = chordShape?.voicingFamily ?? scaleShape?.quality;
   const baseFret = chordShape?.baseFret;
-  const sortedIssues = sortIssues(issues);
 
   return (
     <button
@@ -74,11 +56,7 @@ export const ShapeCard = memo(function ShapeCard({
     >
       <div className="mb-2 flex flex-wrap items-center gap-1.5">
         <h3 className="font-medium text-fd-foreground">{name}</h3>
-        {shape.featured && (
-          <span aria-label="Featured" title="Featured shape" className="text-amber-500">
-            ★
-          </span>
-        )}
+        {shape.featured && <FeaturedMark />}
         {familyOrQualityTag && (
           <span className="rounded bg-fd-muted px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-fd-muted-foreground">
             {familyOrQualityTag}
@@ -93,17 +71,9 @@ export const ShapeCard = memo(function ShapeCard({
 
       <ShapeCardDiagram entry={entry} />
 
-      {sortedIssues.length > 0 && (
-        <div className="mt-2 flex flex-wrap items-center gap-1.5">
-          {sortedIssues.map((issue, i) => (
-            <span
-              key={`${issue.id}-${i}`}
-              title={issue.message}
-              className={`rounded px-1.5 py-0.5 font-mono text-[11px] ${badgeClassFor(issue.severity)}`}
-            >
-              {issue.id}
-            </span>
-          ))}
+      {issues.length > 0 && (
+        <div className="mt-2">
+          <IssueBadges issues={issues} />
         </div>
       )}
     </button>

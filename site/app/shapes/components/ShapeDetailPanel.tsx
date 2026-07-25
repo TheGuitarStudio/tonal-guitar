@@ -15,11 +15,9 @@
 // direct library calls in JSX.
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type {
-  AuditSeverity,
   ChordShape,
   ContainingScale,
   ScalesContainingChordResult,
-  ShapeAuditIssue,
 } from "tonal-guitar";
 import {
   chordDisplaySymbol,
@@ -45,6 +43,7 @@ import {
 import { CompactFretboard } from "./CompactFretboard";
 import { ShapeCardDiagram } from "./ShapeCardDiagram";
 import { ShapeCardChordTable } from "./ShapeCardChordTable";
+import { FeaturedMark, IssueBadges } from "./IssueBadges";
 
 export interface ShapeDetailPanelProps {
   /** The currently selected catalog entry, or `undefined` when no card is
@@ -98,9 +97,9 @@ interface ScaleDetail {
   kind: "scale";
   entry: ScaleCatalogEntry;
   /** Same-`(system, quality)` siblings, INCLUDING `entry`, sorted by name —
-   * `shapeDetailUtils.scaleSiblings`, the same list `siblingScaleStepper`
-   * derives its `index`/`total` from internally, so the stepper's `index`
-   * always lines up with this array for Prev/Next navigation. */
+   * `shapeDetailUtils.scaleSiblings`, passed straight into `siblingScaleStepper`
+   * for its `index`/`total`, so the stepper's `index` always lines up with
+   * this array for Prev/Next navigation. */
   siblings: ScaleCatalogEntry[];
   stepper: SiblingStepperInfo;
   related: Array<{ root: string; scale: string }>;
@@ -131,11 +130,12 @@ function buildDetail(
     };
   }
 
+  const scaleSiblingsList = scaleSiblings(entry, catalog);
   return {
     kind: "scale",
     entry,
-    siblings: scaleSiblings(entry, catalog),
-    stepper: siblingScaleStepper(entry, catalog),
+    siblings: scaleSiblingsList,
+    stepper: siblingScaleStepper(entry, scaleSiblingsList),
     related: relatedScalesForEntry(entry),
     compatible: compatibleShapesForEntry(entry),
     reportUrl: buildReportUrl(entry),
@@ -289,49 +289,6 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
-function severityRank(severity: AuditSeverity): number {
-  return severity === "error" ? 0 : 1;
-}
-
-function badgeClassFor(severity: AuditSeverity): string {
-  if (severity === "error") {
-    return "bg-red-500/10 text-red-700 dark:text-red-600 border border-red-500/40";
-  }
-  return "bg-amber-500/10 text-amber-700 dark:text-amber-600 border border-amber-500/40";
-}
-
-/** Mirrors `ShapeCard.tsx`'s own (non-exported) issue-badge treatment —
- * duplicated locally, matching the rest of this feature's sibling-file
- * pattern (`CompactFretboard.tsx`'s local `fretSummary`) rather than adding
- * a cross-file dependency for a few lines of formatting. */
-function IssueBadges({ issues }: { issues: ShapeAuditIssue[] }) {
-  const sorted = [...issues].sort(
-    (a, b) => severityRank(a.severity) - severityRank(b.severity),
-  );
-  if (sorted.length === 0) return null;
-  return (
-    <div className="flex flex-wrap items-center gap-1.5">
-      {sorted.map((issue, i) => (
-        <span
-          key={`${issue.id}-${i}`}
-          title={issue.message}
-          className={`rounded px-1.5 py-0.5 font-mono text-[11px] ${badgeClassFor(issue.severity)}`}
-        >
-          {issue.id}
-        </span>
-      ))}
-    </div>
-  );
-}
-
-function FeaturedMark() {
-  return (
-    <span aria-label="Featured" title="Featured shape" className="text-amber-500">
-      ★
-    </span>
-  );
-}
-
 function SiblingStepper({
   index,
   total,
@@ -374,6 +331,26 @@ function SiblingStepper({
   );
 }
 
+/**
+ * Bounds-checked target index for a Prev/Next sibling-stepper step:
+ * `stepper.index + offset`, or `undefined` when the stepper has no current
+ * position (`index === -1`) or the target would fall outside `[0, total)`.
+ * Shared by `ChordDetailView`/`ScaleDetailView`'s own `siblingAt` helpers,
+ * which differ only in how they resolve the index into a catalog entry
+ * (chord `siblings` are `ChordShape[]`, needing a name lookup; scale
+ * `siblings` are already `ScaleCatalogEntry[]`).
+ */
+function siblingIndexAt(
+  stepper: SiblingStepperInfo,
+  offset: number,
+  total: number,
+): number | undefined {
+  if (stepper.index === -1) return undefined;
+  const targetIndex = stepper.index + offset;
+  if (targetIndex < 0 || targetIndex >= total) return undefined;
+  return targetIndex;
+}
+
 function ReportProblemLink({ reportUrl }: { reportUrl: string }) {
   return (
     <p className="mt-4 text-xs">
@@ -405,10 +382,10 @@ function ChordDetailView({
   const { entry, siblings, stepper } = detail;
 
   function siblingAt(offset: number): ChordCatalogEntry | undefined {
-    if (stepper.index === -1) return undefined;
-    const targetIndex = stepper.index + offset;
-    if (targetIndex < 0 || targetIndex >= siblings.length) return undefined;
-    return chordCatalogByName.get(siblings[targetIndex].name);
+    const targetIndex = siblingIndexAt(stepper, offset, siblings.length);
+    return targetIndex === undefined
+      ? undefined
+      : chordCatalogByName.get(siblings[targetIndex].name);
   }
 
   const prevEntry = siblingAt(-1);
@@ -782,10 +759,8 @@ function ScaleDetailView({
   const { entry, siblings, stepper } = detail;
 
   function siblingAt(offset: number): ScaleCatalogEntry | undefined {
-    if (stepper.index === -1) return undefined;
-    const targetIndex = stepper.index + offset;
-    if (targetIndex < 0 || targetIndex >= siblings.length) return undefined;
-    return siblings[targetIndex];
+    const targetIndex = siblingIndexAt(stepper, offset, siblings.length);
+    return targetIndex === undefined ? undefined : siblings[targetIndex];
   }
 
   const prevEntry = siblingAt(-1);

@@ -530,16 +530,15 @@ export function scalesContainingChord(
     resolved.rootChroma,
   );
 
-  let rankedRootAnchored = rankContainingScales(
-    rootAnchored,
-    resolved.rootChroma,
-  );
-  let rankedOtherRoots = rankContainingScales(otherRoots, resolved.rootChroma);
+  const capGroup = (group: ContainingScale[]): ContainingScale[] =>
+    limitPerGroup === undefined ? group : group.slice(0, limitPerGroup);
 
-  if (limitPerGroup !== undefined) {
-    rankedRootAnchored = rankedRootAnchored.slice(0, limitPerGroup);
-    rankedOtherRoots = rankedOtherRoots.slice(0, limitPerGroup);
-  }
+  const rankedRootAnchored = capGroup(
+    rankContainingScales(rootAnchored, resolved.rootChroma),
+  );
+  const rankedOtherRoots = capGroup(
+    rankContainingScales(otherRoots, resolved.rootChroma),
+  );
 
   return {
     chord: resolved.chord,

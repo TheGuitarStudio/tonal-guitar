@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { auditAllShapes } from "tonal-guitar";
 import {
   ANY_ROOT,
@@ -196,7 +196,20 @@ export function ShapeLibrary() {
   // trigger a render.
   const mobileSheetPushedRef = useRef(false);
 
-  function handleSelectEntry(entry: ShapeCatalogEntry) {
+  // Wrapped in `useCallback` with an empty dep array (identity stable for
+  // the component's whole lifetime) so it can be passed down through
+  // `LazyShapeCard` into the `memo()`-wrapped `ShapeCard` without defeating
+  // that memoization — a plain function declaration here would be
+  // recreated on every `ShapeLibrary` render (e.g. every time a different
+  // card's selection flips `isSelected`), which would give every one of the
+  // ~159 cards a new `onSelect` reference and force them all to re-render.
+  // Reads `selectedEntryRef.current` (kept in sync by the effect above)
+  // rather than the reactive `selectedEntry` state directly, since a
+  // closure created once at mount can't otherwise see later state.
+  // `mobileSheetPushedRef` and `setSelectedEntry` are already stable
+  // (ref/setState identities never change), so nothing else needs to be in
+  // the dependency array.
+  const handleSelectEntry = useCallback((entry: ShapeCatalogEntry) => {
     // Mobile hardware-back dismissal (see the module doc above): only on the
     // closed -> open transition, and done SYNCHRONOUSLY here, before
     // `setSelectedEntry` schedules a re-render. At this exact point
@@ -211,12 +224,16 @@ export function ShapeLibrary() {
     // `window.location.href`, corrupting the "clean" backstop entry — this
     // handler-level push avoids that race entirely by running before any
     // effect does.
-    if (selectedEntry === undefined && !mobileSheetPushedRef.current && isMobileViewport()) {
+    if (
+      selectedEntryRef.current === undefined &&
+      !mobileSheetPushedRef.current &&
+      isMobileViewport()
+    ) {
       window.history.pushState({ shapeDetailSheet: true }, "", window.location.href);
       mobileSheetPushedRef.current = true;
     }
     setSelectedEntry(entry);
-  }
+  }, []);
 
   // Delegated click capture on the whole results region: fires in the
   // capture phase, before any card's own `onClick` (which runs in the

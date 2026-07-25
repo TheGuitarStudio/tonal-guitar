@@ -16,7 +16,7 @@
 - [x] Phase 3: Architecture Review
 - [x] Phase 4: Architecture Fix
 - [x] Phase 5: Code Simplification Review
-- [ ] Phase 6: Code Simplification Fix
+- [x] Phase 6: Code Simplification Fix
 - [ ] Phase 7: Specialized Reviews
 - [ ] Phase 8: Specialized Fixes
 - [ ] Phase 9: Final Verification
@@ -83,6 +83,29 @@ Clean: dependency layers, sentinel error handling, public API surface, hydration
 - CR-019: [Suggestion] `FeaturedMark` component exists in `ShapeDetailPanel.tsx:327-333` but `ShapeCard.tsx:77-81` re-renders the identical ★ markup inline.
 - CR-020: [Suggestion] `siblingAt(offset)` bounds-check closure duplicated between `ChordDetailView` and `ScaleDetailView` (`ShapeDetailPanel.tsx:407-412,784-789`).
 - CR-021: [Suggestion] `ShapeDetailPanel.tsx` is 928 lines — well decomposed internally, but `ChordDetailView`/`ScaleDetailView` (+ sections) belong in their own files.
+
+## Phase 6: Simplification Fixes
+
+### Fixed
+
+- CR-011: Fixed (lead) — `capGroup` helper, both ranked groups now `const`
+- CR-012: Fixed — dead `filterCatalog`/`ShapeCatalogFilters` removed
+- CR-013: Fixed — dead `sortChordEntries` removed
+- CR-014: Fixed — `groupLabelFor` if/else helper replaces nested ternary
+- CR-015: Fixed — `siblingScaleStepper(entry, siblings)` takes precomputed list; single `scaleSiblings` computation in `buildDetail`
+- CR-016: Fixed — `severityRank`/`badgeClassFor` hoisted to `shapeLibraryUtils.ts`; new shared `IssueBadges.tsx` consumed by card + panel
+- CR-017: Fixed — `fretSummary`/`buildFretMarkers`/`fretRangeFor` exported from `ShapeCardDiagram.tsx`, imported by `CompactFretboard.tsx`
+- CR-018: Fixed — `handleSelectEntry` in stable `useCallback` (ref-based), `LazyShapeCard` memoized; card-tree props referentially stable
+- CR-019: Fixed — `FeaturedMark` moved to `IssueBadges.tsx`, reused by `ShapeCard` (no panel import — chunk split verified intact)
+- CR-020: Fixed — shared `siblingIndexAt` helper for both detail views
+
+### Deferred
+
+- CR-021: GitHub issue #157 — split `ShapeDetailPanel.tsx` into view files
+
+### Won't Fix
+
+- (none)
 
 ## Statistics
 

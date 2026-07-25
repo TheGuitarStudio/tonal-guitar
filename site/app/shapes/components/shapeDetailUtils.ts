@@ -142,6 +142,18 @@ function inversionLabel(inversion: number): string {
   return INVERSION_LABELS[inversion] ?? `${inversion}th inversion`;
 }
 
+/** Display label for one `inversionGroups` bucket, given its `mode` and raw
+ * grouping `key` (an inversion number as a string, a `voicingFamily` value,
+ * or `"unknown"`). */
+function groupLabelFor(mode: InversionGroupingMode, key: string): string {
+  if (mode === "inversion") {
+    if (key === "unknown") return "Unknown inversion";
+    return inversionLabel(Number(key));
+  }
+  if (key === "unknown") return "Other";
+  return key;
+}
+
 /**
  * Groups `siblings` (conventionally `chordTypeSiblings(entry)`, so the
  * current entry is included) by `ChordShape.inversion`. Degrades to grouping
@@ -184,14 +196,7 @@ export function inversionGroups(
     })
     .map(([key, shapes]) => ({
       key,
-      label:
-        mode === "inversion"
-          ? key === "unknown"
-            ? "Unknown inversion"
-            : inversionLabel(Number(key))
-          : key === "unknown"
-            ? "Other"
-            : key,
+      label: groupLabelFor(mode, key),
       shapes,
     }));
 
@@ -329,16 +334,16 @@ export function scaleSiblings(
 
 /**
  * Same-`(system, quality)` sibling stepper for scale entries, mirroring
- * `siblingStepper`'s chord counterpart. Built on `scaleSiblings` so the
- * index it returns is always meaningful against that same list — callers
- * needing the sibling list itself (e.g. for Prev/Next navigation) should call
- * `scaleSiblings` directly rather than recomputing it.
+ * `siblingStepper`'s chord counterpart. `siblings` is conventionally
+ * `scaleSiblings(entry, catalog)` — callers that already have that list
+ * (e.g. `ShapeDetailPanel.tsx`'s `buildDetail`, which also needs it for
+ * Prev/Next navigation) pass it straight through rather than having it
+ * recomputed here.
  */
 export function siblingScaleStepper(
   entry: ScaleCatalogEntry,
-  catalog: readonly ShapeCatalogEntry[],
+  siblings: readonly ScaleCatalogEntry[],
 ): SiblingStepperInfo {
-  const siblings = scaleSiblings(entry, catalog);
   const index = siblings.findIndex((candidate) => candidate.name === entry.name);
   return { index, total: siblings.length };
 }

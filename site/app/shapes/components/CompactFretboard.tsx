@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Fretboard, type FretMarker } from "fretboard-ui";
+import { Fretboard } from "fretboard-ui";
 import type { FrettedScale } from "tonal-guitar";
-import { MONOCHROME_THEME } from "./ShapeCardDiagram";
+import { buildFretMarkers, fretRangeFor, fretSummary, MONOCHROME_THEME } from "./ShapeCardDiagram";
 
 /**
  * Minimal shape `CompactFretboard` needs to render a thumbnail — the full
@@ -43,41 +43,9 @@ const THUMBNAIL_LAYOUT = {
 // page.
 const ENLARGED_LAYOUT = { orientation: "horizontal" as const };
 
-// Monochrome theme override — canonical constant now lives in
-// `ShapeCardDiagram.tsx` (Task Group 10), imported above rather than
-// duplicated here. See that module's comment for why every
-// `intervalColors` key (plus `rootMarker`/`ghostMarker`/`highlightMarker`)
-// must be overridden, not just `defaultMarker`.
-
-function buildMarkers(entry: CompactFretboardEntry): FretMarker[] {
-  return entry.frettedScale.notes.map((n) => ({
-    string: n.string,
-    fret: n.fret,
-    pc: n.pc,
-    interval: n.interval,
-    intervalNumber: n.intervalNumber,
-  }));
-}
-
-function fretRangeFor(entry: CompactFretboardEntry): [number, number] {
-  const frets = entry.frettedScale.notes.map((n) => n.fret);
-  return [Math.max(0, Math.min(...frets) - 1), Math.max(...frets) + 1];
-}
-
-// Per-string fret summary for the accessible label — mirrors
-// `ShapeCardDiagram`'s `fretSummary`, kept local since these two components
-// intentionally have no shared runtime dependency beyond `fretboard-ui`.
-function fretSummary(entry: CompactFretboardEntry): string {
-  const perString: number[][] = entry.frettedScale.tuning.map(() => []);
-  for (const n of entry.frettedScale.notes) {
-    perString[n.string].push(n.fret);
-  }
-  return perString
-    .map((frets) =>
-      frets.length === 0 ? "muted" : [...frets].sort((a, b) => a - b).join(" "),
-    )
-    .join(", ");
-}
+// Monochrome theme override, and the fret-marker/fret-range/fret-summary
+// helpers below — canonical versions all live in `ShapeCardDiagram.tsx`
+// (imported above), shared rather than duplicated here.
 
 /**
  * Trimmed, thumbnail-scale adapter over `<Fretboard>` for alternate-fingering
@@ -110,7 +78,7 @@ export function CompactFretboard({
     );
   }
 
-  const markers = buildMarkers(entry);
+  const markers = buildFretMarkers(entry);
   const fretRange = fretRangeFor(entry);
   const label = `${name} at ${renderRoot}, frets low to high: ${fretSummary(entry)}`;
 

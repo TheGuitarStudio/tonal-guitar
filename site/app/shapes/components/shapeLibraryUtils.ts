@@ -68,19 +68,6 @@ export type ShapeCatalogEntry =
 export type ChordCatalogEntry = Extract<ShapeCatalogEntry, { kind: "chord" }>;
 export type ScaleCatalogEntry = Extract<ShapeCatalogEntry, { kind: "scale" }>;
 
-export interface ShapeCatalogFilters {
-  kind?: ShapeKind;
-  system?: string;
-  /** Chord-only. Ignored for scale entries (they never match). */
-  voicingFamily?: string;
-  /** Scale-only. Ignored for chord entries (they never match). */
-  quality?: string;
-  /** Case-insensitive substring match against `entry.name`. */
-  nameQuery?: string;
-  /** When true, only entries with `issues.length > 0` are kept. */
-  failingOnly?: boolean;
-}
-
 // ============================================================
 // Chord fingering → FrettedScale adapter
 // ============================================================
@@ -172,43 +159,26 @@ export function buildCatalog(
 }
 
 // ============================================================
-// Filtering / sorting / facets
+// Issue-badge presentation (shared by `ShapeCard` and `ShapeDetailPanel` via
+// the `IssueBadges` component in `IssueBadges.tsx`)
 // ============================================================
 
-export function filterCatalog(
-  entries: ShapeCatalogEntry[],
-  filters: ShapeCatalogFilters,
-): ShapeCatalogEntry[] {
-  return entries.filter((entry) => {
-    if (filters.kind !== undefined && entry.kind !== filters.kind) return false;
-
-    if (filters.system !== undefined && entry.shape.system !== filters.system) {
-      return false;
-    }
-
-    if (filters.voicingFamily !== undefined) {
-      if (entry.kind !== "chord") return false;
-      if (entry.shape.voicingFamily !== filters.voicingFamily) {
-        return false;
-      }
-    }
-
-    if (filters.quality !== undefined) {
-      if (entry.kind !== "scale") return false;
-      if (entry.shape.quality !== filters.quality) return false;
-    }
-
-    if (filters.nameQuery) {
-      if (!entry.name.toLowerCase().includes(filters.nameQuery.toLowerCase())) {
-        return false;
-      }
-    }
-
-    if (filters.failingOnly && entry.issues.length === 0) return false;
-
-    return true;
-  });
+/** Sort rank for a single issue's severity — errors before warnings. */
+export function severityRank(severity: AuditSeverity): number {
+  return severity === "error" ? 0 : 1;
 }
+
+/** Badge className for a single issue's severity. */
+export function badgeClassFor(severity: AuditSeverity): string {
+  if (severity === "error") {
+    return "bg-red-500/10 text-red-700 dark:text-red-600 border border-red-500/40";
+  }
+  return "bg-amber-500/10 text-amber-700 dark:text-amber-600 border border-amber-500/40";
+}
+
+// ============================================================
+// Filtering / sorting / facets
+// ============================================================
 
 function hasSeverity(issues: ShapeAuditIssue[], severity: AuditSeverity): boolean {
   return issues.some((issue) => issue.severity === severity);
@@ -477,14 +447,6 @@ export function compareByChordTypeThenName(a: ChordCatalogEntry, b: ChordCatalog
  * alternative sort's tiebreaker for chords. */
 export function compareByName(a: ShapeCatalogEntry, b: ShapeCatalogEntry): number {
   return a.name.localeCompare(b.name);
-}
-
-export function sortChordEntries(
-  entries: ChordCatalogEntry[],
-  sort: "baseFret" | "name" = "baseFret",
-): ChordCatalogEntry[] {
-  const comparator = sort === "name" ? compareByChordTypeThenName : compareByBaseFret;
-  return [...entries].sort(comparator);
 }
 
 /** Scale grid sorts by name only (no base-fret concept for scale shapes). */

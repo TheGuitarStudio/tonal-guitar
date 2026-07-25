@@ -1,6 +1,7 @@
 "use client";
 
 import { Fretboard, defaultTheme, type FretboardTheme, type FretMarker } from "fretboard-ui";
+import type { FrettedScale } from "tonal-guitar";
 import type { ShapeCatalogEntry } from "./shapeLibraryUtils";
 
 // --- Monochrome theme -------------------------------------------------
@@ -36,12 +37,23 @@ interface ShapeCardDiagramProps {
   entry: ShapeCatalogEntry;
 }
 
-// Per-string fret summary for the diagram's `aria-label` — e.g. "muted, 3,
+/**
+ * Minimal shape the fret-marker/fret-range/fret-summary helpers below need —
+ * just the built `FrettedScale`. Both `ShapeCatalogEntry` (used here) and
+ * `CompactFretboard.tsx`'s own smaller `CompactFretboardEntry` satisfy this
+ * structurally, so `CompactFretboard.tsx` imports these helpers rather than
+ * duplicating them.
+ */
+export interface FrettedScaleHolder {
+  frettedScale: FrettedScale;
+}
+
+// Per-string fret summary for a diagram's `aria-label` — e.g. "muted, 3,
 // 2, 0, 1, 0" for a 6-string chord, or "3 5 7, 3 5 7, …" for a scale shape
 // that places several notes on a string. Built from `frettedScale.notes`
 // (every rendered marker) rather than `builtFrets` (one representative fret
 // per string), so the label describes everything the diagram shows.
-function fretSummary(entry: ShapeCatalogEntry): string {
+export function fretSummary(entry: FrettedScaleHolder): string {
   const perString: number[][] = entry.frettedScale.tuning.map(() => []);
   for (const n of entry.frettedScale.notes) {
     perString[n.string].push(n.fret);
@@ -51,6 +63,25 @@ function fretSummary(entry: ShapeCatalogEntry): string {
       frets.length === 0 ? "muted" : [...frets].sort((a, b) => a - b).join(" "),
     )
     .join(", ");
+}
+
+/** `FretMarker[]` for every note in `entry.frettedScale` — shared by
+ * `ShapeCardDiagram` and `CompactFretboard`'s thumbnail/enlarged diagrams. */
+export function buildFretMarkers(entry: FrettedScaleHolder): FretMarker[] {
+  return entry.frettedScale.notes.map((n) => ({
+    string: n.string,
+    fret: n.fret,
+    pc: n.pc,
+    interval: n.interval,
+    intervalNumber: n.intervalNumber,
+  }));
+}
+
+/** `[minFret, maxFret]` padded by one fret on each side (floored at 0) —
+ * shared by `ShapeCardDiagram` and `CompactFretboard`. */
+export function fretRangeFor(entry: FrettedScaleHolder): [number, number] {
+  const frets = entry.frettedScale.notes.map((n) => n.fret);
+  return [Math.max(0, Math.min(...frets) - 1), Math.max(...frets) + 1];
 }
 
 /**
@@ -71,20 +102,8 @@ export function ShapeCardDiagram({ entry }: ShapeCardDiagramProps) {
     );
   }
 
-  const minNoteFret = Math.min(...frettedScale.notes.map((n) => n.fret));
-  const maxNoteFret = Math.max(...frettedScale.notes.map((n) => n.fret));
-  const fretRange: [number, number] = [
-    Math.max(0, minNoteFret - 1),
-    maxNoteFret + 1,
-  ];
-
-  const markers: FretMarker[] = frettedScale.notes.map((n) => ({
-    string: n.string,
-    fret: n.fret,
-    pc: n.pc,
-    interval: n.interval,
-    intervalNumber: n.intervalNumber,
-  }));
+  const fretRange = fretRangeFor(entry);
+  const markers = buildFretMarkers(entry);
 
   // `role="img"` collapses the SVG's internals (text, paths, etc.) into a
   // single presentational unit for assistive tech, replaced by this label —

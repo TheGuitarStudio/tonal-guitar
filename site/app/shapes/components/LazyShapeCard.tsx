@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import type { ShapeCatalogEntry } from "./shapeLibraryUtils";
 import { ShapeCard } from "./ShapeCard";
 
@@ -50,7 +50,7 @@ const ROOT_MARGIN = "600px 0px";
  * `LazyShapeCard` instances (with their own fresh mount decision) for any
  * that are newly shown — no manual reset needed here.
  */
-export function LazyShapeCard({
+export const LazyShapeCard = memo(function LazyShapeCard({
   entry,
   eager,
   onSelect = () => {},
@@ -104,4 +104,4 @@ export function LazyShapeCard({
       style={{ height: PLACEHOLDER_HEIGHT }}
     />
   );
-}
+});
