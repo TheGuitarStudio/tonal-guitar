@@ -55,7 +55,21 @@ import {
   modeShapes,
   buildFromScale,
   relabelShapeToScale,
+  scalesContainingChord,
+  DEFAULT_SCALE_CORPUS,
 } from "./integration";
+import type {
+  ContainingScale,
+  ScalesContainingChordResult,
+} from "./integration";
+import {
+  scalesContainingChord as scalesContainingChordFromIndex,
+  DEFAULT_SCALE_CORPUS as DEFAULT_SCALE_CORPUS_FROM_INDEX,
+} from "./index";
+import type {
+  ContainingScale as ContainingScaleFromIndex,
+  ScalesContainingChordResult as ScalesContainingChordResultFromIndex,
+} from "./index";
 import { relabelShape } from "./transform";
 import { walkShapeMotif } from "./walker";
 import { STANDARD, DROP_D, STANDARD_7 } from "./tuning";
@@ -1552,3 +1566,98 @@ describe("TG5 — isShapeCompatible / modeShapes / buildFromScale / relabelShape
     });
   });
 }); // end TG5 wrapping describe
+
+// ---------------------------------------------------------------------------
+// TG2 — scalesContainingChord scaffolding: types, stub, and exports
+// spec.md §Library `scalesContainingChord`
+// ---------------------------------------------------------------------------
+
+describe("TG2 — scalesContainingChord scaffolding (types, stub, exports)", () => {
+  describe("import smoke", () => {
+    it("scalesContainingChord, DEFAULT_SCALE_CORPUS, and the ContainingScale/ScalesContainingChordResult types resolve from ./integration", () => {
+      expect(typeof scalesContainingChord).toBe("function");
+      expect(Array.isArray(DEFAULT_SCALE_CORPUS)).toBe(true);
+
+      // Type-only smoke check: these annotations fail to compile if the
+      // exported types don't exist or don't shape-match.
+      const containingScale: ContainingScale = {
+        root: "C",
+        scaleType: "major",
+        name: "C major",
+        extraTones: 0,
+        omittedTones: [],
+      };
+      const result: ScalesContainingChordResult = {
+        chord: "",
+        root: "",
+        rootAnchored: [containingScale],
+        otherRoots: [],
+      };
+      expect(result.rootAnchored[0]).toBe(containingScale);
+    });
+
+    it("scalesContainingChord, DEFAULT_SCALE_CORPUS, and the ContainingScale/ScalesContainingChordResult types resolve from ./index", () => {
+      expect(typeof scalesContainingChordFromIndex).toBe("function");
+      expect(Array.isArray(DEFAULT_SCALE_CORPUS_FROM_INDEX)).toBe(true);
+
+      const containingScale: ContainingScaleFromIndex = {
+        root: "C",
+        scaleType: "major",
+        name: "C major",
+        extraTones: 0,
+        omittedTones: [],
+      };
+      const result: ScalesContainingChordResultFromIndex = {
+        chord: "",
+        root: "",
+        rootAnchored: [containingScale],
+        otherRoots: [],
+      };
+      expect(result.rootAnchored[0]).toBe(containingScale);
+    });
+  });
+
+  describe("DEFAULT_SCALE_CORPUS", () => {
+    it("is a deduped array containing exactly the 11 spec-order scale types", () => {
+      expect(DEFAULT_SCALE_CORPUS).toEqual([
+        "major",
+        "dorian",
+        "phrygian",
+        "lydian",
+        "mixolydian",
+        "aeolian",
+        "locrian",
+        "harmonic minor",
+        "melodic minor",
+        "major pentatonic",
+        "minor pentatonic",
+      ]);
+      expect(new Set(DEFAULT_SCALE_CORPUS).size).toBe(
+        DEFAULT_SCALE_CORPUS.length,
+      );
+    });
+  });
+
+  describe("stub behavior (replaced by a later task group)", () => {
+    it("returns the empty sentinel unconditionally", () => {
+      expect(scalesContainingChord("Cmaj7")).toEqual({
+        chord: "",
+        root: "",
+        rootAnchored: [],
+        otherRoots: [],
+      });
+    });
+
+    it("never throws for any input, including garbage/empty input", () => {
+      expect(() => scalesContainingChord("")).not.toThrow();
+      expect(() => scalesContainingChord("not a chord")).not.toThrow();
+      expect(() =>
+        scalesContainingChord("Cm7", {
+          corpus: ["major"],
+          tolerateMissing: 1,
+          limitPerGroup: 3,
+        }),
+      ).not.toThrow();
+    });
+  });
+});

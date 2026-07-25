@@ -416,6 +416,102 @@ export function isShapeCompatible(
 }
 
 // ============================================================
+// scalesContainingChord
+// ============================================================
+
+/**
+ * Fixed, deduped corpus of scale-type names swept by `scalesContainingChord`.
+ * Order matters: it is the ranking tiebreaker (after `extraTones`) in that
+ * function's deterministic sort.
+ */
+export const DEFAULT_SCALE_CORPUS: readonly string[] = [
+  "major",
+  "dorian",
+  "phrygian",
+  "lydian",
+  "mixolydian",
+  "aeolian",
+  "locrian",
+  "harmonic minor",
+  "melodic minor",
+  "major pentatonic",
+  "minor pentatonic",
+];
+
+/**
+ * A single scale that (fully or approximately) contains a chord's tones.
+ */
+export interface ContainingScale {
+  /** Scale tonic pitch class (Tonal spelling). */
+  root: string;
+  /** Scale type name, e.g. "major", "dorian", "harmonic minor". */
+  scaleType: string;
+  /** Full scale name, e.g. "C major". */
+  name: string;
+  /** Count of scale pitch classes not in the chord (fit tightness; lower = tighter). */
+  extraTones: number;
+  /** Chord tones absent from this scale (empty unless `tolerateMissing > 0`). */
+  omittedTones: string[];
+}
+
+/**
+ * Result of `scalesContainingChord`.
+ */
+export interface ScalesContainingChordResult {
+  /** Resolved chord name actually swept. */
+  chord: string;
+  /** Chord root pitch class. */
+  root: string;
+  /** Scales whose tonic chroma matches the chord root chroma. */
+  rootAnchored: ContainingScale[];
+  /** Scales anchored at any other root. */
+  otherRoots: ContainingScale[];
+}
+
+const EmptyScalesContainingChordResult: ScalesContainingChordResult = {
+  chord: "",
+  root: "",
+  rootAnchored: [],
+  otherRoots: [],
+};
+
+/**
+ * Options for `scalesContainingChord`.
+ */
+export interface ScalesContainingChordOptions {
+  /** Candidate scale-type corpus. Defaults to `DEFAULT_SCALE_CORPUS`. */
+  corpus?: readonly string[];
+  /**
+   * Admit scales missing up to N chord tones (recorded in `omittedTones`).
+   * Defaults to 0 (strict containment; `omittedTones` always `[]`).
+   */
+  tolerateMissing?: number;
+  /** Cap on the number of results per group after ranking. Default uncapped. */
+  limitPerGroup?: number;
+}
+
+/**
+ * Find scales that contain (fully, or approximately with `tolerateMissing`)
+ * the pitch classes of a chord — "what can I play over this chord".
+ *
+ * Sweeps 12 chromatic roots × `DEFAULT_SCALE_CORPUS` (or `options.corpus`),
+ * keeping candidates whose chroma set is a (tolerant) superset of the
+ * chord's chroma set, then partitions into `rootAnchored` (scale tonic
+ * chroma === chord root chroma) and `otherRoots`.
+ *
+ * Never throws. Unresolvable/empty chord, or no matches, returns
+ * `{ chord: "", root: "", rootAnchored: [], otherRoots: [] }`.
+ *
+ * spec §Library `scalesContainingChord`
+ */
+export function scalesContainingChord(
+  _chord: string,
+  _options?: ScalesContainingChordOptions,
+): ScalesContainingChordResult {
+  return { ...EmptyScalesContainingChordResult };
+}
+
+// ============================================================
 // modeShapes
 // ============================================================
 

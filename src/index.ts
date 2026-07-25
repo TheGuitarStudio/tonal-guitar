@@ -144,12 +144,16 @@ export {
   arpeggioFromScale,
   arpeggioFromShape,
   inferShapeContext,
+  scalesContainingChord,
+  DEFAULT_SCALE_CORPUS,
 } from "./integration";
 export type {
   KeyAnalysis,
   InferenceInput,
   InferenceOptions,
   InferenceCandidate,
+  ContainingScale,
+  ScalesContainingChordResult,
 } from "./integration";
 
 // Built-in shape data (import to register shapes)
