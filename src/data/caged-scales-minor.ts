@@ -61,10 +61,18 @@ export const CAGED_GM: ScaleShape = relabelOrThrow(CAGED_A, MINOR_INTERVALS, {
   quality: "minor",
 });
 
-export const CAGED_EM: ScaleShape = relabelOrThrow(CAGED_G, MINOR_INTERVALS, {
-  name: "Em Shape",
-  quality: "minor",
-});
+// Featured (D-006 amendment 3, spec §Library): the canonical (system,
+// quality) representative for minor CAGED scale shapes. relabelOrThrow's
+// RelabelOptions has no `featured` field (transform.ts stays free of this
+// site-only concern), so the flag is spread onto the derived object here
+// rather than threaded through relabelShape.
+export const CAGED_EM: ScaleShape = {
+  ...relabelOrThrow(CAGED_G, MINOR_INTERVALS, {
+    name: "Em Shape",
+    quality: "minor",
+  }),
+  featured: true,
+};
 
 // Register all minor CAGED scale shapes
 [CAGED_DM, CAGED_CM, CAGED_AM, CAGED_GM, CAGED_EM].forEach(add);

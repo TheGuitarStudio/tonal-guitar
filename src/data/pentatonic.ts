@@ -30,6 +30,9 @@ export const PENTA_BOX_1: ScaleShape = {
     ["6M", "1P"], // high E
   ],
   rootString: 0,
+  // Featured (D-006 amendment 3, spec §Library): the canonical (system,
+  // quality) representative for major pentatonic box shapes.
+  featured: true,
 };
 
 export const PENTA_BOX_2: ScaleShape = {
