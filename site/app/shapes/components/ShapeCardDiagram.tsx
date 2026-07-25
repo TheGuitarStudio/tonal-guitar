@@ -1,18 +1,36 @@
 "use client";
 
-import { Fretboard, type FretMarker } from "fretboard-ui";
+import { Fretboard, defaultTheme, type FretboardTheme, type FretMarker } from "fretboard-ui";
 import type { ShapeCatalogEntry } from "./shapeLibraryUtils";
 
-// Kept in sync with the legend used by
-// `site/app/experiments/components/FretboardDiagram.tsx` — rendered ONCE at
-// page level by the `ShapeLibrary` container, not per-card.
-export const LEGEND = [
-  { color: "#ef4444", label: "Root" },
-  { color: "#3b82f6", label: "3rd" },
-  { color: "#22c55e", label: "5th" },
-  { color: "#f59e0b", label: "4th" },
-  { color: "#ec4899", label: "7th" },
-];
+// --- Monochrome theme -------------------------------------------------
+//
+// `<Fretboard theme>` shallow-merges `intervalColors` with
+// `defaultTheme.intervalColors` (see `Fretboard.tsx`), and `resolveColor`
+// falls through marker.color -> marker.role -> theme.intervalColors[interval]
+// -> theme.defaultMarker. Markers built here (and in `CompactFretboard.tsx`)
+// never set `role`, so making every dot the same color requires overriding
+// *every* key already present in `defaultTheme.intervalColors`, not just the
+// average/first one — plus `rootMarker`/`ghostMarker`/`highlightMarker`,
+// which `resolveColor` checks before `intervalColors`.
+//
+// Canonical shared constant: v1 of the shape library renders every diagram
+// monochrome (the interval-color legend returns later behind a dedicated
+// toggle). `CompactFretboard.tsx` imports this rather than duplicating it.
+const MONOCHROME_MARKER_COLOR = defaultTheme.defaultMarker;
+
+export const MONOCHROME_THEME: Partial<FretboardTheme> = {
+  defaultMarker: MONOCHROME_MARKER_COLOR,
+  rootMarker: MONOCHROME_MARKER_COLOR,
+  ghostMarker: MONOCHROME_MARKER_COLOR,
+  highlightMarker: MONOCHROME_MARKER_COLOR,
+  intervalColors: Object.fromEntries(
+    Object.keys(defaultTheme.intervalColors).map((interval) => [
+      interval,
+      MONOCHROME_MARKER_COLOR,
+    ]),
+  ),
+};
 
 interface ShapeCardDiagramProps {
   entry: ShapeCatalogEntry;
@@ -86,6 +104,7 @@ export function ShapeCardDiagram({ entry }: ShapeCardDiagramProps) {
         fretRange={fretRange}
         labelMode="intervals"
         layout={{ orientation: "horizontal" }}
+        theme={MONOCHROME_THEME}
         className="font-mono"
       />
     </div>

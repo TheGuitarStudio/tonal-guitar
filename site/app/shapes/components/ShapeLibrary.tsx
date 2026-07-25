@@ -12,7 +12,6 @@ import {
   type ShapeKind,
 } from "./shapeLibraryUtils";
 import { FilterBar, FILTER_ALL } from "./FilterBar";
-import { LEGEND } from "./ShapeCardDiagram";
 import { LazyShapeCard } from "./LazyShapeCard";
 
 // Cards at this index or earlier mount immediately rather than waiting on
@@ -23,11 +22,12 @@ import { LazyShapeCard } from "./LazyShapeCard";
 const EAGER_CARD_COUNT = 9;
 
 /**
- * Owns all filter state for the shape library. Renders the filter controls,
- * a single page-level interval legend (shared across every card in the
- * grid, not duplicated per-card), and the failures-first grid of
- * `<ShapeCard>`s — lazily mounted via `LazyShapeCard` so the up to ~159
- * filtered cards aren't all mounted and reconciled up front.
+ * Owns all filter state for the shape library. Renders the filter controls
+ * and the failures-first grid of `<ShapeCard>`s — lazily mounted via
+ * `LazyShapeCard` so the up to ~159 filtered cards aren't all mounted and
+ * reconciled up front. Diagrams render monochrome in v1 (no page-level
+ * interval legend); the legend returns alongside the deferred
+ * interval-color/label toggle.
  */
 export function ShapeLibrary() {
   // Runs exactly once — `auditAllShapes()` walks the full scale/chord
@@ -126,18 +126,6 @@ export function ShapeLibrary() {
         shownCount={shownEntries.length}
         totalCount={totalCount}
       />
-
-      <div className="mb-4 flex flex-wrap gap-3 text-xs text-fd-muted-foreground">
-        {LEGEND.map(({ color, label }) => (
-          <span key={label}>
-            <span
-              className="mr-1 inline-block h-2.5 w-2.5 rounded-full"
-              style={{ backgroundColor: color }}
-            />
-            {label}
-          </span>
-        ))}
-      </div>
 
       <h2 className="sr-only">Shape results</h2>
 

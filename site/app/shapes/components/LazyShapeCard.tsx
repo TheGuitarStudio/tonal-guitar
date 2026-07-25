@@ -78,7 +78,10 @@ export function LazyShapeCard({ entry, eager }: LazyShapeCardProps) {
   }, [visible]);
 
   if (visible) {
-    return <ShapeCard entry={entry} />;
+    // `onSelect`/`isSelected` are no-ops for now — a later task group wires
+    // real selection state (and the detail panel) through `ShapeLibrary`
+    // and down through this component.
+    return <ShapeCard entry={entry} onSelect={() => {}} isSelected={false} />;
   }
 
   // Unmounted placeholder: no focusable content and `aria-hidden`, so it
