@@ -497,7 +497,9 @@ export interface ScalesContainingChordOptions {
  * Sweeps 12 chromatic roots × `DEFAULT_SCALE_CORPUS` (or `options.corpus`),
  * keeping candidates whose chroma set is a (tolerant) superset of the
  * chord's chroma set, then partitions into `rootAnchored` (scale tonic
- * chroma === chord root chroma) and `otherRoots`.
+ * chroma === chord root chroma) and `otherRoots`. Each group is ranked
+ * independently (see `rankContainingScales`) and, if `options.limitPerGroup`
+ * is set, capped after ranking.
  *
  * Never throws. Unresolvable/empty chord, or no matches, returns
  * `{ chord: "", root: "", rootAnchored: [], otherRoots: [] }`.
@@ -505,25 +507,53 @@ export interface ScalesContainingChordOptions {
  * spec §Library `scalesContainingChord`
  */
 export function scalesContainingChord(
-  _chord: string,
-  _options?: ScalesContainingChordOptions,
+  chord: string,
+  options?: ScalesContainingChordOptions,
 ): ScalesContainingChordResult {
-  return { ...EmptyScalesContainingChordResult };
+  const resolved = resolveChordTones(chord);
+  if (!resolved) return { ...EmptyScalesContainingChordResult };
+
+  const corpus = options?.corpus ?? DEFAULT_SCALE_CORPUS;
+  const tolerateMissing = options?.tolerateMissing ?? 0;
+  const limitPerGroup = options?.limitPerGroup;
+
+  const swept = sweepCorpus(
+    resolved.chromas,
+    resolved.chromaToName,
+    corpus,
+    tolerateMissing,
+  );
+  const { rootAnchored, otherRoots } = partitionByRoot(
+    swept,
+    resolved.rootChroma,
+  );
+
+  let rankedRootAnchored = rankContainingScales(
+    rootAnchored,
+    resolved.rootChroma,
+  );
+  let rankedOtherRoots = rankContainingScales(otherRoots, resolved.rootChroma);
+
+  if (limitPerGroup !== undefined) {
+    rankedRootAnchored = rankedRootAnchored.slice(0, limitPerGroup);
+    rankedOtherRoots = rankedOtherRoots.slice(0, limitPerGroup);
+  }
+
+  return {
+    chord: resolved.chord,
+    root: resolved.root,
+    rootAnchored: rankedRootAnchored,
+    otherRoots: rankedOtherRoots,
+  };
 }
 
 // ------------------------------------------------------------
 // scalesContainingChord — internal computational core
 //
 // The four helpers below (`resolveChordTones`, `sweepCorpus`,
-// `partitionByRoot`, `rankContainingScales`) implement the full pure
-// computation spec'd for `scalesContainingChord` in
-// `.tonal-guitar/features/shape-detail-panel/spec.md` §Library. They are
-// intentionally NOT called by the stub above and NOT exported — wiring the
-// stub to dispatch to them is a later task group's job, so that group can
-// also finalize the exact empty/error-path shaping of the public result
-// without this task group racing it. `_scalesContainingChordInternals`
-// below exists solely so eslint's no-unused-vars doesn't flag these as dead
-// code in the meantime; it is not a public API.
+// `partitionByRoot`, `rankContainingScales`) implement the pure computation
+// dispatched to by the public `scalesContainingChord` above, per
+// `.tonal-guitar/features/shape-detail-panel/spec.md` §Library.
 //
 // Implementation note on the corpus: `DEFAULT_SCALE_CORPUS` includes
 // "aeolian", but `@tonaljs/scale` normalizes that alias to its canonical
@@ -532,9 +562,13 @@ export function scalesContainingChord(
 // other corpus entry round-trips to itself. `sweepCorpus` reports whatever
 // Tonal returns for `type`/`name` (the canonical spelling), not the corpus
 // string used to look it up — so a "C aeolian" candidate surfaces as "C
-// minor" in results. This is musically correct (same pitch-class set) but
-// worth flagging for whoever wires the public result's display text / docs
-// worked examples.
+// minor" in results. This is musically correct (same pitch-class set), but
+// it means `scaleType`/`name` can't be used to recover which corpus entry a
+// candidate was swept from — see `corpusIndex` on `SweptCandidate` below,
+// which `sweepCorpus` records directly from the sweep loop position instead
+// of re-deriving it later via `corpus.indexOf(candidate.scaleType)` (which
+// would silently return -1 for any normalized type, sorting it before every
+// other candidate instead of at its true corpus position).
 // ------------------------------------------------------------
 
 /** The 12 chromatic pitch classes (sharp spelling) swept as candidate scale roots. */
@@ -627,6 +661,19 @@ function resolveChordTones(chord: string): ResolvedChordTones | null {
 }
 
 /**
+ * A `ContainingScale` candidate as produced by `sweepCorpus`, additionally
+ * carrying the index of the `corpus` entry it was swept from. `scaleType`
+ * reflects Tonal's canonical type name (which may differ from the corpus
+ * string that produced it — see the "aeolian" -> "minor" note above), so
+ * `corpusIndex` is recorded directly from the sweep loop position rather
+ * than re-derived from `scaleType` later. Internal only — never returned
+ * from the public API (`rankContainingScales` strips it before returning).
+ */
+interface SweptCandidate extends ContainingScale {
+  corpusIndex: number;
+}
+
+/**
  * Sweep 12 chromatic roots x `corpus` scale types, keeping candidates whose
  * chroma set is a (tolerant) superset of `chordChromas`. Each candidate is
  * resolved via `@tonaljs/scale` `get(`${root} ${type}`)`; its chroma set is
@@ -644,11 +691,12 @@ function sweepCorpus(
   chordChromaToName: ReadonlyMap<number, string>,
   corpus: readonly string[],
   tolerateMissing: number,
-): ContainingScale[] {
-  const results: ContainingScale[] = [];
+): SweptCandidate[] {
+  const results: SweptCandidate[] = [];
 
   for (const root of CHROMATIC_ROOTS) {
-    for (const type of corpus) {
+    for (let corpusIndex = 0; corpusIndex < corpus.length; corpusIndex++) {
+      const type = corpus[corpusIndex];
       const candidate = getScale(`${root} ${type}`);
       if (candidate.empty || !candidate.tonic) continue;
 
@@ -677,6 +725,7 @@ function sweepCorpus(
         omittedTones: missingChromas.map(
           (c) => chordChromaToName.get(c) ?? "",
         ),
+        corpusIndex,
       });
     }
   }
@@ -691,11 +740,11 @@ function sweepCorpus(
  * exactly one group.
  */
 function partitionByRoot(
-  candidates: readonly ContainingScale[],
+  candidates: readonly SweptCandidate[],
   chordRootChroma: number,
-): { rootAnchored: ContainingScale[]; otherRoots: ContainingScale[] } {
-  const rootAnchored: ContainingScale[] = [];
-  const otherRoots: ContainingScale[] = [];
+): { rootAnchored: SweptCandidate[]; otherRoots: SweptCandidate[] } {
+  const rootAnchored: SweptCandidate[] = [];
+  const otherRoots: SweptCandidate[] = [];
 
   for (const candidate of candidates) {
     const candidateRootChroma = noteChroma(candidate.root);
@@ -714,54 +763,43 @@ function partitionByRoot(
 
 /**
  * Deterministically sort candidates: `extraTones` ascending (tightest fit
- * first), then `corpus` index ascending, then root-chroma distance from
+ * first), then `corpusIndex` ascending (the corpus position each candidate
+ * was swept from — see `SweptCandidate`), then root-chroma distance from
  * `chordRootChroma` ascending, then `name` ascending. Every comparison
  * bottoms out at `name`, which is unique per (root, type) pair actually
  * resolved by Tonal, so the comparator is a strict total order — the result
  * is stable across repeated calls regardless of any given JS engine's sort
  * implementation.
  *
- * `corpus` should be the same corpus the candidates were swept from (so the
- * tiebreak reflects a caller-supplied `options.corpus` order too, not just
- * `DEFAULT_SCALE_CORPUS`).
+ * Strips `corpusIndex` before returning, so the result matches the public
+ * `ContainingScale` shape exactly.
  */
 function rankContainingScales(
-  candidates: readonly ContainingScale[],
-  corpus: readonly string[],
+  candidates: readonly SweptCandidate[],
   chordRootChroma: number,
 ): ContainingScale[] {
-  return [...candidates].sort((a, b) => {
-    if (a.extraTones !== b.extraTones) return a.extraTones - b.extraTones;
+  return [...candidates]
+    .sort((a, b) => {
+      if (a.extraTones !== b.extraTones) return a.extraTones - b.extraTones;
 
-    const corpusIndexA = corpus.indexOf(a.scaleType);
-    const corpusIndexB = corpus.indexOf(b.scaleType);
-    if (corpusIndexA !== corpusIndexB) return corpusIndexA - corpusIndexB;
+      if (a.corpusIndex !== b.corpusIndex)
+        return a.corpusIndex - b.corpusIndex;
 
-    const rootChromaA = noteChroma(a.root);
-    const rootChromaB = noteChroma(b.root);
-    const distanceA = isValidChroma(rootChromaA)
-      ? chromaDistance(rootChromaA, chordRootChroma)
-      : Infinity;
-    const distanceB = isValidChroma(rootChromaB)
-      ? chromaDistance(rootChromaB, chordRootChroma)
-      : Infinity;
-    if (distanceA !== distanceB) return distanceA - distanceB;
+      const rootChromaA = noteChroma(a.root);
+      const rootChromaB = noteChroma(b.root);
+      const distanceA = isValidChroma(rootChromaA)
+        ? chromaDistance(rootChromaA, chordRootChroma)
+        : Infinity;
+      const distanceB = isValidChroma(rootChromaB)
+        ? chromaDistance(rootChromaB, chordRootChroma)
+        : Infinity;
+      if (distanceA !== distanceB) return distanceA - distanceB;
 
-    if (a.name !== b.name) return a.name < b.name ? -1 : 1;
-    return 0;
-  });
+      if (a.name !== b.name) return a.name < b.name ? -1 : 1;
+      return 0;
+    })
+    .map(({ corpusIndex: _corpusIndex, ...rest }) => rest);
 }
-
-// Referenced (not called) so eslint's no-unused-vars doesn't flag the
-// helpers above as dead code before a later task group wires them into the
-// `scalesContainingChord` stub's dispatch. Not exported — internal only.
-const _scalesContainingChordInternals = {
-  resolveChordTones,
-  sweepCorpus,
-  partitionByRoot,
-  rankContainingScales,
-};
-void _scalesContainingChordInternals;
 
 // ============================================================
 // modeShapes

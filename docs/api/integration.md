@@ -167,6 +167,90 @@ isShapeCompatible(get("Pentatonic Box 1 Minor"), "A minor"); // => true -- minor
 isShapeCompatible(get("E Shape"), "A minor pentatonic");    // => false (7-note frame doesn't fit the 5-note frame)
 ```
 
+## scalesContainingChord
+
+`scalesContainingChord(chord: string, options?: ScalesContainingChordOptions) => ScalesContainingChordResult`
+
+Find scales that contain a chord's tones -- "what can I play over this chord". Resolves `chord` via Tonal's `Chord.get()`, then sweeps **12 chromatic roots x a fixed corpus of 11 scale types**, keeping every candidate whose pitch-class set is a (tolerant) superset of the chord's. Results are partitioned into `rootAnchored` (scale tonic matches the chord's root) and `otherRoots` (every other root), each independently ranked.
+
+```js
+import { scalesContainingChord, DEFAULT_SCALE_CORPUS } from "tonal-guitar";
+
+DEFAULT_SCALE_CORPUS;
+// => [
+//   "major", "dorian", "phrygian", "lydian", "mixolydian", "aeolian",
+//   "locrian", "harmonic minor", "melodic minor",
+//   "major pentatonic", "minor pentatonic",
+// ]
+```
+
+```ts
+export interface ContainingScale {
+  root: string; // scale tonic pitch class (Tonal spelling)
+  scaleType: string; // e.g. "major", "dorian", "harmonic minor"
+  name: string; // full "C major"
+  extraTones: number; // scale PCs not in the chord (fit tightness; lower = tighter)
+  omittedTones: string[]; // chord tones absent from this scale (empty unless tolerateMissing > 0)
+}
+
+export interface ScalesContainingChordResult {
+  chord: string; // resolved chord name actually swept
+  root: string; // chord root pitch class
+  rootAnchored: ContainingScale[];
+  otherRoots: ContainingScale[];
+}
+
+export interface ScalesContainingChordOptions {
+  corpus?: readonly string[]; // defaults to DEFAULT_SCALE_CORPUS
+  tolerateMissing?: number; // defaults to 0 (strict containment)
+  limitPerGroup?: number; // defaults to uncapped
+}
+```
+
+### Containment, partition, and ranking
+
+- **Containment** is strict by default (`tolerateMissing: 0`): a candidate is kept only if every one of the chord's pitch classes is present in the scale's pitch-class set.
+- **Partition**: a candidate lands in `rootAnchored` iff its scale tonic's chroma equals the chord root's chroma; every other candidate lands in `otherRoots`. The two groups are always disjoint.
+- **Ranking** within each group is deterministic: `extraTones` ascending (tightest fit first), then the candidate's position in the swept corpus ascending, then root-chroma distance from the chord root ascending, then `name` ascending. Output is stable across repeated calls with identical input.
+- `options.limitPerGroup` caps each group's length *after* ranking (default uncapped).
+- `options.tolerateMissing: N` admits scales missing up to `N` chord tones, recording the missing tone names in `omittedTones` (useful for altered/extended voicings that no common scale fully contains). In strict mode `omittedTones` is always `[]`.
+- Never throws. An unresolvable or empty chord name returns `{ chord: "", root: "", rootAnchored: [], otherRoots: [] }`.
+
+### Worked example: Cmaj7
+
+```js
+const result = scalesContainingChord("Cmaj7");
+
+result.chord; // => "Cmaj7"
+result.root; // => "C"
+
+result.rootAnchored.map((s) => s.name);
+// => ["C major", "C lydian"]
+// (C mixolydian and C dorian are excluded -- they don't contain the chord's B / E natural)
+
+result.otherRoots.map((s) => s.name).slice(0, 3);
+// => ["G major", "D dorian", "A dorian", ... ]
+// includes "E phrygian" and "A minor" further in (see the aeolian-naming note below)
+```
+
+### Worked example: Cm7
+
+```js
+const result = scalesContainingChord("Cm7");
+
+result.rootAnchored.map((s) => s.name);
+// => ["C minor pentatonic", "C dorian", "C phrygian", "C minor"]
+// ("C major" is excluded -- it doesn't contain the chord's Eb / Bb)
+
+const tolerant = scalesContainingChord("Cm7", { tolerateMissing: 1 });
+const mixo = tolerant.rootAnchored.find((s) => s.name === "C mixolydian");
+mixo.omittedTones; // => ["Eb"] -- admitted only because tolerateMissing: 1 allows one missing tone
+```
+
+### A note on "aeolian" naming
+
+`DEFAULT_SCALE_CORPUS` includes `"aeolian"`, but `@tonaljs/scale` normalizes that alias to its canonical dictionary entry: `Scale.get("A aeolian")` returns `{ type: "minor", name: "A minor", ... }` -- chroma-identical to "A aeolian", just relabeled. Every other corpus entry round-trips to itself. As a result, aeolian-swept candidates surface in `scalesContainingChord`'s output as e.g. `"A minor"`, not `"A aeolian"` -- this is musically correct (identical pitch-class set) but worth knowing if you're matching on `name` or `scaleType` strings.
+
 ## modeShapes
 
 `modeShapes(modeName: string, shapeSystem?: string) => ScaleShape[]`

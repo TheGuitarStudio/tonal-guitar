@@ -154,6 +154,7 @@ export type {
   InferenceCandidate,
   ContainingScale,
   ScalesContainingChordResult,
+  ScalesContainingChordOptions,
 } from "./integration";
 
 // Built-in shape data (import to register shapes)
