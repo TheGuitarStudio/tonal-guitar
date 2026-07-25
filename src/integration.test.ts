@@ -1934,6 +1934,56 @@ describe("TG4 — chord->scales chroma sweep, containment, and ranking", () => {
       expect(limited.rootAnchored[0]).toEqual(full.rootAnchored[0]);
       expect(limited.otherRoots[0]).toEqual(full.otherRoots[0]);
     });
+
+    // TG16 gap-closing: `limitPerGroup: 0` is a meaningful, distinct-from-
+    // "unset" input (`options.limitPerGroup !== undefined` in the dispatch,
+    // not a truthiness check) -- guards against a future refactor that
+    // treats `0` as "no cap" the way a naive `if (limitPerGroup)` would.
+    it("limitPerGroup: 0 caps both groups to empty arrays (distinct from the default-uncapped undefined case)", () => {
+      const unlimited = scalesContainingChord("Cmaj7");
+      expect(unlimited.rootAnchored.length).toBeGreaterThan(0);
+      expect(unlimited.otherRoots.length).toBeGreaterThan(0);
+
+      const result = scalesContainingChord("Cmaj7", { limitPerGroup: 0 });
+      expect(result.rootAnchored).toEqual([]);
+      expect(result.otherRoots).toEqual([]);
+      // The chord itself still resolves -- only the group contents are capped.
+      expect(result.chord).toBe("Cmaj7");
+      expect(result.root).toBe("C");
+    });
+
+    // TG16 gap-closing: `tolerateMissing` and `limitPerGroup` are each
+    // spec-enumerated independently (spec.md §Library `scalesContainingChord`
+    // "Test expectations"), but no existing assertion exercises both options
+    // in the same call. This confirms the cap applies to the
+    // tolerateMissing-expanded, re-ranked set -- not to a pre-expansion
+    // strict result that's merely truncated afterward.
+    it("limitPerGroup composes with tolerateMissing: caps the tolerant (expanded) ranking, not the strict one", () => {
+      const strict = scalesContainingChord("Cm7");
+      const tolerant = scalesContainingChord("Cm7", { tolerateMissing: 1 });
+      // Sanity: tolerateMissing:1 genuinely admits more rootAnchored
+      // candidates than strict mode for Cm7 (e.g. "C mixolydian", missing
+      // only Eb) -- otherwise this test wouldn't distinguish the two paths.
+      expect(tolerant.rootAnchored.length).toBeGreaterThan(
+        strict.rootAnchored.length,
+      );
+
+      const capAt = strict.rootAnchored.length + 1;
+      const limited = scalesContainingChord("Cm7", {
+        tolerateMissing: 1,
+        limitPerGroup: capAt,
+      });
+      expect(limited.rootAnchored.length).toBe(capAt);
+      // The capped list is exactly the head of the full tolerant ranking.
+      expect(limited.rootAnchored).toEqual(
+        tolerant.rootAnchored.slice(0, capAt),
+      );
+      // It must include at least one tolerant-only (omittedTones-bearing)
+      // candidate -- proving the cap ran after tolerant expansion, not before.
+      expect(
+        limited.rootAnchored.some((c) => c.omittedTones.length > 0),
+      ).toBe(true);
+    });
   });
 
   describe("custom corpus", () => {
