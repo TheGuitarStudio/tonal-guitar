@@ -268,9 +268,39 @@ export interface ShapesUrlState {
   familyOrQuality?: string;
   nameQuery?: string;
   failingOnly?: boolean;
+  /** Selected entry `name` — opens the detail panel on load. Absent: no panel. */
+  shape?: string;
+  /** Selected chord-facet quality group (e.g. "Triads", "Sevenths"). */
+  qualityGroup?: string;
+  /** Active `chordType` tokens within the selected quality group. Absent: all-on (no narrowing). */
+  activeTypes?: string[];
+  /** Active `voicingFamily` values. Absent: all-on (no narrowing). */
+  activeVoicingFamilies?: string[];
+  /** Selected chromatic root filter. Absent: "Any". */
+  root?: string;
+  /** Grid sort order. Absent: default (base-fret ascending). */
+  sort?: "baseFret" | "name";
+  /** Group headings expanded past the "Show all N" collapse threshold. */
+  expandedGroups?: string[];
 }
 
-/** Query params: `kind`, `system`, `family`, `q`, `failing=1`. */
+/** Comma-joins a multi-value field for the query string, or returns undefined if empty. */
+function joinMulti(values: string[] | undefined): string | undefined {
+  return values && values.length > 0 ? values.join(",") : undefined;
+}
+
+/** Splits a comma-joined multi-value query param, dropping empty entries. */
+function splitMulti(value: string | null): string[] | undefined {
+  if (!value) return undefined;
+  const values = value.split(",").filter((v) => v.length > 0);
+  return values.length > 0 ? values : undefined;
+}
+
+/**
+ * Query params: `kind`, `system`, `family`, `q`, `failing=1`, `shape`,
+ * `qualityGroup`, `types` (comma-joined), `families` (comma-joined), `root`,
+ * `sort`, `expanded` (comma-joined).
+ */
 export function parseShapesUrlState(search: string): ShapesUrlState {
   const params = new URLSearchParams(search);
   const state: ShapesUrlState = {};
@@ -289,6 +319,27 @@ export function parseShapesUrlState(search: string): ShapesUrlState {
 
   if (params.get("failing") === "1") state.failingOnly = true;
 
+  const shape = params.get("shape");
+  if (shape) state.shape = shape;
+
+  const qualityGroup = params.get("qualityGroup");
+  if (qualityGroup) state.qualityGroup = qualityGroup;
+
+  const activeTypes = splitMulti(params.get("types"));
+  if (activeTypes) state.activeTypes = activeTypes;
+
+  const activeVoicingFamilies = splitMulti(params.get("families"));
+  if (activeVoicingFamilies) state.activeVoicingFamilies = activeVoicingFamilies;
+
+  const root = params.get("root");
+  if (root) state.root = root;
+
+  const sort = params.get("sort");
+  if (sort === "baseFret" || sort === "name") state.sort = sort;
+
+  const expandedGroups = splitMulti(params.get("expanded"));
+  if (expandedGroups) state.expandedGroups = expandedGroups;
+
   return state;
 }
 
@@ -304,6 +355,20 @@ export function serializeShapesUrlState(state: ShapesUrlState): string {
   if (state.familyOrQuality) params.set("family", state.familyOrQuality);
   if (state.nameQuery) params.set("q", state.nameQuery);
   if (state.failingOnly) params.set("failing", "1");
+  if (state.shape) params.set("shape", state.shape);
+  if (state.qualityGroup) params.set("qualityGroup", state.qualityGroup);
+
+  const types = joinMulti(state.activeTypes);
+  if (types) params.set("types", types);
+
+  const families = joinMulti(state.activeVoicingFamilies);
+  if (families) params.set("families", families);
+
+  if (state.root) params.set("root", state.root);
+  if (state.sort && state.sort !== "baseFret") params.set("sort", state.sort);
+
+  const expanded = joinMulti(state.expandedGroups);
+  if (expanded) params.set("expanded", expanded);
 
   const qs = params.toString();
   return qs ? `?${qs}` : "";
