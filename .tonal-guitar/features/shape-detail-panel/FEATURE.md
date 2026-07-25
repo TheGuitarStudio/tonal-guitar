@@ -47,10 +47,10 @@ Shape Library page (better filtering and organization).
 | 0 | TG2: `scalesContainingChord` — types + stub + registration | complete | sonnet | - |
 | 0 | TG7: `shapeLibraryUtils.ts` — URL state extension | complete | sonnet | - |
 | 0 | TG11: `CompactFretboard.tsx` — thumbnail diagram adapter | complete | sonnet | - |
-| 1 | TG3: Chord→scales chroma sweep, containment, and ranking | pending | - | - |
-| 1 | TG5: Featured shape curation (registry data) | pending | - | - |
-| 1 | TG8: `shapeLibraryUtils.ts` — facet, grouping, and sort helpers | pending | - | - |
-| 1 | TG10: `ShapeCard.tsx` + `ShapeCardDiagram.tsx` — compact, monochrome, clickable card | pending | - | - |
+| 1 | TG3: Chord→scales chroma sweep, containment, and ranking | complete | sonnet | tests staged as it.todo for TG4 |
+| 1 | TG5: Featured shape curation (registry data) | complete | sonnet | 32 chord + 5 scale flags |
+| 1 | TG8: `shapeLibraryUtils.ts` — facet, grouping, and sort helpers | complete | sonnet | - |
+| 1 | TG10: `ShapeCard.tsx` + `ShapeCardDiagram.tsx` — compact, monochrome, clickable card | complete | sonnet | also touched LazyShapeCard.tsx (real call site) |
 | 2 | TG4: Wire `scalesContainingChord` public function + edge cases + docs entry | pending | - | - |
 | 2 | TG9: `FilterBar.tsx` rework — faceted chips | pending | - | - |
 | 3 | TG6: API docs + README updates | pending | - | - |
@@ -63,5 +63,6 @@ Shape Library page (better filtering and organization).
 ### Oversight Reports
 
 - **Layer 0**: No concerns. Continued.
+- **Layer 1**: 1 concern — `rankContainingScales` corpus-index tiebreak misses aeolian→minor normalization (index -1); handed to TG4 to fix when wiring the public function. Continued.
 
 ### Spec Compliance
