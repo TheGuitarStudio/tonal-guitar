@@ -57,7 +57,7 @@ Shape Library page (better filtering and organization).
 | 3 | TG12: `shapeDetailUtils.ts` — pure detail-derivation logic | complete | sonnet | - |
 | 4 | TG13: `ShapeDetailPanel.tsx` — the non-modal slide-over | complete | sonnet | hardware-back + mobile full-height handed to TG14 |
 | 5 | TG14: `ShapeLibrary.tsx` wiring — selection, grouped grid, failing-pinned section | complete | sonnet | browser-verified; fixed L4 mobile-sheet + hardware-back |
-| 6 | TG15: Infrastructure — explicit `@tonaljs/*` deps + bundle/static-export verification | pending | - | - |
+| 6 | TG15: Infrastructure — explicit `@tonaljs/*` deps + bundle/static-export verification | complete | sonnet | 118 kB first load; panel in 20 kB lazy chunk |
 | 7 | TG16: Test review and gap analysis | pending | - | - |
 
 ### Oversight Reports
@@ -68,5 +68,6 @@ Shape Library page (better filtering and organization).
 - **Layer 3**: No concerns. Continued.
 - **Layer 4**: 1 concern — mobile sheet is capped-height (`max-h-[85vh]`) vs spec's full-height `inset-0`; handed to TG14 alongside the deferred hardware-back wiring. Continued.
 - **Layer 5**: No concerns (both L4 items confirmed fixed). Continued.
+- **Layer 6**: No concerns. Continued.
 
 ### Spec Compliance
