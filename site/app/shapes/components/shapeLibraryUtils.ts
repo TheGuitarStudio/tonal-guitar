@@ -544,7 +544,13 @@ export interface ChordFacetSelection {
 
 type ChordFacetDimension = "type" | "voicingFamily" | "root";
 
-function chordEntryMatchesSelection(
+/**
+ * Full-narrowing predicate (no dimension ignored) — the counterpart to the
+ * "ignoring this facet" counters below, used by `FilterBar`/`ShapeLibrary`
+ * to build the actual shown-entries list from the same selection object
+ * that drives the live chip counts, so filtering and counting never drift.
+ */
+export function chordEntryMatchesSelection(
   entry: ChordCatalogEntry,
   selection: ChordFacetSelection,
   ignoring?: ChordFacetDimension,
@@ -629,7 +635,8 @@ export interface ScaleFacetSelection {
 
 type ScaleFacetDimension = "system" | "quality";
 
-function scaleEntryMatchesSelection(
+/** Scale-entry counterpart to `chordEntryMatchesSelection` — see its doc comment. */
+export function scaleEntryMatchesSelection(
   entry: ScaleCatalogEntry,
   selection: ScaleFacetSelection,
   ignoring?: ScaleFacetDimension,
