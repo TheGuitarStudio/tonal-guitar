@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import type {
   ChordFacetSelection,
   ChordQualityGroup,
@@ -104,6 +104,16 @@ export function FilterBar({
   shownCount,
   totalCount,
 }: FilterBarProps) {
+  // CR-024: the visible "Showing N of M" text updates instantly (filtering
+  // itself must stay instant), but re-announcing it via `aria-live` on every
+  // search keystroke spams screen readers. Debounce ONLY the announcement —
+  // a separate visually-hidden live region, ~500ms behind the visible count.
+  const [announced, setAnnounced] = useState({ shownCount, totalCount });
+  useEffect(() => {
+    const timer = setTimeout(() => setAnnounced({ shownCount, totalCount }), 500);
+    return () => clearTimeout(timer);
+  }, [shownCount, totalCount]);
+
   return (
     <div className="mb-4 flex flex-col gap-2">
       <div className="flex flex-wrap items-center gap-2">
@@ -140,8 +150,14 @@ export function FilterBar({
           </select>
         )}
 
-        <span className="ml-auto text-sm text-fd-muted-foreground" aria-live="polite">
+        <span className="ml-auto text-sm text-fd-muted-foreground">
           Showing {shownCount} of {totalCount}
+        </span>
+        {/* Debounced announcement (CR-024) — kept separate from the visible
+            count above so screen readers hear one settled announcement
+            after typing pauses, rather than one per keystroke. */}
+        <span aria-live="polite" className="sr-only">
+          Showing {announced.shownCount} of {announced.totalCount}
         </span>
       </div>
 
@@ -294,6 +310,7 @@ function ChordFacets({
               ariaLabel={rootChipTitle(value, count)}
             >
               {value}
+              <span className="ml-1 text-[10px] text-fd-muted-foreground">{count}</span>
             </Chip>
           ))}
         </div>

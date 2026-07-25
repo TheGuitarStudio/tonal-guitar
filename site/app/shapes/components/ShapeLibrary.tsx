@@ -99,6 +99,19 @@ export function ShapeLibrary() {
   // `shape` URL param (TG7).
   const [selectedEntry, setSelectedEntry] = useState<ShapeCatalogEntry | undefined>(undefined);
 
+  // Bumped whenever the panel should pull keyboard focus into itself
+  // (CR-026): grid card clicks (`handleGridSelectEntry`, below) and the
+  // deep-link mount-time open both originate OUTSIDE the panel, so the
+  // standard non-modal-disclosure pattern says focus should move in rather
+  // than leaving keyboard users to tab through the whole grid to reach it.
+  // Swaps that originate from INSIDE the panel (sibling stepper, alternate-
+  // fingering thumbnails, inversion/related/compatible-shape links) go
+  // through `handleSelectEntry` directly and never touch this key, so focus
+  // correctly stays put. `ShapeDetailPanel` receives it as `focusOnOpenKey`
+  // and only acts when it changes away from its initial `0` (no deep link,
+  // no click yet) — see its own effect for the other half of this contract.
+  const [focusPanelKey, setFocusPanelKey] = useState(0);
+
   // Deep-linkable filters. The page is statically exported, so the first
   // (hydration) render must match the parameter-free server HTML — the URL
   // is only read after mount, then mirrored back via replaceState. The
@@ -113,7 +126,7 @@ export function ShapeLibrary() {
     if (parsed.familyOrQuality) setQuality(parsed.familyOrQuality);
     if (parsed.nameQuery) setNameQuery(parsed.nameQuery);
     if (parsed.failingOnly) setFailingOnly(true);
-    if (parsed.qualityGroup) setQualityGroup(parsed.qualityGroup as ChordQualityGroup);
+    if (parsed.qualityGroup) setQualityGroup(parsed.qualityGroup);
     if (parsed.activeTypes) setActiveTypes(parsed.activeTypes);
     if (parsed.activeVoicingFamilies) setActiveVoicingFamilies(parsed.activeVoicingFamilies);
     if (parsed.root) setRoot(parsed.root);
@@ -124,7 +137,12 @@ export function ShapeLibrary() {
     // (honest stale link) rather than erroring.
     if (parsed.shape) {
       const match = catalog.find((entry) => entry.name === parsed.shape);
-      if (match) setSelectedEntry(match);
+      if (match) {
+        setSelectedEntry(match);
+        // The deep-linked panel is the page's subject (CR-026b) — focus it
+        // on mount exactly as a grid-originated open would.
+        setFocusPanelKey((k) => k + 1);
+      }
     }
     setUrlStateLoaded(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -182,6 +200,16 @@ export function ShapeLibrary() {
   // hands focus back).
   const lastTriggerRef = useRef<HTMLElement | null>(null);
 
+  // Stable fallback focus target for `handleClosePanel` (CR-023): when the
+  // panel was opened via a deep-linked `?shape=` URL, no card was ever
+  // clicked, so `lastTriggerRef.current` is null — without this, closing
+  // would drop focus to `<body>`. The results heading is `sr-only` (a
+  // heading, not a control, has no business being visible), but
+  // `focus:not-sr-only` below makes it visible on programmatic focus too,
+  // the same reveal-on-focus pattern used for skip links, so sighted
+  // keyboard users get a visible landing spot as well as screen-reader users.
+  const resultsHeadingRef = useRef<HTMLHeadingElement | null>(null);
+
   // Mirrors `selectedEntry` for use inside the `popstate` listener below,
   // which is registered once and must read current state without
   // re-subscribing on every selection change.
@@ -235,6 +263,20 @@ export function ShapeLibrary() {
     setSelectedEntry(entry);
   }, []);
 
+  // Grid-originated selection (CR-026): identical to `handleSelectEntry`,
+  // plus bumping `focusPanelKey` so the panel pulls focus in — this is the
+  // callback wired to every card's `onSelect`, never to `ShapeDetailPanel`'s
+  // internal `onSelectEntry` (which stays `handleSelectEntry` unmodified so
+  // in-panel navigation never steals focus back to the panel root it's
+  // already inside).
+  const handleGridSelectEntry = useCallback(
+    (entry: ShapeCatalogEntry) => {
+      handleSelectEntry(entry);
+      setFocusPanelKey((k) => k + 1);
+    },
+    [handleSelectEntry],
+  );
+
   // Delegated click capture on the whole results region: fires in the
   // capture phase, before any card's own `onClick` (which runs in the
   // bubble phase), so it reliably captures the actual clicked `<button>`
@@ -260,6 +302,11 @@ export function ShapeLibrary() {
     const trigger = lastTriggerRef.current;
     if (trigger && document.contains(trigger)) {
       trigger.focus();
+    } else {
+      // No trigger captured — deep-linked open (CR-023). Fall back to the
+      // stable results heading instead of letting focus fall through to
+      // `<body>`.
+      resultsHeadingRef.current?.focus();
     }
   }
 
@@ -448,7 +495,13 @@ export function ShapeLibrary() {
           totalCount={totalCount}
         />
 
-        <h2 className="sr-only">Shape results</h2>
+        <h2
+          ref={resultsHeadingRef}
+          tabIndex={-1}
+          className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:rounded-md focus:bg-fd-background focus:px-2 focus:py-1 focus:text-sm focus:font-semibold focus:text-fd-foreground focus:shadow-md focus:outline-none focus:ring-2 focus:ring-fd-primary"
+        >
+          Shape results
+        </h2>
 
         <div onClickCapture={handleResultsClickCapture}>
           {failingEntries.length > 0 && (
@@ -465,7 +518,7 @@ export function ShapeLibrary() {
                     key={`pinned-${entry.kind}-${entry.name}`}
                     entry={entry}
                     eager
-                    onSelect={handleSelectEntry}
+                    onSelect={handleGridSelectEntry}
                     isSelected={selectedEntry?.kind === entry.kind && selectedEntry.name === entry.name}
                   />
                 ))}
@@ -485,7 +538,7 @@ export function ShapeLibrary() {
                   group={group}
                   selectedEntry={selectedEntry}
                   eagerNames={eagerNames}
-                  onSelectEntry={handleSelectEntry}
+                  onSelectEntry={handleGridSelectEntry}
                   onToggleExpanded={() => handleToggleGroupExpanded(group.key)}
                 />
               ))}
@@ -499,6 +552,7 @@ export function ShapeLibrary() {
         catalog={catalog}
         onClose={handleClosePanel}
         onSelectEntry={handleSelectEntry}
+        focusOnOpenKey={focusPanelKey}
       />
     </div>
   );

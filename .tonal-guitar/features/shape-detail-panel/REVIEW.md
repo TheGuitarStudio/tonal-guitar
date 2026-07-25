@@ -18,7 +18,7 @@
 - [x] Phase 5: Code Simplification Review
 - [x] Phase 6: Code Simplification Fix
 - [x] Phase 7: Specialized Reviews
-- [ ] Phase 8: Specialized Fixes
+- [x] Phase 8: Specialized Fixes
 - [ ] Phase 9: Final Verification
 
 ## Phase 2: Lint/Test Results
@@ -125,6 +125,25 @@ Cleared: no `any`/`as any` anywhere; Tonal `getChord`/`getScale` results guarded
 - CR-024: [Important] "Showing N of M" `aria-live` region re-announces per search keystroke (`FilterBar.tsx:143-145`) — debounce the live-region text independent of instant filtering.
 - CR-025: [Important] Root-strip chips convey zero-match via opacity alone (`FilterBar.tsx:287-298`) — other facet rows show a visible count; root chips bury it in `title`/`aria-label`. Add a visible count.
 - CR-026: [Important] Panel is last in DOM/tab order and focus never moves into it on open (`ShapeLibrary.tsx:497`) — keyboard users must tab through the whole grid to reach it; focus the panel container (`tabIndex={-1}`) on open per the non-modal disclosure pattern.
+
+## Phase 8: Specialized Fixes
+
+### Fixed
+
+- CR-022: Fixed — `qualityGroup` typed `ChordQualityGroup | undefined`, validated via new `isChordQualityGroup` guard against `CHORD_QUALITY_GROUP_ORDER`; call-site cast removed
+- CR-023: Fixed — close-focus falls back to the "Shape results" heading (`tabIndex={-1}`, skip-link reveal) when no trigger was captured; verified live on a deep-link open
+- CR-024: Fixed — visible count updates instantly; `aria-live` announcement moved to a separate sr-only span debounced 500ms; verified live timing
+- CR-025: Fixed — root chips render visible counts matching the other facet rows
+- CR-026: Fixed — `focusOnOpenKey` contract: grid-card activation and deep-link mount focus the panel `<aside>` (`tabIndex={-1}`, no trap); in-panel swaps (thumbnails/steppers) don't re-trigger; Esc-return to trigger preserved; verified live
+- All verified: lint/build/1071 tests/site build green; panel chunk-split intact
+
+### Deferred
+
+- (none)
+
+### Won't Fix
+
+- (none)
 
 ## Statistics
 

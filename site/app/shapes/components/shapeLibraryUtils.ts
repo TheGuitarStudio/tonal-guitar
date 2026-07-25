@@ -801,8 +801,11 @@ export interface ShapesUrlState {
   failingOnly?: boolean;
   /** Selected entry `name` — opens the detail panel on load. Absent: no panel. */
   shape?: string;
-  /** Selected chord-facet quality group (e.g. "Triads", "Sevenths"). */
-  qualityGroup?: string;
+  /** Selected chord-facet quality group (e.g. "Triads", "Sevenths"). Typed
+   * (and validated in `parseShapesUrlState`) against `ChordQualityGroup`
+   * rather than a bare string, so callers never need to cast an unvalidated
+   * URL param to the union type (CR-022). */
+  qualityGroup?: ChordQualityGroup;
   /** Active `chordType` tokens within the selected quality group. Absent: all-on (no narrowing). */
   activeTypes?: string[];
   /** Active `voicingFamily` values. Absent: all-on (no narrowing). */
@@ -813,6 +816,14 @@ export interface ShapesUrlState {
   sort?: "baseFret" | "name";
   /** Group headings expanded past the "Show all N" collapse threshold. */
   expandedGroups?: string[];
+}
+
+/** Type guard validating a raw URL param against the fixed
+ * `CHORD_QUALITY_GROUP_ORDER` list — mirrors how `kind`/`sort` below are
+ * validated against their own literal unions, so `parseShapesUrlState`
+ * never has to cast an unvalidated string to `ChordQualityGroup` (CR-022). */
+function isChordQualityGroup(value: string): value is ChordQualityGroup {
+  return (CHORD_QUALITY_GROUP_ORDER as readonly string[]).includes(value);
 }
 
 /** Comma-joins a multi-value field for the query string, or returns undefined if empty. */
@@ -854,7 +865,7 @@ export function parseShapesUrlState(search: string): ShapesUrlState {
   if (shape) state.shape = shape;
 
   const qualityGroup = params.get("qualityGroup");
-  if (qualityGroup) state.qualityGroup = qualityGroup;
+  if (qualityGroup && isChordQualityGroup(qualityGroup)) state.qualityGroup = qualityGroup;
 
   const activeTypes = splitMulti(params.get("types"));
   if (activeTypes) state.activeTypes = activeTypes;

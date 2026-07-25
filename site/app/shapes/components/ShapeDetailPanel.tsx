@@ -65,6 +65,15 @@ export interface ShapeDetailPanelProps {
    * (sibling stepper, alternate-fingering thumbnail, inversion link,
    * parent-shape lineage link, compatible-shape chip). */
   onSelectEntry: (entry: ShapeCatalogEntry) => void;
+  /**
+   * Bumped by the parent whenever the panel opens (or its entry changes)
+   * from OUTSIDE the panel — a grid card click or the deep-link mount-time
+   * open — never for swaps originating inside the panel itself (see
+   * `ShapeLibrary`'s `handleGridSelectEntry` vs. `handleSelectEntry`). The
+   * panel watches this key to move focus into its own root (CR-026); its
+   * initial value (`0`) never triggers a focus move.
+   */
+  focusOnOpenKey: number;
 }
 
 // ============================================================
@@ -168,8 +177,16 @@ export function ShapeDetailPanel({
   catalog,
   onClose,
   onSelectEntry,
+  focusOnOpenKey,
 }: ShapeDetailPanelProps) {
   const isOpen = entry !== undefined;
+
+  // The panel's own root — focus target for the non-modal disclosure
+  // pattern below. No focus TRAP is installed (the spec forbids one: the
+  // panel is non-modal and the grid behind it stays reachable), just a
+  // one-time focus MOVE on open, mirroring the standard "disclosure widget"
+  // keyboard contract.
+  const panelRef = useRef<HTMLElement | null>(null);
 
   // Mobile "translateY(100%) -> 0" entrance transition, triggered only on
   // the closed->open edge (not on every entry swap while already open, and
@@ -202,6 +219,18 @@ export function ShapeDetailPanel({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, onClose]);
 
+  // CR-026: move focus into the panel when `focusOnOpenKey` changes away
+  // from its initial `0` — i.e. only for opens/swaps the parent flagged as
+  // originating outside the panel (grid card click, deep-link mount-time
+  // open). Swaps initiated from inside the panel (sibling stepper,
+  // alternate-fingering thumbnails, inversion/related/compatible links)
+  // never bump this key, so focus correctly stays wherever the user already
+  // is inside the panel.
+  useEffect(() => {
+    if (!isOpen || focusOnOpenKey === 0) return;
+    panelRef.current?.focus({ preventScroll: false });
+  }, [isOpen, focusOnOpenKey]);
+
   const chordCatalogByName = useMemo(() => buildEntryNameMap(catalog, "chord"), [catalog]);
   const scaleCatalogByName = useMemo(() => buildEntryNameMap(catalog, "scale"), [catalog]);
 
@@ -231,9 +260,11 @@ export function ShapeDetailPanel({
 
   return (
     <aside
+      ref={panelRef}
+      tabIndex={-1}
       role="complementary"
       aria-label={`${entry.kind === "chord" ? "Chord" : "Scale"} shape details`}
-      className={wrapperClassName}
+      className={`${wrapperClassName} focus:outline-none focus:ring-2 focus:ring-inset focus:ring-fd-primary`}
     >
       {/* Announces swaps for assistive tech — the panel is non-modal, so
           nothing else moves focus here on its own. */}
