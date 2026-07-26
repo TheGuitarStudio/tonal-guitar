@@ -657,6 +657,36 @@ isShapeCompatible(get("Em Shape"), "A minor"); // => true (minor frame ⊆ minor
 isShapeCompatible(get("Pentatonic Box 1 Minor"), "A minor"); // => true (minor-pent ⊆ natural-minor chromas)
 ```
 
+#### `scalesContainingChord(chord: string, options?: ScalesContainingChordOptions) => ScalesContainingChordResult`
+
+Find scales that contain a chord's tones -- "what can I play over this chord". Resolves `chord` via Tonal's `Chord.get()`, then sweeps 12 chromatic roots x a fixed corpus of 11 scale types (`DEFAULT_SCALE_CORPUS`: major, dorian, phrygian, lydian, mixolydian, aeolian, locrian, harmonic minor, melodic minor, major pentatonic, minor pentatonic), keeping every candidate whose pitch-class set is a (tolerant) superset of the chord's. Results are partitioned into `rootAnchored` (scale tonic matches the chord's root) and `otherRoots` (every other root), each ranked by fit (`extraTones` ascending, then corpus order, then root-chroma distance, then name).
+
+```js
+import { scalesContainingChord } from "tonal-guitar";
+
+const result = scalesContainingChord("Cmaj7");
+result.chord; // => "Cmaj7"
+result.root; // => "C"
+result.rootAnchored.map((s) => s.name);
+// => ["C major", "C lydian"]
+// (C mixolydian and C dorian are excluded -- they don't contain the chord's B / E natural)
+
+scalesContainingChord("Cm7").rootAnchored.map((s) => s.name);
+// => ["C minor pentatonic", "C dorian", "C phrygian", "C minor"]
+// ("C major" is excluded -- it doesn't contain the chord's Eb / Bb)
+```
+
+Containment is strict by default (`tolerateMissing: 0`). Pass `tolerateMissing: N` to admit scales missing up to `N` chord tones, recorded in each result's `omittedTones`:
+
+```js
+const tolerant = scalesContainingChord("Cm7", { tolerateMissing: 1 });
+tolerant.rootAnchored.find((s) => s.name === "C mixolydian").omittedTones; // => ["Eb"]
+```
+
+Never throws -- an unresolvable or empty chord name returns `{ chord: "", root: "", rootAnchored: [], otherRoots: [] }`.
+
+> **Note on "aeolian" naming.** `DEFAULT_SCALE_CORPUS` includes `"aeolian"`, but `@tonaljs/scale` normalizes that alias to its canonical dictionary entry (`Scale.get("A aeolian")` returns `{ type: "minor", name: "A minor", ... }` -- chroma-identical, just relabeled). As a result, aeolian-swept candidates surface in the output as e.g. `"A minor"`, not `"A aeolian"`.
+
 #### `modeShapes(modeName: string, shapeSystem?: string) => ScaleShape[]`
 
 Get all registered shapes compatible with a mode/scale:

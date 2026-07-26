@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Minor CAGED: `"Dm Shape"` (from `"E Shape"`), `"Cm Shape"` (from `"D Shape"`), `"Am Shape"` (from `"C Shape"`), `"Gm Shape"` (from `"A Shape"`), `"Em Shape"` (from `"G Shape"`).
   - Minor pentatonic: `"Pentatonic Box 1 Minor"` through `"Pentatonic Box 5 Minor"` (from the corresponding major `"Pentatonic Box N"`).
   - Each derived entry shares its parent's fretboard geometry; only interval labels, `rootString`, and `quality`/`parentShape` metadata differ.
+- `scalesContainingChord(chord: string, options?: ScalesContainingChordOptions) => ScalesContainingChordResult` — new integration-tier function (`src/integration.ts`) that finds scales containing a chord's tones. Resolves `chord` via Tonal's `Chord.get()`, sweeps 12 chromatic roots x `DEFAULT_SCALE_CORPUS`, and keeps candidates whose pitch-class set is a (tolerant) superset of the chord's, partitioned into `rootAnchored` and `otherRoots` and ranked by fit. Never throws — an unresolvable or empty chord returns empty groups.
+- `DEFAULT_SCALE_CORPUS: readonly string[]` — the fixed 11-entry scale-type corpus swept by `scalesContainingChord` (major, dorian, phrygian, lydian, mixolydian, aeolian, locrian, harmonic minor, melodic minor, major pentatonic, minor pentatonic).
+- `ContainingScale`, `ScalesContainingChordResult`, `ScalesContainingChordOptions` types exported alongside `scalesContainingChord`.
+- `ScaleShape.featured?: boolean` and `ChordShape.featured?: boolean` — new optional fields marking the curated, canonical/representative shape per group (e.g. per `(system, quality)` for scales, per `chordType` for chords) for catalog/UI display purposes. Curated registry data only — not audit-derived, and intentionally not required or checked by `checkScaleMetadataCompleteness`/`checkChordMetadataCompleteness`.
 
 ### Changed
 

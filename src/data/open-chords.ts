@@ -51,6 +51,9 @@ export const OPEN_C_MAJOR: ChordShape = {
   inversion: 0,
   canonicalRoot: "C",
   baseFret: 1,
+  // Featured (D-006 amendment 3, spec §Library "for triads flag the five
+  // open CAGED majors/minors"): one of the five open-position major triads.
+  featured: true,
 };
 
 /**
@@ -92,6 +95,8 @@ export const OPEN_C_DOM7: ChordShape = {
   omittedIntervals: ["5P"],
   canonicalRoot: "C",
   baseFret: 1,
+  // Featured (D-006 amendment 3): canonical open-position dominant 7 voicing.
+  featured: true,
 };
 
 /**
@@ -111,6 +116,8 @@ export const OPEN_C_MAJ7: ChordShape = {
   inversion: 0,
   canonicalRoot: "C",
   baseFret: 1,
+  // Featured (D-006 amendment 3): canonical open-position maj7 voicing.
+  featured: true,
 };
 
 /**
@@ -150,6 +157,8 @@ export const OPEN_C_DIM: ChordShape = {
   inversion: 0,
   canonicalRoot: "C",
   baseFret: 1,
+  // Featured (D-006 amendment 3): canonical open-position dim voicing.
+  featured: true,
 };
 
 /**
@@ -170,6 +179,8 @@ export const OPEN_C_AUG: ChordShape = {
   inversion: 0,
   canonicalRoot: "C",
   baseFret: 1,
+  // Featured (D-006 amendment 3): canonical open-position aug voicing.
+  featured: true,
 };
 
 /**
@@ -192,6 +203,8 @@ export const OPEN_C_SUS2: ChordShape = {
   inversion: 0,
   canonicalRoot: "C",
   baseFret: 1,
+  // Featured (D-006 amendment 3): canonical open-position sus2 voicing.
+  featured: true,
 };
 
 /**
@@ -211,6 +224,8 @@ export const OPEN_C_SUS4: ChordShape = {
   inversion: 0,
   canonicalRoot: "C",
   baseFret: 1,
+  // Featured (D-006 amendment 3): canonical open-position sus4 voicing.
+  featured: true,
 };
 
 /**
@@ -230,6 +245,8 @@ export const OPEN_C_M7B5: ChordShape = {
   inversion: 0,
   canonicalRoot: "C",
   baseFret: 1,
+  // Featured (D-006 amendment 3): canonical open-position m7b5 voicing.
+  featured: true,
 };
 
 // ============================================================
@@ -253,6 +270,9 @@ export const OPEN_A_MAJOR: ChordShape = {
   inversion: 0,
   canonicalRoot: "A",
   baseFret: 1,
+  // Featured (D-006 amendment 3, spec §Library "for triads flag the five
+  // open CAGED majors/minors"): one of the five open-position major triads.
+  featured: true,
 };
 
 /**
@@ -272,6 +292,10 @@ export const OPEN_A_MINOR: ChordShape = {
   inversion: 0,
   canonicalRoot: "A",
   baseFret: 1,
+  // Featured (D-006 amendment 3, spec §Library "for triads flag the five
+  // open CAGED majors/minors"): one of the four genuinely open-position
+  // minor triads (C Minor Open is a barre grip, excluded — see CR-009).
+  featured: true,
 };
 
 /**
@@ -452,6 +476,9 @@ export const OPEN_G_MAJOR: ChordShape = {
   inversion: 0,
   canonicalRoot: "G",
   baseFret: 1,
+  // Featured (D-006 amendment 3, spec §Library "for triads flag the five
+  // open CAGED majors/minors"): one of the five open-position major triads.
+  featured: true,
 };
 
 /**
@@ -473,6 +500,10 @@ export const OPEN_G_MINOR: ChordShape = {
   inversion: 0,
   canonicalRoot: "G",
   baseFret: 1,
+  // Featured (D-006 amendment 3, spec §Library "for triads flag the five
+  // open CAGED majors/minors"): one of the four genuinely open-position
+  // minor triads (C Minor Open is a barre grip, excluded — see CR-009).
+  featured: true,
 };
 
 /**
@@ -651,6 +682,9 @@ export const OPEN_E_MAJOR: ChordShape = {
   inversion: 0,
   canonicalRoot: "E",
   baseFret: 1,
+  // Featured (D-006 amendment 3, spec §Library "for triads flag the five
+  // open CAGED majors/minors"): one of the five open-position major triads.
+  featured: true,
 };
 
 /**
@@ -670,6 +704,10 @@ export const OPEN_E_MINOR: ChordShape = {
   inversion: 0,
   canonicalRoot: "E",
   baseFret: 1,
+  // Featured (D-006 amendment 3, spec §Library "for triads flag the five
+  // open CAGED majors/minors"): one of the four genuinely open-position
+  // minor triads (C Minor Open is a barre grip, excluded — see CR-009).
+  featured: true,
 };
 
 /**
@@ -727,6 +765,9 @@ export const OPEN_E_M7: ChordShape = {
   inversion: 0,
   canonicalRoot: "E",
   baseFret: 1,
+  // Featured (D-006 amendment 3): canonical open-position m7 voicing (C
+  // Minor 7 Open is a barre grip, so E takes the m7 spotlight instead).
+  featured: true,
 };
 
 /**
@@ -850,6 +891,9 @@ export const OPEN_D_MAJOR: ChordShape = {
   inversion: 0,
   canonicalRoot: "D",
   baseFret: 1,
+  // Featured (D-006 amendment 3, spec §Library "for triads flag the five
+  // open CAGED majors/minors"): one of the five open-position major triads.
+  featured: true,
 };
 
 /**
@@ -869,6 +913,10 @@ export const OPEN_D_MINOR: ChordShape = {
   inversion: 0,
   canonicalRoot: "D",
   baseFret: 1,
+  // Featured (D-006 amendment 3, spec §Library "for triads flag the five
+  // open CAGED majors/minors"): one of the four genuinely open-position
+  // minor triads (C Minor Open is a barre grip, excluded — see CR-009).
+  featured: true,
 };
 
 /**

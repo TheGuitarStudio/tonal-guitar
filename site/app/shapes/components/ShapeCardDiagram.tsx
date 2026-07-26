@@ -1,29 +1,59 @@
 "use client";
 
-import { Fretboard, type FretMarker } from "fretboard-ui";
+import { Fretboard, defaultTheme, type FretboardTheme, type FretMarker } from "fretboard-ui";
+import type { FrettedScale } from "tonal-guitar";
 import type { ShapeCatalogEntry } from "./shapeLibraryUtils";
 
-// Kept in sync with the legend used by
-// `site/app/experiments/components/FretboardDiagram.tsx` — rendered ONCE at
-// page level by the `ShapeLibrary` container, not per-card.
-export const LEGEND = [
-  { color: "#ef4444", label: "Root" },
-  { color: "#3b82f6", label: "3rd" },
-  { color: "#22c55e", label: "5th" },
-  { color: "#f59e0b", label: "4th" },
-  { color: "#ec4899", label: "7th" },
-];
+// --- Monochrome theme -------------------------------------------------
+//
+// `<Fretboard theme>` shallow-merges `intervalColors` with
+// `defaultTheme.intervalColors` (see `Fretboard.tsx`), and `resolveColor`
+// falls through marker.color -> marker.role -> theme.intervalColors[interval]
+// -> theme.defaultMarker. Markers built here (and in `CompactFretboard.tsx`)
+// never set `role`, so making every dot the same color requires overriding
+// *every* key already present in `defaultTheme.intervalColors`, not just the
+// average/first one — plus `rootMarker`/`ghostMarker`/`highlightMarker`,
+// which `resolveColor` checks before `intervalColors`.
+//
+// Canonical shared constant: v1 of the shape library renders every diagram
+// monochrome (the interval-color legend returns later behind a dedicated
+// toggle). `CompactFretboard.tsx` imports this rather than duplicating it.
+const MONOCHROME_MARKER_COLOR = defaultTheme.defaultMarker;
+
+export const MONOCHROME_THEME: Partial<FretboardTheme> = {
+  defaultMarker: MONOCHROME_MARKER_COLOR,
+  rootMarker: MONOCHROME_MARKER_COLOR,
+  ghostMarker: MONOCHROME_MARKER_COLOR,
+  highlightMarker: MONOCHROME_MARKER_COLOR,
+  intervalColors: Object.fromEntries(
+    Object.keys(defaultTheme.intervalColors).map((interval) => [
+      interval,
+      MONOCHROME_MARKER_COLOR,
+    ]),
+  ),
+};
 
 interface ShapeCardDiagramProps {
   entry: ShapeCatalogEntry;
 }
 
-// Per-string fret summary for the diagram's `aria-label` — e.g. "muted, 3,
+/**
+ * Minimal shape the fret-marker/fret-range/fret-summary helpers below need —
+ * just the built `FrettedScale`. Both `ShapeCatalogEntry` (used here) and
+ * `CompactFretboard.tsx`'s own smaller `CompactFretboardEntry` satisfy this
+ * structurally, so `CompactFretboard.tsx` imports these helpers rather than
+ * duplicating them.
+ */
+export interface FrettedScaleHolder {
+  frettedScale: FrettedScale;
+}
+
+// Per-string fret summary for a diagram's `aria-label` — e.g. "muted, 3,
 // 2, 0, 1, 0" for a 6-string chord, or "3 5 7, 3 5 7, …" for a scale shape
 // that places several notes on a string. Built from `frettedScale.notes`
 // (every rendered marker) rather than `builtFrets` (one representative fret
 // per string), so the label describes everything the diagram shows.
-function fretSummary(entry: ShapeCatalogEntry): string {
+export function fretSummary(entry: FrettedScaleHolder): string {
   const perString: number[][] = entry.frettedScale.tuning.map(() => []);
   for (const n of entry.frettedScale.notes) {
     perString[n.string].push(n.fret);
@@ -33,6 +63,25 @@ function fretSummary(entry: ShapeCatalogEntry): string {
       frets.length === 0 ? "muted" : [...frets].sort((a, b) => a - b).join(" "),
     )
     .join(", ");
+}
+
+/** `FretMarker[]` for every note in `entry.frettedScale` — shared by
+ * `ShapeCardDiagram` and `CompactFretboard`'s thumbnail/enlarged diagrams. */
+export function buildFretMarkers(entry: FrettedScaleHolder): FretMarker[] {
+  return entry.frettedScale.notes.map((n) => ({
+    string: n.string,
+    fret: n.fret,
+    pc: n.pc,
+    interval: n.interval,
+    intervalNumber: n.intervalNumber,
+  }));
+}
+
+/** `[minFret, maxFret]` padded by one fret on each side (floored at 0) —
+ * shared by `ShapeCardDiagram` and `CompactFretboard`. */
+export function fretRangeFor(entry: FrettedScaleHolder): [number, number] {
+  const frets = entry.frettedScale.notes.map((n) => n.fret);
+  return [Math.max(0, Math.min(...frets) - 1), Math.max(...frets) + 1];
 }
 
 /**
@@ -53,20 +102,8 @@ export function ShapeCardDiagram({ entry }: ShapeCardDiagramProps) {
     );
   }
 
-  const minNoteFret = Math.min(...frettedScale.notes.map((n) => n.fret));
-  const maxNoteFret = Math.max(...frettedScale.notes.map((n) => n.fret));
-  const fretRange: [number, number] = [
-    Math.max(0, minNoteFret - 1),
-    maxNoteFret + 1,
-  ];
-
-  const markers: FretMarker[] = frettedScale.notes.map((n) => ({
-    string: n.string,
-    fret: n.fret,
-    pc: n.pc,
-    interval: n.interval,
-    intervalNumber: n.intervalNumber,
-  }));
+  const fretRange = fretRangeFor(entry);
+  const markers = buildFretMarkers(entry);
 
   // `role="img"` collapses the SVG's internals (text, paths, etc.) into a
   // single presentational unit for assistive tech, replaced by this label —
@@ -86,6 +123,7 @@ export function ShapeCardDiagram({ entry }: ShapeCardDiagramProps) {
         fretRange={fretRange}
         labelMode="intervals"
         layout={{ orientation: "horizontal" }}
+        theme={MONOCHROME_THEME}
         className="font-mono"
       />
     </div>

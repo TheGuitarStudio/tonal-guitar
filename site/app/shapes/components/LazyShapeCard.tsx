@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import type { ShapeCatalogEntry } from "./shapeLibraryUtils";
 import { ShapeCard } from "./ShapeCard";
 
@@ -13,6 +13,13 @@ interface LazyShapeCardProps {
    * so there's nothing for server/client rendering to disagree about.
    */
   eager: boolean;
+  /** Forwarded to `<ShapeCard>` once mounted — invoked with the full entry
+   * when the card is clicked/activated. Defaults to a no-op so callers that
+   * don't care about selection (none currently) don't have to pass one. */
+  onSelect?: (entry: ShapeCatalogEntry) => void;
+  /** Forwarded to `<ShapeCard>` once mounted — whether this card is the
+   * currently selected/open entry. */
+  isSelected?: boolean;
 }
 
 // Mirrors `ShapeCard`'s own `CARD_INTRINSIC_SIZE` estimate — reserves
@@ -43,7 +50,12 @@ const ROOT_MARGIN = "600px 0px";
  * `LazyShapeCard` instances (with their own fresh mount decision) for any
  * that are newly shown — no manual reset needed here.
  */
-export function LazyShapeCard({ entry, eager }: LazyShapeCardProps) {
+export const LazyShapeCard = memo(function LazyShapeCard({
+  entry,
+  eager,
+  onSelect = () => {},
+  isSelected = false,
+}: LazyShapeCardProps) {
   const placeholderRef = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(eager);
 
@@ -78,7 +90,7 @@ export function LazyShapeCard({ entry, eager }: LazyShapeCardProps) {
   }, [visible]);
 
   if (visible) {
-    return <ShapeCard entry={entry} />;
+    return <ShapeCard entry={entry} onSelect={onSelect} isSelected={isSelected} />;
   }
 
   // Unmounted placeholder: no focusable content and `aria-hidden`, so it
@@ -92,4 +104,4 @@ export function LazyShapeCard({ entry, eager }: LazyShapeCardProps) {
       style={{ height: PLACEHOLDER_HEIGHT }}
     />
   );
-}
+});

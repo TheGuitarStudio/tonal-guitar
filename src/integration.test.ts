@@ -6,6 +6,7 @@
 import { describe, it, expect, beforeAll, beforeEach, afterEach } from "vitest";
 import { chroma } from "@tonaljs/note";
 import { get as getTonalScale } from "@tonaljs/scale";
+import { get as getTonalChord } from "@tonaljs/chord";
 
 import {
   CAGED_G,
@@ -55,7 +56,21 @@ import {
   modeShapes,
   buildFromScale,
   relabelShapeToScale,
+  scalesContainingChord,
+  DEFAULT_SCALE_CORPUS,
 } from "./integration";
+import type {
+  ContainingScale,
+  ScalesContainingChordResult,
+} from "./integration";
+import {
+  scalesContainingChord as scalesContainingChordFromIndex,
+  DEFAULT_SCALE_CORPUS as DEFAULT_SCALE_CORPUS_FROM_INDEX,
+} from "./index";
+import type {
+  ContainingScale as ContainingScaleFromIndex,
+  ScalesContainingChordResult as ScalesContainingChordResultFromIndex,
+} from "./index";
 import { relabelShape } from "./transform";
 import { walkShapeMotif } from "./walker";
 import { STANDARD, DROP_D, STANDARD_7 } from "./tuning";
@@ -1552,3 +1567,452 @@ describe("TG5 — isShapeCompatible / modeShapes / buildFromScale / relabelShape
     });
   });
 }); // end TG5 wrapping describe
+
+// ---------------------------------------------------------------------------
+// TG2 — scalesContainingChord scaffolding: types, stub, and exports
+// spec.md §Library `scalesContainingChord`
+// ---------------------------------------------------------------------------
+
+describe("TG2 — scalesContainingChord scaffolding (types, stub, exports)", () => {
+  describe("import smoke", () => {
+    it("scalesContainingChord, DEFAULT_SCALE_CORPUS, and the ContainingScale/ScalesContainingChordResult types resolve from ./integration", () => {
+      expect(typeof scalesContainingChord).toBe("function");
+      expect(Array.isArray(DEFAULT_SCALE_CORPUS)).toBe(true);
+
+      // Type-only smoke check: these annotations fail to compile if the
+      // exported types don't exist or don't shape-match.
+      const containingScale: ContainingScale = {
+        root: "C",
+        scaleType: "major",
+        name: "C major",
+        extraTones: 0,
+        omittedTones: [],
+      };
+      const result: ScalesContainingChordResult = {
+        chord: "",
+        root: "",
+        rootAnchored: [containingScale],
+        otherRoots: [],
+      };
+      expect(result.rootAnchored[0]).toBe(containingScale);
+    });
+
+    it("scalesContainingChord, DEFAULT_SCALE_CORPUS, and the ContainingScale/ScalesContainingChordResult types resolve from ./index", () => {
+      expect(typeof scalesContainingChordFromIndex).toBe("function");
+      expect(Array.isArray(DEFAULT_SCALE_CORPUS_FROM_INDEX)).toBe(true);
+
+      const containingScale: ContainingScaleFromIndex = {
+        root: "C",
+        scaleType: "major",
+        name: "C major",
+        extraTones: 0,
+        omittedTones: [],
+      };
+      const result: ScalesContainingChordResultFromIndex = {
+        chord: "",
+        root: "",
+        rootAnchored: [containingScale],
+        otherRoots: [],
+      };
+      expect(result.rootAnchored[0]).toBe(containingScale);
+    });
+  });
+
+  describe("DEFAULT_SCALE_CORPUS", () => {
+    it("is a deduped array containing exactly the 11 spec-order scale types", () => {
+      expect(DEFAULT_SCALE_CORPUS).toEqual([
+        "major",
+        "dorian",
+        "phrygian",
+        "lydian",
+        "mixolydian",
+        "aeolian",
+        "locrian",
+        "harmonic minor",
+        "melodic minor",
+        "major pentatonic",
+        "minor pentatonic",
+      ]);
+      expect(new Set(DEFAULT_SCALE_CORPUS).size).toBe(
+        DEFAULT_SCALE_CORPUS.length,
+      );
+    });
+  });
+
+  describe("public dispatch (TG4 — wired to the internal sweep/partition/rank pipeline)", () => {
+    it("no longer returns the empty sentinel unconditionally — a resolvable chord yields real candidates", () => {
+      const result = scalesContainingChord("Cmaj7");
+      expect(result.chord).toBe("Cmaj7");
+      expect(result.root).toBe("C");
+      expect(result.rootAnchored.length).toBeGreaterThan(0);
+      expect(result.otherRoots.length).toBeGreaterThan(0);
+    });
+
+    it("never throws for any input, including garbage/empty input", () => {
+      expect(() => scalesContainingChord("")).not.toThrow();
+      expect(() => scalesContainingChord("not a chord")).not.toThrow();
+      expect(() =>
+        scalesContainingChord("Cm7", {
+          corpus: ["major"],
+          tolerateMissing: 1,
+          limitPerGroup: 3,
+        }),
+      ).not.toThrow();
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// TG4 — scalesContainingChord: public dispatch, chroma sweep, containment,
+// partition, ranking, tolerateMissing, and limitPerGroup
+// spec.md §Library `scalesContainingChord`
+//
+// The computational core (`resolveChordTones`, `sweepCorpus`,
+// `partitionByRoot`, `rankContainingScales`) is implemented as internal,
+// non-exported helpers in `src/integration.ts`; `scalesContainingChord` now
+// dispatches to them (TG2/TG3 staged the scaffolding and helpers as
+// `it.todo`s documenting the exact enumerated spec expectations — this
+// block flips each of those into real assertions against the public
+// `scalesContainingChord(...)` function).
+//
+// Fixture values below (extraTones, ordering) were confirmed by running
+// `scalesContainingChord` directly against Cmaj7 / Cm7 / a bare "C" triad;
+// see the corpus-normalization note above `resolveChordTones` in
+// `src/integration.ts` for why "aeolian" candidates surface as "minor" in
+// results (e.g. "C aeolian" -> "C minor", "A aeolian" -> "A minor") --
+// chroma-identical to the aeolian spelling, just Tonal's canonical name.
+// ---------------------------------------------------------------------------
+
+describe("TG4 — chord->scales chroma sweep, containment, and ranking", () => {
+  /**
+   * Absolute pitch-class chroma set (0-11) from a list of note names, via
+   * `@tonaljs/note` `chroma()`. NOTE: Tonal's `Chord.get`/`Scale.get`
+   * `.chroma` bitstring field is tonic-relative (an interval bitmap, e.g.
+   * "C major" and "G major" share the same `.chroma` string), not absolute
+   * pitch class — using `.notes` + `chroma()` here instead sidesteps that
+   * trap and gives a genuinely independent cross-check against the
+   * production code's own `absoluteChromaSet` helper.
+   */
+  function chromaSetFromNotes(notes: readonly string[]): Set<number> {
+    const set = new Set<number>();
+    for (const n of notes) {
+      const c = chroma(n);
+      if (c !== null) set.add(c);
+    }
+    return set;
+  }
+
+  describe("corpus sweep", () => {
+    it("sweeps all 12 chromatic roots x all 11 DEFAULT_SCALE_CORPUS types (132 candidates) for a resolved chord's chroma set", () => {
+      // tolerateMissing set to the chord's own tone count so every swept
+      // (root, type) combination is admitted regardless of containment --
+      // isolating the sweep's breadth from the containment filter.
+      const result = scalesContainingChord("Cmaj7", { tolerateMissing: 4 });
+      expect(result.rootAnchored.length + result.otherRoots.length).toBe(
+        12 * DEFAULT_SCALE_CORPUS.length,
+      );
+      expect(12 * DEFAULT_SCALE_CORPUS.length).toBe(132);
+    });
+  });
+
+  describe("containment (strict subset, tolerateMissing: 0 default)", () => {
+    it('scalesContainingChord("Cmaj7").rootAnchored includes "C major" and "C lydian"', () => {
+      const names = scalesContainingChord("Cmaj7").rootAnchored.map(
+        (s) => s.name,
+      );
+      expect(names).toContain("C major");
+      expect(names).toContain("C lydian");
+    });
+
+    it('scalesContainingChord("Cmaj7").rootAnchored excludes "C mixolydian" and "C dorian"', () => {
+      const names = scalesContainingChord("Cmaj7").rootAnchored.map(
+        (s) => s.name,
+      );
+      expect(names).not.toContain("C mixolydian");
+      expect(names).not.toContain("C dorian");
+    });
+
+    it('scalesContainingChord("Cm7").rootAnchored includes C dorian / C aeolian (canonical "C minor") / C phrygian', () => {
+      const names = scalesContainingChord("Cm7").rootAnchored.map(
+        (s) => s.name,
+      );
+      expect(names).toContain("C dorian");
+      // Tonal normalizes "C aeolian" to its canonical dictionary entry
+      // "C minor" (chroma-identical) -- see the corpus-normalization note.
+      expect(names).toContain("C minor");
+      expect(names).toContain("C phrygian");
+    });
+
+    it('scalesContainingChord("Cm7").rootAnchored excludes "C major"', () => {
+      const names = scalesContainingChord("Cm7").rootAnchored.map(
+        (s) => s.name,
+      );
+      expect(names).not.toContain("C major");
+    });
+
+    it("every returned scale's chroma set is a strict superset of the chord's chroma set (containment invariant)", () => {
+      for (const chordName of ["Cmaj7", "Cm7", "G7", "Am7", "Dm7b5"]) {
+        const result = scalesContainingChord(chordName);
+        const chordChromas = chromaSetFromNotes(
+          getTonalChord(result.chord).notes,
+        );
+        expect(chordChromas.size).toBeGreaterThan(0);
+
+        for (const candidate of [
+          ...result.rootAnchored,
+          ...result.otherRoots,
+        ]) {
+          const scaleChromas = chromaSetFromNotes(
+            getTonalScale(`${candidate.root} ${candidate.scaleType}`).notes,
+          );
+          for (const c of chordChromas) {
+            expect(scaleChromas.has(c)).toBe(true);
+          }
+        }
+      }
+    });
+
+    it("an unknown/unresolvable chord name yields both groups empty (rootAnchored: [], otherRoots: [])", () => {
+      expect(scalesContainingChord("NotAChordXyz")).toEqual({
+        chord: "",
+        root: "",
+        rootAnchored: [],
+        otherRoots: [],
+      });
+      expect(scalesContainingChord("")).toEqual({
+        chord: "",
+        root: "",
+        rootAnchored: [],
+        otherRoots: [],
+      });
+    });
+  });
+
+  describe("partition (rootAnchored vs otherRoots)", () => {
+    it('scalesContainingChord("Cmaj7").otherRoots includes "G major", "E phrygian", and the A-rooted aeolian/minor candidate', () => {
+      const names = scalesContainingChord("Cmaj7").otherRoots.map(
+        (s) => s.name,
+      );
+      expect(names).toContain("G major");
+      expect(names).toContain("E phrygian");
+      // Tonal's canonical name for "A aeolian" (chroma-identical).
+      expect(names).toContain("A minor");
+    });
+
+    it("rootAnchored and otherRoots are disjoint — no candidate (by root+name) appears in both groups", () => {
+      for (const chordName of ["Cmaj7", "Cm7", "G7", "Am7"]) {
+        const result = scalesContainingChord(chordName);
+        const rootAnchoredKeys = new Set(
+          result.rootAnchored.map((s) => `${s.root}|${s.name}`),
+        );
+        for (const candidate of result.otherRoots) {
+          expect(
+            rootAnchoredKeys.has(`${candidate.root}|${candidate.name}`),
+          ).toBe(false);
+        }
+      }
+    });
+
+    it("a candidate lands in rootAnchored iff its scale tonic chroma equals the chord root chroma", () => {
+      const result = scalesContainingChord("Cmaj7");
+      const chordRootChroma = chroma(result.root);
+      for (const candidate of result.rootAnchored) {
+        expect(chroma(candidate.root)).toBe(chordRootChroma);
+      }
+      for (const candidate of result.otherRoots) {
+        expect(chroma(candidate.root)).not.toBe(chordRootChroma);
+      }
+    });
+  });
+
+  describe("ranking (deterministic, no reliance on Array#sort non-determinism)", () => {
+    it("within a group, candidates sort by extraTones ascending (tightest fit first)", () => {
+      // Cm7 rootAnchored: C minor pentatonic (extraTones 1) sorts before the
+      // extraTones-3 group (C dorian / C phrygian / C minor).
+      const extraTonesSeq = scalesContainingChord("Cm7").rootAnchored.map(
+        (s) => s.extraTones,
+      );
+      expect(extraTonesSeq.length).toBeGreaterThan(1);
+      for (let i = 1; i < extraTonesSeq.length; i++) {
+        expect(extraTonesSeq[i]).toBeGreaterThanOrEqual(extraTonesSeq[i - 1]);
+      }
+    });
+
+    it("ties on extraTones sort by DEFAULT_SCALE_CORPUS index ascending", () => {
+      // Cmaj7 otherRoots: "G major" (corpus index 0) and "E phrygian" (corpus
+      // index 2) are both extraTones: 3 -- "major" must sort before "phrygian".
+      const otherRoots = scalesContainingChord("Cmaj7").otherRoots;
+      const gIdx = otherRoots.findIndex((s) => s.name === "G major");
+      const eIdx = otherRoots.findIndex((s) => s.name === "E phrygian");
+      expect(gIdx).toBeGreaterThanOrEqual(0);
+      expect(eIdx).toBeGreaterThanOrEqual(0);
+      expect(gIdx).toBeLessThan(eIdx);
+    });
+
+    it("ties on extraTones + corpus index sort by root-chroma distance from the chord root ascending", () => {
+      // Cmaj7 otherRoots: "D dorian" (chroma 2, distance 2 from C) and
+      // "A dorian" (chroma 9, distance 3 from C) tie on extraTones and
+      // corpus index ("dorian") -- D must sort before A.
+      const otherRoots = scalesContainingChord("Cmaj7").otherRoots;
+      const dIdx = otherRoots.findIndex((s) => s.name === "D dorian");
+      const aIdx = otherRoots.findIndex((s) => s.name === "A dorian");
+      expect(dIdx).toBeGreaterThanOrEqual(0);
+      expect(aIdx).toBeGreaterThanOrEqual(0);
+      expect(dIdx).toBeLessThan(aIdx);
+    });
+
+    it("remaining ties sort by name ascending", () => {
+      // Bare "C" triad otherRoots: "F major" (chroma 5) and "G major"
+      // (chroma 7) are equidistant from C (distance 5 both ways), tying on
+      // extraTones + corpus index ("major") + root-chroma distance -- the
+      // final tiebreak is name ascending, so "F major" sorts before "G major".
+      const otherRoots = scalesContainingChord("C").otherRoots;
+      const fIdx = otherRoots.findIndex((s) => s.name === "F major");
+      const gIdx = otherRoots.findIndex((s) => s.name === "G major");
+      expect(fIdx).toBeGreaterThanOrEqual(0);
+      expect(gIdx).toBeGreaterThanOrEqual(0);
+      expect(fIdx).toBeLessThan(gIdx);
+    });
+
+    it("output is stable across repeated calls with the same input (same order every time)", () => {
+      for (const chordName of ["Cmaj7", "Cm7", "C", "G7"]) {
+        const r1 = scalesContainingChord(chordName);
+        const r2 = scalesContainingChord(chordName);
+        expect(r1).toEqual(r2);
+      }
+    });
+  });
+
+  describe("tolerateMissing", () => {
+    it("tolerateMissing: 0 (default) always yields omittedTones: [] on every candidate", () => {
+      for (const chordName of ["Cmaj7", "Cm7", "G7"]) {
+        const result = scalesContainingChord(chordName);
+        for (const candidate of [
+          ...result.rootAnchored,
+          ...result.otherRoots,
+        ]) {
+          expect(candidate.omittedTones).toEqual([]);
+        }
+      }
+    });
+
+    it('scalesContainingChord("Cm7", { tolerateMissing: 1 }) admits scales missing exactly one chord tone and populates omittedTones with the missing tone(s)', () => {
+      const strict = scalesContainingChord("Cm7");
+      const tolerant = scalesContainingChord("Cm7", { tolerateMissing: 1 });
+
+      const strictNames = new Set(strict.rootAnchored.map((s) => s.name));
+      // "C mixolydian" is missing Eb (one chord tone) -- excluded strictly,
+      // admitted under tolerateMissing: 1 with omittedTones populated.
+      expect(strictNames.has("C mixolydian")).toBe(false);
+
+      const mixo = tolerant.rootAnchored.find(
+        (s) => s.name === "C mixolydian",
+      );
+      expect(mixo).toBeDefined();
+      expect(mixo!.omittedTones).toEqual(["Eb"]);
+      expect(mixo!.omittedTones.length).toBe(1);
+    });
+
+    it("tolerateMissing: N never admits a candidate missing more than N chord tones", () => {
+      const result = scalesContainingChord("Cm7", { tolerateMissing: 1 });
+      for (const candidate of [...result.rootAnchored, ...result.otherRoots]) {
+        expect(candidate.omittedTones.length).toBeLessThanOrEqual(1);
+      }
+    });
+  });
+
+  describe("limitPerGroup", () => {
+    it("caps each group's length after ranking; default is uncapped", () => {
+      const full = scalesContainingChord("Cmaj7");
+      expect(full.rootAnchored.length).toBeGreaterThan(1);
+      expect(full.otherRoots.length).toBeGreaterThan(1);
+
+      const limited = scalesContainingChord("Cmaj7", { limitPerGroup: 1 });
+      expect(limited.rootAnchored.length).toBe(1);
+      expect(limited.otherRoots.length).toBe(1);
+      // The capped group keeps the top-ranked candidate from the full sweep.
+      expect(limited.rootAnchored[0]).toEqual(full.rootAnchored[0]);
+      expect(limited.otherRoots[0]).toEqual(full.otherRoots[0]);
+    });
+
+    // TG16 gap-closing: `limitPerGroup: 0` is a meaningful, distinct-from-
+    // "unset" input (`options.limitPerGroup !== undefined` in the dispatch,
+    // not a truthiness check) -- guards against a future refactor that
+    // treats `0` as "no cap" the way a naive `if (limitPerGroup)` would.
+    it("limitPerGroup: 0 caps both groups to empty arrays (distinct from the default-uncapped undefined case)", () => {
+      const unlimited = scalesContainingChord("Cmaj7");
+      expect(unlimited.rootAnchored.length).toBeGreaterThan(0);
+      expect(unlimited.otherRoots.length).toBeGreaterThan(0);
+
+      const result = scalesContainingChord("Cmaj7", { limitPerGroup: 0 });
+      expect(result.rootAnchored).toEqual([]);
+      expect(result.otherRoots).toEqual([]);
+      // The chord itself still resolves -- only the group contents are capped.
+      expect(result.chord).toBe("Cmaj7");
+      expect(result.root).toBe("C");
+    });
+
+    // TG16 gap-closing: `tolerateMissing` and `limitPerGroup` are each
+    // spec-enumerated independently (spec.md §Library `scalesContainingChord`
+    // "Test expectations"), but no existing assertion exercises both options
+    // in the same call. This confirms the cap applies to the
+    // tolerateMissing-expanded, re-ranked set -- not to a pre-expansion
+    // strict result that's merely truncated afterward.
+    it("limitPerGroup composes with tolerateMissing: caps the tolerant (expanded) ranking, not the strict one", () => {
+      const strict = scalesContainingChord("Cm7");
+      const tolerant = scalesContainingChord("Cm7", { tolerateMissing: 1 });
+      // Sanity: tolerateMissing:1 genuinely admits more rootAnchored
+      // candidates than strict mode for Cm7 (e.g. "C mixolydian", missing
+      // only Eb) -- otherwise this test wouldn't distinguish the two paths.
+      expect(tolerant.rootAnchored.length).toBeGreaterThan(
+        strict.rootAnchored.length,
+      );
+
+      const capAt = strict.rootAnchored.length + 1;
+      const limited = scalesContainingChord("Cm7", {
+        tolerateMissing: 1,
+        limitPerGroup: capAt,
+      });
+      expect(limited.rootAnchored.length).toBe(capAt);
+      // The capped list is exactly the head of the full tolerant ranking.
+      expect(limited.rootAnchored).toEqual(
+        tolerant.rootAnchored.slice(0, capAt),
+      );
+      // It must include at least one tolerant-only (omittedTones-bearing)
+      // candidate -- proving the cap ran after tolerant expansion, not before.
+      expect(
+        limited.rootAnchored.some((c) => c.omittedTones.length > 0),
+      ).toBe(true);
+    });
+  });
+
+  describe("custom corpus", () => {
+    it("options.corpus restricts the sweep to only the supplied scale types", () => {
+      const result = scalesContainingChord("Cmaj7", { corpus: ["major"] });
+      for (const candidate of [
+        ...result.rootAnchored,
+        ...result.otherRoots,
+      ]) {
+        expect(candidate.scaleType).toBe("major");
+      }
+      expect(result.rootAnchored.map((s) => s.name)).toContain("C major");
+    });
+
+    it("literal duplicate entries in options.corpus produce no duplicate candidates", () => {
+      const deduped = scalesContainingChord("Cmaj7", { corpus: ["major"] });
+      const withDuplicates = scalesContainingChord("Cmaj7", {
+        corpus: ["major", "major", "major"],
+      });
+      const key = (s: { root: string; scaleType: string }) =>
+        `${s.root}|${s.scaleType}`;
+
+      for (const group of ["rootAnchored", "otherRoots"] as const) {
+        expect(withDuplicates[group].map(key)).toEqual(
+          deduped[group].map(key),
+        );
+        const keys = withDuplicates[group].map(key);
+        expect(new Set(keys).size).toBe(keys.length);
+      }
+    });
+  });
+});

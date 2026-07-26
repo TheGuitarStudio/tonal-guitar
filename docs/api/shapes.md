@@ -25,12 +25,15 @@ interface ScaleShape {
   span?: number;                   // optional fret span hint
   quality?: string;                // interval-frame quality tag, e.g. "major" | "minor" | "minor-pentatonic"
   parentShape?: string;            // name of the source shape a relabeled entry was derived from, e.g. "G Shape"
+  featured?: boolean;              // curated spotlight-tier flag, e.g. the canonical shape per (system, quality)
 }
 ```
 
 Each entry in `strings` is either an array of interval names (e.g. `["1P", "2M", "3M"]`) or `null` for unused strings.
 
 `quality` and `parentShape` are populated on shapes derived via [`relabelShape`](/docs/guitar/transform) (see the 10 registered minor-quality entries below); hand-authored source shapes leave both `undefined`.
+
+`featured` is curated registry data, not audit-derived -- it marks canonical/representative shapes for catalog display and is never required or checked by the audit functions.
 
 ### ChordShape
 
@@ -42,6 +45,7 @@ interface ChordShape {
   fingers: (number | null)[];      // finger assignments (1-4)
   barres: Barre[];                 // barre positions
   rootString: number;
+  featured?: boolean;              // curated spotlight-tier flag, e.g. the canonical voicing per chordType
 }
 
 interface Barre {
@@ -51,6 +55,8 @@ interface Barre {
   finger: number;
 }
 ```
+
+`featured` is curated registry data, not audit-derived -- it marks canonical/representative shapes (e.g. the open-position voicing, or lowest-`baseFret` movable form) for catalog display and is never required or checked by the audit functions.
 
 ## Scale Shape Registry
 
