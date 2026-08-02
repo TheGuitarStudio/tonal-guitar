@@ -138,12 +138,12 @@ describe("audit scaffolding — type-only compile checks", () => {
 });
 
 describe("VERSION", () => {
-  it('is exported from ./version as "0.1.0"', () => {
-    expect(VERSION).toBe("0.1.0");
+  it('is exported from ./version as "0.2.0"', () => {
+    expect(VERSION).toBe("0.2.0");
   });
 
   it("is re-exported from ./index and matches ./version", () => {
-    expect(VERSION_FROM_INDEX).toBe("0.1.0");
+    expect(VERSION_FROM_INDEX).toBe("0.2.0");
     expect(VERSION_FROM_INDEX).toBe(VERSION);
   });
 });

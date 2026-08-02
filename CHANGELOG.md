@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] — v0.2.0
+## [0.2.0] — 2026-08-02
 
 ### Added
 
@@ -25,5 +25,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **`buildFromScale` — pitch-correctness fix (behavior change).** `buildFromScale` now relabels `shape` into the requested scale's interval frame (via `relabelShape`) before building. Previously, `buildFromScale(shape, scaleName)` applied the shape's original (usually major) interval frame directly at the scale's tonic, so e.g. `buildFromScale(get("E Shape"), "A minor")` silently produced **A-major pitch classes** mislabeled `scaleType: "aeolian"` — wrong notes, not merely wrong labels. As of this release the same call produces correct A-natural-minor pitch classes (`A=1P`, `C=3m`, `E=5P`). If a shape is not rotation-compatible with the requested scale, `relabelShape` returns `undefined` and `buildFromScale` falls back to building the original shape as-is (its pre-fix behavior), so no previously-working call regresses to an empty result. Calls where the shape already matches the scale's frame (e.g. `buildFromScale(get("E Shape"), "C major")`) are unaffected.
+- **`scalesContainingChord` — sweep performance.** The default-corpus sweep now reads from a lazily-precomputed module-scope table of resolved scale candidates (chroma sets and root chromas computed once) instead of re-resolving 12 roots × 11 scale types per call, and the ranking comparator no longer re-derives root chromas per comparison. ~8.5× faster per call; behavior, ranking order, and the public API are unchanged.
 - **`isShapeCompatible` — chroma-set semantics (behavior change).** Compatibility is now computed by reducing both the shape's and the scale's interval frames to pitch-class chroma sets (0–11) and checking subset coverage, instead of comparing raw interval strings. This is an enharmonic-robustness fix (e.g. `4A` vs `5d` spellings across Tonal scale types), **not** a relative-major/minor loosening — a major-frame shape remains incompatible with a minor scale name, since anchoring it at the minor tonic would still produce the wrong pitch classes. `modeShapes` (built on `isShapeCompatible`) inherits this change; minor-tonic queries (e.g. `modeShapes("A minor")`, unfiltered) now return the 10 new registered minor-quality entries where they previously returned none.
 
