@@ -615,6 +615,74 @@ function chromaDistance(a: number, b: number): number {
   return Math.min(diff, 12 - diff);
 }
 
+/**
+ * A candidate scale resolved once per (root, type) pair: Tonal's canonical
+ * tonic/type/name plus the precomputed absolute chroma set and tonic chroma.
+ * `null` marks a pair Tonal could not resolve to a usable scale.
+ */
+interface ResolvedScaleCandidate {
+  tonic: string;
+  scaleType: string;
+  name: string;
+  chromas: ReadonlySet<number>;
+  rootChroma: number;
+}
+
+/**
+ * Resolve `"${root} ${type}"` via `@tonaljs/scale` `get` to a
+ * `ResolvedScaleCandidate`, or `null` if the pair doesn't resolve to a scale
+ * with a valid tonic and non-empty chroma set.
+ */
+function resolveScaleCandidate(
+  root: string,
+  type: string,
+): ResolvedScaleCandidate | null {
+  const candidate = getScale(`${root} ${type}`);
+  if (candidate.empty || !candidate.tonic) return null;
+
+  const rootChroma = noteChroma(candidate.tonic);
+  if (!isValidChroma(rootChroma)) return null;
+
+  const chromas = absoluteChromaSet(candidate.tonic, candidate.intervals);
+  if (chromas.size === 0) return null;
+
+  return {
+    tonic: candidate.tonic,
+    scaleType: candidate.type,
+    name: candidate.name,
+    chromas,
+    rootChroma,
+  };
+}
+
+/**
+ * Lazily-built table of `resolveScaleCandidate` results for the 12 chromatic
+ * roots x `DEFAULT_SCALE_CORPUS`, keyed by `"${root} ${type}"`. The sweep is
+ * input-independent for the default corpus, so `sweepCorpus` reads from this
+ * table (falling back to live resolution for custom-corpus entries) instead
+ * of re-resolving 132 scales per call.
+ */
+let defaultCorpusTable: ReadonlyMap<
+  string,
+  ResolvedScaleCandidate | null
+> | null = null;
+
+function getDefaultCorpusTable(): ReadonlyMap<
+  string,
+  ResolvedScaleCandidate | null
+> {
+  if (defaultCorpusTable === null) {
+    const table = new Map<string, ResolvedScaleCandidate | null>();
+    for (const root of CHROMATIC_ROOTS) {
+      for (const type of DEFAULT_SCALE_CORPUS) {
+        table.set(`${root} ${type}`, resolveScaleCandidate(root, type));
+      }
+    }
+    defaultCorpusTable = table;
+  }
+  return defaultCorpusTable;
+}
+
 /** Pure data resolved from a chord name — the input to `sweepCorpus`/`partitionByRoot`. */
 interface ResolvedChordTones {
   /** Resolved chord symbol actually swept, e.g. "Cmaj7" (from `Chord.get().symbol`). */
@@ -663,22 +731,27 @@ function resolveChordTones(chord: string): ResolvedChordTones | null {
 
 /**
  * A `ContainingScale` candidate as produced by `sweepCorpus`, additionally
- * carrying the index of the `corpus` entry it was swept from. `scaleType`
- * reflects Tonal's canonical type name (which may differ from the corpus
- * string that produced it — see the "aeolian" -> "minor" note above), so
- * `corpusIndex` is recorded directly from the sweep loop position rather
- * than re-derived from `scaleType` later. Internal only — never returned
- * from the public API (`rankContainingScales` strips it before returning).
+ * carrying the index of the `corpus` entry it was swept from and the
+ * candidate's precomputed tonic chroma. `scaleType` reflects Tonal's
+ * canonical type name (which may differ from the corpus string that produced
+ * it — see the "aeolian" -> "minor" note above), so `corpusIndex` is
+ * recorded directly from the sweep loop position rather than re-derived from
+ * `scaleType` later. `rootChroma` is computed once at resolution time so
+ * `partitionByRoot` and the `rankContainingScales` comparator don't re-derive
+ * it per comparison. Internal only — never returned from the public API
+ * (`rankContainingScales` strips both fields before returning).
  */
 interface SweptCandidate extends ContainingScale {
   corpusIndex: number;
+  rootChroma: number;
 }
 
 /**
  * Sweep 12 chromatic roots x `corpus` scale types, keeping candidates whose
  * chroma set is a (tolerant) superset of `chordChromas`. Each candidate is
- * resolved via `@tonaljs/scale` `get(`${root} ${type}`)`; its chroma set is
- * computed with `chromaOf` (via `absoluteChromaSet`, shifted by the
+ * resolved via `resolveScaleCandidate` — served from the precomputed
+ * default-corpus table when possible, live otherwise — with its chroma set
+ * computed by `chromaOf` (via `absoluteChromaSet`, shifted by the
  * candidate's own tonic).
  *
  * Containment is strict by default (`tolerateMissing: 0` -> `omittedTones`
@@ -694,39 +767,36 @@ function sweepCorpus(
   tolerateMissing: number,
 ): SweptCandidate[] {
   const results: SweptCandidate[] = [];
+  const table = getDefaultCorpusTable();
 
   for (const root of CHROMATIC_ROOTS) {
     for (let corpusIndex = 0; corpusIndex < corpus.length; corpusIndex++) {
       const type = corpus[corpusIndex];
-      const candidate = getScale(`${root} ${type}`);
-      if (candidate.empty || !candidate.tonic) continue;
-
-      const scaleChromas = absoluteChromaSet(
-        candidate.tonic,
-        candidate.intervals,
-      );
-      if (scaleChromas.size === 0) continue;
+      const key = `${root} ${type}`;
+      const candidate = table.has(key)
+        ? table.get(key)
+        : resolveScaleCandidate(root, type);
+      if (!candidate) continue;
 
       const missingChromas: number[] = [];
       for (const c of chordChromas) {
-        if (!scaleChromas.has(c)) missingChromas.push(c);
+        if (!candidate.chromas.has(c)) missingChromas.push(c);
       }
       if (missingChromas.length > tolerateMissing) continue;
 
       let extraTones = 0;
-      for (const c of scaleChromas) {
+      for (const c of candidate.chromas) {
         if (!chordChromas.has(c)) extraTones++;
       }
 
       results.push({
         root: candidate.tonic,
-        scaleType: candidate.type,
+        scaleType: candidate.scaleType,
         name: candidate.name,
         extraTones,
-        omittedTones: missingChromas.map(
-          (c) => chordChromaToName.get(c) ?? "",
-        ),
+        omittedTones: missingChromas.map((c) => chordChromaToName.get(c) ?? ""),
         corpusIndex,
+        rootChroma: candidate.rootChroma,
       });
     }
   }
@@ -748,11 +818,7 @@ function partitionByRoot(
   const otherRoots: SweptCandidate[] = [];
 
   for (const candidate of candidates) {
-    const candidateRootChroma = noteChroma(candidate.root);
-    if (
-      isValidChroma(candidateRootChroma) &&
-      candidateRootChroma === chordRootChroma
-    ) {
+    if (candidate.rootChroma === chordRootChroma) {
       rootAnchored.push(candidate);
     } else {
       otherRoots.push(candidate);
@@ -772,8 +838,8 @@ function partitionByRoot(
  * is stable across repeated calls regardless of any given JS engine's sort
  * implementation.
  *
- * Strips `corpusIndex` before returning, so the result matches the public
- * `ContainingScale` shape exactly.
+ * Strips `corpusIndex` and `rootChroma` before returning, so the result
+ * matches the public `ContainingScale` shape exactly.
  */
 function rankContainingScales(
   candidates: readonly SweptCandidate[],
@@ -783,23 +849,18 @@ function rankContainingScales(
     .sort((a, b) => {
       if (a.extraTones !== b.extraTones) return a.extraTones - b.extraTones;
 
-      if (a.corpusIndex !== b.corpusIndex)
-        return a.corpusIndex - b.corpusIndex;
+      if (a.corpusIndex !== b.corpusIndex) return a.corpusIndex - b.corpusIndex;
 
-      const rootChromaA = noteChroma(a.root);
-      const rootChromaB = noteChroma(b.root);
-      const distanceA = isValidChroma(rootChromaA)
-        ? chromaDistance(rootChromaA, chordRootChroma)
-        : Infinity;
-      const distanceB = isValidChroma(rootChromaB)
-        ? chromaDistance(rootChromaB, chordRootChroma)
-        : Infinity;
+      const distanceA = chromaDistance(a.rootChroma, chordRootChroma);
+      const distanceB = chromaDistance(b.rootChroma, chordRootChroma);
       if (distanceA !== distanceB) return distanceA - distanceB;
 
       if (a.name !== b.name) return a.name < b.name ? -1 : 1;
       return 0;
     })
-    .map(({ corpusIndex: _corpusIndex, ...rest }) => rest);
+    .map(
+      ({ corpusIndex: _corpusIndex, rootChroma: _rootChroma, ...rest }) => rest,
+    );
 }
 
 // ============================================================
