@@ -14,16 +14,11 @@
 // `identifyChord`/`STANDARD`) lives there, keeping this component free of
 // direct library calls in JSX.
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import type { ChordShape, ScalesContainingChordResult } from "tonal-guitar";
 import type {
-  ChordShape,
-  ContainingScale,
-  ScalesContainingChordResult,
-} from "tonal-guitar";
-import {
-  chordDisplaySymbol,
-  type ChordCatalogEntry,
-  type ScaleCatalogEntry,
-  type ShapeCatalogEntry,
+  ChordCatalogEntry,
+  ScaleCatalogEntry,
+  ShapeCatalogEntry,
 } from "./shapeLibraryUtils";
 import {
   alternateFingerings,
@@ -40,10 +35,8 @@ import {
   type InversionGroupsResult,
   type SiblingStepperInfo,
 } from "./shapeDetailUtils";
-import { CompactFretboard } from "./CompactFretboard";
-import { ShapeCardDiagram } from "./ShapeCardDiagram";
-import { ShapeCardChordTable } from "./ShapeCardChordTable";
-import { FeaturedMark, IssueBadges } from "./IssueBadges";
+import { ChordDetailView } from "./ChordDetailView";
+import { ScaleDetailView } from "./ScaleDetailView";
 
 export interface ShapeDetailPanelProps {
   /** The currently selected catalog entry, or `undefined` when no card is
@@ -80,7 +73,7 @@ export interface ShapeDetailPanelProps {
 // Detail computation — the panel's single Tonal-derivation useMemo
 // ============================================================
 
-interface ChordDetail {
+export interface ChordDetail {
   kind: "chord";
   entry: ChordCatalogEntry;
   /** Full `identifyChord` result — first entry is "primary", the rest are
@@ -102,7 +95,7 @@ interface ChordDetail {
   reportUrl: string;
 }
 
-interface ScaleDetail {
+export interface ScaleDetail {
   kind: "scale";
   entry: ScaleCatalogEntry;
   /** Same-`(system, quality)` siblings, INCLUDING `entry`, sorted by name —
@@ -311,7 +304,7 @@ export function ShapeDetailPanel({
 // Shared presentational primitives
 // ============================================================
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
+export function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="mt-4 border-t border-fd-border pt-4 first:mt-0 first:border-t-0 first:pt-0">
       <h3 className="mb-2 text-sm font-semibold text-fd-foreground">{title}</h3>
@@ -320,7 +313,7 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
-function SiblingStepper({
+export function SiblingStepper({
   index,
   total,
   itemLabel,
@@ -371,7 +364,7 @@ function SiblingStepper({
  * (chord `siblings` are `ChordShape[]`, needing a name lookup; scale
  * `siblings` are already `ScaleCatalogEntry[]`).
  */
-function siblingIndexAt(
+export function siblingIndexAt(
   stepper: SiblingStepperInfo,
   offset: number,
   total: number,
@@ -382,7 +375,7 @@ function siblingIndexAt(
   return targetIndex;
 }
 
-function ReportProblemLink({ reportUrl }: { reportUrl: string }) {
+export function ReportProblemLink({ reportUrl }: { reportUrl: string }) {
   return (
     <p className="mt-4 text-xs">
       <a
@@ -394,541 +387,5 @@ function ReportProblemLink({ reportUrl }: { reportUrl: string }) {
         Report a problem with this shape
       </a>
     </p>
-  );
-}
-
-// ============================================================
-// Chord-entry content (spec §Site "Chord entries")
-// ============================================================
-
-function ChordDetailView({
-  detail,
-  chordCatalogByName,
-  onSelectEntry,
-}: {
-  detail: ChordDetail;
-  chordCatalogByName: Map<string, ChordCatalogEntry>;
-  onSelectEntry: (entry: ShapeCatalogEntry) => void;
-}) {
-  const { entry, siblings, stepper } = detail;
-
-  function siblingAt(offset: number): ChordCatalogEntry | undefined {
-    const targetIndex = siblingIndexAt(stepper, offset, siblings.length);
-    return targetIndex === undefined
-      ? undefined
-      : chordCatalogByName.get(siblings[targetIndex].name);
-  }
-
-  const prevEntry = siblingAt(-1);
-  const nextEntry = siblingAt(1);
-
-  return (
-    <div>
-      <div className="mb-4">
-        <div className="flex flex-wrap items-center gap-1.5">
-          <h2 className="text-lg font-semibold text-fd-foreground">
-            {chordDisplaySymbol(entry)}
-          </h2>
-          {entry.shape.featured && <FeaturedMark />}
-          {entry.shape.voicingFamily && (
-            <span className="rounded bg-fd-muted px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-fd-muted-foreground">
-              {entry.shape.voicingFamily}
-            </span>
-          )}
-        </div>
-        <p className="mt-1 text-xs text-fd-muted-foreground">
-          {entry.shape.baseFret !== undefined
-            ? `Base fret ${entry.shape.baseFret}`
-            : "No base fret"}{" "}
-          · Root {entry.renderRoot}
-        </p>
-        <div className="mt-2">
-          <IssueBadges issues={entry.issues} />
-        </div>
-        <div className="mt-2">
-          <SiblingStepper
-            index={stepper.index}
-            total={stepper.total}
-            itemLabel="Voicing"
-            onPrev={() => prevEntry && onSelectEntry(prevEntry)}
-            onNext={() => nextEntry && onSelectEntry(nextEntry)}
-          />
-        </div>
-      </div>
-
-      <ShapeCardDiagram entry={entry} />
-
-      <IdentifiedChordSection identified={detail.identified} />
-      <ScalesOverChordSection chordName={detail.chordName} scales={detail.scales} />
-      <AlternateFingeringsSection
-        alternates={detail.alternates}
-        chordCatalogByName={chordCatalogByName}
-        currentName={entry.name}
-        reportUrl={detail.reportUrl}
-        onSelectEntry={onSelectEntry}
-      />
-      <InversionsSection
-        inversions={detail.inversions}
-        chordCatalogByName={chordCatalogByName}
-        currentName={entry.name}
-        onSelectEntry={onSelectEntry}
-      />
-
-      <Section title="Shape data">
-        <ShapeCardChordTable
-          chordShape={entry.shape}
-          builtFrets={entry.builtFrets}
-          sourceFrets={entry.sourceFrets}
-          gripRoot={entry.gripRoot}
-          renderRoot={entry.renderRoot}
-          issues={entry.issues}
-        />
-      </Section>
-
-      <ReportProblemLink reportUrl={detail.reportUrl} />
-    </div>
-  );
-}
-
-function IdentifiedChordSection({ identified }: { identified: string[] }) {
-  return (
-    <Section title="Identified chord">
-      {identified.length === 0 ? (
-        <p className="text-sm text-fd-muted-foreground">Could not identify these notes.</p>
-      ) : (
-        <p className="text-sm">
-          <strong className="text-fd-foreground">{identified[0]}</strong>
-          {identified.length > 1 && (
-            <span className="text-fd-muted-foreground">
-              {" "}
-              — also: {identified.slice(1).join(", ")}
-            </span>
-          )}
-        </p>
-      )}
-    </Section>
-  );
-}
-
-/** "Fit" caption for one containing scale — chord-tones "why" this scale is
- * listed, built entirely from `ContainingScale`'s own fields (no extra Tonal
- * calls needed: `extraTones`/`omittedTones` already carry everything the
- * caption needs). */
-function containmentCaption(scale: ContainingScale): string {
-  const fit =
-    scale.extraTones === 0
-      ? "exact fit"
-      : `${scale.extraTones} extra tone${scale.extraTones === 1 ? "" : "s"}`;
-  if (scale.omittedTones.length > 0) {
-    return `${fit}; missing ${scale.omittedTones.join(", ")}`;
-  }
-  return `contains every chord tone (${fit})`;
-}
-
-function ContainingScaleList({
-  scales,
-  emptyLabel,
-}: {
-  scales: ContainingScale[];
-  emptyLabel: string;
-}) {
-  if (scales.length === 0) {
-    return emptyLabel ? (
-      <p className="text-sm text-fd-muted-foreground">{emptyLabel}</p>
-    ) : null;
-  }
-  return (
-    <ul className="space-y-1 text-sm">
-      {scales.map((scale) => (
-        <li
-          key={`${scale.name}-${scale.scaleType}`}
-          className="flex flex-wrap items-baseline gap-x-2"
-        >
-          <span className="font-medium text-fd-foreground">{scale.name}</span>
-          <span className="text-xs text-fd-muted-foreground">
-            {containmentCaption(scale)}
-          </span>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-function ScalesOverChordSection({
-  chordName,
-  scales,
-}: {
-  chordName: string | undefined;
-  scales: ScalesContainingChordResult | undefined;
-}) {
-  if (chordName === undefined || scales === undefined) return null;
-
-  const hasAny = scales.rootAnchored.length > 0 || scales.otherRoots.length > 0;
-
-  return (
-    <Section title={`Scales over ${chordName}`}>
-      {!hasAny ? (
-        <p className="text-sm text-fd-muted-foreground">
-          No scales in the library's corpus fully contain this chord's tones.
-        </p>
-      ) : (
-        <>
-          <ContainingScaleList
-            scales={scales.rootAnchored}
-            emptyLabel="No root-anchored scales found."
-          />
-          {scales.otherRoots.length > 0 && (
-            <details className="mt-2">
-              <summary className="cursor-pointer text-xs text-fd-muted-foreground">
-                Other parent scales (any root) — {scales.otherRoots.length}
-              </summary>
-              <div className="mt-2">
-                <ContainingScaleList scales={scales.otherRoots} emptyLabel="" />
-              </div>
-            </details>
-          )}
-        </>
-      )}
-    </Section>
-  );
-}
-
-function AlternateFingeringsSection({
-  alternates,
-  chordCatalogByName,
-  currentName,
-  reportUrl,
-  onSelectEntry,
-}: {
-  alternates: ChordShape[];
-  chordCatalogByName: Map<string, ChordCatalogEntry>;
-  currentName: string;
-  reportUrl: string;
-  onSelectEntry: (entry: ShapeCatalogEntry) => void;
-}) {
-  return (
-    <Section title="Alternate fingerings">
-      {alternates.length === 0 ? (
-        <p className="text-sm text-fd-muted-foreground">
-          No other registered fingerings for this chord type.{" "}
-          <a href={reportUrl} target="_blank" rel="noreferrer" className="underline">
-            Suggest one
-          </a>
-          .
-        </p>
-      ) : (
-        <div className="flex flex-wrap gap-2">
-          {alternates.map((shape) => {
-            const altEntry = chordCatalogByName.get(shape.name);
-            if (!altEntry) return null;
-            return (
-              <CompactFretboard
-                key={shape.name}
-                entry={altEntry}
-                onSelect={() => onSelectEntry(altEntry)}
-                selected={altEntry.name === currentName}
-              />
-            );
-          })}
-        </div>
-      )}
-    </Section>
-  );
-}
-
-const INVERSION_LABELS: Readonly<Record<number, string>> = {
-  0: "Root position",
-  1: "1st inversion",
-  2: "2nd inversion",
-  3: "3rd inversion",
-};
-
-function inversionLabelFor(n: number): string {
-  return INVERSION_LABELS[n] ?? `${n}th inversion`;
-}
-
-function ShapeLinkList({
-  shapes,
-  chordCatalogByName,
-  currentName,
-  onSelectEntry,
-}: {
-  shapes: ChordShape[];
-  chordCatalogByName: Map<string, ChordCatalogEntry>;
-  currentName: string;
-  onSelectEntry: (entry: ShapeCatalogEntry) => void;
-}) {
-  return (
-    <span className="inline-flex flex-wrap gap-1.5">
-      {shapes.map((shape) => {
-        const isCurrent = shape.name === currentName;
-        const siblingEntry = chordCatalogByName.get(shape.name);
-        if (isCurrent || !siblingEntry) {
-          return (
-            <span
-              key={shape.name}
-              className={
-                isCurrent ? "font-medium text-fd-foreground" : "text-fd-muted-foreground"
-              }
-            >
-              {shape.name}
-              {isCurrent ? " (current)" : ""}
-            </span>
-          );
-        }
-        return (
-          <button
-            key={shape.name}
-            type="button"
-            onClick={() => onSelectEntry(siblingEntry)}
-            className="underline decoration-dotted hover:text-fd-primary"
-          >
-            {shape.name}
-          </button>
-        );
-      })}
-    </span>
-  );
-}
-
-/**
- * Inversion groups: `"inversion"` mode walks the canonical root/1st/2nd/3rd
- * labels so a chord type registered with only, say, a root-position voicing
- * still shows "1st inversion — Not registered" rather than silently omitting
- * it. `"voicingFamily"` mode (the base-CAGED-major degrade case, no
- * `chordType`/`inversion` at all) just lists whatever groups
- * `inversionGroups` produced.
- */
-function InversionsSection({
-  inversions,
-  chordCatalogByName,
-  currentName,
-  onSelectEntry,
-}: {
-  inversions: InversionGroupsResult;
-  chordCatalogByName: Map<string, ChordCatalogEntry>;
-  currentName: string;
-  onSelectEntry: (entry: ShapeCatalogEntry) => void;
-}) {
-  if (inversions.mode === "voicingFamily") {
-    return (
-      <Section title="Inversions">
-        <p className="mb-2 text-xs text-fd-muted-foreground">
-          This shape has no chord-type/inversion metadata, so siblings are
-          grouped by voicing family instead.
-        </p>
-        <ul className="space-y-1 text-sm">
-          {inversions.groups.map((group) => (
-            <li key={group.key}>
-              <span className="font-medium text-fd-foreground">{group.label}</span>:{" "}
-              <ShapeLinkList
-                shapes={group.shapes}
-                chordCatalogByName={chordCatalogByName}
-                currentName={currentName}
-                onSelectEntry={onSelectEntry}
-              />
-            </li>
-          ))}
-        </ul>
-      </Section>
-    );
-  }
-
-  const unknownGroup = inversions.groups.find((g) => g.key === "unknown");
-
-  return (
-    <Section title="Inversions">
-      <ul className="space-y-1 text-sm">
-        {[0, 1, 2, 3].map((n) => {
-          const group = inversions.groups.find((g) => g.key === String(n));
-          return (
-            <li key={n}>
-              <span className="font-medium text-fd-foreground">{inversionLabelFor(n)}</span>
-              :{" "}
-              {group ? (
-                <ShapeLinkList
-                  shapes={group.shapes}
-                  chordCatalogByName={chordCatalogByName}
-                  currentName={currentName}
-                  onSelectEntry={onSelectEntry}
-                />
-              ) : (
-                <span className="text-fd-muted-foreground">Not registered</span>
-              )}
-            </li>
-          );
-        })}
-      </ul>
-      {unknownGroup && (
-        <p className="mt-2 text-xs text-fd-muted-foreground">
-          {unknownGroup.shapes.length} sibling shape(s) have no inversion tagged:{" "}
-          <ShapeLinkList
-            shapes={unknownGroup.shapes}
-            chordCatalogByName={chordCatalogByName}
-            currentName={currentName}
-            onSelectEntry={onSelectEntry}
-          />
-        </p>
-      )}
-    </Section>
-  );
-}
-
-// ============================================================
-// Scale-entry content (spec §Site "Scale entries")
-// ============================================================
-
-function ScaleDetailView({
-  detail,
-  scaleCatalogByName,
-  onSelectEntry,
-}: {
-  detail: ScaleDetail;
-  scaleCatalogByName: Map<string, ScaleCatalogEntry>;
-  onSelectEntry: (entry: ShapeCatalogEntry) => void;
-}) {
-  const { entry, siblings, stepper } = detail;
-
-  function siblingAt(offset: number): ScaleCatalogEntry | undefined {
-    const targetIndex = siblingIndexAt(stepper, offset, siblings.length);
-    return targetIndex === undefined ? undefined : siblings[targetIndex];
-  }
-
-  const prevEntry = siblingAt(-1);
-  const nextEntry = siblingAt(1);
-  const parentEntry = entry.shape.parentShape
-    ? scaleCatalogByName.get(entry.shape.parentShape)
-    : undefined;
-
-  return (
-    <div>
-      <div className="mb-4">
-        <div className="flex flex-wrap items-center gap-1.5">
-          <h2 className="text-lg font-semibold text-fd-foreground">{entry.name}</h2>
-          {entry.shape.featured && <FeaturedMark />}
-          <span className="rounded bg-fd-muted px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-fd-muted-foreground">
-            {entry.shape.system}
-          </span>
-          {entry.shape.quality && (
-            <span className="rounded bg-fd-muted px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-fd-muted-foreground">
-              {entry.shape.quality}
-            </span>
-          )}
-        </div>
-        {entry.shape.parentShape && (
-          <p className="mt-1 text-xs text-fd-muted-foreground">
-            Derived from{" "}
-            {parentEntry ? (
-              <button
-                type="button"
-                onClick={() => onSelectEntry(parentEntry)}
-                className="underline decoration-dotted hover:text-fd-primary"
-              >
-                {entry.shape.parentShape}
-              </button>
-            ) : (
-              <span>{entry.shape.parentShape}</span>
-            )}
-          </p>
-        )}
-        <div className="mt-2">
-          <IssueBadges issues={entry.issues} />
-        </div>
-        <div className="mt-2">
-          <SiblingStepper
-            index={stepper.index}
-            total={stepper.total}
-            itemLabel="Shape"
-            onPrev={() => prevEntry && onSelectEntry(prevEntry)}
-            onNext={() => nextEntry && onSelectEntry(nextEntry)}
-          />
-        </div>
-      </div>
-
-      <ShapeCardDiagram entry={entry} />
-
-      <RelatedScalesSection related={detail.related} />
-      <CompatibleShapesSection
-        compatible={detail.compatible}
-        scaleCatalogByName={scaleCatalogByName}
-        onSelectEntry={onSelectEntry}
-      />
-
-      <ReportProblemLink reportUrl={detail.reportUrl} />
-    </div>
-  );
-}
-
-function RelatedScalesSection({
-  related,
-}: {
-  related: Array<{ root: string; scale: string }>;
-}) {
-  return (
-    <Section title="Related scales / modes">
-      {related.length === 0 ? (
-        <p className="text-sm text-fd-muted-foreground">
-          No related scale/mode data available for this shape's quality.
-        </p>
-      ) : (
-        <ul className="flex flex-wrap gap-x-3 gap-y-1 text-sm">
-          {related.map(({ root, scale }) => (
-            <li key={`${root}-${scale}`}>
-              {root} {scale}
-            </li>
-          ))}
-        </ul>
-      )}
-    </Section>
-  );
-}
-
-function CompatibleShapesSection({
-  compatible,
-  scaleCatalogByName,
-  onSelectEntry,
-}: {
-  compatible: CompatibleShapesResult;
-  scaleCatalogByName: Map<string, ScaleCatalogEntry>;
-  onSelectEntry: (entry: ShapeCatalogEntry) => void;
-}) {
-  return (
-    <Section title="Compatible shapes">
-      {compatible.shapes.length === 0 ? (
-        <p className="text-sm text-fd-muted-foreground">
-          No other registered shapes are compatible with this scale.
-        </p>
-      ) : (
-        <ul className="flex flex-wrap gap-1.5">
-          {compatible.shapes.map((shape) => {
-            const shapeEntry = scaleCatalogByName.get(shape.name);
-            return (
-              <li key={shape.name}>
-                {shapeEntry ? (
-                  <button
-                    type="button"
-                    onClick={() => onSelectEntry(shapeEntry)}
-                    className="rounded-full border border-fd-border px-2.5 py-1 text-xs hover:border-fd-primary/50"
-                  >
-                    {shape.name}
-                  </button>
-                ) : (
-                  <span className="rounded-full border border-fd-border px-2.5 py-1 text-xs text-fd-muted-foreground">
-                    {shape.name}
-                  </span>
-                )}
-              </li>
-            );
-          })}
-        </ul>
-      )}
-      {compatible.q4Footnote && (
-        <p className="mt-2 text-xs text-fd-muted-foreground">
-          Note (Q4): 3-notes-per-string shapes carry traditional modal names
-          in the registry that this Tonal-derived compatibility check does
-          not corroborate — it is not an assertion that the names match.
-        </p>
-      )}
-    </Section>
   );
 }
