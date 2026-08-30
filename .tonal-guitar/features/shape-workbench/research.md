@@ -22,7 +22,7 @@ All seven proposed fields (`cagedPosition`, `movable`, `parentShape` on ChordSha
 ### Confirmed real gaps the proposal names
 
 - `Fingering` doesn't carry `fingers`/`barres` (`build.ts:270-276`) — blocks chord-grip round-tripping in the editor.
-- `Barre.fret` stored absolute in `open-chords.ts` (~50 shapes) vs. proposed offset-from-`baseFret`. **Blast radius is tiny**: only real consumer is `ShapeCardChordTable.tsx:43-45` display label; build/audit never read it.
+- `Barre.fret` stored absolute in `open-chords.ts` (70 shapes, 35 barre entries) vs. proposed offset-from-`baseFret`. **Blast radius is tiny**: only real consumer is `ShapeCardChordTable.tsx:43-45` display label; build/audit never read it.
 - `jazz-shells.ts` generates 16 shells; correction to the traditional 8 also requires rewriting `data.test.ts` assertions (`:683`, `:667-755`, counts at `:1111,1289,1355`).
 - `identify-mismatch` audit check needs `@tonaljs/chord` → cannot live in `audit.ts`'s required-peer tier; needs a named tiering decision (opt-in entry point or optional-tier sibling).
 - Chord-scale rule needs mode boxes (mixolydian/locrian/dorian per CAGED position) that aren't registered — derive-on-demand first, seed later (canvas phase 3), following `caged-scales-minor.ts`'s `relabelOrThrow` precedent.

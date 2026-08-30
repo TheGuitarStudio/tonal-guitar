@@ -20,7 +20,7 @@
 
 | Phase     | File        | Status  | Loops | Reviewed |
 | --------- | ----------- | ------- | ----- | -------- |
-| Research  | research.md | done    | 1     | no       |
+| Research  | research.md | done    | 1     | yes      |
 | Shape     | spec.md     | pending | 0     | no       |
 | Plan      | tasks.md    | pending | 0     | no       |
 | Implement | FEATURE.md  | pending | 0     | no       |
@@ -28,3 +28,5 @@
 ## Loop History
 
 ## Review History
+
+- 2026-08-30 — External review of research.md by Codex CLI (reviews/research-review.md). Highlights: shared-UI needs a dedicated React package (proposed `packages/shape-library-ui`), merge script needs AST/generator strategy + fixtures, Barre.fret migration riskier than display-only (audit.ts:147 uses barre ranges), override mechanism needs an explicit resolver layer; corrections: open-chords is 70 shapes/35 barres, ScaleShape.parentShape already exists (ChordShape lacks it). Recommendations accepted into Phase 2 inputs.
