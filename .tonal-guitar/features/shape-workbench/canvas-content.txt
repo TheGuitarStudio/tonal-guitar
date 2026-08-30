@@ -1,0 +1,1072 @@
+
+
+======================================================================
+== FILE: Main.dc.html (163719 chars)
+======================================================================
+
+tonal-guitar / Shape Workbench local
+Board Shapes Arpeggios Chords Graph Export
+Tuning Standard · E A D G B E [diagram]
+4 pending changes
+[diagram] Export changeset
+CAGED Board
+Every movable chord shape by CAGED position. Empty slots are gaps in the library — create a shape straight into its slot.
+Chords Arpeggios Scales
+All Triads Sevenths Extended Sus / Add
+[diagram] Search shapes, ø, half-dim…
+Family
+caged 15 extended 30 barre 25 open 47 shell 16 triad 0
+Columns
+CAGED position String set Inversion
+Diagrams
+Vertical Horizontal
+Showing 46 of 132 · 14 gaps
+type ↓ · position →
+C shape · 1
+A shape · 21
+G shape · 1
+E shape · 21
+D shape · 4
+Triads 6
+Major M · 5/5
+[diagram]
+C Shape Major F · fr 5
+[diagram]
+A Shape Major D · fr 5
+[diagram]
+G Shape Major C · fr 5
+[diagram]
+E Shape Major A · fr 5
+[diagram]
+D Shape Major G · fr 5
+Minor m · 1/5
+[diagram] Create C Shape Minor
+[diagram] Create A Shape Minor
+[diagram] Create G Shape Minor
+[diagram]
+E Shape Minor draft
+[diagram] Create D Shape Minor
+sus4 sus4 · 0/5
+[diagram] Create C Shape sus4
+[diagram] Create A Shape sus4
+[diagram] Create G Shape sus4
+[diagram] Create E Shape sus4
+[diagram] Create D Shape sus4
+Sevenths 11
+7 7 · 3/5
+[diagram] Create C Shape 7
+[diagram]
+A Shape 7 D · fr 5
+[diagram] Create G Shape 7
+[diagram]
+E Shape 7 A · fr 5
+[diagram]
+D Shape 7 G · fr 5
+maj7 maj7 · 3/5
+[diagram] Create C Shape maj7
+[diagram]
+A Shape maj7 D · fr 5
+[diagram] Create G Shape maj7
+[diagram]
+E Shape maj7 A · fr 5
+[diagram]
+D Shape maj7 G · fr 5
+m7 m7 · 3/5
+[diagram] Create C Shape m7
+[diagram]
+A Shape m7 D · fr 5
+[diagram] Create G Shape m7
+[diagram]
+E Shape m7 A · fr 5
+[diagram]
+D Shape m7 G · fr 5
+m7b5 m7b5 · 2/5
+[diagram] Create C Shape m7b5
+[diagram]
+A Shape m7b5 D · fr 5
+[diagram] Create G Shape m7b5
+[diagram]
+E Shape m7b5 A · fr 5
+[diagram] Create D Shape m7b5
+Extended 30 15 types · E and A positions only · C / G / D empty Show all 15 [diagram]
+E Shape m7
+caged movable position E m7
+[diagram] Edit
+[diagram]
+preview at A · frets 5 7 5 5 5 5 · identified Am7
+Links [diagram] Link
+chordType m7 minor seventh
+cagedPosition E
+parentShape E Shape Major
+arpeggio core ★ · override Studio method
+scale box Em Shape · Pentatonic Box 1 Minor
+Tags [diagram] Add
+caged seventh barre-form core
+Checks
+[diagram] fret-span 2 (max 4)
+[diagram] repeated fingers backed by barre
+[diagram] no finger 0 on movable
+[diagram] metadata complete
+[diagram] Duplicate to position [diagram] Report problem
+CAGED Board
+Every movable chord shape by CAGED position. Empty slots are gaps in the library — create a shape straight into its slot.
+Chords Arpeggios Scales
+All Triads Sevenths Extended Sus / Add
+[diagram] Search shapes, ø, half-dim…
+Family
+caged 15 extended 30 barre 25 open 47 shell 16 triad 0
+Columns
+CAGED position String set Inversion
+Diagrams
+Vertical Horizontal
+Showing 46 of 132 · 14 gaps
+type ↓ · position →
+C shape · 1
+A shape · 21
+G shape · 1
+E shape · 21
+D shape · 4
+Triads 6
+Major M · 5/5
+[diagram]
+C Shape Major F · fr 5
+[diagram]
+A Shape Major D · fr 5
+[diagram]
+G Shape Major C · fr 5
+[diagram]
+E Shape Major A · fr 5
+[diagram]
+D Shape Major G · fr 5
+Minor m · 1/5
+[diagram] Create C Shape Minor
+[diagram] Create A Shape Minor
+[diagram] Create G Shape Minor
+[diagram]
+E Shape Minor draft
+[diagram] Create D Shape Minor
+sus4 sus4 · 0/5
+[diagram] Create C Shape sus4
+[diagram] Create A Shape sus4
+[diagram] Create G Shape sus4
+[diagram] Create E Shape sus4
+[diagram] Create D Shape sus4
+Sevenths 11
+7 7 · 3/5
+[diagram] Create C Shape 7
+[diagram]
+A Shape 7 D · fr 5
+[diagram] Create G Shape 7
+[diagram]
+E Shape 7 A · fr 5
+[diagram]
+D Shape 7 G · fr 5
+maj7 maj7 · 3/5
+[diagram] Create C Shape maj7
+[diagram]
+A Shape maj7 D · fr 5
+[diagram] Create G Shape maj7
+[diagram]
+E Shape maj7 A · fr 5
+[diagram]
+D Shape maj7 G · fr 5
+m7 m7 · 3/5
+[diagram] Create C Shape m7
+[diagram]
+A Shape m7 D · fr 5
+[diagram] Create G Shape m7
+[diagram]
+E Shape m7 A · fr 5
+[diagram]
+D Shape m7 G · fr 5
+m7b5 m7b5 · 2/5
+[diagram] Create C Shape m7b5
+[diagram]
+A Shape m7b5 D · fr 5
+[diagram] Create G Shape m7b5
+[diagram]
+E Shape m7b5 A · fr 5
+[diagram] Create D Shape m7b5
+Extended 30 15 types · E and A positions only · C / G / D empty Show all 15 [diagram]
+E Shape m7
+caged movable position E m7
+[diagram] Edit
+[diagram]
+preview at A · frets 5 7 5 5 5 5 · identified Am7
+Links [diagram] Link
+chordType m7 minor seventh
+cagedPosition E
+parentShape E Shape Major
+arpeggio core ★ · override Studio method
+scale box Em Shape · Pentatonic Box 1 Minor
+Tags [diagram] Add
+caged seventh barre-form core
+Checks
+[diagram] fret-span 2 (max 4)
+[diagram] repeated fingers backed by barre
+[diagram] no finger 0 on movable
+[diagram] metadata complete
+[diagram] Duplicate to position [diagram] Report problem
+
+
+======================================================================
+== FILE: Editor.dc.html (50748 chars)
+======================================================================
+
+tonal-guitar / Shape Workbench local
+Board Shapes Arpeggios Chords Graph Export
+Tuning Standard · E A D G B E [diagram]
+4 pending changes
+[diagram] Export changeset
+Chords / Board / E · Minor
+draft · not in changeset
+Discard Run checks Save to changeset
+E Shape Minor chord movable
+Tool
+Select Note Root Finger Barre Mute
+1 2 3 4
+Author at root A [diagram]
+Labels
+intervals notes fingers
+Frets 0 – 12
+Open strings
+Diagram
+Horizontal Vertical
+[diagram]
+Legend Root 3rd 5th 7th 9th
+Double-click a cell to add · click a marker with Finger tool to number it · drag across strings with Barre tool
+Shape data stored as intervals
+E
+A
+D
+G
+B
+e
+interval
+1P
+5P
+1P
+3m
+5P
+1P
+finger
+1
+3
+4
+1
+1
+1
+fret @ A
+5
+7
+7
+5
+5
+5
+note
+A
+E
+A
+C
+E
+A
+barre · finger 1: strings 0–5 @ offset 0 (fret 5 at A)
+Identify Tonal detect
+Am matches chordType m
+also: —
+At other roots
+[diagram] Cm · fr 8
+[diagram] Dm · fr 10
+[diagram] Em · fr 12
+[diagram] Gm · fr 3
+Output preview
+TS JSON [diagram] Copy
+export const CAGED_CHORD_EM: ChordShape = {
+name: "E Shape Minor",
+system: "caged",
+cagedPosition: "E",
+strings: ["1P", "5P", "1P", "3m", "5P", "1P"],
+fingers: [1, 3, 4, 1, 1, 1],
+barres: [{ fret: 0, fromString: 0, toString: 5, finger: 1 }],
+rootString: 0,
+chordType: "m",
+voicingFamily: "caged",
+inversion: 0,
+stringSet: [0, 1, 2, 3, 4, 5],
+parentShape: "E Shape Major",
+tags: ["caged", "triad", "core"],
+};
+Target file: src/data/caged-chords-minor.ts (new) · registered after caged-chords.ts
+Properties
+Name
+E Shape Minor
+Kind
+Chord Arpeggio Scale
+System
+caged [diagram]
+CAGED position
+C A G E D from board slot
+Chord type
+m   minor · 1P 3m 5P · min, - [diagram]
+Voicing family
+caged [diagram]
+Movable
+no open strings; canonicalRoot unset
+Canonical root
+— [diagram] open shapes only
+Root string
+0 · low E first 1P, low string
+Inversion
+0 bass = 1P
+String set
+0 1 2 3 4 5 auto
+Omitted
+—
+Parent shape
+E Shape Major [diagram] derived from
+Featured
+★ spotlight for this chordType
+Overrides
+— none [diagram] replace a built-in
+Tags
+caged triad core [diagram] add
+Notes
+Barre form of open Em; pairs with Em Shape scale box
+Checks 0 issues
+[diagram]
+fret-span
+span 2 ≤ 4
+[diagram]
+finger-zero-on-movable
+no 0 in fingers
+[diagram]
+repeated-finger-no-barre
+finger 1 on strings 0–5 backed by barre
+[diagram]
+build-loss
+6 intervals → 6 frets at A
+[diagram]
+metadata-completeness
+chordType m · voicingFamily caged
+[diagram]
+stringset-mismatch
+stringSet = played strings
+[diagram]
+identify
+Tonal detect → Am ✓ chordType m
+[diagram]
+name-unique
+"E Shape Minor" not registered · export ident CAGED_CHORD_EM free
+
+
+======================================================================
+== FILE: Chord.dc.html (42958 chars)
+======================================================================
+
+tonal-guitar / Shape Workbench local
+Board Shapes Arpeggios Chords Graph Export
+Tuning Standard · E A D G B E [diagram]
+4 pending changes
+[diagram] Export changeset
+Chord types 25
+[diagram] filter
+Triads
+M major
+m minor
+dim diminished
+aug augmented
+Sevenths
+7 dominant
+maj7 major seventh
+m7 minor seventh
+m7b5 half-dim
+dim7 dim seventh
+mMaj7 minor/major
+Extended
+9 dominant ninth
+maj9 major ninth
+m9 minor ninth
+13 thirteenth
+6/9 sixth add ninth
+m7 minor seventh
+intervals 1P 3m 5P 7m Tonal aliases m7 min7 mi7 -7 quality Minor
+[diagram] New shape for m7 Open in graph
+CAGED positions 3 of 5 · movable · preview mid-neck
+C [diagram] Create C Shape m7 issue #57
+A
+[diagram] A Shape m7 at D · fr 5 · caged
+G [diagram] Create G Shape m7 issue #57
+E
+[diagram] E Shape m7 at A · fr 5 · caged
+D
+[diagram] D Shape m7 at G · fr 5 · caged
+Arpeggios 1 core in changeset · 4 derivable from the minor CAGED boxes (issue #58) · overrides shown on the Arpeggios page
+C
+[diagram] from Cm Shape derived · promote ↗
+A
+[diagram] from Am Shape derived · promote ↗
+G
+[diagram] from Gm Shape derived · promote ↗
+E
+[diagram] E pos · m7 arp core ★ · 1 override
+D
+[diagram] from Dm Shape derived · promote ↗
+Each slot derives from the box in the chord's scale (m7 → A minor) whose root sits on the same string as the chord form (Cm/Am/Gm/Em/Dm Shape by position). Promote turns a derived arpeggio into a stored core shape with fingering; teachers can then override it.
+Other voicings 11
+open A Minor 7 Open · D Minor 7 Open · E Minor 7 Open · G Minor 7 Open
+barre C Minor 7 Open · E Form m7 Barre · A Form m7 Barre
+shell E-root R·x·7·3 (strings 6·4·3) · A-root R·3·7 (strings 5·4·3) → string-set view
+Scales containing Am7 scalesContainingChord
+A minor pentatonic · 1 extra tone Pentatonic Box 1 Minor
+A dorian · 3 extra tones 3NPS Pattern 2
+A minor · 3 extra tones Em Shape · Am Shape …
+A phrygian · 3 extra tones 3NPS Pattern 3
+Tags on m7 shapes [diagram] Add tag
+caged 3 seventh 14 core 5 jazz 4 barre-form 5 beginner 4 teacher:studio 1
+
+
+======================================================================
+== FILE: Graph.dc.html (32419 chars)
+======================================================================
+
+tonal-guitar / Shape Workbench local
+Board Shapes Arpeggios Chords Graph Export
+Tuning Standard · E A D G B E [diagram]
+4 pending changes
+[diagram] Export changeset
+Focus
+Chord type
+m7 [diagram]
+Position
+all [diagram]
+Depth
+1 2 3
+Layout
+Lanes Force
+Relationships
+[diagram] chordType → shape
+[diagram] arpeggio-of (chordType)
+[diagram] derived-from (parentShape)
+[diagram] same position
+missing slot
+draft in changeset
+derived at runtime, not stored
+Show
+Chord shapes Arpeggios Scale boxes Open / barre families Shells / triads Scales containing
+Relationship graph
+How chord types, shapes, arpeggios and scale boxes fit together — sorted into CAGED lanes so gaps line up.
+[diagram]
+E position · m7 arpeggio
+arpeggio core 1 override position E
+[diagram]
+core = filterChordTones(Em Shape @ A, [1P 3m 5P 7m])
+chordType m7
+parentShape Em Shape
+cagedPosition E
+chord shape E Shape m7
+overrides Studio method
+Tags [diagram] Add
+arpeggio caged core
+[diagram] Edit [diagram] Link
+
+
+======================================================================
+== FILE: Export.dc.html (17134 chars)
+======================================================================
+
+tonal-guitar / Shape Workbench local
+Board Shapes Arpeggios Chords Graph Export
+Tuning Standard · E A D G B E [diagram]
+4 pending changes
+[diagram] Export changeset
+Export & merge
+Review the changeset, write it to a file, merge it into the library from the terminal.
+Changeset 4 changes · 3 data files + index.ts
++
+E Shape Minor
+src/data/caged-chords-minor.ts · new file checks ok
+~
+A Shape Major
+src/data/caged-chords.ts · metadata only checks ok
++
+E Position m7 Arpeggio
+src/data/caged-arpeggios-minor.ts · new file · new registry checks ok
++
+… · Studio method
+src/data/caged-arpeggios-minor.ts · override · same file checks ok
+Written to .workbench/changeset.json
+Test counts touched data.test.ts ×3 · index.test.ts ×1
+Conflicts none
+[diagram] Copy TS for file Write changeset.json
+Run in a terminal
+$ npm run shapes:merge -- .workbench/changeset.json
+✔ 3 shapes added, 1 updated
+✔ wrote src/data/caged-chords-minor.ts
+✔ wrote src/data/caged-arpeggios-minor.ts (2 entries)
+✔ patched src/data/caged-chords.ts (A Shape Major)
+✔ wired imports in src/index.ts
+✔ updated count assertions (4)
+✔ audit: 0 errors, 0 warnings in changed shapes
+→ review with: git diff --stat
+Dry run: --check · Undo: git checkout -- src/data
+A Shape Major · diff
+TS diff JSON Before / after
+export const CAGED_CHORD_A: ChordShape = {
+name: "A Shape Major",
+system: "caged",
++ cagedPosition: "A",
+strings: [null, "1P", "5P", "1P", "3M", "5P"],
+fingers: [null, 1, 3, 3, 3, 1],
+barres: [ … ],
+rootString: 1,
++ chordType: "M",
++ voicingFamily: "caged",
+};
+[diagram] geometry unchanged
+Metadata-only edit. Audit before: 1 warning (metadata-completeness) → after: 0 . Nothing else in the library references this shape by field.
+changeset.json merge input · one file, all kinds · overrides ride along as ordinary adds
+{
+"$schema": "tonal-guitar/changeset@1",
+"tuning": ["E2","A2","D3","G3","B3","E4"],
+"version": "0.2.0",
+"changes": [
+{ "op": "add", "kind": "chord", "file": "caged-chords-minor",
+"shape": { "name": "E Shape Minor", "system": "caged", "cagedPosition": "E",
+"strings": ["1P","5P","1P","3m","5P","1P"], "fingers": [1,3,4,1,1,1],
+"barres": [{ "fret": 0, "fromString": 0, "toString": 5, "finger": 1 }],
+"rootString": 0, "chordType": "m", "voicingFamily": "caged",
+"parentShape": "E Shape Major", "tags": ["caged","triad","core"] } },
+{ "op": "update", "kind": "chord", "name": "A Shape Major",
+"patch": { "chordType": "M", "voicingFamily": "caged", "cagedPosition": "A" } },
+{ "op": "add", "kind": "arpeggio", "file": "caged-arpeggios-minor",
+"shape": { "name": "E Position m7 Arpeggio", "system": "caged", "cagedPosition": "E",
+"chordType": "m7", "parentShape": "Em Shape", "rootString": 0, "featured": true,
+"strings": [["1P","3m"],["5P"],["7m","1P"],["3m"],["5P","7m"],["1P","3m"]],
+"tags": ["arpeggio","caged","core"] } },
+{ "op": "add", "kind": "arpeggio", "file": "caged-arpeggios-minor",
+"shape": { "name": "E Position m7 Arpeggio · Studio method", "system": "caged", "cagedPosition": "E",
+"chordType": "m7", "parentShape": "Em Shape", "overrides": "E Position m7 Arpeggio", "rootString": 0,
+"strings": [["1P"],["5P"],["7m","1P"],["3m"],["5P"],["1P"]],
+"tags": ["arpeggio","caged","teacher:studio"] } }
+]
+}
+
+
+======================================================================
+== FILE: Arpeggios.dc.html (73749 chars)
+======================================================================
+
+tonal-guitar / Shape Workbench local
+Board Shapes Arpeggios Chords Graph Export
+Tuning Standard · E A D G B E [diagram]
+4 pending changes
+[diagram] Export changeset
+Arpeggios
+Every chord shape gets an arpeggio three ways: derived at runtime from the scale box that contains it, promoted to a stored core shape with fingering, or overridden by a teacher's version.
+How a derived arpeggio is made arpeggioFromShape(get("Em Shape"), "Am7", "A")
+1 Chord shape at a root
+[diagram]
+E Shape m7 @ A · frets 5 7 5 5 5 5
+[diagram]
+2 Same-root-string box in the chord's scale
+[diagram]
+A minor · root on E string → Em Shape @ A · frets 4–8 · chord tones solid, others ghost
+[diagram]
+3 Derived arpeggio
+[diagram]
+filterChordTones(box, [1P 3m 5P 7m]) · 10 notes
+Which box: the chord-scale rule relabelShapeToScale(box, scale) → rootString must equal the grip's root string
+chordType
+scale (chord-scale)
+E-position box · root on E string
+in registry?
+M · maj7
+major
+E Shape
+yes
+m · m7
+minor (aeolian) — default · also in dorian & the relative-major boxes → screen 7
+Em Shape
+yes
+7
+mixolydian
+relabel(A Shape → "A mixolydian")
+derived on demand · seed as “E-root mixolydian” (phase 3)
+m7b5
+locrian
+relabel(E Shape → "A locrian")
+derived on demand · seed (phase 3)
+dim7
+diminished (wh)
+—
+no box system yet · derive from grip only
+Chord type picks the scale; the chord's root string picks the box in that scale frame. Nothing is guessed from fret overlap — the box is the one a player would practise for that chord form, so the arpeggio's tones always come from it. The result is stored as parentShape when promoted. Dominant example, same position:
+E Shape 7 @ A
+[diagram]
+frets 5 7 5 6 5 5
+[diagram]
+A mixolydian · root on E string
+[diagram]
+A Shape geometry relabeled · rootString 0 · frets 4–8
+[diagram]
+Derived A7 arpeggio
+[diagram]
+filterChordTones(box, [1P 3M 5P 7m]) · 9 notes
+Three tiers, one slot E position · m7 · at A
+Derived runtime
+[diagram]
+Computed on demand by arpeggioFromShape . No fingering, no tags, never stored. Always available as the fallback.
+Core ★ stored
+[diagram]
+Promoted from the derived result and curated: fingering (labels), tags, parentShape: Em Shape . Ships in src/data/caged-arpeggios-minor.ts .
+Override teacher · Studio method
+[diagram]
+Same slot, different opinion: stay in position 5–7, no pinky stretch to 8 (3 notes dropped, shown ghosted). Carries overrides: "E Position m7 Arpeggio" and a teacher: tag; the core stays as its parent.
+Resolution order
+arpeggioFor(chordShape, root) // what the Board, Chords page and consumers call
+├─ override registered for this slot? → arpeggioShapes.get(name) (tags: teacher:…)
+├─ core registered? → arpeggioShapes.get(name) ★
+└─ else derive → arpeggioFromShape(parentBox, chord, root)
+// The pure function stays the primitive; the registry is the curated tier on top.
+// A consumer app opts into an override set the same way it adds any custom shape:
+arpeggioShapes.add(studioMethodArp) // replaces the core entry by name for that app
+E Shape m7 → arpeggio
+position E m7 at A
+chord-scale A minor · E-string root
+derived from Em Shape
+core E Position m7 Arpeggio ★
+override Studio method · active
+other overrides —
+Tags [diagram] Add
+arpeggio caged core teacher:studio
+[diagram] Edit override [diagram] Edit core [diagram] New override for another teacher Re-derive from a different box
+Checks on the active override
+[diagram]
+chord-tones-only
+every interval ∈ m7 (1P 3m 5P 7m)
+[diagram]
+covers-chord
+all four tones present
+[diagram]
+position-span
+frets 5–7 · span 2 ≤ 5
+[diagram]
+fingering-complete
+7 of 7 notes fingered
+[diagram]
+build-loss
+7 intervals → 7 frets at A
+[diagram]
+overrides-target
+core E Position m7 Arpeggio exists · geometry differs on 3 notes
+
+
+======================================================================
+== FILE: ArpeggioEditor.dc.html (47899 chars)
+======================================================================
+
+tonal-guitar / Shape Workbench local
+Board Shapes Arpeggios Chords Graph Export
+Tuning Standard · E A D G B E [diagram]
+4 pending changes
+[diagram] Export changeset
+Arpeggios / E position · m7 / override
+in changeset · 1 unsaved edit
+Discard Run checks Save to changeset
+E Position m7 Arpeggio · Studio method arpeggio override
+Tool
+Select Note Root Finger Mute
+Author at root A [diagram]
+Labels
+intervals notes fingers
+Frets 0 – 12
+Show core as ghost
+Show chord grip
+Show parent box
+[diagram]
+Legend Root 3rd 5th 7th in core, not in this override
+Double-click a ghost to take it back from the core · multiple notes per string are allowed · order per string is low→high fret
+Shape data chord-frame intervals
+E
+A
+D
+G
+B
+e
+intervals
+R
+5P
+7m R
+3m
+5P
+R
+fingers
+1
+3
+1 3
+1
+1
+1
+frets @ A
+5
+7
+5 7
+5
+5
+5
+core had
+R 3m
+same
+same
+same
+5P 7m
+R 3m
+rootString 0 · chord grip frets 5 7 5 5 5 5 are all inside the arpeggio
+Compare with core
+Core ★ E Position m7 Arpeggio
+[diagram]
+This override Studio method
+[diagram]
+Diff: −3 notes (E·8 3m, B·8 7m, e·8 3m) · fingering: index on 5, ring on 7, no stretch · same parent box
+Properties
+Name
+E Position m7 Arpeggio · Studio method
+Kind
+Chord Arpeggio Scale
+Tier
+Core Override
+Overrides
+E Position m7 Arpeggio ★ [diagram] core entry
+Teacher tag
+teacher:studio [diagram] add
+System
+caged [diagram]
+CAGED position
+C A G E D
+Chord type
+m7   minor seventh · 1P 3m 5P 7m [diagram]
+Parent box
+Em Shape [diagram] derived from
+Chord shape
+E Shape m7 [diagram] linked grip
+Root string
+0 · low E
+Playing hint
+in position · no stretch [diagram] free text
+Featured
+★ only one per slot
+Tags
+arpeggio caged [diagram] add
+Notes
+Drop the fret-8 stretches; everything stays under the hand at 5–7
+Checks 0 issues
+[diagram]
+chord-tones-only
+7 of 7 intervals ∈ m7
+[diagram]
+covers-chord
+1P 3m 5P 7m all present
+[diagram]
+position-span
+frets 5–7 · span 2 ≤ 5
+[diagram]
+fingering-complete
+7 of 7 fingered
+[diagram]
+build-loss
+7 intervals → 7 frets at A
+[diagram]
+overrides-target
+core exists · name unique
+[diagram]
+contains-chord-grip
+E Shape m7 frets ⊂ arpeggio
+
+
+======================================================================
+== FILE: Diatonic.dc.html (57798 chars)
+======================================================================
+
+tonal-guitar / Shape Workbench local
+Board Shapes Arpeggios Chords Graph Export
+Tuning Standard · E A D G B E [diagram]
+4 pending changes
+[diagram] Export changeset
+Diatonic arpeggios in one shape
+Pick a box and a key: every diatonic chord has an arpeggio already under the hand — same geometry, a different root shape for each degree.
+Box E Shape  caged · root on low E [diagram]
+Key C major [diagram]
+Sevenths Triads
+Degrees
+all I ii iii IV V vi vii°
+Diagrams
+Vertical Horizontal
+The box · E Shape @ C major buildFrettedScale(get("E Shape"), "C") · frets 7–10 · labels = scale degree
+[diagram]
+I Cmaj7 maj7 10 notes
+[diagram]
+roots at E·8 D·10 e·8
+ii Dm7 m7 10 notes
+[diagram]
+roots at E·10 G·7 e·10
+iii Em7 m7 10 notes
+[diagram]
+roots at A·7 G·9
+IV Fmaj7 maj7 9 notes
+[diagram]
+roots at A·8 G·10
+V G7 7 10 notes
+[diagram]
+roots at A·10 B·8
+vi Am7 m7 9 notes
+[diagram]
+roots at D·7 B·10
+= the m7 slot's Am7 · relative major position
+vii° Bm7b5 m7b5 10 notes
+[diagram]
+roots at E·7 D·9 e·7
+Practise view Click a degree chip to isolate it on the big box above; ghost the rest. Walk I → IV → V → I with the sequences module later (SEQ_TRIAD_CLIMB …).
+Same arpeggio, many boxes
+Am7 is one set of tones; every box that contains them offers it at a different position and root shape:
+Em Shape @ A aeolian · frets 4–8 · default ★
+D-Shape geom @ A dorian frets 4–8 · alternate
+E Shape @ C (this page) relative major · frets 7–10 · vi
+Pentatonic Box 1 Minor @ A frets 5–8 · subset
+The chord-scale rule (screen 5) picks the default the slot derives from; this page is the inverse view — start from a box and see everything it contains. m7 default: aeolian (decided).
+How it works arpeggioFromScale
+const box = buildFrettedScale(
+get("E Shape"), "C");
+for (const ch of ["Cmaj7","Dm7",
+"Em7","Fmaj7","G7","Am7","Bm7b5"])
+arpeggioFromScale(box, ch);
+// notes keep parent-frame intervals;
+// cards relabel to each chord's frame
+Existing API — nothing new needed to draw this page. Degree labels come from analyzeInKey .
+Actions
+Promote all 7 · “E Shape diatonic sevenths” set Promote one degree as core Open vi in the arpeggio editor
+Promoted sets get tags: ["diatonic", "degree:ii", …] and parentShape: "E Shape" , so the graph and board can group them.
+
+
+======================================================================
+== FILE: StringSets.dc.html (75297 chars)
+======================================================================
+
+tonal-guitar / Shape Workbench local
+Board Shapes Arpeggios Chords Graph Export
+Tuning Standard · E A D G B E [diagram]
+4 pending changes
+[diagram] Export changeset
+Triads & shells by string set
+Same board, different columns. Families that live on a string set (closed triads, shells, drop voicings) are laid out by string set × inversion or arrangement instead of CAGED position.
+Chords Arpeggios Scales
+Chord type M  major [diagram]
+Family
+triad 0 shell 16 drop2 0 drop3 0
+Columns
+CAGED position String set Inversion
+Diagrams
+Vertical Horizontal
+Closed triads · M 0 in registry · 12 generated for this mock-up from [1P 3M 5P] rotations · proposed core set, voicingFamily "triad"
+string set ↓ · inversion →
+Root position
+bass R · R 3M 5P
+1st inversion
+bass 3M · 3M 5P R
+2nd inversion
+bass 5P · 5P R 3M
+strings 3·2·1 G B e · stringSet [3,4,5]
+[diagram] D · fr 5
+[diagram] A · fr 5
+[diagram] F · fr 5
+strings 4·3·2 D G B · stringSet [2,3,4]
+[diagram] A · fr 5
+[diagram] F · fr 5
+[diagram] C · fr 5
+strings 5·4·3 A D G · stringSet [1,2,3]
+[diagram] F · fr 5
+[diagram] C · fr 5
+[diagram] Ab · fr 5
+strings 6·5·4 E A D · stringSet [0,1,2]
+[diagram] C · fr 5
+[diagram] G · fr 5
+[diagram] Eb · fr 5
+Shells · the traditional 8 3 strings, 5th omitted · previews at the root that puts the form mid-neck
+root string ↓ · chord type →
+maj7
+1P 3M 7M
+7
+1P 3M 7m
+m7
+1P 3m 7m
+m7b5
+1P 3m 7m
+Shell arpeggio
+same rule, filtered to stringSet
+Root on E (6th) R · skip · 7 · 3
+strings 6·4·3 · stringSet [0,2,3]
+[diagram] Amaj7 · 5 x 6 6 x x fr 5 · omits 5P
+[diagram] A7 · 5 x 5 6 x x fr 5 · omits 5P
+[diagram] Am7 · 5 x 5 5 x x fr 5 · omits 5P
+[diagram] Am7b5 · 5 x 5 5 x x fr 5 · omits 5d
+[diagram] maj7 · E Shape box ∩ set · 5 notes
+Root on A (5th) R · 3 · 7
+strings 5·4·3 · stringSet [1,2,3]
+[diagram] Ebmaj7 · x 6 5 7 x x fr 5 · omits 5P
+[diagram] Eb7 · x 6 5 6 x x fr 5 · omits 5P
+[diagram] Em7 · x 7 5 7 x x fr 5 · omits 5P
+[diagram] Em7b5 · x 7 5 7 x x fr 5 · omits 5d
+[diagram] maj7 · A Shape box ∩ set · 6 notes
+Registry today — jazz-shells.ts generates 16 entries: R37 and R73 on adjacent strings for both string sets (Shell m7 R37 012, R73 012, R37 123, R73 123 …). The R73-on-adjacent-strings forms and the E-string-root R37 forms are not how these are traditionally played; the 4 R37 123 entries are already the A-root forms above.
+Proposed correction (as a changeset, not yet added) — +4 E-root R·x·7·3 shapes on [0,2,3] · −12 (R37 012, R73 012, R73 123 × 4 types) · =4 keep R37 123 renamed “Shell <type> A-root”. m7 and m7b5 shells share geometry (5th omitted) — both stay, as aliases of one voicing. [diagram] Add 16 changes to changeset
+Triad M · strings 3·2·1 · root position
+triad movable stringSet 3,4,5 inv 0
+[diagram]
+at D · frets x x x 7 7 5 · auto fingering
+chordType M
+voicingFamily triad (new)
+stringSet [3, 4, 5]
+inversion 0
+cagedPosition optional · sits inside A form
+arpeggio derive · filtered to stringSet
+[diagram] Add all 12 to changeset [diagram] Edit
+How string-set families fit
+Nothing new in the row model. stringSet and inversion already exist on ChordShape (inversion is 0 everywhere today); triads are the first data to use them. The Columns control just picks which field becomes the column key.
+One new family value. VoicingFamily gains "triad" ; shells already use "shell" with omittedIntervals .
+CAGED position is optional here. A triad can carry the CAGED form it sits inside so it also shows up on the CAGED board as a partial of that form — the board overlays it on the parent grip when both are shown.
+Arpeggios work the same way. Same parent-box derivation, then filtered to the shape's stringSet (dotted column). Promote and override exactly as for full shapes.
+Auto fingering is a starting point. Lowest fret → 1, then upward; equal frets on adjacent strings become a barre. The editor lets you change it, and the audit still runs the same checks.
+
+
+======================================================================
+== FILE: Proposal.dc.html (18107 chars)
+======================================================================
+
+tonal-guitar / Shape Workbench design proposal · draft
+### Shape Workbench — data model, export format and app shape
+Companion to the screen mockups. Everything here is additive and backwards-compatible with the v0.2.0 registry; nothing changes how applyChordShape or buildFrettedScale place notes.
+### 1. What the app is
+A local-only authoring tool for the shape registries. It reads the live registry (so it is always in sync with src/data/* ), lets you create and edit chord shapes, arpeggio shapes and scale shapes as movable interval templates authored at a chosen root , links them to each other and to Tonal chord/scale types, and writes a changeset file that a terminal command merges back into src/data/*.ts .
+Board — the CAGED grid (chord type × C·A·G·E·D). Empty slots are library gaps you can create straight into. Tabs switch the same grid to arpeggios and scale boxes.
+Shapes — the editor: fretboard with note / root / finger / barre / mute tools, live checks from audit.ts , Tonal detect identification, preview at other roots, output preview.
+Chords — one page per Tonal chord type: its five CAGED slots, arpeggio slots (derived vs stored), other voicing families, scales containing it, tags.
+Graph — relationships (chordType, parentShape, arpeggio-of, same-position) drawn in CAGED lanes so gaps line up; force layout as an alternative.
+Export — the changeset review, diff per change, the JSON file, and the merge command.
+Why a separate app and not /admin . The docs site is output: "export" — it can never write to disk, which is why the existing /admin editor can only copy TS to the clipboard. The Workbench is a Vite + React app in packages/shape-workbench , linked with file: like fretboard-ui , with a tiny dev-server plugin that writes .workbench/changeset.json . It reuses fretboard-ui ( Fretboard , FretboardEditor , cellsToScaleShapeStrings ) and the pure shapeLibraryUtils.ts / shapeDetailUtils.ts from the site (extracted to packages/shape-catalog so both consumers share them). /admin is retired once the Workbench covers it.
+### 2. Data model additions (src/shape.ts)
+All optional. The audit's metadata-completeness checks are unchanged; new checks are listed in §4.
+Field
+On
+Why
+cagedPosition?: "C"|"A"|"G"|"E"|"D"
+ChordShape, ScaleShape, ArpeggioShape
+The board and graph key on this. Today the letter lives only in the name prefix under two conventions ("E Shape …" vs "E Form … Barre"), and for the minor boxes the name letter ( Em Shape = E position) disagrees with the parent letter ( parentShape: "G Shape" ). The audit's OPEN_NAME_ROOT_RE stops having to guess. Optional for string-set families (triads, shells), which may still carry the CAGED form they sit inside.
+movable?: boolean
+ChordShape
+Explicit flag. Default stays canonicalRoot === undefined so every existing shape keeps its classification; isMovable(shape) is exported so the app and checkFingerZeroOnMovable agree.
+parentShape?: string
+ChordShape (exists on ScaleShape)
+"E Shape Minor" derived from "E Shape Major"; barre forms derived from open grips. Same one-way semantics as scales; reverse index computed at load.
+chordType?: string
+ScaleShape / ArpeggioShape
+An arpeggio names the Tonal chord type it outlines. Always the Chord.get(...).symbol suffix (never detect output), same contract as chord shapes.
+tags?: string[]
+all three
+Free-form curation vocabulary ( core , jazz , beginner , sweep-candidate ). chordShapes.query({ tags }) gains superset matching. Tags are never part of name (D-003).
+tuning?: string[]
+all three
+Absent ⇒ STANDARD. Recorded by the editor at save time so a DADGAD-authored shape can't be silently built against standard later. New warning tuning-mismatch when built with a different tuning.
+overrides?: string
+all three
+Name of the core entry this shape replaces — the teacher-override mechanism. The override is a normal registry entry with its own name; consumers that register it get it back from get() / query() in place of the core, and the core stays reachable as the override's parent. add(shape) becomes replace-in-place when a name already exists (today it pushes a duplicate); remove(name) is added to every registry.
+notes?: string
+all three
+Authoring notes that survive to runtime (today they live in JSDoc comments and vanish).
+### Voicing family — one new value
+VoicingFamily gains "triad" for closed three-note voicings on a string set. stringSet and inversion already exist (inversion is 0 on every shape today); triads are the first data to populate them, and the board's "Columns" control chooses which field is the column key (CAGED position · string set · inversion). The "extended" value already in use is added to the documented union.
+### Barre fret origin — fix, not addition
+Movable shapes store Barre.fret as an offset from the grip base; open shapes store absolute frets. Nothing in src/ reads the value, so the editor is the first real consumer. Proposal: define Barre.fret as an offset from baseFret , normalise open-chords.ts in the merge, and add a barre-fret-origin audit warning. applyChordShape additionally passes fingers and barres through on Fingering so grips round-trip through the build engine.
+### 3. Arpeggios: a third registry, same shape type
+Structurally an arpeggio shape is a ScaleShape — strings: (string[] | null)[] already allows one or more intervals per string, so a sweep form is just [["1P"],["3M"],["5P"],["1P"],["3M"],["1P"]] , and buildFrettedScale , walkShape , inferShapeContext and checkScaleBuildLoss work unchanged. What's missing is a place to keep them without polluting all() (which modeShapes and inferShapeContext enumerate unfiltered).
+export interface ArpeggioShape extends ScaleShape {
+chordType: string; // required here — an arpeggio always outlines a chord
+fingers?: (number | null)[][]; // per-string, parallel to strings[]
+chordShape?: string; // the grip this arpeggio belongs to, e.g. "E Shape m7"
+overrides?: string; // core entry replaced by this (teacher) version
+}
+export const arpeggioShapes = { get, all, names, add, remove, removeAll, query({ chordType, system, cagedPosition, tags }) };
+// Resolution used by the Board, Chords page and consumers:
+arpeggioFor(chordShape, root)
+├─ override registered for this slot? → arpeggioShapes.get(name) (tags: teacher:…)
+├─ core registered? → arpeggioShapes.get(name) ★
+└─ else derive → arpeggioFromShape(parentBox, chord, root)
+### Three tiers per slot
+Derived is what exists today: arpeggioFromShape filters a scale box. Which box is a rule, not a guess — the chord-scale rule : the chord type picks the scale (major/maj7 → major, minor/m7 → minor (aeolian; dorian as the alternate to decide), 7 → mixolydian, m7b5 → locrian), and the chord form's root string picks the box in that scale frame whose rootString matches, via relabelShapeToScale(box, scale) . For E Shape m7 at A that is Em Shape (frets 4–8); for E Shape 7 it is the A-Shape geometry relabeled to A mixolydian (frets 4–8, root on the low E). Mode boxes that are not registered today (mixolydian, dorian, locrian, …) are derived on demand first and seeded as first-class entries with cagedPosition + quality in phase 3 — the PLAN.md deferral that relabelShape already supports. Core is a derived result promoted to a stored shape with fingering, tags and parentShape , shipped in src/data/caged-arpeggios-*.ts . Override is a teacher's version of the same slot: a normal stored shape carrying overrides and a teacher: tag; a consumer opts in by registering it, and the core remains its parent. The editor shows the core as ghost notes while an override is edited and reports the diff.
+Intervals are stored in the chord frame ( 1P 3m 5P 7m ) — the editor converts from a parent scale's frame when you promote a derived arpeggio, and parentShape records where it came from. arpeggioFromShape keeps returning parent-frame notes for derived results; stored shapes are the curated tier on top, which is exactly the split issue #30 asked for (sweep forms are "the one family not derivable from scale positions").
+### 4. Audit additions (src/audit.ts)
+Check
+Severity
+Flags
+stringset-mismatch
+warning
+stringSet disagrees with non-null strings (helper already exists in extended-chords.test.ts ).
+tuning-mismatch
+warning
+Shape declares a tuning and is being built against another.
+barre-fret-origin
+warning
+A barre fret outside the shape's fret span (absolute value on a movable shape).
+identify-mismatch
+warning
+Tonal detect of the built grip does not include chordType at the build root. Editor-only by default; opt-in in auditAllShapes because it needs @tonaljs/chord .
+name-unique
+error
+Merge-time: a new shape's name or export identifier already exists in either registry.
+Everything the editor's "Checks" card shows comes from these functions — the app never reimplements a rule (D-003).
+### 5. Export format and merge command
+The app writes one JSON changeset , not TypeScript. TypeScript is generated by the merge script so formatting, identifier naming ( CAGED_CHORD_EM , EXT_CHORD_A_7SHARP9 ) and registration order live in one place — the current /admin TS-template approach has to be re-taught every field.
+{
+"$schema": "tonal-guitar/changeset@1",
+"tuning": ["E2","A2","D3","G3","B3","E4"],
+"version": "0.2.0", // registry version the edits were made against
+"changes": [
+{ "op": "add", "kind": "chord" | "arpeggio" | "scale", "file": "caged-chords-minor", "shape": { … } },
+{ "op": "update", "kind": "chord", "name": "A Shape Major", "patch": { … } },
+{ "op": "remove", "kind": "chord", "name": "…" }
+]
+}
+npm run shapes:merge -- .workbench/changeset.json (a script under scripts/ , no new dependencies):
+Validates every shape with the audit; refuses on errors, prints warnings.
+Refuses version drift (the file was authored against a different registry) unless --force .
+Writes add changes as constants into the target src/data/<file>.ts (creating it, with the registration block), applies update patches field-by-field to the existing constant, and never touches caged-scales-minor.ts / pentatonic-minor.ts (computed files).
+Wires new files into src/index.ts after their parentShape file, and bumps the hard-coded count assertions in data.test.ts / index.test.ts .
+--check is a dry run; --out prints the generated TS for a single change (the "Copy TS" button uses the same generator in the browser).
+### 6. Movable shapes: authoring at a root
+You author on a concrete fretboard — "E Shape Minor at A" — and the app stores intervals, not frets: each placed note becomes intervalFromTo(rootPc, notePc) , the lowest string carrying 1P becomes rootString , and the barre's fret becomes an offset from the lowest fretted fret. Changing "Author at root" re-renders the same template elsewhere; the "At other roots" strip is applyChordShape at C/D/E/G/A with open strings disabled, so you see immediately where the form gets tall. Marking a root is what makes the shape movable — without a 1P the editor refuses to save.
+Open-string shapes come later: the same editor with Open strings on, movable: false , and canonicalRoot set to the authoring root. Alternate tunings are the same again with the tuning picker unlocked and tuning recorded on the shape.
+### 7. Phasing
+Phase
+Scope
+Closes
+1
+Library: fields in §2, isMovable , remove() , replace-on-add, Fingering.fingers/barres , audit checks in §4. Extract packages/shape-catalog .
+—
+2
+Workbench app: Board + Shapes editor (chords only) + Export + scripts/shapes-merge.mjs . Fill the CAGED minor triad row.
+#57, #66
+3
+arpeggioShapes registry, Arpeggios tab, promote-derived-arpeggio flow, teacher overrides, arpeggio editor, Chords page, Graph.
+#58, #30
+3b
+"triad" voicing family, string-set / inversion column modes, generated closed-triad core set (12 per chord type), shell arpeggios filtered to stringSet . Data fix: replace the 16 generated jazz-shells.ts entries with the 8 traditional forms (E-root R·x·7·3 on strings 6·4·3, A-root R·3·7 on 5·4·3).
+—
+4
+Open-string shapes, alternate tunings, custom-shape overrides in consuming apps.
+design.md open q. 2
+Sized L by the repo's own rule (touches src/ , packages/ , site/ ) → goes through /feature , one spec, phased PRs.
+
+
+======================================================================
+== FILE: canvas.json (8076 chars)
+======================================================================
+
+[skipped non-doc file]
