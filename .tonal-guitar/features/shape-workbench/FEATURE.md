@@ -6,7 +6,7 @@
 
 - [x] Phase 1: Research
 - [x] Phase 2: Shape
-- [ ] Phase 3: Plan
+- [x] Phase 3: Plan
 - [ ] Phase 4: Implement
 
 ## Context
@@ -22,11 +22,12 @@
 | --------- | ----------- | ------- | ----- | -------- |
 | Research  | research.md | done    | 1     | yes      |
 | Shape     | spec.md     | done    | 1     | no       |
-| Plan      | tasks.md    | pending | 0     | no       |
+| Plan      | tasks.md    | done    | 1     | yes      |
 | Implement | FEATURE.md  | pending | 0     | no       |
 
 ## Loop History
 
 ## Review History
 
+- 2026-08-30 — Plan review of tasks.md by feature-plan reviewer agent (reviews/plan-review.md). Verdict NEEDS REVISION → both findings resolved in tasks.md: Group 19 now depends on Groups 26/27 and requires the workbench-authored changeset (spec §4.3 dogfooding); all six `EditCapabilities` handlers wired via 22.4/24.6/26.8/27.6 with add-vs-update draft-origin tracking. 30 task groups; sub-issues #162–#191.
 - 2026-08-30 — External review of research.md by Codex CLI (reviews/research-review.md). Highlights: shared-UI needs a dedicated React package (proposed `packages/shape-library-ui`), merge script needs AST/generator strategy + fixtures, Barre.fret migration riskier than display-only (audit.ts:147 uses barre ranges), override mechanism needs an explicit resolver layer; corrections: open-chords is 70 shapes/35 barres, ScaleShape.parentShape already exists (ChordShape lacks it). Recommendations accepted into Phase 2 inputs.
