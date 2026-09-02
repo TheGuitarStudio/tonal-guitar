@@ -9,12 +9,9 @@
  * merge script itself.
  *
  * Zero `@tonaljs/*` imports — this module only imports `./shape` for the
- * `ChordShape | ScaleShape` union used in `AddChange.shape`.
+ * `ChordShape | ScaleShape | ArpeggioShape` union used in `AddChange.shape`.
  */
-import type { ChordShape, ScaleShape } from "./shape";
-
-// TODO(shape-workbench): widen AddChange.shape to include ArpeggioShape once
-// Group 2 lands it in src/shape.ts.
+import type { ArpeggioShape, ChordShape, ScaleShape } from "./shape";
 
 export interface Changeset {
   $schema: "tonal-guitar/changeset@1"; // exact string, required
@@ -35,7 +32,7 @@ export interface AddChange {
   file: string; // data-file basename, no path/extension, /^[a-z0-9-]+$/
   ident?: string; // export identifier; generated via exportIdentifierFor when absent
   after?: string; // registration-order anchor: another data-file basename
-  shape: ChordShape | ScaleShape; // per `kind`
+  shape: ChordShape | ScaleShape | ArpeggioShape; // per `kind`
 }
 
 export interface UpdateChange {
