@@ -1,0 +1,318 @@
+{
+  "$schema": "tonal-guitar/changeset@1",
+  "version": "0.2.0",
+  "tuning": [
+    "E2",
+    "A2",
+    "D3",
+    "G3",
+    "B3",
+    "E4"
+  ],
+  "changes": [
+    {
+      "op": "add",
+      "kind": "chord",
+      "file": "caged-chords-minor",
+      "shape": {
+        "name": "E Shape Minor",
+        "system": "caged",
+        "cagedPosition": "E",
+        "strings": [
+          "1P",
+          "5P",
+          "1P",
+          "3m",
+          "5P",
+          "1P"
+        ],
+        "fingers": [
+          1,
+          3,
+          4,
+          1,
+          1,
+          1
+        ],
+        "barres": [
+          {
+            "fret": 0,
+            "fromString": 0,
+            "toString": 5,
+            "finger": 1
+          }
+        ],
+        "rootString": 0,
+        "chordType": "m",
+        "voicingFamily": "caged",
+        "inversion": 0,
+        "stringSet": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "parentShape": "E Shape Major",
+        "tags": [
+          "caged",
+          "triad",
+          "core"
+        ]
+      },
+      "ident": "CAGED_CHORD_EM"
+    },
+    {
+      "op": "add",
+      "kind": "chord",
+      "file": "caged-chords-minor",
+      "shape": {
+        "name": "A Shape Minor",
+        "system": "caged",
+        "cagedPosition": "A",
+        "strings": [
+          null,
+          "1P",
+          "5P",
+          "1P",
+          "3m",
+          "5P"
+        ],
+        "fingers": [
+          null,
+          1,
+          3,
+          4,
+          2,
+          1
+        ],
+        "barres": [
+          {
+            "fret": 0,
+            "fromString": 1,
+            "toString": 5,
+            "finger": 1
+          }
+        ],
+        "rootString": 1,
+        "chordType": "m",
+        "voicingFamily": "caged",
+        "inversion": 0,
+        "stringSet": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "parentShape": "A Shape Major",
+        "tags": [
+          "caged",
+          "triad",
+          "core"
+        ]
+      },
+      "ident": "CAGED_CHORD_AM"
+    },
+    {
+      "op": "add",
+      "kind": "chord",
+      "file": "caged-chords-minor",
+      "shape": {
+        "name": "G Shape Minor",
+        "system": "caged",
+        "cagedPosition": "G",
+        "strings": [
+          "1P",
+          "3m",
+          "5P",
+          "1P",
+          "5P",
+          "1P"
+        ],
+        "fingers": [
+          3,
+          2,
+          1,
+          1,
+          4,
+          4
+        ],
+        "barres": [
+          {
+            "fret": 0,
+            "fromString": 2,
+            "toString": 3,
+            "finger": 1
+          },
+          {
+            "fret": 3,
+            "fromString": 4,
+            "toString": 5,
+            "finger": 4
+          }
+        ],
+        "rootString": 0,
+        "chordType": "m",
+        "voicingFamily": "caged",
+        "inversion": 0,
+        "stringSet": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "parentShape": "G Shape Major",
+        "tags": [
+          "caged",
+          "triad",
+          "core"
+        ]
+      },
+      "ident": "CAGED_CHORD_GM"
+    },
+    {
+      "op": "add",
+      "kind": "chord",
+      "file": "caged-chords-minor",
+      "shape": {
+        "name": "D Shape Minor",
+        "system": "caged",
+        "cagedPosition": "D",
+        "strings": [
+          null,
+          null,
+          "1P",
+          "5P",
+          "1P",
+          "3m"
+        ],
+        "fingers": [
+          null,
+          null,
+          1,
+          3,
+          4,
+          2
+        ],
+        "barres": [],
+        "rootString": 2,
+        "chordType": "m",
+        "voicingFamily": "caged",
+        "inversion": 0,
+        "stringSet": [
+          2,
+          3,
+          4,
+          5
+        ],
+        "parentShape": "D Shape Major",
+        "tags": [
+          "caged",
+          "triad",
+          "core"
+        ]
+      },
+      "ident": "CAGED_CHORD_DM"
+    },
+    {
+      "op": "add",
+      "kind": "chord",
+      "file": "caged-chords-minor",
+      "shape": {
+        "name": "C Shape Minor",
+        "system": "caged",
+        "cagedPosition": "C",
+        "strings": [
+          null,
+          "1P",
+          "3m",
+          "5P",
+          "1P",
+          null
+        ],
+        "fingers": [
+          null,
+          4,
+          2,
+          1,
+          3,
+          null
+        ],
+        "barres": [],
+        "rootString": 1,
+        "chordType": "m",
+        "voicingFamily": "caged",
+        "inversion": 0,
+        "stringSet": [
+          1,
+          2,
+          3,
+          4
+        ],
+        "parentShape": "C Shape Major",
+        "tags": [
+          "caged",
+          "triad",
+          "core"
+        ]
+      },
+      "ident": "CAGED_CHORD_CM"
+    },
+    {
+      "op": "update",
+      "kind": "chord",
+      "name": "E Shape Major",
+      "patch": {
+        "cagedPosition": "E",
+        "chordType": "M",
+        "voicingFamily": "caged"
+      }
+    },
+    {
+      "op": "update",
+      "kind": "chord",
+      "name": "A Shape Major",
+      "patch": {
+        "cagedPosition": "A",
+        "chordType": "M",
+        "voicingFamily": "caged"
+      }
+    },
+    {
+      "op": "update",
+      "kind": "chord",
+      "name": "D Shape Major",
+      "patch": {
+        "cagedPosition": "D",
+        "chordType": "M",
+        "voicingFamily": "caged"
+      }
+    },
+    {
+      "op": "update",
+      "kind": "chord",
+      "name": "C Shape Major",
+      "patch": {
+        "cagedPosition": "C",
+        "chordType": "M",
+        "voicingFamily": "caged"
+      }
+    },
+    {
+      "op": "update",
+      "kind": "chord",
+      "name": "G Shape Major",
+      "patch": {
+        "cagedPosition": "G",
+        "chordType": "M",
+        "voicingFamily": "caged"
+      }
+    }
+  ],
+  "generator": "shape-workbench@0.1.0",
+  "createdAt": "2026-09-02T09:14:21.628Z"
+}

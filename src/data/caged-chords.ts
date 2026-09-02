@@ -16,6 +16,9 @@ export const CAGED_CHORD_E: ChordShape = {
   fingers: [1, 3, 4, 2, 1, 1],
   barres: [{ fret: 0, fromString: 0, toString: 5, finger: 1 }],
   rootString: 0,
+  chordType: "M",
+  voicingFamily: "caged",
+  cagedPosition: "E",
 };
 // shapes-merge:end CAGED_CHORD_E
 
@@ -34,6 +37,9 @@ export const CAGED_CHORD_A: ChordShape = {
     { fret: 2, fromString: 2, toString: 4, finger: 3 },
   ],
   rootString: 1,
+  chordType: "M",
+  voicingFamily: "caged",
+  cagedPosition: "A",
 };
 // shapes-merge:end CAGED_CHORD_A
 
@@ -45,6 +51,9 @@ export const CAGED_CHORD_D: ChordShape = {
   fingers: [null, null, 1, 2, 3, 4],
   barres: [],
   rootString: 2,
+  chordType: "M",
+  voicingFamily: "caged",
+  cagedPosition: "D",
 };
 // shapes-merge:end CAGED_CHORD_D
 
@@ -59,6 +68,9 @@ export const CAGED_CHORD_C: ChordShape = {
   fingers: [null, 4, 3, 1, 2, 1],
   barres: [{ fret: 0, fromString: 3, toString: 5, finger: 1 }],
   rootString: 1,
+  chordType: "M",
+  voicingFamily: "caged",
+  cagedPosition: "C",
 };
 // shapes-merge:end CAGED_CHORD_C
 
@@ -73,6 +85,9 @@ export const CAGED_CHORD_G: ChordShape = {
   fingers: [2, 1, 4, 4, 4, 3],
   barres: [{ fret: 0, fromString: 2, toString: 4, finger: 4 }],
   rootString: 0,
+  chordType: "M",
+  voicingFamily: "caged",
+  cagedPosition: "G",
 };
 // shapes-merge:end CAGED_CHORD_G
 

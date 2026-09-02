@@ -231,6 +231,7 @@ export {
 import "./data/caged-scales";
 import "./data/caged-scales-minor";
 import "./data/caged-chords";
+import "./data/caged-chords-minor";
 import "./data/three-nps";
 import "./data/pentatonic";
 import "./data/pentatonic-minor";
