@@ -49,8 +49,8 @@
 | 6 | TG21: packages/shape-catalog — Move-Only Extraction | complete | sonnet | - |
 | 7 | TG17: Merge Script Core — scripts/shapes-merge.mjs | complete | sonnet | - |
 | 7 | TG22: packages/shape-catalog — New Pure Models | complete | sonnet | - |
-| 8 | TG18: Merge Script Fixtures & Tests | pending | - | - |
-| 8 | TG23: packages/shape-library-ui — Components & Capability Contract | pending | - | - |
+| 8 | TG18: Merge Script Fixtures & Tests | complete | sonnet | - |
+| 8 | TG23: packages/shape-library-ui — Components & Capability Contract | complete | sonnet | - |
 | 9 | TG24: packages/shape-workbench — App Skeleton, Store & Dev-Server Plugin | pending | - | - |
 | 10 | TG25: packages/shape-workbench — Board Screen | pending | - | - |
 | 11 | TG26: packages/shape-workbench — Editor Screen (closes #66) | pending | - | - |
@@ -69,6 +69,7 @@
 - **Layer 4**: No concerns. Continued.
 - **Layer 5**: No concerns. Continued.
 - **Layer 6**: Aligned; one docstring accuracy fix applied by lead (checkBarreFretOrigin scope claim). Pre-existing EXT_CHORD_A_9 barre-origin issue in extended-chords.ts noted for separate tracking (spec §4.5 no-silent-autofix). Continued.
+- **Layer 8**: Aligned; TG18 resolved all three Layer-7 script concerns. Lead added vitest react/react-dom dedupe (duplicate-React hook errors from file:-linked packages). Two quality follow-ups for /review: shape-library-ui tsconfig reaches into shape-catalog's render-shape-mjs.d.ts shim; reactGlobal.ts ships a vitest-only JSX workaround in production source. Continued.
 - **Layer 7**: Aligned with 5 non-blocking concerns (counts-on-remove under-reporting, rename-update --check idempotence, draftToChange drops cleared fields, documented rule-order deviation, one missing refusal test). First two + missing test folded into TG18; draftToChange field-clearing deferred to spec-compliance loop (schema cannot express deletion — design question). Continued.
 
 ### Spec Compliance
