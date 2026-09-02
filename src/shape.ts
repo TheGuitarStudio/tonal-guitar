@@ -19,6 +19,12 @@ export interface FrettedNote {
   midi: number;
 }
 
+// Board/graph column key shared by ScaleShape, ChordShape and ArpeggioShape
+// (shape-workbench, spec §1.1). Today the letter only exists in the name
+// prefix under two conventions ("E Shape …" vs "E Form … Barre"); this field
+// gives it a first-class, queryable home.
+export type CagedPosition = "C" | "A" | "G" | "E" | "D";
+
 export interface ScaleShape {
   name: string;
   system: string; // "caged" | "3nps" | "pentatonic" | "custom"
@@ -33,11 +39,23 @@ export interface ScaleShape {
   // has no default, and is intentionally NOT referenced by
   // checkScaleMetadataCompleteness — see audit.ts's dependency-layer note.
   featured?: boolean;
+  // --- shape-workbench additive metadata (spec §1.3) ---
+  cagedPosition?: CagedPosition; // board/graph column key, see CagedPosition
+  // Chord symbol this scale is associated with (e.g. box-per-chord-type
+  // systems). When present, always the `Chord.get(...).symbol` suffix
+  // (e.g. "m7") — never `detect()` output. Same contract as
+  // ChordShape.chordType.
+  chordType?: string;
+  tags?: string[]; // free-form curation vocabulary, never part of `name`
+  tuning?: string[]; // absent => STANDARD; recorded by the editor at save time
+  overrides?: string; // name of the core entry this shape replaces (teacher-override mechanism)
+  notes?: string; // authoring notes that survive to runtime
 }
 
 export type VoicingFamily =
   | "caged"
   | "extended"
+  | "triad"
   | "shell"
   | "open"
   | "barre"
@@ -70,6 +88,19 @@ export interface ChordShape {
   // default, and is intentionally NOT referenced by
   // checkChordMetadataCompleteness — see audit.ts's dependency-layer note.
   featured?: boolean;
+  // --- shape-workbench additive metadata (spec §1.2) ---
+  cagedPosition?: CagedPosition; // board/graph column key, see CagedPosition
+  // Explicit "can this shape be transposed to any root" flag. Default when
+  // unset is `canonicalRoot === undefined` (see `isMovable` helper) — never
+  // written for existing shapes; this field only overrides that default.
+  movable?: boolean;
+  // Name of the shape this was derived from (e.g. "E Shape Minor" ← "E Shape
+  // Major"). One-way, same semantics as ScaleShape.parentShape.
+  parentShape?: string;
+  tags?: string[]; // free-form curation vocabulary, never part of `name`
+  tuning?: string[]; // absent => STANDARD; recorded by the editor at save time
+  overrides?: string; // name of the core entry this shape replaces (teacher-override mechanism)
+  notes?: string; // authoring notes that survive to runtime
 }
 
 export interface Barre {
@@ -77,6 +108,26 @@ export interface Barre {
   fromString: number;
   toString: number;
   finger: number;
+}
+
+/**
+ * An arpeggio shape: the notes of a chord laid out across the fretboard as a
+ * scale-like run rather than a single grip. Structurally an `ArpeggioShape`
+ * IS a `ScaleShape` (it only narrows `chordType` to required and adds a few
+ * arpeggio-specific fields), so `buildFrettedScale`, `walkShape`,
+ * `inferShapeContext` and `checkScaleBuildLoss` all work unchanged on it
+ * with no code changes in this feature. No seed data ships for this
+ * interface yet — see the `arpeggioShapes` registry (later group) for where
+ * it starts getting populated.
+ */
+export interface ArpeggioShape extends ScaleShape {
+  // REQUIRED here (unlike the optional ScaleShape.chordType) — an arpeggio
+  // always outlines a chord. Always the `Chord.get(...).symbol` suffix.
+  chordType: string;
+  fingers?: (number | null)[][]; // per-string, parallel to strings[]
+  chordShape?: string; // the grip this arpeggio belongs to, e.g. "E Shape m7"
+  cagedPosition?: CagedPosition;
+  overrides?: string; // core entry replaced by this (teacher) version
 }
 
 export interface FrettedScale {
@@ -119,6 +170,19 @@ export const NoFrettedScale: FrettedScale = {
   notes: [],
 };
 
+/**
+ * Registries (below, and `chordShapes`/`arpeggioShapes`) are the project's
+ * one sanctioned mutation seam: shapes are registered via side-effect
+ * `add()` calls at module import time (see registry pattern note at the top
+ * of this file), and later phases add `remove()` and replace-on-same-name
+ * `add()` semantics to support teacher overrides and live editing. That
+ * in-place mutation of the registry's internal dictionary/index does NOT
+ * violate the "pure functions only, no mutation" design convention — the
+ * convention governs the shape/build/audit computation functions
+ * (`buildFrettedScale`, `walkShape`, etc.), which remain pure and
+ * side-effect-free; the registries are deliberately the one place state
+ * lives, analogous to Tonal.js's own ScaleType/ChordType registries.
+ */
 // ============================================================
 // Scale shape registry
 // ============================================================
