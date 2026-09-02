@@ -12,6 +12,10 @@ export interface ChecksCardProps {
   shape: ChordShape;
   root: string;
   tuning: string[];
+  /** True when the draft edits an already-registered shape (`origin:
+   * "existing"`) — suppresses the spurious reference-equality
+   * `name-unique` error (see `runChordChecks`). */
+  existingEdit?: boolean;
 }
 
 const STATUS_CLASS: Record<string, string> = {
@@ -20,8 +24,8 @@ const STATUS_CLASS: Record<string, string> = {
   error: "tg-badge tg-badge-error",
 };
 
-export function ChecksCard({ shape, root, tuning }: ChecksCardProps) {
-  const issues = runChordChecks(shape, root, tuning);
+export function ChecksCard({ shape, root, tuning, existingEdit }: ChecksCardProps) {
+  const issues = runChordChecks(shape, root, tuning, { existingEdit });
   const rows = chordCheckRows(issues);
   const errorCount = rows.filter((r) => r.status === "error").length;
   const warningCount = rows.filter((r) => r.status === "warning").length;

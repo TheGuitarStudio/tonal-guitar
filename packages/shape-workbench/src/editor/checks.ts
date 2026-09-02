@@ -49,14 +49,24 @@ export const CHORD_CHECK_IDS: readonly string[] = [
 ];
 
 /** Runs both check functions and returns their combined issue list — the
- * Checks card's sole data source. */
+ * Checks card's sole data source.
+ *
+ * `existingEdit: true` (an `origin: "existing"` draft) drops
+ * `CHECK_NAME_UNIQUE` issues: `checkNameUnique` falls back to
+ * reference-equality against the live registry, and an edited draft is
+ * always a clone of the registered shape, so the check would fire on every
+ * clean edit. The merge script applies the identical filter to `update`
+ * changes (scripts/shapes-merge.mjs), so the card stays consistent with
+ * what a merge would actually refuse. */
 export function runChordChecks(
   shape: ChordShape,
   root: string,
   tuning: string[],
+  { existingEdit = false }: { existingEdit?: boolean } = {},
 ): ShapeAuditIssue[] {
   const options = { root, tuning };
-  return [...auditChordShape(shape, options), ...auditChordShapeIntegration(shape, options)];
+  const issues = [...auditChordShape(shape, options), ...auditChordShapeIntegration(shape, options)];
+  return existingEdit ? issues.filter((issue) => issue.id !== CHECK_NAME_UNIQUE) : issues;
 }
 
 export interface ChordCheckRow {

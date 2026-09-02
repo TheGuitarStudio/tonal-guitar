@@ -261,7 +261,12 @@ function EditorInner({ slotKey, draft }: { slotKey: string; draft: DraftShape })
             onFileChange={setFile}
             onIdentChange={setIdent}
           />
-          <ChecksCard shape={displayShape} root={state.authorRoot} tuning={tuning} />
+          <ChecksCard
+            shape={displayShape}
+            root={state.authorRoot}
+            tuning={tuning}
+            existingEdit={draft.origin === "existing"}
+          />
         </div>
       </div>
     </section>
