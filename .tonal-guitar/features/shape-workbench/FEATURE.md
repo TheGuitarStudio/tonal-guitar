@@ -81,6 +81,8 @@
 
 ### Spec Compliance
 
+- **Loop 1**: 3 gaps found (0 missing, 3 partial: UpdateChange field-clearing semantics, shape-catalog Tonal peer deps, workbench README docs), 3 fixed.
+
 ## Loop History
 
 ## Review History
