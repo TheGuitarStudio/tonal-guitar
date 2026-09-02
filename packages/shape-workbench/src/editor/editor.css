@@ -1,0 +1,27 @@
+/**
+ * Editor-screen-only layout. Reuses every `tg-*` primitive from
+ * `shape-library-ui/src/styles.css` (already imported by `App.tsx`) for
+ * color/spacing tokens; this file only lays out the two-column Editor
+ * screen itself, which is unique to the workbench (never shipped to the
+ * read-only docs site).
+ */
+
+.tg-editor-layout {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  align-items: flex-start;
+}
+
+.tg-editor-left,
+.tg-editor-right {
+  flex: 1 1 360px;
+  min-width: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.tg-editor-table {
+  margin-top: 0.5rem;
+}
