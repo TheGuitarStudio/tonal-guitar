@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+// @ts-expect-error -- untyped Vite `?raw` raw-source import (same pattern as audit-integration.test.ts)
 import chordScaleSource from "./chord-scale.ts?raw";
 import {
   CHORD_SCALE_RULE,

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+// @ts-expect-error -- untyped Vite `?raw` raw-source import (same pattern as audit-integration.test.ts)
 import buildSource from "./build.ts?raw";
 import { applyChordShape, autoFingering, buildFrettedScale } from "./build";
 import { gripBaseFret, ChordShape } from "./shape";
@@ -238,7 +239,7 @@ describe("dependency tier boundary: src/build.ts stays required-peer", () => {
   it("does not import ./integration or ./audit-integration", () => {
     const importLines = buildSource
       .split("\n")
-      .filter((line) => /^\s*import\b/.test(line));
+      .filter((line: string) => /^\s*import\b/.test(line));
     for (const line of importLines) {
       expect(line).not.toMatch(/["']\.\/(integration|audit-integration)["']/);
     }

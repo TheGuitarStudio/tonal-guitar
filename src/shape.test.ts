@@ -3,6 +3,7 @@
  * Also covers CR-038: registry hostile-key safety (Map-backed indices).
  */
 import { describe, it, expect, afterEach } from "vitest";
+// @ts-expect-error -- untyped Vite `?raw` raw-source import (same pattern as audit-integration.test.ts)
 import shapeSource from "./shape.ts?raw";
 import {
   chordShapes,
@@ -1231,7 +1232,7 @@ describe("dependency tier boundary: src/shape.ts stays zero-Tonal", () => {
   it("does not import ./build, ./audit, ./integration, or ./audit-integration", () => {
     const importLines = shapeSource
       .split("\n")
-      .filter((line) => /^\s*import\b/.test(line));
+      .filter((line: string) => /^\s*import\b/.test(line));
     for (const line of importLines) {
       expect(line).not.toMatch(/["']\.\/(build|audit|integration|audit-integration)["']/);
     }
