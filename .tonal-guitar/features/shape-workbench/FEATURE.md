@@ -54,7 +54,7 @@
 | 9 | TG24: packages/shape-workbench — App Skeleton, Store & Dev-Server Plugin | complete | sonnet | - |
 | 10 | TG25: packages/shape-workbench — Board Screen | complete | sonnet | - |
 | 11 | TG26: packages/shape-workbench — Editor Screen (closes #66) | complete | sonnet | - |
-| 12 | TG27: packages/shape-workbench — Export Screen | pending | - | - |
+| 12 | TG27: packages/shape-workbench — Export Screen | complete | sonnet | - |
 | 13 | TG19: CAGED Data Changeset — Minor Triads + Major Metadata Backfill (closes #57) | pending | - | - |
 | 13 | TG28: Site — Vertical Slice Integration (D-003 gate) | pending | - | - |
 | 14 | TG29: Site — Incremental Migration & /admin Retirement | pending | - | - |
@@ -69,6 +69,7 @@
 - **Layer 4**: No concerns. Continued.
 - **Layer 5**: No concerns. Continued.
 - **Layer 6**: Aligned; one docstring accuracy fix applied by lead (checkBarreFretOrigin scope claim). Pre-existing EXT_CHORD_A_9 barre-origin issue in extended-chords.ts noted for separate tracking (spec §4.5 no-silent-autofix). Continued.
+- **Layer 12**: No concerns. Continued.
 - **Layer 11**: Aligned; Layer-10 concerns fixed and verified. One medium concern (spurious name-unique error in Checks card for existing-shape edits) fixed by lead: runChordChecks now filters CHECK_NAME_UNIQUE for origin:"existing" drafts, mirroring the merge script's update filter. Continued.
 - **Layer 10**: Aligned with 2 concerns (dead voicing-family/root/scale filter controls on Board; BoardCellCard gap-button wording vs spec). Lead dispatched a parallel fix agent alongside Layer 11. Continued.
 - **Layer 9**: No concerns. Continued.
