@@ -6,10 +6,23 @@
  * synthetic fixtures — the whole point of this task group is that the
  * markers actually parse.
  */
-import { readFileSync } from "node:fs";
+import {
+  readFileSync,
+  writeFileSync,
+  mkdtempSync,
+  mkdirSync,
+  copyFileSync,
+  readdirSync,
+  existsSync,
+  statSync,
+  rmSync,
+} from "node:fs";
 import { fileURLToPath } from "node:url";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { describe, it, expect } from "vitest";
 import { parseOwnedBlocks, findOwnedBlock, parseCountMarkers } from "./lib/owned-blocks.mjs";
+import { runMerge, MergeRefusal, UsageError, parseArgs, GENERATED_HEADER } from "./shapes-merge.mjs";
 
 const repoRoot = fileURLToPath(new URL("..", import.meta.url));
 const read = (relativePath) => readFileSync(new URL(relativePath, import.meta.url), "utf8");
@@ -186,5 +199,788 @@ describe("fixture sanity", () => {
     for (const relativePath of [CAGED_CHORDS_PATH, INDEX_TS_PATH, DATA_TEST_PATH, INDEX_TEST_PATH]) {
       expect(read(relativePath).length).toBeGreaterThan(0);
     }
+  });
+});
+
+/**
+ * Tests for Task Group 17 (shape-workbench spec §6): the merge script
+ * itself, `scripts/shapes-merge.mjs`. Every scenario runs against a
+ * `--root`-isolated temp copy of `src/data`/`src/index.ts`/`src/index.test.ts`
+ * so the real checkout is never touched (verified explicitly below).
+ */
+
+const LIBRARY_VERSION = "0.2.0"; // src/version.ts VERSION
+const STANDARD_TUNING = ["E2", "A2", "D3", "G3", "B3", "E4"]; // src/tuning.ts STANDARD
+
+function createFixtureRoot() {
+  const dir = mkdtempSync(path.join(tmpdir(), "shapes-merge-fixture-"));
+  const realDataDir = path.join(repoRoot, "src", "data");
+  const fixtureDataDir = path.join(dir, "src", "data");
+  mkdirSync(fixtureDataDir, { recursive: true });
+  for (const file of readdirSync(realDataDir)) {
+    if (file.endsWith(".ts")) {
+      copyFileSync(path.join(realDataDir, file), path.join(fixtureDataDir, file));
+    }
+  }
+  copyFileSync(path.join(repoRoot, "src", "index.ts"), path.join(dir, "src", "index.ts"));
+  copyFileSync(path.join(repoRoot, "src", "index.test.ts"), path.join(dir, "src", "index.test.ts"));
+  return dir;
+}
+
+function withFixtureRoot(fn) {
+  return async () => {
+    const dir = createFixtureRoot();
+    try {
+      await fn(dir);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  };
+}
+
+function writeChangeset(dir, changeset, name = "changeset.json") {
+  const p = path.join(dir, name);
+  writeFileSync(p, JSON.stringify(changeset, null, 2));
+  return p;
+}
+
+function realDataFile(dir, basename) {
+  return path.join(dir, "src", "data", `${basename}.ts`);
+}
+
+function realIndexFile(dir) {
+  return path.join(dir, "src", "index.ts");
+}
+
+function baseChangeset(changes, overrides = {}) {
+  return {
+    $schema: "tonal-guitar/changeset@1",
+    version: LIBRARY_VERSION,
+    tuning: [...STANDARD_TUNING],
+    changes,
+    ...overrides,
+  };
+}
+
+// A small movable minor-triad chord shape in the spirit of the spec §4.3
+// "C Shape Minor" dogfooding example (verified audit-clean: built at the
+// default root "C" via applyChordShape produces frets [null,3,1,0,1,null],
+// zero errors/warnings from auditChordShapeFull).
+const C_SHAPE_MINOR = {
+  name: "C Shape Minor",
+  system: "caged",
+  strings: [null, "1P", "3m", "5P", "1P", null],
+  fingers: [null, 3, 1, 4, 2, null],
+  barres: [],
+  rootString: 1,
+  chordType: "m",
+  voicingFamily: "caged",
+  cagedPosition: "C",
+  parentShape: "C Shape Major",
+  tags: ["caged", "triad", "core"],
+};
+
+// Same shape family, a distinct name/cagedPosition — for the "two constants
+// in one generated file" scenarios. Also verified audit-clean.
+const G_SHAPE_MINOR = {
+  name: "G Shape Minor",
+  system: "caged",
+  strings: [null, "1P", "3m", "5P", null, null],
+  fingers: [null, 2, 1, 3, null, null],
+  barres: [],
+  rootString: 1,
+  chordType: "m",
+  voicingFamily: "caged",
+  cagedPosition: "G",
+  parentShape: "G Shape Major",
+  tags: ["caged", "triad", "core"],
+};
+
+describe("shapes-merge: --root never touches the real checkout", () => {
+  it(
+    "the real src/data tree is byte-identical before and after a fixture-rooted merge",
+    withFixtureRoot(async (dir) => {
+      const realCagedChords = read(CAGED_CHORDS_PATH);
+      const realIndexTs = read(INDEX_TS_PATH);
+      const changesetPath = writeChangeset(
+        dir,
+        baseChangeset([{ op: "add", kind: "chord", file: "caged-chords-minor", shape: C_SHAPE_MINOR }]),
+      );
+      await runMerge([changesetPath, "--root", dir]);
+      expect(read(CAGED_CHORDS_PATH)).toBe(realCagedChords);
+      expect(read(INDEX_TS_PATH)).toBe(realIndexTs);
+    }),
+  );
+});
+
+describe("shapes-merge: add — new-file creation + registration order (17.2/17.3)", () => {
+  it(
+    "creates a generator-owned file and inserts its import after the parentShape's file",
+    withFixtureRoot(async (dir) => {
+      const changesetPath = writeChangeset(
+        dir,
+        baseChangeset([{ op: "add", kind: "chord", file: "caged-chords-minor", shape: C_SHAPE_MINOR }]),
+      );
+      const result = await runMerge([changesetPath, "--root", dir]);
+      expect(result.mode).toBe("merge");
+      expect(result.plan.added).toBe(1);
+
+      const newFilePath = realDataFile(dir, "caged-chords-minor");
+      expect(existsSync(newFilePath)).toBe(true);
+      const newFileText = readFileSync(newFilePath, "utf8");
+      expect(newFileText.startsWith(GENERATED_HEADER)).toBe(true);
+      expect(newFileText).toContain("shapes-merge:begin CHORD_C_SHAPE_MINOR");
+      expect(newFileText).toContain('export const CHORD_C_SHAPE_MINOR: ChordShape = {');
+      expect(newFileText).toContain('name: "C Shape Minor"');
+      expect(newFileText).toContain("shapes-merge:end CHORD_C_SHAPE_MINOR");
+      expect(newFileText).toContain("[CHORD_C_SHAPE_MINOR].forEach(chordShapes.add.bind(chordShapes));");
+
+      const indexText = readFileSync(realIndexFile(dir), "utf8");
+      expect(indexText).toContain('import "./data/caged-chords-minor";');
+      const lines = indexText.split("\n");
+      const cagedChordsLine = lines.findIndex((l) => l.trim() === 'import "./data/caged-chords";');
+      expect(lines[cagedChordsLine + 1].trim()).toBe('import "./data/caged-chords-minor";');
+    }),
+  );
+
+  it(
+    "respects an explicit `after` anchor over the parentShape default",
+    withFixtureRoot(async (dir) => {
+      const changesetPath = writeChangeset(
+        dir,
+        baseChangeset([
+          {
+            op: "add",
+            kind: "chord",
+            file: "caged-chords-minor",
+            after: "open-chords",
+            shape: C_SHAPE_MINOR,
+          },
+        ]),
+      );
+      await runMerge([changesetPath, "--root", dir]);
+      const indexText = readFileSync(realIndexFile(dir), "utf8");
+      const lines = indexText.split("\n");
+      const openChordsLine = lines.findIndex((l) => l.trim() === 'import "./data/open-chords";');
+      expect(lines[openChordsLine + 1].trim()).toBe('import "./data/caged-chords-minor";');
+    }),
+  );
+});
+
+describe("shapes-merge: update — surgical owned-block replace (17.2)", () => {
+  it(
+    "rewrites only the targeted owned block, byte-preserving everything else in the file",
+    withFixtureRoot(async (dir) => {
+      const before = readFileSync(realDataFile(dir, "caged-chords"), "utf8");
+      const changesetPath = writeChangeset(
+        dir,
+        baseChangeset([
+          {
+            op: "update",
+            kind: "chord",
+            name: "A Shape Major",
+            patch: { chordType: "M", voicingFamily: "caged", cagedPosition: "A" },
+          },
+        ]),
+      );
+      const result = await runMerge([changesetPath, "--root", dir]);
+      expect(result.plan.updated).toBe(1);
+
+      const after = readFileSync(realDataFile(dir, "caged-chords"), "utf8");
+      expect(after).not.toBe(before);
+      expect(after).toContain('chordType: "M"');
+      expect(after).toContain('cagedPosition: "A"');
+      // The hand-written comment directly above the CAGED_CHORD_A block (CR-005/
+      // CR-006 sweep) sits outside the marker pair and must survive verbatim.
+      expect(after).toContain("CR-005/CR-006 sweep");
+      // Every OTHER owned block (E/D/C/G) is untouched.
+      for (const untouched of ["CAGED_CHORD_E", "CAGED_CHORD_D", "CAGED_CHORD_C", "CAGED_CHORD_G"]) {
+        const b = findOwnedBlock(before, untouched);
+        const a = findOwnedBlock(after, untouched);
+        expect(a.content).toBe(b.content);
+      }
+    }),
+  );
+});
+
+describe("shapes-merge: remove — drops the owned block, deletes an emptied generated file (17.2)", () => {
+  it(
+    "removes one constant from a 2-constant generated file, then deletes the file + import once empty",
+    withFixtureRoot(async (dir) => {
+      const addChangesetPath = writeChangeset(
+        dir,
+        baseChangeset([
+          { op: "add", kind: "chord", file: "caged-chords-minor", shape: C_SHAPE_MINOR },
+          { op: "add", kind: "chord", file: "caged-chords-minor", shape: G_SHAPE_MINOR },
+        ]),
+        "add.json",
+      );
+      await runMerge([addChangesetPath, "--root", dir]);
+
+      const removeOnePath = writeChangeset(
+        dir,
+        baseChangeset([{ op: "remove", kind: "chord", name: "G Shape Minor" }]),
+        "remove-one.json",
+      );
+      const r1 = await runMerge([removeOnePath, "--root", dir]);
+      expect(r1.plan.removed).toBe(1);
+      const afterOneRemoved = readFileSync(realDataFile(dir, "caged-chords-minor"), "utf8");
+      expect(afterOneRemoved).toContain("C Shape Minor");
+      expect(afterOneRemoved).not.toContain("G Shape Minor");
+      expect(readFileSync(realIndexFile(dir), "utf8")).toContain('import "./data/caged-chords-minor";');
+
+      const removeLastPath = writeChangeset(
+        dir,
+        baseChangeset([{ op: "remove", kind: "chord", name: "C Shape Minor" }]),
+        "remove-last.json",
+      );
+      await runMerge([removeLastPath, "--root", dir]);
+      expect(existsSync(realDataFile(dir, "caged-chords-minor"))).toBe(false);
+      expect(readFileSync(realIndexFile(dir), "utf8")).not.toContain("caged-chords-minor");
+    }),
+  );
+
+  it(
+    "refuses to remove a constant from the hand-written caged-chords.ts allow-listed file",
+    withFixtureRoot(async (dir) => {
+      const changesetPath = writeChangeset(
+        dir,
+        baseChangeset([{ op: "remove", kind: "chord", name: "A Shape Major" }]),
+      );
+      await expect(runMerge([changesetPath, "--root", dir])).rejects.toThrow(MergeRefusal);
+      expect(readFileSync(realDataFile(dir, "caged-chords"), "utf8")).toContain("A Shape Major");
+    }),
+  );
+});
+
+describe("shapes-merge: refusal scenarios (spec §6.2, in order) — every one writes nothing", () => {
+  async function expectRefusalWithNoWrites(dir, changesetPath, argsExtra = []) {
+    const before = new Map();
+    const dataDir = path.join(dir, "src", "data");
+    for (const file of readdirSync(dataDir)) {
+      before.set(file, readFileSync(path.join(dataDir, file), "utf8"));
+    }
+    const beforeIndex = readFileSync(realIndexFile(dir), "utf8");
+    let caught;
+    try {
+      await runMerge([changesetPath, "--root", dir, ...argsExtra]);
+    } catch (err) {
+      caught = err;
+    }
+    expect(caught).toBeInstanceOf(MergeRefusal);
+    for (const file of readdirSync(dataDir)) {
+      expect(readFileSync(path.join(dataDir, file), "utf8")).toBe(before.get(file) ?? undefined);
+    }
+    expect(readFileSync(realIndexFile(dir), "utf8")).toBe(beforeIndex);
+    return caught;
+  }
+
+  it(
+    "rule 1: invalid $schema is refused",
+    withFixtureRoot(async (dir) => {
+      const changesetPath = writeChangeset(dir, {
+        ...baseChangeset([{ op: "add", kind: "chord", file: "caged-chords-minor", shape: C_SHAPE_MINOR }]),
+        $schema: "wrong-schema@1",
+      });
+      const err = await expectRefusalWithNoWrites(dir, changesetPath);
+      expect(err.rule).toBe("schema");
+    }),
+  );
+
+  it(
+    "rule 2: version drift is refused without --force, and proceeds with --force",
+    withFixtureRoot(async (dir) => {
+      const changesetPath = writeChangeset(
+        dir,
+        baseChangeset([{ op: "add", kind: "chord", file: "caged-chords-minor", shape: C_SHAPE_MINOR }], {
+          version: "0.0.1",
+        }),
+      );
+      const err = await expectRefusalWithNoWrites(dir, changesetPath);
+      expect(err.rule).toBe("version-drift");
+
+      const result = await runMerge([changesetPath, "--root", dir, "--force"]);
+      expect(result.mode).toBe("merge");
+      expect(result.plan.added).toBe(1);
+    }),
+  );
+
+  it(
+    "rule 3: non-STANDARD tuning is refused without --force, and proceeds with --force",
+    withFixtureRoot(async (dir) => {
+      const changesetPath = writeChangeset(
+        dir,
+        baseChangeset([{ op: "add", kind: "chord", file: "caged-chords-minor", shape: C_SHAPE_MINOR }], {
+          tuning: ["D2", "A2", "D3", "G3", "B3", "E4"],
+        }),
+      );
+      const err = await expectRefusalWithNoWrites(dir, changesetPath);
+      expect(err.rule).toBe("tuning-mismatch");
+
+      const result = await runMerge([changesetPath, "--root", dir, "--force"]);
+      expect(result.mode).toBe("merge");
+    }),
+  );
+
+  it(
+    "rule 4: a chord shape missing required fields (fingers) is refused",
+    withFixtureRoot(async (dir) => {
+      const { fingers, ...withoutFingers } = C_SHAPE_MINOR;
+      void fingers;
+      const changesetPath = writeChangeset(
+        dir,
+        baseChangeset([{ op: "add", kind: "chord", file: "caged-chords-minor", shape: withoutFingers }]),
+      );
+      const err = await expectRefusalWithNoWrites(dir, changesetPath);
+      expect(err.rule).toBe("required-fields");
+      expect(err.message).toMatch(/fingers/);
+    }),
+  );
+
+  it(
+    "rule 5: an invalid file basename (uppercase) is refused",
+    withFixtureRoot(async (dir) => {
+      const changesetPath = writeChangeset(
+        dir,
+        baseChangeset([{ op: "add", kind: "chord", file: "Caged-Chords-Minor", shape: C_SHAPE_MINOR }]),
+      );
+      const err = await expectRefusalWithNoWrites(dir, changesetPath);
+      expect(err.rule).toBe("file-name");
+    }),
+  );
+
+  it(
+    "rule 5: the computed-file deny list refuses even with --force",
+    withFixtureRoot(async (dir) => {
+      const changesetPath = writeChangeset(
+        dir,
+        baseChangeset([{ op: "add", kind: "scale", file: "pentatonic-minor", shape: {
+          name: "Pentatonic Box 1 Minor Duplicate",
+          system: "pentatonic",
+          strings: [["1P"], ["1P"], ["1P"], ["1P"], ["1P"], ["1P"]],
+          rootString: 0,
+        } }]),
+      );
+      const err1 = await expectRefusalWithNoWrites(dir, changesetPath);
+      expect(err1.rule).toBe("computed-file-deny-list");
+      const err2 = await expectRefusalWithNoWrites(dir, changesetPath, ["--force"]);
+      expect(err2.rule).toBe("computed-file-deny-list");
+    }),
+  );
+
+  it(
+    "rule 6: adding a shape whose name already exists in the registry is refused",
+    withFixtureRoot(async (dir) => {
+      const changesetPath = writeChangeset(
+        dir,
+        baseChangeset([
+          {
+            op: "add",
+            kind: "chord",
+            file: "caged-chords-minor",
+            shape: { ...C_SHAPE_MINOR, name: "E Shape Major" },
+          },
+        ]),
+      );
+      const err = await expectRefusalWithNoWrites(dir, changesetPath);
+      expect(err.rule).toBe("name-unique");
+    }),
+  );
+
+  it(
+    "rule 6: an explicit `ident` colliding with an existing src/data identifier is refused",
+    withFixtureRoot(async (dir) => {
+      const changesetPath = writeChangeset(
+        dir,
+        baseChangeset([
+          {
+            op: "add",
+            kind: "chord",
+            file: "caged-chords-minor",
+            ident: "CAGED_CHORD_E",
+            shape: C_SHAPE_MINOR,
+          },
+        ]),
+      );
+      const err = await expectRefusalWithNoWrites(dir, changesetPath);
+      expect(err.rule).toBe("name-unique");
+    }),
+  );
+
+  it(
+    "rule 6: two adds in the same changeset sharing a name collide with each other",
+    withFixtureRoot(async (dir) => {
+      const changesetPath = writeChangeset(
+        dir,
+        baseChangeset([
+          { op: "add", kind: "chord", file: "caged-chords-minor", shape: C_SHAPE_MINOR },
+          { op: "add", kind: "chord", file: "caged-chords-minor", shape: { ...C_SHAPE_MINOR } },
+        ]),
+      );
+      const err = await expectRefusalWithNoWrites(dir, changesetPath);
+      expect(err.rule).toBe("name-unique");
+    }),
+  );
+
+  it(
+    "rule 7: an unresolvable overrides target is refused",
+    withFixtureRoot(async (dir) => {
+      const changesetPath = writeChangeset(
+        dir,
+        baseChangeset([
+          {
+            op: "add",
+            kind: "arpeggio",
+            file: "arpeggios-test",
+            shape: {
+              name: "Test Arpeggio Override",
+              system: "caged",
+              strings: [["1P"], null, null, null, null, null],
+              rootString: 0,
+              chordType: "m7",
+              overrides: "Nonexistent Arpeggio",
+            },
+          },
+        ]),
+      );
+      const err = await expectRefusalWithNoWrites(dir, changesetPath);
+      expect(err.rule).toBe("overrides-target");
+    }),
+  );
+
+  it(
+    "rule 8: an audit ERROR (finger 0 on a movable shape) refuses; warnings alone do not",
+    withFixtureRoot(async (dir) => {
+      const movableWithOpenString = {
+        ...C_SHAPE_MINOR,
+        name: "C Shape Minor Bad",
+        fingers: [null, 0, 1, 4, 2, null],
+      };
+      const changesetPath = writeChangeset(
+        dir,
+        baseChangeset([{ op: "add", kind: "chord", file: "caged-chords-minor", shape: movableWithOpenString }]),
+      );
+      const err = await expectRefusalWithNoWrites(dir, changesetPath);
+      expect(err.rule).toBe("audit-error");
+      expect(err.message).toMatch(/finger-zero-on-movable/);
+    }),
+  );
+
+  it(
+    "rule 8: --force never bypasses an audit error, even alongside version drift",
+    withFixtureRoot(async (dir) => {
+      const movableWithOpenString = {
+        ...C_SHAPE_MINOR,
+        name: "C Shape Minor Bad",
+        fingers: [null, 0, 1, 4, 2, null],
+      };
+      const changesetPath = writeChangeset(
+        dir,
+        baseChangeset([{ op: "add", kind: "chord", file: "caged-chords-minor", shape: movableWithOpenString }], {
+          version: "0.0.1",
+        }),
+      );
+      const err = await expectRefusalWithNoWrites(dir, changesetPath, ["--force"]);
+      expect(err.rule).toBe("audit-error");
+    }),
+  );
+
+  it(
+    "rule 8: --force never bypasses the computed-file deny list, even alongside version drift",
+    withFixtureRoot(async (dir) => {
+      const changesetPath = writeChangeset(
+        dir,
+        baseChangeset(
+          [
+            {
+              op: "add",
+              kind: "scale",
+              file: "caged-scales-minor",
+              shape: {
+                name: "Duplicate Minor Scale",
+                system: "caged",
+                strings: [["1P"], ["1P"], ["1P"], ["1P"], ["1P"], ["1P"]],
+                rootString: 0,
+              },
+            },
+          ],
+          { version: "0.0.1" },
+        ),
+      );
+      const err = await expectRefusalWithNoWrites(dir, changesetPath, ["--force"]);
+      expect(err.rule).toBe("computed-file-deny-list");
+    }),
+  );
+
+  it(
+    "rule 8: audit warnings (no errors) do not refuse the merge",
+    withFixtureRoot(async (dir) => {
+      // stringset-mismatch is a warning: an explicit stringSet that disagrees
+      // with the actually-played strings.
+      const withWarning = { ...C_SHAPE_MINOR, stringSet: [0, 1, 2, 3, 4, 5] };
+      const changesetPath = writeChangeset(
+        dir,
+        baseChangeset([{ op: "add", kind: "chord", file: "caged-chords-minor", shape: withWarning }]),
+      );
+      const result = await runMerge([changesetPath, "--root", dir]);
+      expect(result.mode).toBe("merge");
+      expect(result.plan.warnings.some((w) => w.includes("stringset-mismatch"))).toBe(true);
+    }),
+  );
+
+  it(
+    "rule 9: updating a shape that lives in an unmanaged file (open-chords.ts) is refused",
+    withFixtureRoot(async (dir) => {
+      const changesetPath = writeChangeset(
+        dir,
+        baseChangeset([
+          { op: "update", kind: "chord", name: "C Major Open", patch: { tags: ["open"] } },
+        ]),
+      );
+      const err = await expectRefusalWithNoWrites(dir, changesetPath);
+      expect(err.rule).toBe("unowned-region");
+      expect(err.message).toMatch(/open-chords/);
+    }),
+  );
+
+  it(
+    "rule 9: updating a name that doesn't exist anywhere in src/data is refused",
+    withFixtureRoot(async (dir) => {
+      const changesetPath = writeChangeset(
+        dir,
+        baseChangeset([{ op: "update", kind: "chord", name: "Nonexistent Shape Name", patch: { notes: "x" } }]),
+      );
+      const err = await expectRefusalWithNoWrites(dir, changesetPath);
+      expect(err.rule).toBe("unowned-region");
+    }),
+  );
+});
+
+describe("shapes-merge: CLI modes (spec §6.6)", () => {
+  it(
+    "--dry-run writes nothing (verified by mtime + content hash)",
+    withFixtureRoot(async (dir) => {
+      const target = realDataFile(dir, "caged-chords-minor"); // doesn't exist yet
+      const indexPath = realIndexFile(dir);
+      const beforeIndexMtime = statSync(indexPath).mtimeMs;
+      const beforeIndexText = readFileSync(indexPath, "utf8");
+
+      const changesetPath = writeChangeset(
+        dir,
+        baseChangeset([{ op: "add", kind: "chord", file: "caged-chords-minor", shape: C_SHAPE_MINOR }]),
+      );
+      const result = await runMerge([changesetPath, "--root", dir, "--dry-run"]);
+      expect(result.mode).toBe("dry-run");
+      expect(existsSync(target)).toBe(false);
+      expect(statSync(indexPath).mtimeMs).toBe(beforeIndexMtime);
+      expect(readFileSync(indexPath, "utf8")).toBe(beforeIndexText);
+    }),
+  );
+
+  it(
+    "--check reports a diff (exit non-zero) before merging, then reports no-op after merging",
+    withFixtureRoot(async (dir) => {
+      const changesetPath = writeChangeset(
+        dir,
+        baseChangeset([{ op: "add", kind: "chord", file: "caged-chords-minor", shape: C_SHAPE_MINOR }]),
+      );
+
+      const before = await runMerge([changesetPath, "--root", dir, "--check"]);
+      expect(before.mode).toBe("check");
+      expect(before.ok).toBe(false);
+      expect(existsSync(realDataFile(dir, "caged-chords-minor"))).toBe(false);
+
+      await runMerge([changesetPath, "--root", dir]);
+
+      const after = await runMerge([changesetPath, "--root", dir, "--check"]);
+      expect(after.mode).toBe("check");
+      expect(after.ok).toBe(true);
+    }),
+  );
+
+  it(
+    "idempotence: re-running an already-merged changeset produces zero file changes",
+    withFixtureRoot(async (dir) => {
+      const changesetPath = writeChangeset(
+        dir,
+        baseChangeset([{ op: "add", kind: "chord", file: "caged-chords-minor", shape: C_SHAPE_MINOR }]),
+      );
+      await runMerge([changesetPath, "--root", dir]);
+      const target = realDataFile(dir, "caged-chords-minor");
+      const indexPath = realIndexFile(dir);
+      const textAfterFirst = readFileSync(target, "utf8");
+      const indexAfterFirst = readFileSync(indexPath, "utf8");
+      const mtimeAfterFirst = statSync(target).mtimeMs;
+
+      const second = await runMerge([changesetPath, "--root", dir]);
+      expect(second.plan.files.changed()).toHaveLength(0);
+      expect(readFileSync(target, "utf8")).toBe(textAfterFirst);
+      expect(readFileSync(indexPath, "utf8")).toBe(indexAfterFirst);
+      expect(statSync(target).mtimeMs).toBe(mtimeAfterFirst);
+    }),
+  );
+
+  it(
+    "--out <ident> prints the generated TS for one change to stdout and writes nothing",
+    withFixtureRoot(async (dir) => {
+      const changesetPath = writeChangeset(
+        dir,
+        baseChangeset([{ op: "add", kind: "chord", file: "caged-chords-minor", shape: C_SHAPE_MINOR }]),
+      );
+      const logs = [];
+      const originalWrite = process.stdout.write.bind(process.stdout);
+      process.stdout.write = (chunk) => {
+        logs.push(String(chunk));
+        return true;
+      };
+      try {
+        await runMerge([changesetPath, "--root", dir, "--out", "CHORD_C_SHAPE_MINOR"]);
+      } finally {
+        process.stdout.write = originalWrite;
+      }
+      expect(logs.join("")).toContain("export const CHORD_C_SHAPE_MINOR: ChordShape");
+      expect(existsSync(realDataFile(dir, "caged-chords-minor"))).toBe(false);
+    }),
+  );
+
+  it(
+    "--json prints a machine-readable summary with the documented fields",
+    withFixtureRoot(async (dir) => {
+      const changesetPath = writeChangeset(
+        dir,
+        baseChangeset([{ op: "add", kind: "chord", file: "caged-chords-minor", shape: C_SHAPE_MINOR }]),
+      );
+      const logs = [];
+      const originalLog = console.log;
+      console.log = (msg) => logs.push(msg);
+      try {
+        await runMerge([changesetPath, "--root", dir, "--json"]);
+      } finally {
+        console.log = originalLog;
+      }
+      const summary = JSON.parse(logs.join("\n"));
+      expect(summary).toMatchObject({ added: 1, updated: 0, removed: 0 });
+      expect(Array.isArray(summary.filesWritten)).toBe(true);
+      expect(Array.isArray(summary.warnings)).toBe(true);
+      expect(Array.isArray(summary.countsTouched)).toBe(true);
+    }),
+  );
+});
+
+describe("shapes-merge: --update-counts (17.5, spec §6.4)", () => {
+  it(
+    "default mode reports touched counts without editing any file",
+    withFixtureRoot(async (dir) => {
+      const scaleShape = {
+        name: "Test Scale For Counts",
+        system: "custom",
+        strings: [["1P"], ["1P"], ["1P"], ["1P"], ["1P"], ["1P"]],
+        rootString: 0,
+      };
+      const changesetPath = writeChangeset(
+        dir,
+        baseChangeset([{ op: "add", kind: "scale", file: "test-scale-counts", shape: scaleShape }]),
+      );
+      const dataTestPath = path.join(dir, "src", "data", "data.test.ts");
+      const before = readFileSync(dataTestPath, "utf8");
+
+      const result = await runMerge([changesetPath, "--root", dir]);
+      expect(result.plan.countsTouched.some((c) => c.name === "scale-shape-total")).toBe(true);
+      // default mode never edits data.test.ts / index.test.ts
+      expect(readFileSync(dataTestPath, "utf8")).toBe(before);
+    }),
+  );
+
+  it(
+    "--update-counts rewrites only the annotated, simple-literal count lines it touches",
+    withFixtureRoot(async (dir) => {
+      const scaleShape = {
+        name: "Test Scale For Counts",
+        system: "custom",
+        strings: [["1P"], ["1P"], ["1P"], ["1P"], ["1P"], ["1P"]],
+        rootString: 0,
+      };
+      const changesetPath = writeChangeset(
+        dir,
+        baseChangeset([{ op: "add", kind: "scale", file: "test-scale-counts", shape: scaleShape }]),
+      );
+      const dataTestPath = path.join(dir, "src", "data", "data.test.ts");
+      const before = readFileSync(dataTestPath, "utf8");
+      const beforeMarkers = parseCountMarkers(before);
+
+      const result = await runMerge([changesetPath, "--root", dir, "--update-counts"]);
+      const after = readFileSync(dataTestPath, "utf8");
+      expect(after).not.toBe(before);
+
+      const touchedEditable = result.plan.countsTouched.filter((c) => c.editable && c.file.endsWith("data.test.ts"));
+      expect(touchedEditable.length).toBeGreaterThan(0);
+
+      const afterMarkers = parseCountMarkers(after);
+      for (const marker of beforeMarkers) {
+        const wasTouched = touchedEditable.some((c) => c.name === marker.name);
+        const afterMarker = afterMarkers.find((m) => m.name === marker.name);
+        if (!wasTouched) {
+          // Every unannotated-for-this-changeset (or non-editable) line is
+          // byte-identical before/after.
+          expect(afterMarker.lineText).toBe(marker.lineText);
+        } else {
+          expect(afterMarker.lineText).not.toBe(marker.lineText);
+        }
+      }
+    }),
+  );
+});
+
+describe("shapes-merge: printed output matches the render-shape printer directly (parity)", () => {
+  it(
+    "the block content shapes-merge writes for an add is exactly renderShape's output (minus trailing newline)",
+    withFixtureRoot(async (dir) => {
+      const changesetPath = writeChangeset(
+        dir,
+        baseChangeset([{ op: "add", kind: "chord", file: "caged-chords-minor", shape: C_SHAPE_MINOR }]),
+      );
+      await runMerge([changesetPath, "--root", dir]);
+      const fileText = readFileSync(realDataFile(dir, "caged-chords-minor"), "utf8");
+      const block = findOwnedBlock(fileText, "CHORD_C_SHAPE_MINOR");
+
+      const { renderShape } = await import("./lib/render-shape.mjs");
+      const rendered = await renderShape("chord", C_SHAPE_MINOR, { ident: "CHORD_C_SHAPE_MINOR" });
+      expect(block.content).toBe(rendered.replace(/\n$/, ""));
+    }),
+  );
+});
+
+describe("shapes-merge: CLI arg parsing", () => {
+  it("parseArgs recognizes every documented flag", () => {
+    const args = parseArgs([
+      "changeset.json",
+      "--dry-run",
+      "--check",
+      "--force",
+      "--update-counts",
+      "--json",
+      "--out",
+      "IDENT",
+      "--root",
+      "/tmp/somewhere",
+    ]);
+    expect(args).toMatchObject({
+      changesetPath: "changeset.json",
+      dryRun: true,
+      check: true,
+      force: true,
+      updateCounts: true,
+      json: true,
+      out: "IDENT",
+      root: "/tmp/somewhere",
+    });
+  });
+
+  it("throws UsageError with no changeset path", () => {
+    expect(() => parseArgs(["--dry-run"])).toThrow(UsageError);
+  });
+
+  it("throws UsageError on an unknown flag", () => {
+    expect(() => parseArgs(["changeset.json", "--nope"])).toThrow(UsageError);
   });
 });
