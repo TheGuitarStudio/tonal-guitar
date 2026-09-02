@@ -1467,7 +1467,7 @@ describe("checkFingeringComplete", () => {
       chordType: "M",
       strings: baseStrings,
       rootString: 0,
-      fingers: [[1], [2], null, null, null, null],
+      fingers: [[1], [2], [], [], [], []],
     };
     expect(checkFingeringComplete(shape)).toEqual([]);
   });
@@ -1479,7 +1479,7 @@ describe("checkFingeringComplete", () => {
       chordType: "M",
       strings: baseStrings,
       rootString: 0,
-      fingers: [[1], [2], null],
+      fingers: [[1], [2], []],
     };
     const issues = checkFingeringComplete(shape);
     expect(issues.length).toBe(1);
@@ -1495,7 +1495,7 @@ describe("checkFingeringComplete", () => {
       chordType: "M",
       strings: [["1P"], null, null, null, null, null],
       rootString: 0,
-      fingers: [[1], [2], null, null, null, null],
+      fingers: [[1], [2], [], [], [], []],
     };
     const issues = checkFingeringComplete(shape);
     expect(issues.length).toBe(1);
@@ -1509,7 +1509,7 @@ describe("checkFingeringComplete", () => {
       chordType: "M",
       strings: [["1P", "3M"], ["5P"], null, null, null, null],
       rootString: 0,
-      fingers: [[1], [3], null, null, null, null],
+      fingers: [[1], [3], [], [], [], []],
     };
     const issues = checkFingeringComplete(shape);
     expect(issues.length).toBe(1);
@@ -1576,7 +1576,7 @@ describe("auditArpeggioShape", () => {
     chordType: "M",
     strings: [["1P"], null, null, null, null, null],
     rootString: 0,
-    fingers: [[1], null, null, null, null, null],
+    fingers: [[1], [], [], [], [], []],
   };
 
   it("clean fixture: []", () => {
