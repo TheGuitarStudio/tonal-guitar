@@ -104,6 +104,14 @@ export interface ChordShape {
 }
 
 export interface Barre {
+  // Offset in frets from the shape's grip base (D-010), NOT an absolute
+  // fret: `gripBase` is the lowest *fretted* (non-null, non-zero) fret of
+  // the shape as placed — open strings never set it. Resolve to an
+  // absolute fret with `absoluteBarreFret(barre, gripBaseFret(frets))` for
+  // a built grip, or `absoluteBarreFret(barre, sourceGripBaseFret(shape,
+  // chordShapeGeometry(shape).sourceFrets))` for an authored source
+  // diagram. Existing `src/data/*` shapes still store the pre-D-010
+  // absolute value — see the barre-fret migration task for the conversion.
   fret: number;
   fromString: number;
   toString: number;
@@ -169,6 +177,93 @@ export const NoFrettedScale: FrettedScale = {
   tuning: [],
   notes: [],
 };
+
+// ============================================================
+// Shape identity & geometry helpers (shape-workbench spec §1.8)
+// ============================================================
+
+/**
+ * Whether a chord shape can be transposed to any root. Explicit `movable`
+ * wins when set; otherwise defaults to `canonicalRoot === undefined` (a
+ * shape authored against a specific root, e.g. an open-position chord, is
+ * not movable unless it says so). This is the single source of truth for
+ * that default — callers (e.g. `checkFingerZeroOnMovable` in `audit.ts`)
+ * should use this helper instead of open-coding the `canonicalRoot`
+ * comparison.
+ */
+export function isMovable(shape: ChordShape): boolean {
+  return shape.movable ?? shape.canonicalRoot === undefined;
+}
+
+/** Indices of `shape.strings` that are actually played (non-null). */
+export function playedStringSet(shape: ChordShape): number[] {
+  return shape.strings
+    .map((s, i) => (s != null ? i : null))
+    .filter((i): i is number => i != null);
+}
+
+/**
+ * The string set a shape implies: its explicit `stringSet` when present,
+ * else the strings actually played (`playedStringSet`). Use this instead of
+ * reading `shape.stringSet` directly when a fallback is needed.
+ */
+export function impliedStringSet(shape: ChordShape): number[] {
+  return shape.stringSet ?? playedStringSet(shape);
+}
+
+/**
+ * The grip base fret for a set of per-string frets: the minimum *fretted*
+ * (non-null, non-zero) fret, or `0` when there are no fretted strings (all
+ * open/muted). Open strings (`0`) never set the grip base — see D-010.
+ */
+export function gripBaseFret(frets: (number | null)[]): number {
+  const fretted = frets.filter((f): f is number => f != null && f !== 0);
+  return fretted.length === 0 ? 0 : Math.min(...fretted);
+}
+
+/**
+ * Resolves a `Barre.fret` (an offset from the grip base, D-010) to an
+ * absolute fret for a built grip: `gripBase + barre.fret`.
+ */
+export function absoluteBarreFret(barre: Barre, gripBase: number): number {
+  return gripBase + barre.fret;
+}
+
+/**
+ * The source-diagram analog of `gripBaseFret`: the grip base implied by a
+ * shape's authored source diagram rather than a built fingering. `shape` is
+ * accepted (unused directly) to mirror `gripBaseFret`'s call shape and keep
+ * the two symmetric at call sites; `sourceFrets` is the per-string fret
+ * array to reduce — typically `chordShapeGeometry(shape).sourceFrets` from
+ * `audit.ts`.
+ */
+export function sourceGripBaseFret(
+  _shape: ChordShape,
+  sourceFrets: (number | null)[],
+): number {
+  return gripBaseFret(sourceFrets);
+}
+
+/**
+ * Deterministic export identifier for a shape: `<KIND_PREFIX>_<NAME>` with
+ * the name upper-cased and non-alphanumeric runs collapsed to underscores.
+ * E.g. `("chord", { name: "E Shape Minor" })` → `"CHORD_E_SHAPE_MINOR"`.
+ * This is NOT an attempt to derive existing hand-written shorthand (e.g.
+ * `CAGED_CHORD_EM`) — those require an explicit `ident` override in the
+ * changeset. Collisions between distinct names must be detected by callers
+ * (e.g. `checkNameUnique`), never guessed away here.
+ */
+export function exportIdentifierFor(
+  kind: "chord" | "scale" | "arpeggio",
+  shape: { name: string },
+): string {
+  const prefix = kind.toUpperCase();
+  const nameSlug = shape.name
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  return `${prefix}_${nameSlug}`;
+}
 
 /**
  * Registries (below, and `chordShapes`/`arpeggioShapes`) are the project's

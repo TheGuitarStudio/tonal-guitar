@@ -442,3 +442,210 @@ describe("shape-workbench additive fields (Task Group 2)", () => {
     expect(asScaleShape.name).toBe("__test_arpeggio__");
   });
 });
+
+// ============================================================
+// Task Group 5: Shape Identity & Geometry Helpers (spec §1.8, D-010)
+//
+// These helpers are not yet re-exported from ./index (that's Group 12's
+// §1.11 task) — import them directly from ./shape, same convention as the
+// CagedPosition/ArpeggioShape imports above.
+// ============================================================
+import {
+  isMovable,
+  playedStringSet,
+  impliedStringSet,
+  gripBaseFret,
+  absoluteBarreFret,
+  sourceGripBaseFret,
+  exportIdentifierFor,
+  type Barre,
+} from "./shape";
+
+describe("isMovable (spec §1.8): movable ?? canonicalRoot === undefined", () => {
+  const canonicalRootShape: ChordShape = {
+    name: "__test_canonical_root_shape__",
+    system: "open",
+    strings: [null, "1P", "3M", "5P", "1P", "3M"],
+    fingers: [null, 3, 2, 0, 1, 0],
+    barres: [],
+    rootString: 1,
+    canonicalRoot: "C",
+  };
+
+  const movableNoRootShape: ChordShape = {
+    name: "__test_movable_no_root_shape__",
+    system: "barre",
+    strings: ["1P", "5P", "1P", "3M", "5P", "1P"],
+    fingers: [1, 3, 4, 2, 1, 1],
+    barres: [{ fret: 0, fromString: 0, toString: 5, finger: 1 }],
+    rootString: 0,
+  };
+
+  it("defaults to false for a shape with a canonicalRoot", () => {
+    expect(isMovable(canonicalRootShape)).toBe(false);
+  });
+
+  it("defaults to true for a shape with no canonicalRoot", () => {
+    expect(isMovable(movableNoRootShape)).toBe(true);
+  });
+
+  it("explicit movable: true overrides a set canonicalRoot", () => {
+    expect(isMovable({ ...canonicalRootShape, movable: true })).toBe(true);
+  });
+
+  it("explicit movable: false overrides the no-canonicalRoot default", () => {
+    expect(isMovable({ ...movableNoRootShape, movable: false })).toBe(false);
+  });
+});
+
+describe("playedStringSet / impliedStringSet (spec §1.8)", () => {
+  const shapeWithExplicitStringSet: ChordShape = {
+    name: "__test_explicit_stringset__",
+    system: "open",
+    strings: [null, "1P", "3M", "5P", "1P", "3M"],
+    fingers: [null, 3, 2, 0, 1, 0],
+    barres: [],
+    rootString: 1,
+    // Deliberately mismatched vs. the played indices [1,2,3,4,5], so the
+    // test can tell impliedStringSet actually returns the explicit value
+    // rather than silently recomputing it.
+    stringSet: [1, 2, 3],
+  };
+
+  const shapeWithoutStringSet: ChordShape = {
+    name: "__test_no_stringset__",
+    system: "barre",
+    strings: [null, null, "1P", "3M", "5P", null],
+    fingers: [null, null, 1, 2, 3, null],
+    barres: [],
+    rootString: 2,
+  };
+
+  it("playedStringSet returns the indices where strings[i] != null", () => {
+    expect(playedStringSet(shapeWithExplicitStringSet)).toEqual([1, 2, 3, 4, 5]);
+    expect(playedStringSet(shapeWithoutStringSet)).toEqual([2, 3, 4]);
+  });
+
+  it("impliedStringSet returns shape.stringSet when present, even if it diverges from playedStringSet", () => {
+    expect(impliedStringSet(shapeWithExplicitStringSet)).toEqual([1, 2, 3]);
+  });
+
+  it("impliedStringSet falls back to playedStringSet when stringSet is absent", () => {
+    expect(impliedStringSet(shapeWithoutStringSet)).toEqual(
+      playedStringSet(shapeWithoutStringSet),
+    );
+    expect(impliedStringSet(shapeWithoutStringSet)).toEqual([2, 3, 4]);
+  });
+});
+
+describe("gripBaseFret (spec §1.8, D-010): min non-null, non-zero fret; 0 if none", () => {
+  it("ignores open strings (0) and picks the lowest fretted fret", () => {
+    // "A Major Open" (x02220): open strings at 0, fretted at 2.
+    expect(gripBaseFret([null, 0, 2, 2, 2, 0])).toBe(2);
+  });
+
+  it("ignores muted strings (null)", () => {
+    expect(gripBaseFret([null, null, 3, 5, 5, 4])).toBe(3);
+  });
+
+  it("returns 0 when every string is open or muted (no fretted strings)", () => {
+    expect(gripBaseFret([null, 0, 0, 0, null, 0])).toBe(0);
+  });
+
+  it("returns 0 for an all-muted array", () => {
+    expect(gripBaseFret([null, null, null, null, null, null])).toBe(0);
+  });
+
+  it("picks the minimum across multiple fretted strings", () => {
+    expect(gripBaseFret([3, 5, 5, 4, 3, 3])).toBe(3);
+  });
+});
+
+describe("absoluteBarreFret / sourceGripBaseFret (spec §1.8, D-010)", () => {
+  const barre: Barre = { fret: 2, fromString: 1, toString: 4, finger: 1 };
+
+  it("absoluteBarreFret adds the offset to the grip base", () => {
+    expect(absoluteBarreFret(barre, 3)).toBe(5);
+    expect(absoluteBarreFret({ ...barre, fret: 0 }, 1)).toBe(1);
+  });
+
+  it("sourceGripBaseFret mirrors gripBaseFret over a shape's source-diagram frets", () => {
+    const shape: ChordShape = {
+      name: "__test_source_grip_base__",
+      system: "open",
+      strings: [null, "1P", "3M", "5P", "1P", "3M"],
+      fingers: [null, 3, 2, 0, 1, 0],
+      barres: [],
+      rootString: 1,
+      canonicalRoot: "C",
+      baseFret: 1,
+    };
+    // Source diagram for "C Major Open" (x32010): frets 3,2,0,1,0.
+    const sourceFrets: (number | null)[] = [null, 3, 2, 0, 1, 0];
+    expect(sourceGripBaseFret(shape, sourceFrets)).toBe(1);
+    expect(sourceGripBaseFret(shape, sourceFrets)).toBe(gripBaseFret(sourceFrets));
+  });
+
+  it("composes end-to-end: absoluteBarreFret(barre, sourceGripBaseFret(...)) resolves a movable barre form", () => {
+    // "E Form Major Barre": barre.fret is already an offset (0) from the
+    // grip base — the D-010 trap a blanket `fret - baseFret` transform
+    // would get wrong (see spec §4.1).
+    const movableBarre: Barre = { fret: 0, fromString: 0, toString: 5, finger: 1 };
+    const shape: ChordShape = {
+      name: "__test_movable_barre_source__",
+      system: "barre",
+      strings: ["1P", "5P", "1P", "3M", "5P", "1P"],
+      fingers: [1, 3, 4, 2, 1, 1],
+      barres: [movableBarre],
+      rootString: 0,
+      baseFret: 1,
+    };
+    const sourceFrets: (number | null)[] = [1, 3, 3, 2, 1, 1];
+    const base = sourceGripBaseFret(shape, sourceFrets);
+    expect(base).toBe(1);
+    expect(absoluteBarreFret(movableBarre, base)).toBe(1);
+  });
+});
+
+describe("exportIdentifierFor (spec §1.8): deterministic <KIND_PREFIX>_<NAME_UPPER_SNAKE>", () => {
+  it("produces the CHORD_E_SHAPE_MINOR-style identifier, never the CAGED_CHORD_EM-style shorthand", () => {
+    expect(exportIdentifierFor("chord", { name: "E Shape Minor" })).toBe(
+      "CHORD_E_SHAPE_MINOR",
+    );
+  });
+
+  it("prefixes by kind", () => {
+    expect(exportIdentifierFor("scale", { name: "G Shape" })).toBe("SCALE_G_SHAPE");
+    expect(exportIdentifierFor("arpeggio", { name: "E Shape m7" })).toBe(
+      "ARPEGGIO_E_SHAPE_M7",
+    );
+  });
+
+  it("collapses non-alphanumeric runs (spaces, punctuation) to single underscores", () => {
+    expect(exportIdentifierFor("chord", { name: "C#/Db Sus2 (Open)" })).toBe(
+      "CHORD_C_DB_SUS2_OPEN",
+    );
+  });
+
+  it("is deterministic — same input always yields the same identifier", () => {
+    const shape = { name: "A Form 7 Barre" };
+    expect(exportIdentifierFor("chord", shape)).toBe(exportIdentifierFor("chord", shape));
+  });
+
+  it("never collides two distinct shape names it is exercised against here", () => {
+    const names = [
+      "E Shape Minor",
+      "E Shape Major",
+      "A Form 7 Barre",
+      "A Form Major Barre",
+      "C Major Open",
+      "C Minor Open",
+      "G Shape",
+      "G Shape Minor",
+      "Shell m7 E-root",
+      "Shell m7 A-root",
+    ];
+    const identifiers = names.map((name) => exportIdentifierFor("chord", { name }));
+    expect(new Set(identifiers).size).toBe(names.length);
+  });
+});
