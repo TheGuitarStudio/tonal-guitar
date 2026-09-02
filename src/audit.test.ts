@@ -182,7 +182,7 @@ describe("checkGeometryMismatch fixtures", () => {
   });
 
   it("jazz shell (no baseFret): skipped, []", () => {
-    const shell = SHELL_SHAPES.find((s) => s.name === "Shell maj7 R37 012");
+    const shell = SHELL_SHAPES.find((s) => s.name === "Shell maj7 E-root");
     expect(shell).toBeDefined();
     expect(shell?.baseFret).toBeUndefined();
     expect(checkGeometryMismatch(shell as ChordShape)).toEqual([]);
@@ -242,7 +242,7 @@ describe("checkGeometryMismatch fixtures", () => {
     it("returns undefined when neither canonicalRoot nor a parseable root token exists", () => {
       expect(
         gripRootFor({
-          name: "Shell maj7 R37 012",
+          name: "Shell maj7 E-root",
           system: "shell",
           strings: [],
           fingers: [],
@@ -445,22 +445,33 @@ describe("checkFretSpan", () => {
   });
 
   it("custom maxSpan override moves the pass/fail boundary", () => {
-    // "Shell m7 R73 012" applied at C spans exactly 5 frets: fails the
-    // default maxSpan (4) but passes when maxSpan is raised to 5.
-    const shellM7R73 = SHELL_SHAPES.find(
-      (s) =>
-        s.chordType === "m7" &&
-        s.name.includes("R73") &&
-        JSON.stringify(s.stringSet) === "[0,1,2]",
-    );
-    expect(shellM7R73).toBeDefined();
+    // D-012 removed the cross-product "Shell m7 R73 012" (root E string,
+    // 7th A string, 3rd D string, stringSet [0,1,2]) — pairing the R-7-3
+    // ordering with a string set it was never meant for produced this
+    // unplayable 5-fret span at root C. No currently-registered shape
+    // reproduces that span, so this fixture reconstructs it verbatim
+    // (same strings/fingers/stringSet the old generator emitted) to keep
+    // exercising the maxSpan-override wiring against a real failure mode.
+    const shellM7R73Fixture: ChordShape = {
+      name: "Synthetic Shell m7 R73 Fixture (pre-D-012 cross-product, now removed)",
+      system: "shell",
+      strings: ["1P", "7m", "3m", null, null, null],
+      fingers: [1, 2, 3, null, null, null],
+      barres: [],
+      rootString: 0,
+      chordType: "m7",
+      voicingFamily: "shell",
+      stringSet: [0, 1, 2],
+      omittedIntervals: ["5P"],
+      inversion: 0,
+    };
 
-    const defaultIssues = checkFretSpan(shellM7R73 as ChordShape, "C");
+    const defaultIssues = checkFretSpan(shellM7R73Fixture, "C");
     expect(defaultIssues.length).toBe(1);
     expect((defaultIssues[0].details as { span: number }).span).toBe(5);
 
     const raisedMaxSpanIssues = checkFretSpan(
-      shellM7R73 as ChordShape,
+      shellM7R73Fixture,
       "C",
       undefined,
       5,
@@ -867,21 +878,30 @@ describe("featured metadata field — audit interaction", () => {
   });
 
   it("a failing + featured chord shape still ranks as failing: featured alone never appears in ShapeAuditIssue[]", () => {
-    // "Shell m7 R73 012" (SHELL_SHAPES) is a known-failing fixture elsewhere
-    // in this file: applied at root "C" it spans 5 frets, exceeding the
-    // default maxSpan of 4 — a real checkFretSpan error, not a synthetic one.
-    const shellM7R73 = SHELL_SHAPES.find(
-      (s) =>
-        s.chordType === "m7" &&
-        s.name.includes("R73") &&
-        JSON.stringify(s.stringSet) === "[0,1,2]",
-    );
-    expect(shellM7R73).toBeDefined();
+    // D-012 removed the cross-product "Shell m7 R73 012" fixture that used
+    // to be the registry's known-failing checkFretSpan case (root "C",
+    // 5-fret span vs. the default maxSpan of 4) — see the "custom maxSpan
+    // override" test above for the same reconstruction and rationale. No
+    // currently-registered shape reproduces that failure, so this fixture
+    // stands in for it rather than a purely synthetic one.
+    const shellM7R73: ChordShape = {
+      name: "Synthetic Shell m7 R73 Fixture (pre-D-012 cross-product, now removed)",
+      system: "shell",
+      strings: ["1P", "7m", "3m", null, null, null],
+      fingers: [1, 2, 3, null, null, null],
+      barres: [],
+      rootString: 0,
+      chordType: "m7",
+      voicingFamily: "shell",
+      stringSet: [0, 1, 2],
+      omittedIntervals: ["5P"],
+      inversion: 0,
+    };
 
-    const unfeaturedIssues = auditChordShape(shellM7R73 as ChordShape, { root: "C" });
+    const unfeaturedIssues = auditChordShape(shellM7R73, { root: "C" });
     expect(unfeaturedIssues.some((i) => i.id === CHECK_FRET_SPAN)).toBe(true);
 
-    const featuredShape: ChordShape = { ...(shellM7R73 as ChordShape), featured: true };
+    const featuredShape: ChordShape = { ...shellM7R73, featured: true };
     const featuredIssues = auditChordShape(featuredShape, { root: "C" });
 
     // featured is still failing — the fret-span error is still present —
@@ -1137,7 +1157,7 @@ describe("auditAllShapes", () => {
 
   it("geometry is undefined for shapes with no baseFret (jazz shell)", () => {
     const { chord } = auditAllShapes();
-    const shell = SHELL_SHAPES.find((s) => s.name === "Shell maj7 R37 012");
+    const shell = SHELL_SHAPES.find((s) => s.name === "Shell maj7 E-root");
     expect(shell).toBeDefined();
     const result = chord.get((shell as ChordShape).name);
     expect(result?.geometry).toBeUndefined();
@@ -1173,7 +1193,7 @@ describe("chordShapeGeometry", () => {
   });
 
   it("returns undefined when shape.baseFret is null (jazz shell)", () => {
-    const shell = SHELL_SHAPES.find((s) => s.name === "Shell maj7 R37 012");
+    const shell = SHELL_SHAPES.find((s) => s.name === "Shell maj7 E-root");
     expect(chordShapeGeometry(shell as ChordShape)).toBeUndefined();
   });
 
