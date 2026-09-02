@@ -31,7 +31,7 @@ function renderExport(state: WorkbenchState, fetchImpl: FetchLike = noopFetch())
 }
 
 const NEW_SHAPE: ChordShape = {
-  name: "D Shape Minor",
+  name: "Z Shape Fixture Minor",
   system: "caged",
   strings: [null, null, "1P", "5P", "b3m", null],
   fingers: [null, null, 1, 3, 2, null],
@@ -40,7 +40,7 @@ const NEW_SHAPE: ChordShape = {
   chordType: "m",
 };
 
-const addChange: AddChange = { op: "add", kind: "chord", file: "caged-chords-minor", shape: NEW_SHAPE };
+const addChange: AddChange = { op: "add", kind: "chord", file: "caged-chords-fixture", shape: NEW_SHAPE };
 
 const ORIGINAL_SHAPE: ChordShape = {
   name: "A Shape Major",
@@ -97,12 +97,12 @@ describe("ExportScreen", () => {
     expect(html).toContain(">−<");
 
     // Shape names.
-    expect(html).toContain("D Shape Minor");
+    expect(html).toContain("Z Shape Fixture Minor");
     expect(html).toContain("A Shape Major");
     expect(html).toContain("Some Shape");
 
     // Target file: resolved for "add", punted to shapes:merge for update/remove.
-    expect(html).toContain("src/data/caged-chords-minor.ts");
+    expect(html).toContain("src/data/caged-chords-fixture.ts");
     expect((html.match(/resolved by shapes:merge/g) ?? []).length).toBe(2);
 
     // Check status mirrors changeCheckStatus for each change (cross-checked
