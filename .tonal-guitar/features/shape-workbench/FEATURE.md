@@ -35,9 +35,9 @@
 | 0 | TG7: Changeset Schema Types | complete | sonnet | - |
 | 0 | TG14: Jazz Shells 16 → 8 Correction (D-012) | complete | sonnet | - |
 | 0 | TG20: packages/fretboard-ui — Editing Extensions | complete | sonnet | - |
-| 1 | TG3: Registry Mechanics — Replace-on-Add, remove(), arpeggioShapes Registry | pending | - | - |
-| 1 | TG5: Shape Identity & Geometry Helpers | pending | - | - |
-| 1 | TG16: Single TS Printer — scripts/lib/render-shape.mjs | pending | - | - |
+| 1 | TG3: Registry Mechanics — Replace-on-Add, remove(), arpeggioShapes Registry | complete | sonnet | - |
+| 1 | TG5: Shape Identity & Geometry Helpers | complete | sonnet | - |
+| 1 | TG16: Single TS Printer — scripts/lib/render-shape.mjs | complete | sonnet | - |
 | 2 | TG4: Arpeggio Resolver Layer | pending | - | - |
 | 2 | TG8: Fingering Carries Fingers/Barres + autoFingering | pending | - | - |
 | 3 | TG9: Required-Tier Audit Checks | pending | - | - |
@@ -63,6 +63,7 @@
 ### Oversight Reports
 
 - **Layer 0**: No concerns. Continued.
+- **Layer 1**: Aligned; one latent concern (printer identifier naming diverged from exportIdentifierFor on apostrophes/diacritics) — reconciled by lead before Layer 2. Continued.
 
 ### Spec Compliance
 
