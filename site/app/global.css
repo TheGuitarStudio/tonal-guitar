@@ -1,3 +1,23 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/*
+ * Map `shape-library-ui`'s `--tg-*` custom properties (spec §5.3) onto the
+ * raw HSL-triplet variables Fumadocs' Tailwind preset defines on `:root` /
+ * `.dark` (`--background`, `--border`, `--foreground`, `--muted`,
+ * `--muted-foreground`, `--primary` — see
+ * `fumadocs-ui/dist/tailwind-plugin.js`'s `defaultPreset`). This keeps the
+ * shared card/board components visually consistent with the rest of the
+ * docs site, including its light/dark toggle (class-based, not just
+ * `prefers-color-scheme`). `--tg-warn`/`--tg-error` have no Fumadocs
+ * equivalent, so the package's own defaults apply unchanged.
+ */
+:root {
+  --tg-surface: hsl(var(--card));
+  --tg-border: hsl(var(--border));
+  --tg-fg: hsl(var(--foreground));
+  --tg-muted: hsl(var(--muted-foreground));
+  --tg-accent: hsl(var(--primary));
+  --tg-gap: hsl(var(--muted));
+}

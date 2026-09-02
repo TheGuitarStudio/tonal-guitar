@@ -23,6 +23,7 @@ import {
   type ShapeGroup,
   type ShapeKind,
 } from "shape-catalog";
+import { ShapeLibraryProvider } from "shape-library-ui";
 import { FilterBar, FILTER_ALL, type ChordSortOption } from "./FilterBar";
 import { LazyShapeCard } from "./LazyShapeCard";
 
@@ -469,92 +470,97 @@ export function ShapeLibrary() {
   }, [groups]);
 
   return (
-    <div className="flex items-start gap-4">
-      <div className="min-w-0 flex-1">
-        <FilterBar
-          entries={catalog}
-          kind={kind}
-          onKindChange={handleKindChange}
-          chordSelection={chordSelection}
-          onQualityGroupChange={setQualityGroup}
-          onActiveTypesChange={setActiveTypes}
-          onActiveVoicingFamiliesChange={setActiveVoicingFamilies}
-          onRootChange={setRoot}
-          chordSort={chordSort}
-          onChordSortChange={setChordSort}
-          scaleSelection={scaleSelection}
-          system={system}
-          onSystemChange={setSystem}
-          quality={quality}
-          onQualityChange={setQuality}
-          nameQuery={nameQuery}
-          onNameQueryChange={setNameQuery}
-          failingOnly={failingOnly}
-          onFailingOnlyChange={setFailingOnly}
-          shownCount={matchedEntries.length}
-          totalCount={totalCount}
-        />
+    // Capabilities omitted (D-002 read-only default): `/shapes` never
+    // passes `capabilities.edit`, so the shared `ShapeCard` it renders
+    // below emits zero `data-tg-edit` markup (spec §7, §5.3 invariant).
+    <ShapeLibraryProvider>
+      <div className="flex items-start gap-4">
+        <div className="min-w-0 flex-1">
+          <FilterBar
+            entries={catalog}
+            kind={kind}
+            onKindChange={handleKindChange}
+            chordSelection={chordSelection}
+            onQualityGroupChange={setQualityGroup}
+            onActiveTypesChange={setActiveTypes}
+            onActiveVoicingFamiliesChange={setActiveVoicingFamilies}
+            onRootChange={setRoot}
+            chordSort={chordSort}
+            onChordSortChange={setChordSort}
+            scaleSelection={scaleSelection}
+            system={system}
+            onSystemChange={setSystem}
+            quality={quality}
+            onQualityChange={setQuality}
+            nameQuery={nameQuery}
+            onNameQueryChange={setNameQuery}
+            failingOnly={failingOnly}
+            onFailingOnlyChange={setFailingOnly}
+            shownCount={matchedEntries.length}
+            totalCount={totalCount}
+          />
 
-        <h2
-          ref={resultsHeadingRef}
-          tabIndex={-1}
-          className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:rounded-md focus:bg-fd-background focus:px-2 focus:py-1 focus:text-sm focus:font-semibold focus:text-fd-foreground focus:shadow-md focus:outline-none focus:ring-2 focus:ring-fd-primary"
-        >
-          Shape results
-        </h2>
+          <h2
+            ref={resultsHeadingRef}
+            tabIndex={-1}
+            className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:rounded-md focus:bg-fd-background focus:px-2 focus:py-1 focus:text-sm focus:font-semibold focus:text-fd-foreground focus:shadow-md focus:outline-none focus:ring-2 focus:ring-fd-primary"
+          >
+            Shape results
+          </h2>
 
-        <div onClickCapture={handleResultsClickCapture}>
-          {failingEntries.length > 0 && (
-            <section className="mb-6">
-              <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-fd-foreground">
-                <span aria-hidden="true">⚠</span> Needs attention
-                <span className="rounded-full bg-fd-muted px-2 py-0.5 text-xs font-normal text-fd-muted-foreground">
-                  {failingEntries.length}
-                </span>
-              </h3>
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-                {failingEntries.map((entry) => (
-                  <LazyShapeCard
-                    key={`pinned-${entry.kind}-${entry.name}`}
-                    entry={entry}
-                    eager
-                    onSelect={handleGridSelectEntry}
-                    isSelected={selectedEntry?.kind === entry.kind && selectedEntry.name === entry.name}
+          <div onClickCapture={handleResultsClickCapture}>
+            {failingEntries.length > 0 && (
+              <section className="mb-6">
+                <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-fd-foreground">
+                  <span aria-hidden="true">⚠</span> Needs attention
+                  <span className="rounded-full bg-fd-muted px-2 py-0.5 text-xs font-normal text-fd-muted-foreground">
+                    {failingEntries.length}
+                  </span>
+                </h3>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                  {failingEntries.map((entry) => (
+                    <LazyShapeCard
+                      key={`pinned-${entry.kind}-${entry.name}`}
+                      entry={entry}
+                      eager
+                      onSelect={handleGridSelectEntry}
+                      isSelected={selectedEntry?.kind === entry.kind && selectedEntry.name === entry.name}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {matchedEntries.length === 0 ? (
+              <p className="text-sm text-fd-muted-foreground">
+                No shapes match the current filters.
+              </p>
+            ) : (
+              <div className="flex flex-col gap-6">
+                {groups.map((group) => (
+                  <GroupSection
+                    key={group.key}
+                    group={group}
+                    selectedEntry={selectedEntry}
+                    eagerNames={eagerNames}
+                    onSelectEntry={handleGridSelectEntry}
+                    onToggleExpanded={() => handleToggleGroupExpanded(group.key)}
                   />
                 ))}
               </div>
-            </section>
-          )}
-
-          {matchedEntries.length === 0 ? (
-            <p className="text-sm text-fd-muted-foreground">
-              No shapes match the current filters.
-            </p>
-          ) : (
-            <div className="flex flex-col gap-6">
-              {groups.map((group) => (
-                <GroupSection
-                  key={group.key}
-                  group={group}
-                  selectedEntry={selectedEntry}
-                  eagerNames={eagerNames}
-                  onSelectEntry={handleGridSelectEntry}
-                  onToggleExpanded={() => handleToggleGroupExpanded(group.key)}
-                />
-              ))}
-            </div>
-          )}
+            )}
+          </div>
         </div>
-      </div>
 
-      <ShapeDetailPanel
-        entry={selectedEntry}
-        catalog={catalog}
-        onClose={handleClosePanel}
-        onSelectEntry={handleSelectEntry}
-        focusOnOpenKey={focusPanelKey}
-      />
-    </div>
+        <ShapeDetailPanel
+          entry={selectedEntry}
+          catalog={catalog}
+          onClose={handleClosePanel}
+          onSelectEntry={handleSelectEntry}
+          focusOnOpenKey={focusPanelKey}
+        />
+      </div>
+    </ShapeLibraryProvider>
   );
 }
 

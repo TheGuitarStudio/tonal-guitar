@@ -2,7 +2,7 @@
 
 import { memo, useEffect, useRef, useState } from "react";
 import type { ShapeCatalogEntry } from "shape-catalog";
-import { ShapeCard } from "./ShapeCard";
+import { ShapeCard } from "shape-library-ui";
 
 interface LazyShapeCardProps {
   entry: ShapeCatalogEntry;
