@@ -37,6 +37,11 @@
   position: relative;
 }
 
+.tg-card-placeholder {
+  border-radius: 0.5rem;
+  border: 1px solid var(--tg-border);
+}
+
 .tg-card {
   display: block;
   width: 100%;

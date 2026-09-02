@@ -6,6 +6,7 @@ import { auditAllShapes } from "tonal-guitar";
 import {
   ANY_ROOT,
   buildCatalog,
+  buildReportUrl,
   chordEntryMatchesSelection,
   GROUP_COLLAPSE_THRESHOLD,
   groupChordEntriesByType,
@@ -23,46 +24,60 @@ import {
   type ShapeGroup,
   type ShapeKind,
 } from "shape-catalog";
-import { ShapeLibraryProvider } from "shape-library-ui";
-import { FilterBar, FILTER_ALL, type ChordSortOption } from "./FilterBar";
-import { LazyShapeCard } from "./LazyShapeCard";
+import { FilterBar, FILTER_ALL, ShapeCard, ShapeLibraryProvider, type ChordSortOption } from "shape-library-ui";
+import { REPO_SLUG } from "@/lib/repo";
+import { ShapeBoardView } from "./ShapeBoardView";
 
-// The panel's own Tonal-derivation logic (`shapeDetailUtils.ts`) and its
-// `scalesContainingChord` call sites are only exercised once a card is
-// opened — code-splitting it via `next/dynamic({ ssr: false })` keeps that
-// weight out of the initial `/shapes` bundle (spec "Infrastructure" /
-// acceptance criteria).
+// The panel's own Tonal-derivation logic and its `scalesContainingChord`
+// call sites are only exercised once a card is opened — code-splitting it
+// via `next/dynamic({ ssr: false })` keeps that weight out of the initial
+// `/shapes` bundle (spec §7 step 4 / acceptance criteria). Pulled from
+// `shape-library-ui` rather than a local file now that the panel (and
+// `ChordDetailView`/`ScaleDetailView`) are fully shared components.
 const ShapeDetailPanel = dynamic(
-  () => import("./ShapeDetailPanel").then((mod) => mod.ShapeDetailPanel),
+  () => import("shape-library-ui").then((mod) => mod.ShapeDetailPanel),
   { ssr: false },
 );
 
 // Cards at this index or earlier mount immediately rather than waiting on
-// the IntersectionObserver — roughly the first screenful of the 3-column
-// (`xl:grid-cols-3`) layout, so there's real content on screen (and in the
-// statically-exported HTML) before any scrolling or hydration-dependent
-// observer work happens. Applied within the grouped grid's flattened
-// visible-entry order; the pinned "Needs attention" section (below) always
-// mounts eagerly since it's the audit's primary above-the-fold signal.
+// the IntersectionObserver `ShapeCard`'s `lazy` prop drives internally —
+// roughly the first screenful of the 3-column (`xl:grid-cols-3`) layout, so
+// there's real content on screen (and in the statically-exported HTML)
+// before any scrolling or hydration-dependent observer work happens.
+// Applied within the grouped grid's flattened visible-entry order; the
+// pinned "Needs attention" section (below) always mounts eagerly since it's
+// the audit's primary above-the-fold signal.
 const EAGER_CARD_COUNT = 9;
 
 /** Below this viewport width the detail panel renders as a full-height
  * bottom sheet instead of a docked sidebar (spec's mobile variant) — mirrors
- * Tailwind's default `md` breakpoint (768px) that `ShapeDetailPanel.tsx`'s
- * own `md:` classes switch on. */
+ * Tailwind's default `md` breakpoint (768px), which the shared
+ * `ShapeBoardView`'s single-column collapse also uses. `ShapeDetailPanel`
+ * itself never touches `window` (spec §9.5's SSR-safety requirement), so
+ * this component computes the boolean via `matchMedia` and passes it in as
+ * `renderAsBottomSheet` rather than the panel switching on CSS breakpoints
+ * itself. */
 const MOBILE_BREAKPOINT_QUERY = "(max-width: 767px)";
 
 function isMobileViewport(): boolean {
   return typeof window !== "undefined" && window.matchMedia(MOBILE_BREAKPOINT_QUERY).matches;
 }
 
+/** Grid vs. Board (spec §7's read-only Board view, columns toggle +
+ * diagram orientation toggle). */
+type LibraryView = "grid" | "board";
+
 /**
- * Owns all filter state for the shape library. Renders the faceted filter
- * bar, the pinned "Needs attention" failing section, the grouped grid of
- * `<ShapeCard>`s (lazily mounted via `LazyShapeCard`), and the code-split
- * `ShapeDetailPanel` slide-over. Diagrams render monochrome in v1 (no
- * page-level interval legend); the legend returns alongside the deferred
- * interval-color/label toggle.
+ * Thin Next adapter (spec §7 step 5) over `shape-library-ui`'s shared
+ * components: owns URL state (`parseShapesUrlState`/`serializeShapesUrlState`),
+ * the mobile-breakpoint media query, the code-split dynamic import of
+ * `ShapeDetailPanel`, and the page-level filter/selection/focus state that
+ * has no other home in a framework-neutral package. Every piece of
+ * rendering — the filter bar, the cards (lazily mounted via `ShapeCard`'s
+ * own `lazy` prop), the board grid, and the detail panel — is `shape-
+ * library-ui` markup; this file only wires state to it. Diagrams render
+ * monochrome in v1 (no page-level interval legend); the legend returns
+ * alongside the deferred interval-color/label toggle.
  */
 export function ShapeLibrary() {
   // Runs exactly once — `auditAllShapes()` walks the full scale/chord
@@ -70,12 +85,25 @@ export function ShapeLibrary() {
   const auditResult = useMemo(() => auditAllShapes(), []);
   const catalog = useMemo(() => buildCatalog(auditResult), [auditResult]);
 
+  // Read-only capability injection (D-002): `/shapes` never passes
+  // `capabilities.edit`, so every shared component below emits zero
+  // `data-tg-edit` markup (spec §7, §5.3 invariant). `reportIssueUrl` is the
+  // one read-only capability the site DOES supply — `ReportProblemLink`
+  // (inside the shared `ShapeDetailPanel`) renders nothing without it.
+  const capabilities = useMemo(
+    () => ({
+      reportIssueUrl: (entry: ShapeCatalogEntry) => buildReportUrl(entry, { repoSlug: REPO_SLUG }),
+    }),
+    [],
+  );
+
   // Default view: chord shapes, no filters, failures pinned above the grid —
   // this is where the live #96 defects are, so it's the most useful landing
   // state.
   const [kind, setKind] = useState<ShapeKind>("chord");
   const [nameQuery, setNameQuery] = useState("");
   const [failingOnly, setFailingOnly] = useState(false);
+  const [view, setView] = useState<LibraryView>("grid");
 
   // Scale-mode facets: single-select system/quality chips, replacing the old
   // dropdowns' semantics 1:1 (still `FILTER_ALL` = no narrowing) but
@@ -187,6 +215,22 @@ export function ShapeLibrary() {
     expandedGroups,
   ]);
 
+  // Mobile-breakpoint media query (spec §7 step 5) — the one piece of
+  // "is this a small viewport" logic this adapter owns, since the shared
+  // `ShapeDetailPanel`/`ShapeBoardView` never touch `window` themselves.
+  // Only ever set inside an effect (post-mount), so the first render always
+  // matches the parameter-free server HTML.
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const mql = window.matchMedia(MOBILE_BREAKPOINT_QUERY);
+    setIsMobile(mql.matches);
+    function handleChange(event: MediaQueryListEvent) {
+      setIsMobile(event.matches);
+    }
+    mql.addEventListener("change", handleChange);
+    return () => mql.removeEventListener("change", handleChange);
+  }, []);
+
   // ------------------------------------------------------------
   // Selection: card click -> open/swap panel, Esc/close -> return focus to
   // the triggering card, hardware back (mobile) -> close the sheet.
@@ -195,8 +239,8 @@ export function ShapeLibrary() {
   // The DOM node of whichever card most recently opened/swapped the panel —
   // captured generically (see `handleGridClickCapture` below) so this works
   // for cards rendered in either the pinned section or any grouped section
-  // without threading a ref through `ShapeCard`/`LazyShapeCard`. Closing the
-  // panel returns focus here per the non-modal keyboard model (TG13's
+  // (or a board cell) without threading a ref through `ShapeCard`. Closing
+  // the panel returns focus here per the non-modal keyboard model (TG13's
   // contract: the panel owns none of the triggering card's DOM, the parent
   // hands focus back).
   const lastTriggerRef = useRef<HTMLElement | null>(null);
@@ -226,15 +270,15 @@ export function ShapeLibrary() {
   const mobileSheetPushedRef = useRef(false);
 
   // Wrapped in `useCallback` with an empty dep array (identity stable for
-  // the component's whole lifetime) so it can be passed down through
-  // `LazyShapeCard` into the `memo()`-wrapped `ShapeCard` without defeating
-  // that memoization — a plain function declaration here would be
-  // recreated on every `ShapeLibrary` render (e.g. every time a different
-  // card's selection flips `isSelected`), which would give every one of the
-  // ~159 cards a new `onSelect` reference and force them all to re-render.
-  // Reads `selectedEntryRef.current` (kept in sync by the effect above)
-  // rather than the reactive `selectedEntry` state directly, since a
-  // closure created once at mount can't otherwise see later state.
+  // the component's whole lifetime) so it can be passed down into the
+  // `memo()`-wrapped `ShapeCard` without defeating that memoization — a
+  // plain function declaration here would be recreated on every
+  // `ShapeLibrary` render (e.g. every time a different card's selection
+  // flips `isSelected`), which would give every one of the ~159 cards a new
+  // `onSelect` reference and force them all to re-render. Reads
+  // `selectedEntryRef.current` (kept in sync by the effect above) rather
+  // than the reactive `selectedEntry` state directly, since a closure
+  // created once at mount can't otherwise see later state.
   // `mobileSheetPushedRef` and `setSelectedEntry` are already stable
   // (ref/setState identities never change), so nothing else needs to be in
   // the dependency array.
@@ -266,10 +310,10 @@ export function ShapeLibrary() {
 
   // Grid-originated selection (CR-026): identical to `handleSelectEntry`,
   // plus bumping `focusPanelKey` so the panel pulls focus in — this is the
-  // callback wired to every card's `onSelect`, never to `ShapeDetailPanel`'s
-  // internal `onSelectEntry` (which stays `handleSelectEntry` unmodified so
-  // in-panel navigation never steals focus back to the panel root it's
-  // already inside).
+  // callback wired to every card's `onSelect` (grid and board alike), never
+  // to `ShapeDetailPanel`'s internal `onSelectEntry` (which stays
+  // `handleSelectEntry` unmodified so in-panel navigation never steals
+  // focus back to the panel root it's already inside).
   const handleGridSelectEntry = useCallback(
     (entry: ShapeCatalogEntry) => {
       handleSelectEntry(entry);
@@ -284,8 +328,8 @@ export function ShapeLibrary() {
   // regardless of whether the browser also moved focus there (Safari/
   // Firefox don't focus buttons on mouse click by default, so relying on
   // `document.activeElement` in `onSelect` itself would be unreliable) and
-  // regardless of whether the card lives in the pinned section or a grouped
-  // section.
+  // regardless of whether the card lives in the pinned section, a grouped
+  // section, or a board cell.
   function handleResultsClickCapture(event: MouseEvent<HTMLDivElement>) {
     const button = (event.target as HTMLElement).closest("button");
     if (button) lastTriggerRef.current = button;
@@ -454,7 +498,7 @@ export function ShapeLibrary() {
 
   // Global eager-mount budget for the grouped grid, in the same top-to-
   // bottom / left-to-right order the sections render in (pinned-section
-  // cards are always eager — see `LazyShapeCard` usage below — so this
+  // cards are always eager — see the `ShapeCard eager` usage below — so this
   // budget only covers the grouped grid).
   const eagerNames = useMemo(() => {
     const names = new Set<string>();
@@ -470,12 +514,32 @@ export function ShapeLibrary() {
   }, [groups]);
 
   return (
-    // Capabilities omitted (D-002 read-only default): `/shapes` never
-    // passes `capabilities.edit`, so the shared `ShapeCard` it renders
-    // below emits zero `data-tg-edit` markup (spec §7, §5.3 invariant).
-    <ShapeLibraryProvider>
+    // Capabilities omitted `edit` (D-002 read-only default): `/shapes` never
+    // passes `capabilities.edit`, so every shared component it renders below
+    // emits zero `data-tg-edit` markup (spec §7, §5.3 invariant) and every
+    // Board gap cell renders as an inert `<div data-tg-gap>`.
+    <ShapeLibraryProvider capabilities={capabilities}>
       <div className="flex items-start gap-4">
         <div className="min-w-0 flex-1">
+          <div className="mb-2 flex items-center justify-end">
+            <div className="tg-toggle-group" role="group" aria-label="Library view">
+              <button
+                type="button"
+                aria-pressed={view === "grid"}
+                onClick={() => setView("grid")}
+              >
+                Grid
+              </button>
+              <button
+                type="button"
+                aria-pressed={view === "board"}
+                onClick={() => setView("board")}
+              >
+                Board
+              </button>
+            </div>
+          </div>
+
           <FilterBar
             entries={catalog}
             kind={kind}
@@ -496,7 +560,7 @@ export function ShapeLibrary() {
             onNameQueryChange={setNameQuery}
             failingOnly={failingOnly}
             onFailingOnlyChange={setFailingOnly}
-            shownCount={matchedEntries.length}
+            shownCount={view === "grid" ? matchedEntries.length : totalCount}
             totalCount={totalCount}
           />
 
@@ -508,48 +572,61 @@ export function ShapeLibrary() {
             Shape results
           </h2>
 
-          <div onClickCapture={handleResultsClickCapture}>
-            {failingEntries.length > 0 && (
-              <section className="mb-6">
-                <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-fd-foreground">
-                  <span aria-hidden="true">⚠</span> Needs attention
-                  <span className="rounded-full bg-fd-muted px-2 py-0.5 text-xs font-normal text-fd-muted-foreground">
-                    {failingEntries.length}
-                  </span>
-                </h3>
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-                  {failingEntries.map((entry) => (
-                    <LazyShapeCard
-                      key={`pinned-${entry.kind}-${entry.name}`}
-                      entry={entry}
-                      eager
-                      onSelect={handleGridSelectEntry}
-                      isSelected={selectedEntry?.kind === entry.kind && selectedEntry.name === entry.name}
+          {view === "board" ? (
+            <div onClickCapture={handleResultsClickCapture}>
+              <ShapeBoardView
+                catalog={catalog}
+                kind={kind}
+                nameQuery={nameQuery}
+                onSelectEntry={handleGridSelectEntry}
+                collapseToSingleColumn={isMobile}
+              />
+            </div>
+          ) : (
+            <div onClickCapture={handleResultsClickCapture}>
+              {failingEntries.length > 0 && (
+                <section className="mb-6">
+                  <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-fd-foreground">
+                    <span aria-hidden="true">⚠</span> Needs attention
+                    <span className="rounded-full bg-fd-muted px-2 py-0.5 text-xs font-normal text-fd-muted-foreground">
+                      {failingEntries.length}
+                    </span>
+                  </h3>
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                    {failingEntries.map((entry) => (
+                      <ShapeCard
+                        key={`pinned-${entry.kind}-${entry.name}`}
+                        entry={entry}
+                        lazy
+                        eager
+                        onSelect={handleGridSelectEntry}
+                        isSelected={selectedEntry?.kind === entry.kind && selectedEntry.name === entry.name}
+                      />
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {matchedEntries.length === 0 ? (
+                <p className="text-sm text-fd-muted-foreground">
+                  No shapes match the current filters.
+                </p>
+              ) : (
+                <div className="flex flex-col gap-6">
+                  {groups.map((group) => (
+                    <GroupSection
+                      key={group.key}
+                      group={group}
+                      selectedEntry={selectedEntry}
+                      eagerNames={eagerNames}
+                      onSelectEntry={handleGridSelectEntry}
+                      onToggleExpanded={() => handleToggleGroupExpanded(group.key)}
                     />
                   ))}
                 </div>
-              </section>
-            )}
-
-            {matchedEntries.length === 0 ? (
-              <p className="text-sm text-fd-muted-foreground">
-                No shapes match the current filters.
-              </p>
-            ) : (
-              <div className="flex flex-col gap-6">
-                {groups.map((group) => (
-                  <GroupSection
-                    key={group.key}
-                    group={group}
-                    selectedEntry={selectedEntry}
-                    eagerNames={eagerNames}
-                    onSelectEntry={handleGridSelectEntry}
-                    onToggleExpanded={() => handleToggleGroupExpanded(group.key)}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
         </div>
 
         <ShapeDetailPanel
@@ -558,6 +635,7 @@ export function ShapeLibrary() {
           onClose={handleClosePanel}
           onSelectEntry={handleSelectEntry}
           focusOnOpenKey={focusPanelKey}
+          renderAsBottomSheet={isMobile}
         />
       </div>
     </ShapeLibraryProvider>
@@ -593,9 +671,10 @@ function GroupSection({
       </h3>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
         {group.visibleEntries.map((entry) => (
-          <LazyShapeCard
+          <ShapeCard
             key={`${entry.kind}-${entry.name}`}
             entry={entry}
+            lazy
             eager={eagerNames.has(`${entry.kind}-${entry.name}`)}
             onSelect={onSelectEntry}
             isSelected={selectedEntry?.kind === entry.kind && selectedEntry.name === entry.name}
