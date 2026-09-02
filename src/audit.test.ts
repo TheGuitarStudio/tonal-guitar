@@ -59,6 +59,7 @@ import {
   arpeggioShapes,
   chordShapes,
   get as getScaleShape,
+  sourceGripBaseFret,
   ArpeggioShape,
   ChordShape,
   ScaleShape,
@@ -954,38 +955,43 @@ describe("checkBarreFretOrigin", () => {
     expect(checkBarreFretOrigin(OPEN_C_MAJOR, "C")).toEqual([]);
   });
 
-  it("D-010 worked example — 'A Major Open' (x02220, baseFret 1, barre fret 2, strings 2-4): grip base 2, flags with suggestedOffset 0 (still pre-migration absolute data)", () => {
-    const issues = checkBarreFretOrigin(OPEN_A_MAJOR, "A", STANDARD);
-    expect(issues.length).toBe(1);
-    expect(issues[0].id).toBe(CHECK_BARRE_FRET_ORIGIN);
-    expect(issues[0].severity).toBe("warning");
-    expect(issues[0].details).toMatchObject({
-      barreIndex: 0,
-      fret: 2,
-      gripBase: 2,
-      suggestedOffset: 0,
-    });
+  it("D-010 worked example — 'A Major Open' (x02220, baseFret 1, barre fret 2, strings 2-4): grip base 2, migrated offset 0, not flagged", () => {
+    expect(checkBarreFretOrigin(OPEN_A_MAJOR, "A", STANDARD)).toEqual([]);
+    expect(OPEN_A_MAJOR.barres[0].fret).toBe(0);
   });
 
-  it("D-010 worked example — 'C Minor Open' (x35543, baseFret 3, barre fret 3, full barre): grip base 3, flags with suggestedOffset 0", () => {
-    const issues = checkBarreFretOrigin(OPEN_C_MINOR, "C", STANDARD);
-    expect(issues.length).toBe(1);
-    expect(issues[0].details).toMatchObject({
-      barreIndex: 0,
-      fret: 3,
-      gripBase: 3,
-      suggestedOffset: 0,
-    });
+  it("D-010 worked example — 'C Minor Open' (x35543, baseFret 3, barre fret 3, full barre): grip base 3, migrated offset 0, not flagged", () => {
+    expect(checkBarreFretOrigin(OPEN_C_MINOR, "C", STANDARD)).toEqual([]);
+    expect(OPEN_C_MINOR.barres[0].fret).toBe(0);
   });
 
-  it("D-010 worked example — 'C Sus2 Open' (x30033, baseFret 1, barre fret 3, strings 4-5): flags, offset derived from the source diagram's grip base", () => {
-    const issues = checkBarreFretOrigin(OPEN_C_SUS2, "C", STANDARD);
-    expect(issues.length).toBe(1);
-    expect(issues[0].details).toMatchObject({ barreIndex: 0, fret: 3 });
+  it("D-010 worked example — 'C Sus2 Open' (x30033, baseFret 1, barre fret 3, strings 4-5): migrated offset (3 - grip base) === 0, not flagged", () => {
+    expect(checkBarreFretOrigin(OPEN_C_SUS2, "C", STANDARD)).toEqual([]);
+    const geometry = chordShapeGeometry(OPEN_C_SUS2, STANDARD)!;
+    const gripBase = sourceGripBaseFret(OPEN_C_SUS2, geometry.sourceFrets);
+    expect(OPEN_C_SUS2.barres[0].fret).toBe(3 - gripBase);
   });
 
-  it("D-010 worked example — 'E Form Major Barre' (movable, baseFret 1, barre fret 0): already an offset, not flagged — the trap a blanket fret-baseFret transform would fall into", () => {
+  it("D-010 worked example — 'E Form Major Barre' (movable, baseFret 1, barre fret 0): already an offset, stays 0, not flagged — the trap a blanket fret-baseFret transform would fall into", () => {
     expect(checkBarreFretOrigin(BARRE_E_MAJOR, "C", STANDARD)).toEqual([]);
+    expect(BARRE_E_MAJOR.barres[0].fret).toBe(0);
+  });
+
+  it("registry-wide: every open-chords.ts shape (voicingFamily 'open'/'barre' — the 70 shapes/35 barres entries this task migrates) passes checkBarreFretOrigin cleanly (D-010 migration regression gate)", () => {
+    // Scoped to open-chords.ts's own voicingFamily values rather than the
+    // full chordShapes registry: a pre-existing, unrelated checkBarreFretOrigin
+    // issue on EXT_CHORD_A_9 (src/data/extended-chords.ts) predates this
+    // migration and is out of scope per spec §4.5 ("no silent auto-fixing" —
+    // reported and tracked separately, not fixed as a side effect here).
+    const openChordsShapes = [
+      ...chordShapes.query({ voicingFamily: "open" }),
+      ...chordShapes.query({ voicingFamily: "barre" }),
+    ];
+    expectRegistryClean(
+      openChordsShapes,
+      (shape) => checkBarreFretOrigin(shape, displayRootFor(shape), STANDARD),
+      "checkBarreFretOrigin",
+    );
   });
 
   it("negative fret: flagged regardless of geometry", () => {
@@ -1295,11 +1301,15 @@ describe("auditChordShape", () => {
   it("composes the four new required-tier checks alongside the original six", () => {
     // A shape combining a stringSet mismatch, a tuning mismatch, and an
     // absolute (pre-D-010) barre fret all at once — one issue per new check.
+    // OPEN_A_MAJOR itself is now migrated (offset 0), so the barre is
+    // overridden back to its pre-migration absolute value (2) here to keep
+    // exercising checkBarreFretOrigin's rule 3.
     const shape: ChordShape = {
       ...OPEN_A_MAJOR,
       name: "Synthetic Multi-New-Check Fixture",
       stringSet: [1, 2, 3], // diverges from playedStringSet
       tuning: ["D2", "A2", "D3", "G3", "B3", "E4"], // diverges from STANDARD
+      barres: [{ fret: 2, fromString: 2, toString: 4, finger: 2 }], // pre-D-010 absolute value
     };
     const issues = auditChordShape(shape);
 

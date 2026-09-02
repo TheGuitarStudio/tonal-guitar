@@ -1,6 +1,6 @@
 "use client";
 
-import { CHECK_GEOMETRY_MISMATCH } from "tonal-guitar";
+import { absoluteBarreFret, CHECK_GEOMETRY_MISMATCH, gripBaseFret } from "tonal-guitar";
 import type { ChordShape, ShapeAuditIssue } from "tonal-guitar";
 
 interface ShapeCardChordTableProps {
@@ -40,8 +40,20 @@ function fretCell(shape: ChordShape, frets: (number | null)[], i: number): strin
   return fret === null || fret === undefined ? "" : String(fret);
 }
 
-function barreLabel(barre: ChordShape["barres"][number]): string {
-  return `finger ${barre.finger}: strings ${barre.fromString}–${barre.toString} @ fret ${barre.fret}`;
+/**
+ * D-010: `barre.fret` is an offset from the grip base, not an absolute fret
+ * — render both the offset (the stored value) and the absolute fret it
+ * resolves to at `root` (`absoluteBarreFret(barre, gripBase)`, ../../../src/shape),
+ * so the label stays meaningful without requiring the reader to do the
+ * grip-base arithmetic themselves.
+ */
+function barreLabel(
+  barre: ChordShape["barres"][number],
+  gripBase: number,
+  root: string,
+): string {
+  const absoluteFret = absoluteBarreFret(barre, gripBase);
+  return `finger ${barre.finger}: strings ${barre.fromString}–${barre.toString} @ offset ${barre.fret} (fret ${absoluteFret} at ${root})`;
 }
 
 /**
@@ -63,6 +75,7 @@ export function ShapeCardChordTable({
   const showSourceFrets = sourceFrets !== undefined;
   const sourceAtDifferentRoot = gripRoot !== undefined && gripRoot !== renderRoot;
   const mismatchedStrings = mismatchedStringsFor(issues);
+  const builtGripBase = gripBaseFret(builtFrets);
 
   return (
     <div className="mt-3 overflow-x-auto">
@@ -143,7 +156,7 @@ export function ShapeCardChordTable({
       {chordShape.barres.length > 0 && (
         <ul className="mt-1.5 space-y-0.5 font-mono text-[11px] text-fd-muted-foreground">
           {chordShape.barres.map((barre, i) => (
-            <li key={i}>{barreLabel(barre)}</li>
+            <li key={i}>{barreLabel(barre, builtGripBase, renderRoot)}</li>
           ))}
         </ul>
       )}

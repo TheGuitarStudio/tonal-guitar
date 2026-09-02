@@ -543,10 +543,10 @@ export function checkTuningMismatch(
  *    `chordShapeGeometry`): `fret` equals the ABSOLUTE fret the source
  *    diagram implies for the barre's strings (`sourceFrets[barre.fromString]`)
  *    while a distinct, valid (`>= 0`) offset exists — i.e. the data still
- *    stores the pre-D-010 absolute value instead of the offset. This is the
- *    trigger the Group 13 `open-chords.ts` migration is gated on (see D-010
- *    §4.1) — existing `src/data/open-chords.ts` barre data is still absolute
- *    today and is EXPECTED to be flagged here until that migration lands.
+ *    stores the pre-D-010 absolute value instead of the offset. This was the
+ *    trigger the Group 13 `open-chords.ts` migration was gated on (see D-010
+ *    §4.1) — that migration has landed, and the full registry (including
+ *    `src/data/open-chords.ts`) now reports zero issues here.
  *
  * `root`/`tuning`/`prebuilt` mirror `checkFretSpan`'s signature so
  * `auditChordShape` can thread its single hoisted `applyChordShape` build in
