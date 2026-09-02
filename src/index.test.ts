@@ -1992,3 +1992,169 @@ describe("walkShapeMotif — descending direction", () => {
     expect(desc).toHaveLength(asc.length);
   });
 });
+
+// ============================================================
+// 13. Public API — shape-workbench exports (Task Group 12 smoke test)
+// ============================================================
+//
+// Every export added by spec §1.11 must be importable from "./index" and
+// defined at runtime (values) or resolvable as a type (types). This
+// mechanically catches typos/omissions in src/index.ts's re-export list.
+
+import type {
+  CagedPosition,
+  ArpeggioShape,
+  ArpeggioSlot,
+  ArpeggioResolution,
+  ArpeggioTier,
+  ChordScaleEntry,
+  Changeset,
+  ChangesetChange,
+  AddChange,
+  UpdateChange,
+  RemoveChange,
+  ChangesetKind,
+} from "./index";
+
+import {
+  // shape.ts value exports (Group 12.3)
+  arpeggioShapes,
+  remove,
+  isMovable,
+  playedStringSet,
+  impliedStringSet,
+  gripBaseFret,
+  absoluteBarreFret,
+  sourceGripBaseFret,
+  exportIdentifierFor,
+  arpeggioSlotKey,
+  slotForChordShape,
+  resolveArpeggioForSlot,
+  visibleArpeggios,
+  // chord-scale.ts value exports (Group 12.3)
+  CHORD_SCALE_RULE,
+  CHORD_SCALE_RULE_VERSION,
+  scaleTypeForChordType,
+  // audit.ts new checks (Group 12.4 / Group 9)
+  CHECK_STRINGSET_MISMATCH,
+  CHECK_TUNING_MISMATCH,
+  CHECK_BARRE_FRET_ORIGIN,
+  CHECK_NAME_UNIQUE,
+  CHECK_POSITION_SPAN,
+  CHECK_FINGERING_COMPLETE,
+  CHECK_OVERRIDES_TARGET,
+  checkStringsetMismatch,
+  checkTuningMismatch,
+  checkBarreFretOrigin,
+  checkNameUnique,
+  checkPositionSpan,
+  checkFingeringComplete,
+  checkOverridesTarget,
+  auditArpeggioShape,
+  // audit-integration.ts (Group 12.4 / Group 10)
+  CHECK_IDENTIFY_MISMATCH,
+  CHECK_CHORD_TONES_ONLY,
+  CHECK_COVERS_CHORD,
+  CHECK_CONTAINS_CHORD_GRIP,
+  checkIdentifyMismatch,
+  checkChordTonesOnly,
+  checkCoversChord,
+  checkContainsChordGrip,
+  auditChordShapeIntegration,
+  auditArpeggioShapeIntegration,
+  auditAllShapesIntegration,
+  auditChordShapeFull,
+  // integration.ts (Group 12.5 / Group 11)
+  parentBoxForChordShape,
+  arpeggioFor,
+  // build.ts (Group 12.6 / Group 8)
+  autoFingering,
+} from "./index";
+
+describe("Public API — shape-workbench exports (spec §1.11)", () => {
+  test("type-only exports resolve to real types (compile-time check)", () => {
+    // A tuple referencing every new type-only export in a type position:
+    // this line fails to compile (not merely fails at runtime) if any name
+    // is missing, misspelled, or not exported from "./index".
+    type TypeOnlyExports = [
+      CagedPosition,
+      ArpeggioShape,
+      ArpeggioSlot,
+      ArpeggioResolution,
+      ArpeggioTier,
+      ChordScaleEntry,
+      Changeset,
+      ChangesetChange,
+      AddChange,
+      UpdateChange,
+      RemoveChange,
+      ChangesetKind,
+    ];
+    const typeCheck: TypeOnlyExports = null as unknown as TypeOnlyExports;
+    expect(typeCheck).toBeNull();
+  });
+
+  test("shape.ts value exports are defined", () => {
+    expect(typeof arpeggioShapes).not.toBe("undefined");
+    expect(typeof remove).not.toBe("undefined");
+    expect(typeof isMovable).not.toBe("undefined");
+    expect(typeof playedStringSet).not.toBe("undefined");
+    expect(typeof impliedStringSet).not.toBe("undefined");
+    expect(typeof gripBaseFret).not.toBe("undefined");
+    expect(typeof absoluteBarreFret).not.toBe("undefined");
+    expect(typeof sourceGripBaseFret).not.toBe("undefined");
+    expect(typeof exportIdentifierFor).not.toBe("undefined");
+    expect(typeof arpeggioSlotKey).not.toBe("undefined");
+    expect(typeof slotForChordShape).not.toBe("undefined");
+    expect(typeof resolveArpeggioForSlot).not.toBe("undefined");
+    expect(typeof visibleArpeggios).not.toBe("undefined");
+  });
+
+  test("chord-scale.ts value exports are defined", () => {
+    expect(typeof CHORD_SCALE_RULE).not.toBe("undefined");
+    expect(typeof CHORD_SCALE_RULE_VERSION).not.toBe("undefined");
+    expect(typeof scaleTypeForChordType).not.toBe("undefined");
+  });
+
+  test("audit.ts new CHECK_* constants and check functions are defined", () => {
+    expect(typeof CHECK_STRINGSET_MISMATCH).not.toBe("undefined");
+    expect(typeof CHECK_TUNING_MISMATCH).not.toBe("undefined");
+    expect(typeof CHECK_BARRE_FRET_ORIGIN).not.toBe("undefined");
+    expect(typeof CHECK_NAME_UNIQUE).not.toBe("undefined");
+    expect(typeof CHECK_POSITION_SPAN).not.toBe("undefined");
+    expect(typeof CHECK_FINGERING_COMPLETE).not.toBe("undefined");
+    expect(typeof CHECK_OVERRIDES_TARGET).not.toBe("undefined");
+    expect(typeof checkStringsetMismatch).not.toBe("undefined");
+    expect(typeof checkTuningMismatch).not.toBe("undefined");
+    expect(typeof checkBarreFretOrigin).not.toBe("undefined");
+    expect(typeof checkNameUnique).not.toBe("undefined");
+    expect(typeof checkPositionSpan).not.toBe("undefined");
+    expect(typeof checkFingeringComplete).not.toBe("undefined");
+    expect(typeof checkOverridesTarget).not.toBe("undefined");
+    expect(typeof auditArpeggioShape).not.toBe("undefined");
+  });
+
+  test("audit-integration.ts CHECK_* constants, check functions and aggregates are defined", () => {
+    expect(typeof CHECK_IDENTIFY_MISMATCH).not.toBe("undefined");
+    expect(typeof CHECK_CHORD_TONES_ONLY).not.toBe("undefined");
+    expect(typeof CHECK_COVERS_CHORD).not.toBe("undefined");
+    expect(typeof CHECK_CONTAINS_CHORD_GRIP).not.toBe("undefined");
+    expect(typeof checkIdentifyMismatch).not.toBe("undefined");
+    expect(typeof checkChordTonesOnly).not.toBe("undefined");
+    expect(typeof checkCoversChord).not.toBe("undefined");
+    expect(typeof checkContainsChordGrip).not.toBe("undefined");
+    expect(typeof auditChordShapeIntegration).not.toBe("undefined");
+    expect(typeof auditArpeggioShapeIntegration).not.toBe("undefined");
+    expect(typeof auditAllShapesIntegration).not.toBe("undefined");
+    expect(typeof auditChordShapeFull).not.toBe("undefined");
+  });
+
+  test("integration.ts value exports are defined", () => {
+    expect(typeof parentBoxForChordShape).not.toBe("undefined");
+    expect(typeof arpeggioFor).not.toBe("undefined");
+  });
+
+  test("build.ts autoFingering is defined", () => {
+    expect(typeof autoFingering).not.toBe("undefined");
+  });
+});

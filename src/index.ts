@@ -17,6 +17,11 @@ export type {
   FrettedScale,
   VoicingFamily,
   VoicingPatternDictionary,
+  CagedPosition,
+  ArpeggioShape,
+  ArpeggioSlot,
+  ArpeggioTier,
+  ArpeggioResolution,
 } from "./shape";
 
 // Shape registry
@@ -25,10 +30,41 @@ export {
   all,
   names,
   add,
+  remove,
   removeAll,
   chordShapes,
+  arpeggioShapes,
   NoFrettedScale,
+  isMovable,
+  playedStringSet,
+  impliedStringSet,
+  gripBaseFret,
+  absoluteBarreFret,
+  sourceGripBaseFret,
+  exportIdentifierFor,
+  arpeggioSlotKey,
+  slotForChordShape,
+  resolveArpeggioForSlot,
+  visibleArpeggios,
 } from "./shape";
+
+// Chord-scale rule (v1)
+export {
+  CHORD_SCALE_RULE,
+  CHORD_SCALE_RULE_VERSION,
+  scaleTypeForChordType,
+} from "./chord-scale";
+export type { ChordScaleEntry } from "./chord-scale";
+
+// Changeset schema (tonal-guitar/changeset@1)
+export type {
+  Changeset,
+  ChangesetKind,
+  ChangesetChange,
+  AddChange,
+  UpdateChange,
+  RemoveChange,
+} from "./changeset";
 
 // Fretboard math
 export {
@@ -42,7 +78,7 @@ export {
 export type { FretboardPosition } from "./fretboard";
 
 // Build engine
-export { buildFrettedScale, applyChordShape } from "./build";
+export { buildFrettedScale, applyChordShape, autoFingering } from "./build";
 export type { Fingering } from "./build";
 
 // Version
@@ -52,6 +88,7 @@ export { VERSION } from "./version";
 export {
   auditChordShape,
   auditScaleShape,
+  auditArpeggioShape,
   auditAllShapes,
   displayRootFor,
   checkFretSpan,
@@ -63,12 +100,26 @@ export {
   checkScaleMetadataCompleteness,
   checkGeometryMismatch,
   chordShapeGeometry,
+  checkStringsetMismatch,
+  checkTuningMismatch,
+  checkBarreFretOrigin,
+  checkNameUnique,
+  checkPositionSpan,
+  checkFingeringComplete,
+  checkOverridesTarget,
   CHECK_FRET_SPAN,
   CHECK_FINGER_ZERO_ON_MOVABLE,
   CHECK_REPEATED_FINGER_NO_BARRE,
   CHECK_BUILD_LOSS,
   CHECK_METADATA_COMPLETENESS,
   CHECK_GEOMETRY_MISMATCH,
+  CHECK_STRINGSET_MISMATCH,
+  CHECK_TUNING_MISMATCH,
+  CHECK_BARRE_FRET_ORIGIN,
+  CHECK_NAME_UNIQUE,
+  CHECK_POSITION_SPAN,
+  CHECK_FINGERING_COMPLETE,
+  CHECK_OVERRIDES_TARGET,
 } from "./audit";
 export type {
   AuditSeverity,
@@ -145,6 +196,8 @@ export {
   arpeggioFromShape,
   inferShapeContext,
   scalesContainingChord,
+  parentBoxForChordShape,
+  arpeggioFor,
   DEFAULT_SCALE_CORPUS,
 } from "./integration";
 export type {
@@ -157,7 +210,24 @@ export type {
   ScalesContainingChordOptions,
 } from "./integration";
 
+// Optional-tier audit (Tonal chord/note integration)
+export {
+  auditChordShapeIntegration,
+  auditArpeggioShapeIntegration,
+  auditAllShapesIntegration,
+  auditChordShapeFull,
+  checkIdentifyMismatch,
+  checkChordTonesOnly,
+  checkCoversChord,
+  checkContainsChordGrip,
+  CHECK_IDENTIFY_MISMATCH,
+  CHECK_CHORD_TONES_ONLY,
+  CHECK_COVERS_CHORD,
+  CHECK_CONTAINS_CHORD_GRIP,
+} from "./audit-integration";
+
 // Built-in shape data (import to register shapes)
+// shapes-merge:begin data-imports
 import "./data/caged-scales";
 import "./data/caged-scales-minor";
 import "./data/caged-chords";
@@ -168,6 +238,7 @@ import "./data/caged-chords-7th";
 import "./data/open-chords";
 import "./data/jazz-shells";
 import "./data/extended-chords";
+// shapes-merge:end data-imports
 
 // Jazz shell voicing dictionary (public API)
 export { SHELL_DICTIONARY } from "./data/jazz-shells";
