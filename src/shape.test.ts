@@ -452,7 +452,7 @@ describe("shape-workbench additive fields (Task Group 2)", () => {
       strings: [["1P"], null, ["3m"], null, ["5P"], null],
       rootString: 0,
       chordType: "m7",
-      fingers: [[1], null, [2], null, [4], null],
+      fingers: [[1], [], [2], [], [4], []],
       chordShape: "E Shape m7",
       cagedPosition: "E",
       overrides: "E Shape m7 Arpeggio (legacy)",
@@ -738,6 +738,10 @@ describe("arpeggioShapes registry — CRUD and query (Task Group 3)", () => {
 
     // no matches
     expect(arpeggioShapes.query({ chordType: "dim7" })).toEqual([]);
+  });
+});
+
+// ============================================================
 // Task Group 5: Shape Identity & Geometry Helpers (spec §1.8, D-010)
 //
 // These helpers are not yet re-exported from ./index (that's Group 12's
