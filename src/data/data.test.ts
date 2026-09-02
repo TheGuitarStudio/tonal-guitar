@@ -869,23 +869,25 @@ describe("chordShapes.query — cross-dataset queries", () => {
 
 // ─── TG10 Gap: Data integrity — chordShapes.all() count ──────────────────────
 //
-// Verifies that all three new curated data files registered the expected number
-// of shapes. The baseline 5 shapes come from caged-chords.ts (CAGED_CHORD_E/A/D/C/G).
+// Verifies that all curated data files registered the expected number
+// of shapes. The baseline 5 shapes come from caged-chords.ts (CAGED_CHORD_E/A/D/C/G);
+// caged-chords-minor.ts adds the 5 CAGED minor triads (CAGED_CHORD_EM/AM/DM/CM/GM).
 // New additions: caged-chords-7th (11) + open-chords (70) + jazz-shells (8, D-012) = 89.
-// Total after all imports = 5 + 89 = 94. (R-4.4)
+// Total after all imports = 5 base + 5 minor + 89 = 99. (R-4.4)
 
 describe("TG10 — Data integrity: chordShapes.all() count after all curated imports", () => {
-  it("total registered shapes after all three new data files = 94 (5 base + 11 + 70 + 8)", () => {
+  it("total registered shapes after all three new data files = 99 (5 base + 5 minor + 11 + 70 + 8)", () => {
     // All three data files are imported at the top of this file for side effects.
-    // index.ts also imports caged-chords.ts (5 shapes).
+    // index.ts also imports caged-chords.ts (5 shapes) and caged-chords-minor.ts (5 shapes).
     // Expected breakdown:
-    //   caged-chords.ts:      5  (CAGED_CHORD_E/A/D/C/G)
-    //   caged-chords-7th.ts: 11  (maj7/m7/7/m7b5 E+A+D forms)
-    //   open-chords.ts:      70  (5 open families + 2 barre families × 10 chord types)
-    //   jazz-shells.ts:       8  (4 chord types × 2 root strings — D-012)
-    //   extended-chords.ts:  EXTENDED_CHORD_SHAPES.length (grows per curation tier)
+    //   caged-chords.ts:        5  (CAGED_CHORD_E/A/D/C/G)
+    //   caged-chords-minor.ts:  5  (CAGED_CHORD_EM/AM/DM/CM/GM)
+    //   caged-chords-7th.ts:   11  (maj7/m7/7/m7b5 E+A+D forms)
+    //   open-chords.ts:        70  (5 open families + 2 barre families × 10 chord types)
+    //   jazz-shells.ts:         8  (4 chord types × 2 root strings — D-012)
+    //   extended-chords.ts:    EXTENDED_CHORD_SHAPES.length (grows per curation tier)
     const total = chordShapes.all().length;
-    expect(total).toBe(94 + EXTENDED_CHORD_SHAPES.length); // shapes-merge:count chord-shape-total
+    expect(total).toBe(99 + EXTENDED_CHORD_SHAPES.length); // shapes-merge:count chord-shape-total
   });
 
   it("caged-chords-7th adds exactly 11 shapes (validates R-4.1 registration)", () => {
@@ -896,10 +898,14 @@ describe("TG10 — Data integrity: chordShapes.all() count after all curated imp
     // m7b5: E-shape + A-shape = 2
     // Total = 11
     // Extended shapes now carry voicingFamily "extended" (not "caged"), so a
-    // clean query suffices — no name-exclusion workaround needed.
+    // clean query suffices. The 5 base majors + 5 minors also carry
+    // voicingFamily "caged" and a defined chordType now (R-1.1 backfill),
+    // but they're the only "caged" shapes with a `cagedPosition` — the 7th
+    // shapes are movable forms with no canonicalRoot/cagedPosition — so
+    // excluding those isolates exactly the 11 7th-chord shapes.
     const cagedSeventh = chordShapes
       .query({ voicingFamily: "caged" })
-      .filter((s) => s.chordType !== undefined);
+      .filter((s) => s.chordType !== undefined && s.cagedPosition === undefined);
     expect(cagedSeventh.length).toBe(11);
   });
 

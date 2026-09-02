@@ -6,9 +6,9 @@
     {
       "op": "add",
       "kind": "chord",
-      "file": "caged-chords-minor",
+      "file": "caged-chords-fixture",
       "shape": {
-        "name": "C Shape Minor Bad",
+        "name": "Z Shape Fixture Minor Bad",
         "system": "caged",
         "strings": [null, "1P", "3m", "5P", "1P", null],
         "fingers": [null, 0, 1, 4, 2, null],

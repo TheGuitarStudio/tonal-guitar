@@ -2,9 +2,9 @@
 
 import { chordShapes, ChordShape } from "../shape";
 
-// shapes-merge:begin CHORD_C_SHAPE_MINOR
-export const CHORD_C_SHAPE_MINOR: ChordShape = {
-  name: "C Shape Minor",
+// shapes-merge:begin CHORD_Z_SHAPE_FIXTURE_MINOR
+export const CHORD_Z_SHAPE_FIXTURE_MINOR: ChordShape = {
+  name: "Z Shape Fixture Minor",
   system: "caged",
   strings: [null, "1P", "3m", "5P", "1P", null],
   fingers: [null, 3, 1, 4, 2, null],
@@ -16,6 +16,6 @@ export const CHORD_C_SHAPE_MINOR: ChordShape = {
   parentShape: "C Shape Major",
   tags: ["caged", "triad", "core"],
 };
-// shapes-merge:end CHORD_C_SHAPE_MINOR
+// shapes-merge:end CHORD_Z_SHAPE_FIXTURE_MINOR
 
-[CHORD_C_SHAPE_MINOR].forEach(chordShapes.add.bind(chordShapes));
+[CHORD_Z_SHAPE_FIXTURE_MINOR].forEach(chordShapes.add.bind(chordShapes));

@@ -287,10 +287,11 @@ export function checkScaleBuildLoss(
  * harmonic-metadata fields every meaningfully-cataloged chord shape should
  * carry. `stringSet`/`canonicalRoot`/`baseFret` are intentionally NOT
  * required: many valid shapes (movable CAGED forms, jazz shells) omit them
- * by design. The 5 base CAGED majors in `caged-chords.ts` lack both
- * `chordType` and `voicingFamily` — this is legitimately incomplete
- * metadata (they predate the R-1.1 metadata fields) and is expected to
- * surface here as a warning, not silently ignored.
+ * by design. The 5 base CAGED majors in `caged-chords.ts` were backfilled
+ * with `chordType: "M"`, `voicingFamily: "caged"`, and `cagedPosition` (see
+ * §4.4 of the shape-workbench spec), so the registry currently has no
+ * chord shape that surfaces a warning here — this check exists to catch
+ * future additions that omit the fields, not to flag known-incomplete data.
  */
 export function checkChordMetadataCompleteness(shape: ChordShape): ShapeAuditIssue[] {
   const missing: string[] = [];

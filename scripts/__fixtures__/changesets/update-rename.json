@@ -6,9 +6,9 @@
     {
       "op": "update",
       "kind": "chord",
-      "name": "C Shape Minor",
+      "name": "Z Shape Fixture Minor",
       "patch": {
-        "name": "C Shape Minor (Renamed)"
+        "name": "Z Shape Fixture Minor (Renamed)"
       }
     }
   ]

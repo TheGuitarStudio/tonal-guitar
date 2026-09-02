@@ -8,9 +8,7 @@
       "kind": "chord",
       "name": "A Shape Major",
       "patch": {
-        "chordType": "M",
-        "voicingFamily": "caged",
-        "cagedPosition": "A"
+        "notes": "Fixture-authored update exercise (Task Group 18/19)"
       }
     }
   ]

@@ -743,19 +743,10 @@ describe("checkScaleBuildLoss", () => {
 // ============================================================
 
 describe("checkChordMetadataCompleteness", () => {
-  it("CAGED_CHORD_E (base CAGED major, lacks both chordType and voicingFamily): one warning issue, details.missing includes both fields — legitimately incomplete metadata, not a bug", () => {
-    expect(CAGED_CHORD_E.chordType).toBeUndefined();
-    expect(CAGED_CHORD_E.voicingFamily).toBeUndefined();
-
-    const issues = checkChordMetadataCompleteness(CAGED_CHORD_E);
-    expect(issues.length).toBe(1);
-    expect(issues[0].id).toBe(CHECK_METADATA_COMPLETENESS);
-    expect(issues[0].severity).toBe("warning");
-    const details = issues[0].details as { missing: string[] };
-    expect(details.missing).toEqual(
-      expect.arrayContaining(["chordType", "voicingFamily"]),
-    );
-    expect(details.missing.length).toBe(2);
+  it("CAGED_CHORD_E (base CAGED major, backfilled with chordType/voicingFamily/cagedPosition): []", () => {
+    expect(CAGED_CHORD_E.chordType).toBeDefined();
+    expect(CAGED_CHORD_E.voicingFamily).toBeDefined();
+    expect(checkChordMetadataCompleteness(CAGED_CHORD_E)).toEqual([]);
   });
 
   it("OPEN_C_MAJOR (has both chordType and voicingFamily): []", () => {
@@ -787,21 +778,13 @@ describe("checkChordMetadataCompleteness", () => {
     expect(details.missing).toEqual(["voicingFamily"]);
   });
 
-  it("registry-wide: exactly the 5 base CAGED majors fail checkChordMetadataCompleteness", () => {
+  it("registry-wide: no currently-registered chord shape fails checkChordMetadataCompleteness (5 base CAGED majors are backfilled)", () => {
     const allShapes = chordShapes.all();
     expect(allShapes.length).toBeGreaterThan(0);
     const flagged = allShapes
       .filter((shape) => checkChordMetadataCompleteness(shape).length > 0)
       .map((shape) => shape.name);
-    expect(new Set(flagged)).toEqual(
-      new Set([
-        "E Shape Major",
-        "A Shape Major",
-        "D Shape Major",
-        "C Shape Major",
-        "G Shape Major",
-      ]),
-    );
+    expect(flagged).toEqual([]);
   });
 });
 
@@ -1136,7 +1119,14 @@ describe("checkNameUnique", () => {
 
 describe("featured metadata field — audit interaction", () => {
   it("checkChordMetadataCompleteness: a chord shape with featured set but missing chordType/voicingFamily still only reports the existing metadata-completeness warning (no new issue for featured)", () => {
-    const shape: ChordShape = { ...CAGED_CHORD_E, featured: true };
+    // Synthetic incomplete fixture — the real CAGED majors are backfilled now,
+    // so this manufactures the missing-metadata case checkChordMetadataCompleteness guards.
+    const incomplete: ChordShape = {
+      ...OPEN_C_MAJOR,
+      chordType: undefined,
+      voicingFamily: undefined,
+    };
+    const shape: ChordShape = { ...incomplete, featured: true };
     const issues = checkChordMetadataCompleteness(shape);
     expect(issues.length).toBe(1);
     expect(issues[0].id).toBe(CHECK_METADATA_COMPLETENESS);
@@ -1146,7 +1136,7 @@ describe("featured metadata field — audit interaction", () => {
     );
     expect(details.missing).not.toContain("featured");
     // Identical to the unfeatured baseline — featured is invisible to this check.
-    expect(issues).toEqual(checkChordMetadataCompleteness(CAGED_CHORD_E));
+    expect(issues).toEqual(checkChordMetadataCompleteness(incomplete));
   });
 
   it("checkScaleMetadataCompleteness: a scale shape with featured set but no quality/parentShape passes cleanly", () => {

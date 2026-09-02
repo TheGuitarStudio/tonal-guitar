@@ -6,7 +6,7 @@
     {
       "op": "add",
       "kind": "chord",
-      "file": "caged-chords-minor",
+      "file": "caged-chords-fixture",
       "shape": {
         "name": "E Shape Major",
         "system": "caged",
