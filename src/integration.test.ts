@@ -46,7 +46,17 @@ import {
   PENTA_BOX_5_MINOR,
 } from "./data/pentatonic-minor";
 import { buildFrettedScale } from "./build";
-import { NoFrettedScale, type ScaleShape, add, removeAll, get } from "./shape";
+import {
+  NoFrettedScale,
+  type ScaleShape,
+  type ChordShape,
+  type ArpeggioShape,
+  add,
+  removeAll,
+  get,
+  arpeggioShapes,
+} from "./shape";
+import { CHORD_SCALE_RULE_VERSION } from "./chord-scale";
 import {
   arpeggioFromScale,
   arpeggioFromShape,
@@ -58,6 +68,8 @@ import {
   relabelShapeToScale,
   scalesContainingChord,
   DEFAULT_SCALE_CORPUS,
+  parentBoxForChordShape,
+  arpeggioFor,
 } from "./integration";
 import type {
   ContainingScale,
@@ -2014,5 +2026,172 @@ describe("TG4 — chord->scales chroma sweep, containment, and ranking", () => {
         expect(new Set(keys).size).toBe(keys.length);
       }
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// parentBoxForChordShape / arpeggioFor — Task Group 11, spec §2.3/§2.4
+// ---------------------------------------------------------------------------
+
+/** Minimal `ChordShape` fixture — only chordType/rootString/system/cagedPosition matter here. */
+function makeChordShape(overrides: Partial<ChordShape> = {}): ChordShape {
+  return {
+    name: "__tg11_chord__",
+    system: "caged",
+    strings: [null, null, null, null, null, null],
+    fingers: [null, null, null, null, null, null],
+    barres: [],
+    rootString: 0,
+    ...overrides,
+  };
+}
+
+describe("parentBoxForChordShape (Task Group 11)", () => {
+  it("rule-hit: returns the registered box whose relabeled rootString matches the grip's rootString", () => {
+    // "E Shape" (rootString 0, already major-frame) self-relabels into
+    // "E major" with rootString unchanged, and is the first registered
+    // ScaleShape in `all()` order — so it's the deterministic first match.
+    const chord = makeChordShape({ chordType: "M", rootString: 0 });
+
+    const result = parentBoxForChordShape(chord, "E");
+
+    expect(result).toBeDefined();
+    expect(result?.ruleVersion).toBe(CHORD_SCALE_RULE_VERSION);
+    expect(result?.scaleName).toBe("E major");
+    expect(result?.box.name).toBe("E Shape");
+    expect(result?.box.rootString).toBe(0);
+    // The returned box is relabeled into the requested scale's interval
+    // frame, not merely echoed back — a major third must be present.
+    expect(result?.box.strings.flat().filter(Boolean)).toContain("3M");
+  });
+
+  it("rule-hit: an aeolian-mapped chordType (\"m\") also resolves to a rotation-compatible box", () => {
+    const chord = makeChordShape({ chordType: "m", rootString: 0 });
+
+    const result = parentBoxForChordShape(chord, "D");
+
+    expect(result).toBeDefined();
+    expect(result?.ruleVersion).toBe(CHORD_SCALE_RULE_VERSION);
+    expect(result?.box.rootString).toBe(0);
+    // Aeolian/natural-minor frame — a minor third must be present.
+    expect(result?.box.strings.flat().filter(Boolean)).toContain("3m");
+  });
+
+  it.each(["dim", "dim7", "aug"])(
+    "rule-miss: returns undefined for chordType %s (absent from CHORD_SCALE_RULE)",
+    (chordType) => {
+      const chord = makeChordShape({ chordType, rootString: 0 });
+      expect(parentBoxForChordShape(chord, "E")).toBeUndefined();
+    },
+  );
+
+  it("returns undefined when shape.chordType is absent entirely", () => {
+    const chord = makeChordShape({ rootString: 0 });
+    delete chord.chordType;
+    expect(parentBoxForChordShape(chord, "E")).toBeUndefined();
+  });
+
+  it("rotation-incompatible: returns undefined when no registered box lands on the grip's rootString", () => {
+    // Across every registered ScaleShape, relabeling into the aeolian frame
+    // never produces rootString 5 (only 0-2 occur) — so no box is
+    // rotation-compatible with a grip claiming rootString 5 for "m".
+    const chord = makeChordShape({ chordType: "m", rootString: 5 });
+    expect(parentBoxForChordShape(chord, "D")).toBeUndefined();
+  });
+
+  it("filters candidates by tuning string count", () => {
+    const chord = makeChordShape({ chordType: "M", rootString: 0 });
+    // A 7-string tuning excludes every registered (6-string) box.
+    expect(parentBoxForChordShape(chord, "E", STANDARD_7)).toBeUndefined();
+  });
+});
+
+describe("arpeggioFor (Task Group 11)", () => {
+  afterEach(() => {
+    arpeggioShapes.removeAll();
+  });
+
+  const makeStoredArpeggio = (
+    name: string,
+    overrides: Partial<ArpeggioShape> = {},
+  ): ArpeggioShape => ({
+    name,
+    system: "caged",
+    strings: [["1P"], null, ["3m"], null, ["5P"], null],
+    rootString: 0,
+    chordType: "m7",
+    cagedPosition: "E",
+    ...overrides,
+  });
+
+  it('tier "core": builds the stored ArpeggioShape via buildFrettedScale', () => {
+    const stored = makeStoredArpeggio("__tg11_core_arp__");
+    arpeggioShapes.add(stored);
+
+    const chord = makeChordShape({
+      chordType: "m7",
+      cagedPosition: "E",
+      rootString: 0,
+    });
+
+    const result = arpeggioFor(chord, "E");
+
+    expect(result.resolution.tier).toBe("core");
+    expect(result.resolution.shape).toEqual(stored);
+    expect(result.fretted).toEqual(buildFrettedScale(stored, "E", STANDARD));
+    expect(result.fretted.empty).toBe(false);
+  });
+
+  it('tier "override": builds the overriding ArpeggioShape, not the core it replaces', () => {
+    const core = makeStoredArpeggio("__tg11_core_ov__");
+    const override = makeStoredArpeggio("__tg11_override__", {
+      overrides: "__tg11_core_ov__",
+    });
+    arpeggioShapes.add(core);
+    arpeggioShapes.add(override);
+
+    const chord = makeChordShape({
+      chordType: "m7",
+      cagedPosition: "E",
+      rootString: 0,
+    });
+
+    const result = arpeggioFor(chord, "E");
+
+    expect(result.resolution.tier).toBe("override");
+    expect(result.resolution.shape).toEqual(override);
+    expect(result.resolution.core).toEqual(core);
+    expect(result.fretted).toEqual(buildFrettedScale(override, "E", STANDARD));
+    expect(result.fretted).not.toEqual(buildFrettedScale(core, "E", STANDARD));
+  });
+
+  it('tier "derived": composes parentBoxForChordShape + arpeggioFromShape with zero new primitives', () => {
+    const chord = makeChordShape({ chordType: "m", rootString: 0 });
+    const root = "D";
+
+    const result = arpeggioFor(chord, root);
+
+    expect(result.resolution.tier).toBe("derived");
+    expect(result.resolution.shape).toBeUndefined();
+
+    const box = parentBoxForChordShape(chord, root);
+    expect(box).toBeDefined();
+    const expectedFretted = arpeggioFromShape(
+      box!.box,
+      `${root}${chord.chordType}`,
+      root,
+      STANDARD,
+    );
+    expect(result.fretted).toEqual(expectedFretted);
+    expect(result.fretted.empty).toBe(false);
+  });
+
+  it('tier "derived": falls back to the NoFrettedScale sentinel when no parent box exists (no rule entry)', () => {
+    const chord = makeChordShape({ chordType: "dim", rootString: 0 });
+
+    const result = arpeggioFor(chord, "E");
+
+    expect(result.resolution.tier).toBe("derived");
+    expect(result.fretted).toEqual(NoFrettedScale);
   });
 });
