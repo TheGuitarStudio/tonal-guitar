@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useState, type CSSProperties } from "react";
 import { midi as toMidi, fromMidiSharps } from "@tonaljs/note";
-import type { FrettedNote } from "tonal-guitar";
+import type { Barre, FrettedNote } from "tonal-guitar";
 import { Fretboard, type FretboardProps } from "./Fretboard";
 import { intervalFromTo, intervalToDegreeNumber } from "./intervals";
 import type { FretMarker, FretboardLayout, FretboardTheme, LabelMode } from "./types";
@@ -15,6 +15,10 @@ export interface EditorCell {
   string: number;
   fret: number;
   isRoot?: boolean;
+  /** Fingering number (1-4) assigned via the "finger" tool. */
+  finger?: number | null;
+  /** Marks this string as explicitly muted ("x") via the "mute" tool. */
+  muted?: boolean;
 }
 
 export interface FretboardEditorProps {
@@ -30,6 +34,16 @@ export interface FretboardEditorProps {
   labelMode?: LabelMode;
   className?: string;
   style?: CSSProperties;
+  /** Active editing tool. Consumers (e.g. the shape-workbench editor) drive
+   * cell mutation semantics off this; the base editor doesn't yet branch on it. */
+  tool?: "select" | "note" | "root" | "finger" | "barre" | "mute";
+  /** Finger number applied by the "finger" tool when placing/labeling a cell. */
+  activeFinger?: 1 | 2 | 3 | 4;
+  /** Chord barres overlaid on the board (drag-across-strings grouping). */
+  barres?: Barre[];
+  onBarresChange?: (barres: Barre[]) => void;
+  /** Non-interactive reference markers (e.g. "show core as ghost", parent-shape box). */
+  ghostMarkers?: FretMarker[];
 }
 
 /**
@@ -236,6 +250,57 @@ export function cellsToScaleShapeStrings(
     byString[c.string] = list;
   }
   return { strings: byString, rootString: rootCell?.string ?? 0 };
+}
+
+/**
+ * Convert editor cells into a tonal-guitar `ChordShape`-style grip: one
+ * interval per string (unlike `cellsToScaleShapeStrings`, which allows
+ * several notes per string). Companion to `cellsToScaleShapeStrings`.
+ *
+ * A cell with `muted: true` clears that string (`strings[i] = null`,
+ * matching the "muted" convention documented in `src/audit.ts`). When
+ * multiple cells target the same string, the last one (by fret, ascending)
+ * wins. `barres` is always returned empty — barre grouping is tracked
+ * separately via `FretboardEditorProps.barres`/`onBarresChange`, not
+ * derived from cells.
+ *
+ * Returns `null` if no root cell is set (and no `rootPitchClass` override
+ * is provided) — a chord shape without a marked root has no interval frame.
+ */
+export function cellsToChordShape(
+  cells: EditorCell[],
+  tuning: string[],
+  rootPitchClass?: string,
+): {
+  strings: (string | null)[];
+  fingers: (number | null)[];
+  barres: Barre[];
+  rootString: number;
+} | null {
+  const rootCell = cells.find((c) => c.isRoot);
+  const rootPc =
+    rootPitchClass ??
+    (rootCell ? pcAt(tuning, rootCell.string, rootCell.fret) : null);
+  if (!rootPc) return null;
+
+  const strings: (string | null)[] = tuning.map(() => null);
+  const fingers: (number | null)[] = tuning.map(() => null);
+
+  const sorted = [...cells].sort((a, b) => a.string - b.string || a.fret - b.fret);
+  for (const c of sorted) {
+    if (c.muted) {
+      strings[c.string] = null;
+      fingers[c.string] = null;
+      continue;
+    }
+    const pc = pcAt(tuning, c.string, c.fret);
+    const ivl = intervalFromTo(rootPc, pc);
+    if (!ivl) continue;
+    strings[c.string] = ivl;
+    fingers[c.string] = c.finger ?? (c.fret === 0 ? 0 : null);
+  }
+
+  return { strings, fingers, barres: [], rootString: rootCell?.string ?? 0 };
 }
 
 /**
