@@ -7,16 +7,23 @@ import {
   chordShapes,
   get as getScale,
   add as addScale,
+  all as allScales,
+  names as namesScales,
   removeAll as removeAllScales,
   type VoicingFamily,
   type VoicingPatternDictionary,
   type ChordShape,
   type ScaleShape,
 } from "./index";
-// CagedPosition/ArpeggioShape are new in this task group and not yet wired
-// through src/index.ts (that's a later group's §1.11 task) — import them
-// directly from the source module.
-import type { CagedPosition, ArpeggioShape } from "./shape";
+// CagedPosition/ArpeggioShape/remove/arpeggioShapes are new in this task
+// group and not yet wired through src/index.ts (that's a later group's
+// §1.11 task) — import them directly from the source module.
+import {
+  remove as removeScale,
+  arpeggioShapes,
+  type CagedPosition,
+  type ArpeggioShape,
+} from "./shape";
 
 describe("VoicingFamily and VoicingPatternDictionary — import smoke", () => {
   it("VoicingFamily resolves as a type from src/index (compile-time check)", () => {
@@ -28,6 +35,23 @@ describe("VoicingFamily and VoicingPatternDictionary — import smoke", () => {
   it("VoicingPatternDictionary resolves as a type from src/index (compile-time check)", () => {
     const dict: VoicingPatternDictionary = { maj7: ["3M 5P 7M"] };
     expect(dict).toBeTruthy();
+  });
+});
+
+// ============================================================
+// Task Group 3.7: pre-existing registered shape names are unique.
+// Placed early in the file, before any other describe block mutates the
+// registries, so this observes the real seed data loaded by `import
+// "./index"` above (later tests wipe the registries via removeAll()).
+// ============================================================
+
+describe("registered shape name uniqueness (Task Group 3.7)", () => {
+  it("no two currently-registered scale shapes share a name", () => {
+    expect(allScales().length).toBe(new Set(namesScales()).size);
+  });
+
+  it("no two currently-registered chord shapes share a name", () => {
+    expect(chordShapes.all().length).toBe(new Set(chordShapes.names()).size);
   });
 });
 
@@ -440,5 +464,279 @@ describe("shape-workbench additive fields (Task Group 2)", () => {
 
     expect(arpeggio.chordType).toBe("m7");
     expect(asScaleShape.name).toBe("__test_arpeggio__");
+  });
+});
+
+// ============================================================
+// Task Group 3: replace-on-same-name add(), remove(), arpeggioShapes
+// ============================================================
+
+describe("Scale shape registry — replace-on-add and remove (Task Group 3)", () => {
+  afterEach(() => {
+    removeAllScales();
+  });
+
+  it("add() with an already-registered name replaces the entry in place, preserving array position", () => {
+    const first: ScaleShape = {
+      name: "__test_replace_scale__",
+      system: "custom",
+      strings: [["1P"]],
+      rootString: 0,
+      quality: "v1",
+    };
+    const sibling: ScaleShape = {
+      name: "__test_replace_scale_sibling__",
+      system: "custom",
+      strings: [["1P"]],
+      rootString: 0,
+    };
+    addScale(first);
+    addScale(sibling);
+    const indexBefore = allScales().findIndex((s) => s.name === "__test_replace_scale__");
+
+    const replacement: ScaleShape = {
+      name: "__test_replace_scale__",
+      system: "custom",
+      strings: [["1P"], ["3M"]],
+      rootString: 0,
+      quality: "v2",
+    };
+    addScale(replacement);
+
+    const after = allScales();
+    // No duplicate/append: total count unchanged, same array slot.
+    expect(after.filter((s) => s.name === "__test_replace_scale__")).toHaveLength(1);
+    expect(after.findIndex((s) => s.name === "__test_replace_scale__")).toBe(indexBefore);
+    expect(getScale("__test_replace_scale__")?.quality).toBe("v2");
+    expect(getScale("__test_replace_scale__")).toEqual(replacement);
+  });
+
+  it("remove() deletes a registered scale shape and returns true", () => {
+    const shape: ScaleShape = {
+      name: "__test_remove_scale__",
+      system: "custom",
+      strings: [["1P"]],
+      rootString: 0,
+    };
+    addScale(shape);
+    expect(getScale("__test_remove_scale__")).toBeDefined();
+
+    const removed = removeScale("__test_remove_scale__");
+
+    expect(removed).toBe(true);
+    expect(getScale("__test_remove_scale__")).toBeUndefined();
+    expect(allScales().some((s) => s.name === "__test_remove_scale__")).toBe(false);
+    expect(namesScales()).not.toContain("__test_remove_scale__");
+  });
+
+  it("remove() on a name that was never registered returns false and leaves the registry untouched", () => {
+    const shape: ScaleShape = {
+      name: "__test_remove_scale_untouched__",
+      system: "custom",
+      strings: [["1P"]],
+      rootString: 0,
+    };
+    addScale(shape);
+    const before = allScales().length;
+
+    const removed = removeScale("__test_remove_scale_never_registered__");
+
+    expect(removed).toBe(false);
+    expect(allScales().length).toBe(before);
+  });
+});
+
+describe("Chord shape registry — replace-on-add and remove (Task Group 3)", () => {
+  afterEach(() => {
+    chordShapes.removeAll();
+  });
+
+  const makeChord = (name: string, overrides: Partial<ChordShape> = {}): ChordShape => ({
+    name,
+    system: "custom",
+    strings: ["1P", null, null, null, null, null],
+    fingers: [1, null, null, null, null, null],
+    barres: [],
+    rootString: 0,
+    ...overrides,
+  });
+
+  it("add() with an already-registered name replaces the entry in place, preserving array position", () => {
+    const first = makeChord("__test_replace_chord__", { voicingFamily: "caged" });
+    const sibling = makeChord("__test_replace_chord_sibling__");
+    chordShapes.add(first);
+    chordShapes.add(sibling);
+    const indexBefore = chordShapes.all().findIndex((s) => s.name === "__test_replace_chord__");
+
+    const replacement = makeChord("__test_replace_chord__", { voicingFamily: "shell", baseFret: 3 });
+    chordShapes.add(replacement);
+
+    const after = chordShapes.all();
+    expect(after.filter((s) => s.name === "__test_replace_chord__")).toHaveLength(1);
+    expect(after.findIndex((s) => s.name === "__test_replace_chord__")).toBe(indexBefore);
+    expect(chordShapes.get("__test_replace_chord__")?.voicingFamily).toBe("shell");
+    expect(chordShapes.get("__test_replace_chord__")).toEqual(replacement);
+  });
+
+  it("remove() deletes a registered chord shape and returns true", () => {
+    const shape = makeChord("__test_remove_chord__");
+    chordShapes.add(shape);
+    expect(chordShapes.get("__test_remove_chord__")).toBeDefined();
+
+    const removed = chordShapes.remove("__test_remove_chord__");
+
+    expect(removed).toBe(true);
+    expect(chordShapes.get("__test_remove_chord__")).toBeUndefined();
+    expect(chordShapes.all().some((s) => s.name === "__test_remove_chord__")).toBe(false);
+    expect(chordShapes.names()).not.toContain("__test_remove_chord__");
+  });
+
+  it("remove() on a name that was never registered returns false and leaves the registry untouched", () => {
+    const shape = makeChord("__test_remove_chord_untouched__");
+    chordShapes.add(shape);
+    const before = chordShapes.all().length;
+
+    const removed = chordShapes.remove("__test_remove_chord_never_registered__");
+
+    expect(removed).toBe(false);
+    expect(chordShapes.all().length).toBe(before);
+  });
+});
+
+describe("arpeggioShapes registry — CRUD and query (Task Group 3)", () => {
+  afterEach(() => {
+    arpeggioShapes.removeAll();
+  });
+
+  const makeArpeggio = (name: string, overrides: Partial<ArpeggioShape> = {}): ArpeggioShape => ({
+    name,
+    system: "caged",
+    strings: [["1P"], null, ["3m"], null, ["5P"], null],
+    rootString: 0,
+    chordType: "m7",
+    ...overrides,
+  });
+
+  it("all() returns [] when nothing has been registered", () => {
+    expect(arpeggioShapes.all()).toEqual([]);
+  });
+
+  it("add()/get()/names() round-trip a registered arpeggio shape", () => {
+    const shape = makeArpeggio("__test_arp_roundtrip__", {
+      cagedPosition: "E",
+      chordShape: "E Shape m7",
+      tags: ["core"],
+    });
+    arpeggioShapes.add(shape);
+
+    expect(arpeggioShapes.get("__test_arp_roundtrip__")).toEqual(shape);
+    expect(arpeggioShapes.all()).toContainEqual(shape);
+    expect(arpeggioShapes.names()).toContain("__test_arp_roundtrip__");
+  });
+
+  it("add() with an already-registered name replaces in place, preserving array position", () => {
+    const first = makeArpeggio("__test_arp_replace__");
+    const sibling = makeArpeggio("__test_arp_replace_sibling__");
+    arpeggioShapes.add(first);
+    arpeggioShapes.add(sibling);
+    const indexBefore = arpeggioShapes.all().findIndex((s) => s.name === "__test_arp_replace__");
+
+    const replacement = makeArpeggio("__test_arp_replace__", { chordType: "7", tags: ["updated"] });
+    arpeggioShapes.add(replacement);
+
+    const after = arpeggioShapes.all();
+    expect(after.filter((s) => s.name === "__test_arp_replace__")).toHaveLength(1);
+    expect(after.findIndex((s) => s.name === "__test_arp_replace__")).toBe(indexBefore);
+    expect(arpeggioShapes.get("__test_arp_replace__")?.chordType).toBe("7");
+  });
+
+  it("remove() deletes a registered arpeggio shape and returns true; unknown name returns false", () => {
+    const shape = makeArpeggio("__test_arp_remove__");
+    arpeggioShapes.add(shape);
+
+    expect(arpeggioShapes.remove("__test_arp_remove__")).toBe(true);
+    expect(arpeggioShapes.get("__test_arp_remove__")).toBeUndefined();
+    expect(arpeggioShapes.all().some((s) => s.name === "__test_arp_remove__")).toBe(false);
+    expect(arpeggioShapes.remove("__test_arp_never_registered__")).toBe(false);
+  });
+
+  it("removeAll() clears both the array and the index", () => {
+    arpeggioShapes.add(makeArpeggio("__test_arp_wipe_a__"));
+    arpeggioShapes.add(makeArpeggio("__test_arp_wipe_b__"));
+    expect(arpeggioShapes.all().length).toBeGreaterThan(0);
+
+    arpeggioShapes.removeAll();
+
+    expect(arpeggioShapes.all()).toEqual([]);
+    expect(arpeggioShapes.names()).toEqual([]);
+    expect(arpeggioShapes.get("__test_arp_wipe_a__")).toBeUndefined();
+  });
+
+  it("query() exercises every filter key, including tag-superset matching", () => {
+    const eShapeM7 = makeArpeggio("__test_arp_query_e_m7__", {
+      chordType: "m7",
+      system: "caged",
+      cagedPosition: "E",
+      chordShape: "E Shape m7",
+      tags: ["core", "beginner"],
+    });
+    const aShapeM7 = makeArpeggio("__test_arp_query_a_m7__", {
+      chordType: "m7",
+      system: "caged",
+      cagedPosition: "A",
+      chordShape: "A Shape m7",
+      tags: ["core"],
+    });
+    const eShape7Override = makeArpeggio("__test_arp_query_e_7_override__", {
+      chordType: "7",
+      system: "caged",
+      cagedPosition: "E",
+      chordShape: "E Shape 7",
+      tags: ["teacher"],
+      overrides: "__test_arp_query_e_7_core__",
+    });
+    const threeNpsM7 = makeArpeggio("__test_arp_query_3nps_m7__", {
+      chordType: "m7",
+      system: "3nps",
+      tags: ["core", "advanced"],
+    });
+    arpeggioShapes.add(eShapeM7);
+    arpeggioShapes.add(aShapeM7);
+    arpeggioShapes.add(eShape7Override);
+    arpeggioShapes.add(threeNpsM7);
+
+    // chordType
+    expect(arpeggioShapes.query({ chordType: "m7" }).map((s) => s.name).sort()).toEqual(
+      [eShapeM7.name, aShapeM7.name, threeNpsM7.name].sort(),
+    );
+
+    // system
+    expect(arpeggioShapes.query({ system: "3nps" })).toEqual([threeNpsM7]);
+
+    // cagedPosition
+    expect(arpeggioShapes.query({ cagedPosition: "E" }).map((s) => s.name).sort()).toEqual(
+      [eShapeM7.name, eShape7Override.name].sort(),
+    );
+
+    // chordShape
+    expect(arpeggioShapes.query({ chordShape: "A Shape m7" })).toEqual([aShapeM7]);
+
+    // overrides
+    expect(arpeggioShapes.query({ overrides: "__test_arp_query_e_7_core__" })).toEqual([eShape7Override]);
+
+    // tags — superset match: shape must carry every requested tag.
+    expect(arpeggioShapes.query({ tags: ["core"] }).map((s) => s.name).sort()).toEqual(
+      [eShapeM7.name, aShapeM7.name, threeNpsM7.name].sort(),
+    );
+    expect(arpeggioShapes.query({ tags: ["core", "beginner"] })).toEqual([eShapeM7]);
+    expect(arpeggioShapes.query({ tags: ["core", "expert-does-not-exist"] })).toEqual([]);
+
+    // conjunctive across multiple keys
+    expect(
+      arpeggioShapes.query({ chordType: "m7", system: "caged", cagedPosition: "E" }),
+    ).toEqual([eShapeM7]);
+
+    // no matches
+    expect(arpeggioShapes.query({ chordType: "dim7" })).toEqual([]);
   });
 });

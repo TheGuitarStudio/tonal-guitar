@@ -203,9 +203,32 @@ export function names(): string[] {
 }
 
 export function add(shape: ScaleShape): ScaleShape {
-  dictionary.push(shape);
+  const existing = index.get(shape.name);
+  if (existing !== undefined) {
+    const position = dictionary.indexOf(existing);
+    if (position !== -1) {
+      dictionary[position] = shape;
+    } else {
+      dictionary.push(shape);
+    }
+  } else {
+    dictionary.push(shape);
+  }
   index.set(shape.name, shape);
   return shape;
+}
+
+export function remove(name: string): boolean {
+  const existing = index.get(name);
+  if (existing === undefined) {
+    return false;
+  }
+  const position = dictionary.indexOf(existing);
+  if (position !== -1) {
+    dictionary.splice(position, 1);
+  }
+  index.delete(name);
+  return true;
 }
 
 export function removeAll(): void {
@@ -231,9 +254,31 @@ export const chordShapes = {
     return chordDictionary.map((s) => s.name);
   },
   add(shape: ChordShape): ChordShape {
-    chordDictionary.push(shape);
+    const existing = chordIndex.get(shape.name);
+    if (existing !== undefined) {
+      const position = chordDictionary.indexOf(existing);
+      if (position !== -1) {
+        chordDictionary[position] = shape;
+      } else {
+        chordDictionary.push(shape);
+      }
+    } else {
+      chordDictionary.push(shape);
+    }
     chordIndex.set(shape.name, shape);
     return shape;
+  },
+  remove(name: string): boolean {
+    const existing = chordIndex.get(name);
+    if (existing === undefined) {
+      return false;
+    }
+    const position = chordDictionary.indexOf(existing);
+    if (position !== -1) {
+      chordDictionary.splice(position, 1);
+    }
+    chordIndex.delete(name);
+    return true;
   },
   removeAll(): void {
     chordDictionary = [];
@@ -244,6 +289,8 @@ export const chordShapes = {
     system?: string;
     voicingFamily?: VoicingFamily;
     stringSet?: number[];
+    cagedPosition?: CagedPosition;
+    tags?: string[];
   }): ChordShape[] {
     return chordDictionary.filter((shape) => {
       if (filter.chordType !== undefined && shape.chordType !== filter.chordType) {
@@ -259,6 +306,100 @@ export const chordShapes = {
         if (JSON.stringify(shape.stringSet) !== JSON.stringify(filter.stringSet)) {
           return false;
         }
+      }
+      if (filter.cagedPosition !== undefined && shape.cagedPosition !== filter.cagedPosition) {
+        return false;
+      }
+      if (filter.tags !== undefined) {
+        const shapeTags = shape.tags ?? [];
+        if (!filter.tags.every((tag) => shapeTags.includes(tag))) {
+          return false;
+        }
+      }
+      return true;
+    });
+  },
+};
+
+// ============================================================
+// Arpeggio shape registry
+// ============================================================
+// Mirrors chordShapes exactly (get/all/names/add/remove/removeAll/query).
+// Ships with zero seeded data — see `data/*` for a later phase.
+
+let arpeggioDictionary: ArpeggioShape[] = [];
+let arpeggioIndex: Map<string, ArpeggioShape> = new Map();
+
+export const arpeggioShapes = {
+  get(name: string): ArpeggioShape | undefined {
+    return arpeggioIndex.get(name);
+  },
+  all(): ArpeggioShape[] {
+    return arpeggioDictionary.slice();
+  },
+  names(): string[] {
+    return arpeggioDictionary.map((s) => s.name);
+  },
+  add(shape: ArpeggioShape): ArpeggioShape {
+    const existing = arpeggioIndex.get(shape.name);
+    if (existing !== undefined) {
+      const position = arpeggioDictionary.indexOf(existing);
+      if (position !== -1) {
+        arpeggioDictionary[position] = shape;
+      } else {
+        arpeggioDictionary.push(shape);
+      }
+    } else {
+      arpeggioDictionary.push(shape);
+    }
+    arpeggioIndex.set(shape.name, shape);
+    return shape;
+  },
+  remove(name: string): boolean {
+    const existing = arpeggioIndex.get(name);
+    if (existing === undefined) {
+      return false;
+    }
+    const position = arpeggioDictionary.indexOf(existing);
+    if (position !== -1) {
+      arpeggioDictionary.splice(position, 1);
+    }
+    arpeggioIndex.delete(name);
+    return true;
+  },
+  removeAll(): void {
+    arpeggioDictionary = [];
+    arpeggioIndex = new Map();
+  },
+  query(filter: {
+    chordType?: string;
+    system?: string;
+    cagedPosition?: CagedPosition;
+    tags?: string[];
+    chordShape?: string;
+    overrides?: string;
+  }): ArpeggioShape[] {
+    return arpeggioDictionary.filter((shape) => {
+      if (filter.chordType !== undefined && shape.chordType !== filter.chordType) {
+        return false;
+      }
+      if (filter.system !== undefined && shape.system !== filter.system) {
+        return false;
+      }
+      if (filter.cagedPosition !== undefined && shape.cagedPosition !== filter.cagedPosition) {
+        return false;
+      }
+      if (filter.tags !== undefined) {
+        const shapeTags = shape.tags ?? [];
+        if (!filter.tags.every((tag) => shapeTags.includes(tag))) {
+          return false;
+        }
+      }
+      if (filter.chordShape !== undefined && shape.chordShape !== filter.chordShape) {
+        return false;
+      }
+      if (filter.overrides !== undefined && shape.overrides !== filter.overrides) {
+        return false;
       }
       return true;
     });
