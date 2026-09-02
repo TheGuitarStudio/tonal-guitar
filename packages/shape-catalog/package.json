@@ -7,9 +7,13 @@
   "types": "src/index.ts",
   "files": ["src"],
   "peerDependencies": {
-    "tonal-guitar": "*"
+    "tonal-guitar": "*",
+    "@tonaljs/note": "^4.12.0",
+    "@tonaljs/interval": "^5.1.0"
   },
   "devDependencies": {
+    "@tonaljs/note": "^4.12.0",
+    "@tonaljs/interval": "^5.1.0",
     "tonal-guitar": "file:../.."
   }
 }

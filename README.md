@@ -733,6 +733,12 @@ The package exports these TypeScript interfaces:
 - `AsciiTabOptions` — options for `toAsciiTab`
 - `KeyAnalysis` — result of `analyzeInKey`
 
+## Development
+
+To author new shapes visually instead of hand-writing `src/data/*.ts`, run `npm run workbench` to start the local Shape Workbench — a Vite + React app (Board → Editor → Export) for building and editing scale/chord shapes on a virtual fretboard. Exporting from the app writes a changeset to `.workbench/changeset.json`.
+
+Run `npm run shapes:merge -- .workbench/changeset.json` to land that changeset into `src/data/` and `src/index.ts`. Pass `--dry-run` to preview the resulting diff without writing, or `--check` to validate the changeset (e.g. in CI) without merging.
+
 ## Related
 
 - [@tonaljs/scale](https://github.com/tonaljs/tonal/tree/main/packages/scale) — scale definitions and lookups
