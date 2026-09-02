@@ -241,6 +241,66 @@ function locateOwnedRegion(dataDir, files, shapeName) {
   return undefined;
 }
 
+/**
+ * Resolves an owned region directly by its marker identifier (the
+ * `shapes-merge:begin <IDENT>` name), regardless of what `name:` field the
+ * block's content currently holds. Used as the rename fallback below — an
+ * owned block's marker identifier never changes across `update`s (it's
+ * fixed at `add` time), even when the shape's `name` field does.
+ */
+function locateOwnedRegionByIdent(dataDir, files, ident) {
+  for (const file of files) {
+    const base = basenameOf(file);
+    const source = readFileSync(path.join(dataDir, file), "utf8");
+    const block = findOwnedBlock(source, ident);
+    if (!block) continue;
+    const managed = isHandWrittenManaged(base) || isGeneratedSource(source);
+    return { file: base, managed, ident: block.name, insideBlock: true };
+  }
+  return undefined;
+}
+
+/**
+ * Fallback region resolution for an `UpdateChange` whose `name` no longer
+ * matches anything on disk — the common cause is a *previous* run of this
+ * very changeset already having applied a `patch.name` rename, which makes
+ * `locateOwnedRegion(..., change.name)` (looking for the OLD name) fail on
+ * every subsequent run (`--check` included), even though the change is
+ * fully applied and re-running it should be a no-op (spec §6.6
+ * "idempotent"), not a refusal.
+ *
+ * Two independent strategies, either sufficient:
+ *   1. Locate by export identifier — stable across renames since it's fixed
+ *      at `add` time: an explicit `change.ident` (not part of the
+ *      documented `UpdateChange` schema, but honored if present), else the
+ *      identifier `exportIdentifierFor` would generate from the change's
+ *      target name (covers shapes this script itself added).
+ *   2. Locate by the patch's own new `name` — covers hand-authored files
+ *      (e.g. `caged-chords.ts`) whose marker identifiers are hand-picked
+ *      shorthands (`CAGED_CHORD_A`) that never matched the generated
+ *      formula in the first place.
+ * Whichever finds the block, re-merging `change.patch` onto its
+ * already-patched content is a true no-op — the merged object is
+ * deep-equal to what's already there, so `renderShape` (a pure function of
+ * its input) reproduces byte-identical text and nothing is written.
+ */
+function resolveRenamedUpdateRegion(dataDir, files, change) {
+  let candidateIdent;
+  try {
+    candidateIdent = change.ident ?? scriptExportIdentifierFor(change.kind, { name: change.name });
+  } catch {
+    candidateIdent = undefined;
+  }
+  if (candidateIdent !== undefined) {
+    const byIdent = locateOwnedRegionByIdent(dataDir, files, candidateIdent);
+    if (byIdent) return byIdent;
+  }
+  if (typeof change.patch?.name === "string") {
+    return locateOwnedRegion(dataDir, files, change.patch.name);
+  }
+  return undefined;
+}
+
 function detectGeneratedFileKind(source) {
   for (const [kind, line] of Object.entries(IMPORT_LINE)) {
     if (source.includes(line)) return kind;
@@ -531,7 +591,13 @@ async function planMerge(changeset, ctx) {
   const dataFileList = listDataFiles(dataDir);
   const regionByChange = new Map();
   for (const change of [...updateChanges, ...removeChanges]) {
-    const region = locateOwnedRegion(dataDir, dataFileList, change.name);
+    let region = locateOwnedRegion(dataDir, dataFileList, change.name);
+    if (region === undefined && change.op === "update") {
+      // Rename fallback (oversight fix C) — see resolveRenamedUpdateRegion's
+      // doc comment: a prior run may have already applied a `patch.name`
+      // rename, so the change's original `name` no longer resolves.
+      region = resolveRenamedUpdateRegion(dataDir, dataFileList, change);
+    }
     if (region === undefined) {
       throw new MergeRefusal(
         "unowned-region",
@@ -570,6 +636,18 @@ async function planMerge(changeset, ctx) {
     const absPath = path.join(dataDir, `${region.file}.ts`);
     const block = findOwnedBlock(readFileSync(absPath, "utf8"), region.ident);
     baseByUpdate.set(change, parseShapeLiteral(block.content));
+  }
+
+  // Same recovery, for `remove` — computeCountsTouched (oversight fix B)
+  // needs the removed shape's full field set (voicingFamily/system/
+  // featured/…) to know which family/system/featured-scoped count markers
+  // it invalidates, not just its `kind`.
+  const baseByRemove = new Map();
+  for (const change of removeChanges) {
+    const region = regionByChange.get(change);
+    const absPath = path.join(dataDir, `${region.file}.ts`);
+    const block = findOwnedBlock(readFileSync(absPath, "utf8"), region.ident);
+    baseByRemove.set(change, parseShapeLiteral(block.content));
   }
 
   // ---- rule 5: file naming + computed-file deny list (add only) -----------
@@ -848,6 +926,7 @@ async function planMerge(changeset, ctx) {
     changeset,
     addChanges,
     removeChanges,
+    baseByRemove,
     dataTestPath,
     indexTestPath,
     files,
@@ -911,7 +990,16 @@ function parseShapeLiteral(blockContent) {
   return (0, eval)(`(${match[1]})`);
 }
 
-function computeCountsTouched({ addChanges, removeChanges, dataTestPath, indexTestPath, files, root, applyEdits }) {
+function computeCountsTouched({
+  addChanges,
+  removeChanges,
+  baseByRemove,
+  dataTestPath,
+  indexTestPath,
+  files,
+  root,
+  applyEdits,
+}) {
   const deltas = new Map(); // markerName -> delta
   function accumulate(shape, kind, delta) {
     for (const [name, predicate] of Object.entries(COUNT_RULES)) {
@@ -921,24 +1009,13 @@ function computeCountsTouched({ addChanges, removeChanges, dataTestPath, indexTe
     }
   }
   for (const change of addChanges) accumulate(change.shape, change.kind, 1);
-  // remove changes carry only a name; the shape used to decide which count
-  // rules apply is looked up from the changeset's own record where
-  // possible — RemoveChange has no shape, so removes are reported by name
-  // only (kind is known) with a best-effort predicate over `kind` alone.
-  for (const change of removeChanges) {
-    for (const [name, predicate] of Object.entries(COUNT_RULES)) {
-      // Kind-only rules (chord-shape-total/scale-shape-total) are safe to
-      // apply without the removed shape's other fields; family/system/
-      // featured-scoped rules can't be evaluated without it, so they're
-      // conservatively skipped for remove (reported as untouched).
-      if (change.kind === "chord" && name === "chord-shape-total") {
-        deltas.set(name, (deltas.get(name) ?? 0) - 1);
-      } else if (change.kind === "scale" && name === "scale-shape-total") {
-        deltas.set(name, (deltas.get(name) ?? 0) - 1);
-      }
-      void predicate;
-    }
-  }
+  // remove changes carry only a `name` on the changeset itself, but the
+  // removed shape's full field set (voicingFamily/system/featured/…) is
+  // recoverable from its owned-block content before the block is dropped
+  // — see `baseByRemove`, built the same way `update`'s base object is
+  // (oversight fix B) — so every count rule, not just the kind-only ones,
+  // gets evaluated for a remove.
+  for (const change of removeChanges) accumulate(baseByRemove.get(change), change.kind, -1);
 
   if (deltas.size === 0) return [];
 

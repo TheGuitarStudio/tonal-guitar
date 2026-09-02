@@ -19,6 +19,7 @@ import {
 } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { tmpdir } from "node:os";
+import { createHash } from "node:crypto";
 import path from "node:path";
 import { describe, it, expect } from "vitest";
 import { parseOwnedBlocks, findOwnedBlock, parseCountMarkers } from "./lib/owned-blocks.mjs";
@@ -31,6 +32,19 @@ const CAGED_CHORDS_PATH = "../src/data/caged-chords.ts";
 const INDEX_TS_PATH = "../src/index.ts";
 const DATA_TEST_PATH = "../src/data/data.test.ts";
 const INDEX_TEST_PATH = "../src/index.test.ts";
+
+// Baseline mtime/content-hash of the real (never fixture-rooted)
+// src/data/caged-chords.ts, captured at module load — i.e. before any test
+// in this file has run. Task 18.4's real-checkout-untouched assertion (at
+// the very bottom of this file, after every other test) compares against
+// this baseline, proving the entire fixture suite above never wrote to the
+// real checkout, not just the one merge each "--root never touches the
+// real checkout" test already exercises.
+const REAL_CAGED_CHORDS_ABS_PATH = fileURLToPath(new URL(CAGED_CHORDS_PATH, import.meta.url));
+const realCagedChordsBaselineMtimeMs = statSync(REAL_CAGED_CHORDS_ABS_PATH).mtimeMs;
+const realCagedChordsBaselineHash = createHash("sha256")
+  .update(readFileSync(REAL_CAGED_CHORDS_ABS_PATH))
+  .digest("hex");
 
 describe("parseOwnedBlocks: src/data/caged-chords.ts (spec §6.3 write allow-list)", () => {
   const source = read(CAGED_CHORDS_PATH);
@@ -262,6 +276,22 @@ function baseChangeset(changes, overrides = {}) {
   };
 }
 
+// ------------------------------------------------------------------------
+// Task Group 18: committed fixture changesets (`scripts/__fixtures__/`,
+// D-008/spec §6.7) + their expected output trees, hand-reviewed once and
+// committed alongside the changesets that produce them.
+// ------------------------------------------------------------------------
+
+const FIXTURES_DIR = fileURLToPath(new URL("./__fixtures__", import.meta.url));
+
+function fixtureChangesetPath(name) {
+  return path.join(FIXTURES_DIR, "changesets", name);
+}
+
+function readExpectedFile(fixtureName, relPath) {
+  return readFileSync(path.join(FIXTURES_DIR, "expected", fixtureName, relPath), "utf8");
+}
+
 // A small movable minor-triad chord shape in the spirit of the spec §4.3
 // "C Shape Minor" dogfooding example (verified audit-clean: built at the
 // default root "C" via applyChordShape produces frets [null,3,1,0,1,null],
@@ -453,28 +483,32 @@ describe("shapes-merge: remove — drops the owned block, deletes an emptied gen
   );
 });
 
-describe("shapes-merge: refusal scenarios (spec §6.2, in order) — every one writes nothing", () => {
-  async function expectRefusalWithNoWrites(dir, changesetPath, argsExtra = []) {
-    const before = new Map();
-    const dataDir = path.join(dir, "src", "data");
-    for (const file of readdirSync(dataDir)) {
-      before.set(file, readFileSync(path.join(dataDir, file), "utf8"));
-    }
-    const beforeIndex = readFileSync(realIndexFile(dir), "utf8");
-    let caught;
-    try {
-      await runMerge([changesetPath, "--root", dir, ...argsExtra]);
-    } catch (err) {
-      caught = err;
-    }
-    expect(caught).toBeInstanceOf(MergeRefusal);
-    for (const file of readdirSync(dataDir)) {
-      expect(readFileSync(path.join(dataDir, file), "utf8")).toBe(before.get(file) ?? undefined);
-    }
-    expect(readFileSync(realIndexFile(dir), "utf8")).toBe(beforeIndex);
-    return caught;
+// Shared by the ad hoc refusal-scenario tests below (Task Group 17) and the
+// committed-fixture refusal tests (Task Group 18) — asserts a MergeRefusal
+// was thrown and that not one file under src/data or src/index.ts changed,
+// then returns the caught error for rule-specific assertions.
+async function expectRefusalWithNoWrites(dir, changesetPath, argsExtra = []) {
+  const before = new Map();
+  const dataDir = path.join(dir, "src", "data");
+  for (const file of readdirSync(dataDir)) {
+    before.set(file, readFileSync(path.join(dataDir, file), "utf8"));
   }
+  const beforeIndex = readFileSync(realIndexFile(dir), "utf8");
+  let caught;
+  try {
+    await runMerge([changesetPath, "--root", dir, ...argsExtra]);
+  } catch (err) {
+    caught = err;
+  }
+  expect(caught).toBeInstanceOf(MergeRefusal);
+  for (const file of readdirSync(dataDir)) {
+    expect(readFileSync(path.join(dataDir, file), "utf8")).toBe(before.get(file) ?? undefined);
+  }
+  expect(readFileSync(realIndexFile(dir), "utf8")).toBe(beforeIndex);
+  return caught;
+}
 
+describe("shapes-merge: refusal scenarios (spec §6.2, in order) — every one writes nothing", () => {
   it(
     "rule 1: invalid $schema is refused",
     withFixtureRoot(async (dir) => {
@@ -931,6 +965,15 @@ describe("shapes-merge: --update-counts (17.5, spec §6.4)", () => {
   );
 });
 
+// Task 18.3's printer-parity placeholder ("printer parity between
+// scripts/lib/render-shape.mjs's output and shape-catalog's renderShapeTs
+// re-export") is resolved by `packages/shape-catalog/src/render.test.ts`
+// (Task 22.3) — it asserts `renderShapeTs` IS `renderShape` (same function
+// reference, since render.ts just re-exports it) and exercises
+// byte-identical output for representative chord/scale shapes, an explicit
+// `ident` override, and both the prettier and fallback-formatter paths. Not
+// duplicated here; the test below instead asserts THIS script's own writes
+// go through that same printer unmodified.
 describe("shapes-merge: printed output matches the render-shape printer directly (parity)", () => {
   it(
     "the block content shapes-merge writes for an add is exactly renderShape's output (minus trailing newline)",
@@ -982,5 +1025,247 @@ describe("shapes-merge: CLI arg parsing", () => {
 
   it("throws UsageError on an unknown flag", () => {
     expect(() => parseArgs(["changeset.json", "--nope"])).toThrow(UsageError);
+  });
+});
+
+/**
+ * Task Group 18: committed fixtures (spec §6.7/D-008, `scripts/__fixtures__/`).
+ * Task Group 17 above already exercises every refusal RULE via ad hoc
+ * inline changesets; this section normalizes coverage onto the committed
+ * fixture files (18.1) and asserts write-producing fixtures against their
+ * committed expected output trees (18.2), so the fixtures are load-bearing
+ * test inputs, not just documentation.
+ */
+describe("shapes-merge: committed fixtures (Task Group 18, spec §6.7/D-008)", () => {
+  it(
+    "add-new-file.json: creates the generator-owned file + index import, byte-identical to the committed expected tree",
+    withFixtureRoot(async (dir) => {
+      const result = await runMerge([fixtureChangesetPath("add-new-file.json"), "--root", dir]);
+      expect(result.mode).toBe("merge");
+      expect(result.plan.added).toBe(1);
+      expect(readFileSync(realDataFile(dir, "caged-chords-minor"), "utf8")).toBe(
+        readExpectedFile("add-new-file", "src/data/caged-chords-minor.ts"),
+      );
+      expect(readFileSync(realIndexFile(dir), "utf8")).toBe(readExpectedFile("add-new-file", "src/index.ts"));
+    }),
+  );
+
+  it(
+    "update-owned-block.json: rewrites only the targeted owned block, byte-identical to the committed expected tree",
+    withFixtureRoot(async (dir) => {
+      const result = await runMerge([fixtureChangesetPath("update-owned-block.json"), "--root", dir]);
+      expect(result.plan.updated).toBe(1);
+      expect(readFileSync(realDataFile(dir, "caged-chords"), "utf8")).toBe(
+        readExpectedFile("update-owned-block", "src/data/caged-chords.ts"),
+      );
+    }),
+  );
+
+  it(
+    "remove-setup.json + remove.json: drops one constant from a 2-constant file, byte-identical to the committed expected tree",
+    withFixtureRoot(async (dir) => {
+      await runMerge([fixtureChangesetPath("remove-setup.json"), "--root", dir]);
+      const result = await runMerge([fixtureChangesetPath("remove.json"), "--root", dir]);
+      expect(result.plan.removed).toBe(1);
+      expect(readFileSync(realDataFile(dir, "caged-chords-minor"), "utf8")).toBe(
+        readExpectedFile("remove", "src/data/caged-chords-minor.ts"),
+      );
+      expect(readFileSync(realIndexFile(dir), "utf8")).toBe(readExpectedFile("remove", "src/index.ts"));
+    }),
+  );
+
+  it(
+    "identifier-collision.json: an explicit ident colliding with an existing src/data identifier is refused",
+    withFixtureRoot(async (dir) => {
+      const err = await expectRefusalWithNoWrites(dir, fixtureChangesetPath("identifier-collision.json"));
+      expect(err.rule).toBe("name-unique");
+    }),
+  );
+
+  it(
+    "name-collision.json: adding a shape whose name already exists in the registry is refused",
+    withFixtureRoot(async (dir) => {
+      const err = await expectRefusalWithNoWrites(dir, fixtureChangesetPath("name-collision.json"));
+      expect(err.rule).toBe("name-unique");
+    }),
+  );
+
+  it(
+    "version-drift.json: refused without --force, proceeds with --force",
+    withFixtureRoot(async (dir) => {
+      const err = await expectRefusalWithNoWrites(dir, fixtureChangesetPath("version-drift.json"));
+      expect(err.rule).toBe("version-drift");
+      const result = await runMerge([fixtureChangesetPath("version-drift.json"), "--root", dir, "--force"]);
+      expect(result.mode).toBe("merge");
+    }),
+  );
+
+  it(
+    "non-standard-tuning.json: refused without --force, proceeds with --force",
+    withFixtureRoot(async (dir) => {
+      const err = await expectRefusalWithNoWrites(dir, fixtureChangesetPath("non-standard-tuning.json"));
+      expect(err.rule).toBe("tuning-mismatch");
+      const result = await runMerge([fixtureChangesetPath("non-standard-tuning.json"), "--root", dir, "--force"]);
+      expect(result.mode).toBe("merge");
+    }),
+  );
+
+  it(
+    "computed-file-refusal.json: refused even with --force",
+    withFixtureRoot(async (dir) => {
+      const err1 = await expectRefusalWithNoWrites(dir, fixtureChangesetPath("computed-file-refusal.json"));
+      expect(err1.rule).toBe("computed-file-deny-list");
+      const err2 = await expectRefusalWithNoWrites(dir, fixtureChangesetPath("computed-file-refusal.json"), [
+        "--force",
+      ]);
+      expect(err2.rule).toBe("computed-file-deny-list");
+    }),
+  );
+
+  it(
+    "audit-error-refusal.json: an audit error (finger 0 on a movable shape) refuses the merge",
+    withFixtureRoot(async (dir) => {
+      const err = await expectRefusalWithNoWrites(dir, fixtureChangesetPath("audit-error-refusal.json"));
+      expect(err.rule).toBe("audit-error");
+      expect(err.message).toMatch(/finger-zero-on-movable/);
+    }),
+  );
+
+  it(
+    "unmanaged-file-refusal.json: updating a shape that lives in an unmanaged file (open-chords.ts) is refused",
+    withFixtureRoot(async (dir) => {
+      const err = await expectRefusalWithNoWrites(dir, fixtureChangesetPath("unmanaged-file-refusal.json"));
+      expect(err.rule).toBe("unowned-region");
+      expect(err.message).toMatch(/open-chords/);
+    }),
+  );
+});
+
+/**
+ * Layer 7 oversight fix A: `add` targeting an existing UNMANAGED
+ * hand-written file (e.g. `file: "open-chords"`) was only exercised for
+ * `update`-to-unmanaged before this task group; the `add` path refuses
+ * correctly (spec §6.3's write allow-list — a hand-written file that isn't
+ * `caged-chords.ts` never gets new constants added to it) but had no
+ * dedicated test.
+ */
+describe("shapes-merge: oversight fix A — add targeting an existing unmanaged file is refused", () => {
+  it(
+    "add-existing-unmanaged-file.json: adding a new constant to open-chords.ts (hand-written, not generator-created) is refused",
+    withFixtureRoot(async (dir) => {
+      const err = await expectRefusalWithNoWrites(dir, fixtureChangesetPath("add-existing-unmanaged-file.json"));
+      expect(err.rule).toBe("unowned-region");
+      expect(err.message).toMatch(/open-chords/);
+    }),
+  );
+});
+
+/**
+ * Layer 7 oversight fix B: `computeCountsTouched` under-reported on
+ * `remove` — only `chord-shape-total`/`scale-shape-total` were ever
+ * considered, so removing e.g. a `featured`/`system`-scoped shape silently
+ * failed to report the `featured-*-total`/`*-scale-total` markers it also
+ * invalidates (spec §6.4). Fixed by recovering the removed shape's full
+ * field set from its owned-block content before the block is dropped — the
+ * same way `update`'s base object is recovered — and running every
+ * `COUNT_RULES` predicate against it, not just the two kind-only ones.
+ */
+describe("shapes-merge: oversight fix B — remove reports every annotated count it invalidates", () => {
+  it(
+    "remove-counts-setup.json + remove-counts.json: removing a featured caged scale reports scale-shape-total, featured-scale-total, AND caged-scale-total (not just scale-shape-total)",
+    withFixtureRoot(async (dir) => {
+      await runMerge([fixtureChangesetPath("remove-counts-setup.json"), "--root", dir]);
+      const result = await runMerge([fixtureChangesetPath("remove-counts.json"), "--root", dir]);
+
+      const byName = new Map(result.plan.countsTouched.map((c) => [c.name, c]));
+      for (const name of ["scale-shape-total", "featured-scale-total", "caged-scale-total"]) {
+        const entry = byName.get(name);
+        expect(entry, `expected countsTouched to report "${name}"`).toBeDefined();
+        expect(entry.delta).toBe(-1);
+        expect(entry.editable).toBe(true);
+      }
+      // Not touched: this removed shape isn't a chord, a shell voicing, a
+      // 3nps/pentatonic scale, or a featured chord.
+      for (const untouched of [
+        "chord-shape-total",
+        "shell-shape-total",
+        "shell-voicing-family-count",
+        "featured-chord-total",
+        "three-nps-scale-total",
+        "pentatonic-scale-total",
+      ]) {
+        expect(byName.has(untouched)).toBe(false);
+      }
+    }),
+  );
+});
+
+/**
+ * Layer 7 oversight fix C: an `UpdateChange` whose patch renames the shape
+ * (`patch.name`) merged fine on first run, but every SUBSEQUENT run —
+ * `--check` included — threw `MergeRefusal("unowned-region")`, because
+ * `locateOwnedRegion` looked up the owned block by the change's now-stale
+ * `name` (the pre-rename name no longer appears in the file). Fixed by
+ * falling back, when that lookup fails on an `update`, to locating the
+ * block by its export identifier (stable across renames — fixed at `add`
+ * time) and, failing that, by the patch's own new `name` (covers
+ * hand-authored files like `caged-chords.ts` whose marker identifiers are
+ * shorthands that never matched the generated-formula identifier anyway).
+ */
+describe("shapes-merge: oversight fix C — a renaming update stays idempotent across re-runs", () => {
+  it(
+    "update-rename.json: merge -> re-run --check -> exit 0 (no MergeRefusal), matching the committed expected tree",
+    withFixtureRoot(async (dir) => {
+      await runMerge([fixtureChangesetPath("add-new-file.json"), "--root", dir]);
+      const merged = await runMerge([fixtureChangesetPath("update-rename.json"), "--root", dir]);
+      expect(merged.plan.updated).toBe(1);
+      expect(readFileSync(realDataFile(dir, "caged-chords-minor"), "utf8")).toBe(
+        readExpectedFile("update-rename", "src/data/caged-chords-minor.ts"),
+      );
+      expect(readFileSync(realIndexFile(dir), "utf8")).toBe(readExpectedFile("update-rename", "src/index.ts"));
+
+      // Before the fix: locateOwnedRegion(dataDir, files, "C Shape Minor")
+      // finds nothing (the block's `name` field is now "C Shape Minor
+      // (Renamed)"), so this --check throws MergeRefusal("unowned-region")
+      // instead of detecting the no-op.
+      const recheck = await runMerge([fixtureChangesetPath("update-rename.json"), "--root", dir, "--check"]);
+      expect(recheck.mode).toBe("check");
+      expect(recheck.ok).toBe(true);
+
+      const rerun = await runMerge([fixtureChangesetPath("update-rename.json"), "--root", dir]);
+      expect(rerun.plan.files.changed()).toHaveLength(0);
+    }),
+  );
+
+  it(
+    "the ident fallback also resolves a hand-authored file's shorthand marker (CAGED_CHORD_A) via the patch's new name — its identifier never matched the generated formula in the first place",
+    withFixtureRoot(async (dir) => {
+      const renamePatch = baseChangeset([
+        { op: "update", kind: "chord", name: "A Shape Major", patch: { name: "A Shape Major (CAGED)" } },
+      ]);
+      const changesetPath = writeChangeset(dir, renamePatch, "hand-authored-rename.json");
+
+      await runMerge([changesetPath, "--root", dir]);
+      expect(readFileSync(realDataFile(dir, "caged-chords"), "utf8")).toContain('name: "A Shape Major (CAGED)"');
+
+      const recheck = await runMerge([changesetPath, "--root", dir, "--check"]);
+      expect(recheck.mode).toBe("check");
+      expect(recheck.ok).toBe(true);
+    }),
+  );
+});
+
+/**
+ * Task 18.4: every fixture test above runs against a `--root`-isolated temp
+ * copy — this is the suite-wide proof that none of them ever fell through
+ * to the real checkout. Placed last in this file (vitest runs `it`s within
+ * one file in declaration order) so it validates against the baseline
+ * captured at module load, after the full fixture suite above has run.
+ */
+describe("shapes-merge: real checkout provably untouched by the full fixture suite (18.4)", () => {
+  it("src/data/caged-chords.ts mtime + content hash are unchanged after every test in this file has run", () => {
+    expect(statSync(REAL_CAGED_CHORDS_ABS_PATH).mtimeMs).toBe(realCagedChordsBaselineMtimeMs);
+    const hash = createHash("sha256").update(readFileSync(REAL_CAGED_CHORDS_ABS_PATH)).digest("hex");
+    expect(hash).toBe(realCagedChordsBaselineHash);
   });
 });
