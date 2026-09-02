@@ -22,7 +22,7 @@ import {
   type ShapeCatalogEntry,
   type ShapeGroup,
   type ShapeKind,
-} from "./shapeLibraryUtils";
+} from "shape-catalog";
 import { FilterBar, FILTER_ALL, type ChordSortOption } from "./FilterBar";
 import { LazyShapeCard } from "./LazyShapeCard";
 

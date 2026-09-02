@@ -10,7 +10,7 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
-  transpilePackages: ["fretboard-ui"],
+  transpilePackages: ["fretboard-ui", "shape-catalog"],
 };
 
 export default withMDX(nextConfig);

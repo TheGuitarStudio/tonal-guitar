@@ -8,7 +8,7 @@ import type {
   ScaleFacetSelection,
   ShapeCatalogEntry,
   ShapeKind,
-} from "./shapeLibraryUtils";
+} from "shape-catalog";
 import {
   ANY_ROOT,
   chordQualityGroupFacets,
@@ -18,7 +18,7 @@ import {
   scaleQualityCounts,
   scaleSystemCounts,
   voicingFamilyCounts,
-} from "./shapeLibraryUtils";
+} from "shape-catalog";
 
 /** Sentinel used for the "no filter applied" scale system/quality chips. */
 export const FILTER_ALL = "all";

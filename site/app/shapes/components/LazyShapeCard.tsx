@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useEffect, useRef, useState } from "react";
-import type { ShapeCatalogEntry } from "./shapeLibraryUtils";
+import type { ShapeCatalogEntry } from "shape-catalog";
 import { ShapeCard } from "./ShapeCard";
 
 interface LazyShapeCardProps {

@@ -2,7 +2,7 @@
 
 import { Fretboard, defaultTheme, type FretboardTheme, type FretMarker } from "fretboard-ui";
 import type { FrettedScale } from "tonal-guitar";
-import type { ShapeCatalogEntry } from "./shapeLibraryUtils";
+import type { ShapeCatalogEntry } from "shape-catalog";
 
 // --- Monochrome theme -------------------------------------------------
 //

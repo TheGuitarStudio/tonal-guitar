@@ -1,11 +1,10 @@
 // Pure helpers — no React imports, no "use client". Imports only from
 // "tonal-guitar" (the published library, consumed here via its `file:..`
-// dependency), this module's own types, and pure local `site/lib` constants.
-// In particular this file must NOT import "@tonaljs/*" directly: those
-// packages are `tonal-guitar`'s peer deps, not a declared dependency of
-// `site/`, so a direct import would only happen to resolve locally (via
-// node_modules hoisting up to the repo root) and could break in any
-// environment that installs `site/` on its own.
+// dependency) and this module's own types. In particular this file must NOT
+// import "@tonaljs/*" directly: those packages are `tonal-guitar`'s peer
+// deps, not a declared dependency of this package, so a direct import would
+// only happen to resolve locally (via node_modules hoisting) and could break
+// in any environment that installs this package on its own.
 import {
   all,
   chordShapes,
@@ -25,7 +24,16 @@ import type {
   VoicingFamily,
   auditAllShapes,
 } from "tonal-guitar";
-import { REPO_SLUG } from "@/lib/repo";
+
+/**
+ * Consumer-supplied identity this package needs but must not hardcode —
+ * previously a module-level `REPO_SLUG` constant coupled to the site's own
+ * `site/lib/repo.ts`. Both the docs site and the workbench pass their own
+ * `{ repoSlug }` into `buildReportUrl`.
+ */
+export interface CatalogConfig {
+  repoSlug: string;
+}
 
 export type ShapeKind = "scale" | "chord";
 
@@ -925,8 +933,10 @@ export function serializeShapesUrlState(state: ShapesUrlState): string {
 // `buildReportUrl` has run. `buildReportUrl` JSON-stringifies the shape and
 // all frets, which is wasteful to do for every one of the ~159 cards up
 // front when almost none of the links are ever clicked; callers should swap
-// in the full `buildReportUrl(entry)` href lazily, on interaction.
-export const REPORT_ISSUE_BASE_URL = `https://github.com/${REPO_SLUG}/issues/new?labels=bug`;
+// in the full `buildReportUrl(entry, config)` href lazily, on interaction.
+export function reportIssueBaseUrl(config: CatalogConfig): string {
+  return `https://github.com/${config.repoSlug}/issues/new?labels=bug`;
+}
 
 function metadataLines(entry: ShapeCatalogEntry): string[] {
   const chordShape = entry.kind === "chord" ? entry.shape : undefined;
@@ -964,7 +974,7 @@ function failingChecksSection(issues: ShapeAuditIssue[]): string {
     .join("\n");
 }
 
-export function buildReportUrl(entry: ShapeCatalogEntry): string {
+export function buildReportUrl(entry: ShapeCatalogEntry, config: CatalogConfig): string {
   const failingIds = Array.from(new Set(entry.issues.map((issue) => issue.id)));
   const title =
     `[shape-audit] ${entry.kind}: ${entry.name}` +
@@ -1002,7 +1012,7 @@ export function buildReportUrl(entry: ShapeCatalogEntry): string {
   const body = sections.join("\n\n");
 
   return (
-    REPORT_ISSUE_BASE_URL +
+    reportIssueBaseUrl(config) +
     `&title=${encodeURIComponent(title)}` +
     `&body=${encodeURIComponent(body)}`
   );
