@@ -111,6 +111,13 @@ export function draftToChange(draft: DraftShape): ChangesetChange {
     name: draft.original.name,
     patch,
   };
+  // `diff.removed` — fields cleared in the editor (e.g. unsetting `notes`,
+  // `overrides`, `tags`) — can't be expressed inside `patch` (a
+  // `field: undefined` entry vanishes under `JSON.stringify`, spec §6.1
+  // `UpdateChange.unset`'s doc comment), so it round-trips as its own
+  // property instead. Omitted (not an empty array) when nothing was
+  // cleared, matching every other optional `UpdateChange`/`Changeset` field.
+  if (diff.removed.length > 0) update.unset = diff.removed;
   return update;
 }
 

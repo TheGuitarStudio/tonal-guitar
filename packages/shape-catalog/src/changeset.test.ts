@@ -109,6 +109,63 @@ describe("draftToChange — existing origin (UpdateChange), the §4.4 metadata-b
     const draft: DraftShape = { kind: "chord", origin: "existing", shape: A_SHAPE_MAJOR };
     expect(() => draftToChange(draft)).toThrow(/must carry `original`/);
   });
+
+  it("emits `unset` for a field cleared on an existing-origin draft (gap #1: field clearing)", () => {
+    const original: ChordShape = { ...A_SHAPE_MAJOR, notes: "Original authoring note" };
+    const draft: DraftShape = {
+      kind: "chord",
+      origin: "existing",
+      original,
+      // `notes` cleared entirely (key absent, not `notes: undefined`) —
+      // exactly what the Editor's "clear field" action produces.
+      shape: (() => {
+        const { notes, ...rest } = original;
+        void notes;
+        return rest;
+      })(),
+    };
+    const change = draftToChange(draft);
+    expect(change).toEqual<ChangesetChange>({
+      op: "update",
+      kind: "chord",
+      name: "A Shape Major",
+      patch: {},
+      unset: ["notes"],
+    });
+  });
+
+  it("omits `unset` entirely when nothing was cleared", () => {
+    const draft: DraftShape = {
+      kind: "chord",
+      origin: "existing",
+      original: A_SHAPE_MAJOR,
+      shape: { ...A_SHAPE_MAJOR, chordType: "M" },
+    };
+    const change = draftToChange(draft);
+    expect(change).not.toHaveProperty("unset");
+  });
+
+  it("combines a real `patch` change with a cleared field's `unset` in one UpdateChange", () => {
+    const original: ChordShape = { ...A_SHAPE_MAJOR, tags: ["core"] };
+    const draft: DraftShape = {
+      kind: "chord",
+      origin: "existing",
+      original,
+      shape: (() => {
+        const { tags, ...rest } = original;
+        void tags;
+        return { ...rest, chordType: "M" };
+      })(),
+    };
+    const change = draftToChange(draft);
+    expect(change).toEqual<ChangesetChange>({
+      op: "update",
+      kind: "chord",
+      name: "A Shape Major",
+      patch: { chordType: "M" },
+      unset: ["tags"],
+    });
+  });
 });
 
 describe("buildChangeset — envelope construction", () => {

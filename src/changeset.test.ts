@@ -45,6 +45,7 @@ describe("Changeset schema (tonal-guitar/changeset@1)", () => {
       kind: "chord",
       name: "C Major (Open)",
       patch: { featured: true },
+      unset: ["notes"],
     };
 
     const removeChange: RemoveChange = {
@@ -69,6 +70,19 @@ describe("Changeset schema (tonal-guitar/changeset@1)", () => {
     expect(changeset.changes[0]).toBe(addChange);
     expect(changeset.changes[1]).toBe(updateChange);
     expect(changeset.changes[2]).toBe(removeChange);
+    expect(updateChange.unset).toEqual(["notes"]);
+  });
+
+  it("UpdateChange.unset is optional — additive, backward-compatible with changeset@1 (compile-time)", () => {
+    // A patch-only UpdateChange (no `unset`) still type-checks, so existing
+    // changeset@1 producers/consumers that never set `unset` keep compiling.
+    const updateChange: UpdateChange = {
+      op: "update",
+      kind: "scale",
+      name: "Existing Scale Shape",
+      patch: { tags: ["core"] },
+    };
+    expect(updateChange.unset).toBeUndefined();
   });
 
   it("Changeset requires a non-empty changes array with at least one element (compile-time)", () => {

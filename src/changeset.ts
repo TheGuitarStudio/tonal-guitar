@@ -40,6 +40,21 @@ export interface UpdateChange {
   kind: ChangesetKind;
   name: string; // must resolve to exactly one registered shape
   patch: Record<string, unknown>; // partial of the shape type
+  /**
+   * Names of optional fields to delete from the target shape (additive,
+   * backward-compatible — the schema string stays `"tonal-guitar/
+   * changeset@1"`). Exists because `patch` alone can't express field
+   * clearing: `JSON.stringify({ notes: undefined })` drops the key
+   * entirely, so a `field: undefined` patch entry silently vanishes over
+   * the wire and never reaches the merge script. Omit (or leave empty) when
+   * the update doesn't clear anything. A name here must NOT also appear in
+   * `patch` (contradictory — `scripts/shapes-merge.mjs` refuses the whole
+   * merge) and must NOT name a per-kind required field (`name`, `system`,
+   * `strings`, `fingers`, `barres`, `rootString` for a chord; the
+   * equivalent required set for scale/arpeggio — see `./shape`'s
+   * `ChordShape`/`ScaleShape`/`ArpeggioShape` interfaces).
+   */
+  unset?: string[];
 }
 
 export interface RemoveChange {

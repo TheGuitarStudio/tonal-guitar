@@ -444,6 +444,18 @@ function formatUnifiedDiff(relPath, oldText, newText) {
 // Per-kind required-field validation (spec §6.2 rule 4)
 // ============================================================
 
+// Per-kind required fields (mirrors `validateRequiredFields` below and the
+// `ChordShape`/`ScaleShape`/`ArpeggioShape` interfaces in `src/shape.ts`) —
+// also doubles as the "may an `UpdateChange.unset` entry name this field"
+// deny list: unsetting a required field would produce a shape
+// `validateRequiredFields`/the audit can't rescue, so it's refused up front
+// rather than left to fail later with a less specific message.
+const REQUIRED_FIELDS_BY_KIND = {
+  chord: ["name", "system", "strings", "fingers", "barres", "rootString"],
+  scale: ["name", "system", "strings", "rootString"],
+  arpeggio: ["name", "system", "strings", "rootString", "chordType"],
+};
+
 function validateRequiredFields(kind, shape, tuningLength) {
   const errors = [];
   const requireNonEmptyString = (field) => {
@@ -577,6 +589,38 @@ async function planMerge(changeset, ctx) {
         "required-fields",
         `add ${change.kind} "${change.shape?.name ?? "?"}": ${errors.join("; ")}`,
       );
+    }
+  }
+
+  // ---- unset validation (update only, changeset@1's additive `unset` field) -
+  // Refused BEFORE any write: an `unset` entry may never name a per-kind
+  // required field (unsetting `rootString`/`name`/... would produce a shape
+  // no audit can rescue) nor a field also present in the SAME change's
+  // `patch` (setting and clearing the same field in one update is
+  // contradictory — which one would "win" is undefined).
+  for (const change of updateChanges) {
+    const unset = change.unset ?? [];
+    if (!Array.isArray(unset) || unset.some((field) => typeof field !== "string")) {
+      throw new MergeRefusal(
+        "structure",
+        `update ${change.kind} "${change.name}": unset must be a string[]`,
+      );
+    }
+    const required = REQUIRED_FIELDS_BY_KIND[change.kind] ?? [];
+    const patch = change.patch ?? {};
+    for (const field of unset) {
+      if (required.includes(field)) {
+        throw new MergeRefusal(
+          "required-fields",
+          `update ${change.kind} "${change.name}": cannot unset "${field}" — it is a required field for ${change.kind} shapes`,
+        );
+      }
+      if (Object.prototype.hasOwnProperty.call(patch, field)) {
+        throw new MergeRefusal(
+          "unset-conflict",
+          `update ${change.kind} "${change.name}": "${field}" appears in both patch and unset — contradictory`,
+        );
+      }
     }
   }
 
@@ -783,6 +827,9 @@ async function planMerge(changeset, ctx) {
   for (const change of updateChanges) {
     const base = baseByUpdate.get(change);
     const merged = { ...base, ...change.patch };
+    for (const field of change.unset ?? []) {
+      delete merged[field];
+    }
     mergedShapeByUpdate.set(change, merged);
     // CHECK_NAME_UNIQUE is filtered out here: the aggregate audit functions
     // run it unconditionally against the LIVE dist registry with no
@@ -1024,6 +1071,12 @@ function computeCountsTouched({
     }
   }
   for (const change of addChanges) accumulate(change.shape, change.kind, 1);
+  // `update` (patch OR unset) never touches a count — same conservative
+  // default either way: a `patch.featured` value flip already doesn't
+  // invalidate `featured-*-total` today, so an `unset` of `featured` is
+  // treated identically, not as a new special case. See the module doc
+  // comment on COUNT_RULES above.
+  //
   // remove changes carry only a `name` on the changeset itself, but the
   // removed shape's full field set (voicingFamily/system/featured/…) is
   // recoverable from its owned-block content before the block is dropped

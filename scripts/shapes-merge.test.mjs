@@ -1258,6 +1258,61 @@ describe("shapes-merge: oversight fix C — a renaming update stays idempotent a
 });
 
 /**
+ * Spec-compliance gap #1: `UpdateChange` couldn't express field clearing —
+ * `draftToChange` folded `diff.added`/`diff.changed` into `patch` but
+ * dropped `diff.removed`, and a `field: undefined` patch entry vanishes
+ * under `JSON.stringify` anyway. Fixed by adding `UpdateChange.unset?:
+ * string[]` (spec §6.1) and applying it here, after the `{...base,
+ * ...patch}` spread, before rendering — plus refusing (before any write)
+ * an `unset` entry that names a per-kind required field or that also
+ * appears in the same change's `patch`.
+ */
+describe("shapes-merge: UpdateChange.unset — field clearing (spec-compliance gap #1)", () => {
+  it(
+    "update-unset.json: patches one field and unsets others in the same change, byte-identical to the committed expected tree, and stays idempotent under --check",
+    withFixtureRoot(async (dir) => {
+      await runMerge([fixtureChangesetPath("add-new-file.json"), "--root", dir]);
+      const result = await runMerge([fixtureChangesetPath("update-unset.json"), "--root", dir]);
+      expect(result.plan.updated).toBe(1);
+      const fileText = readFileSync(realDataFile(dir, "caged-chords-fixture"), "utf8");
+      expect(fileText).toBe(readExpectedFile("update-unset", "src/data/caged-chords-fixture.ts"));
+      // The unset fields are genuinely gone, not merely blanked.
+      expect(fileText).not.toContain("tags:");
+      expect(fileText).not.toContain("parentShape:");
+      // The patched field landed alongside the unset ones.
+      expect(fileText).toContain('cagedPosition: "A"');
+
+      const recheck = await runMerge([fixtureChangesetPath("update-unset.json"), "--root", dir, "--check"]);
+      expect(recheck.mode).toBe("check");
+      expect(recheck.ok).toBe(true);
+
+      const rerun = await runMerge([fixtureChangesetPath("update-unset.json"), "--root", dir]);
+      expect(rerun.plan.files.changed()).toHaveLength(0);
+    }),
+  );
+
+  it(
+    "unset-required-field-refusal.json: unsetting a per-kind required field (rootString) is refused, no writes",
+    withFixtureRoot(async (dir) => {
+      await runMerge([fixtureChangesetPath("add-new-file.json"), "--root", dir]);
+      const err = await expectRefusalWithNoWrites(dir, fixtureChangesetPath("unset-required-field-refusal.json"));
+      expect(err.rule).toBe("required-fields");
+      expect(err.message).toMatch(/rootString/);
+    }),
+  );
+
+  it(
+    "unset-patch-conflict-refusal.json: naming the same field in both patch and unset is refused, no writes",
+    withFixtureRoot(async (dir) => {
+      await runMerge([fixtureChangesetPath("add-new-file.json"), "--root", dir]);
+      const err = await expectRefusalWithNoWrites(dir, fixtureChangesetPath("unset-patch-conflict-refusal.json"));
+      expect(err.rule).toBe("unset-conflict");
+      expect(err.message).toMatch(/cagedPosition/);
+    }),
+  );
+});
+
+/**
  * Task 18.4: every fixture test above runs against a `--root`-isolated temp
  * copy — this is the suite-wide proof that none of them ever fell through
  * to the real checkout. Placed last in this file (vitest runs `it`s within
