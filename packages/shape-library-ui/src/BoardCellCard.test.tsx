@@ -3,7 +3,7 @@ import { renderToString } from "react-dom/server";
 import type { BoardCell } from "shape-catalog";
 import { BoardCellCard } from "./BoardCellCard";
 import { ShapeLibraryProvider } from "./capabilities";
-import { chordBoardModel, chordEntry } from "./testFixtures";
+import { chordBoardModel, chordEntry, stripReactComments } from "./testFixtures";
 
 const gapCell: BoardCell = {
   key: "gap::A",
@@ -55,16 +55,20 @@ describe("BoardCellCard", () => {
       expect(html).not.toContain("<button");
     });
 
-    it("becomes a <button data-tg-edit>Create …</button> when onCreateShape is injected", () => {
-      const html = renderToString(
-        <ShapeLibraryProvider capabilities={{ edit: { onCreateShape: () => {} } }}>
-          <BoardCellCard cell={gapCell} />
-        </ShapeLibraryProvider>,
+    it("becomes a <button data-tg-edit>Create <X> Shape <type></button> when onCreateShape is injected", () => {
+      const html = stripReactComments(
+        renderToString(
+          <ShapeLibraryProvider capabilities={{ edit: { onCreateShape: () => {} } }}>
+            <BoardCellCard cell={gapCell} />
+          </ShapeLibraryProvider>,
+        ),
       );
       expect(html).toContain("<button");
       expect(html).toContain("data-tg-edit");
-      expect(html).toContain("Create");
       expect(html).not.toContain("data-tg-gap");
+      // Spec §7 / tasks 25.1, 25.3: names both the CAGED position
+      // (`cell.columnKey`) and the chord type (`cell.slot.chordType`).
+      expect(html).toContain(`Create ${gapCell.columnKey} Shape ${gapCell.slot.chordType}`);
     });
   });
 

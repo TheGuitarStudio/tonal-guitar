@@ -1,10 +1,11 @@
 /**
  * Board screen (spec §5.4 "Board requirements", tasks.md Group 25): the
  * CAGED grid — chord-type rows × C·A·G·E·D columns — built from
- * `shape-catalog`'s `boardModel`, with the family/type quality-group filter
- * and search wired from `shape-catalog`'s facet helpers, and the Columns
- * (`columnAxis`) / Diagrams (`orientation`) controls wired to
- * `WorkbenchStore`. Every rendering primitive (`ShapeBoard`, `BoardCellCard`
+ * `shape-catalog`'s `boardModel`, with the quality-group/type row filter,
+ * Voicing Family / Root (chord) and System / Quality (scale) cell filter
+ * (`restrictCellsByEntry`, below), and search all wired from `shape-catalog`'s
+ * facet helpers, and the Columns (`columnAxis`) / Diagrams (`orientation`)
+ * controls wired to `WorkbenchStore`. Every rendering primitive (`ShapeBoard`, `BoardCellCard`
  * via `ShapeBoard`, `FilterBar`, `ColumnsToggle`, `DiagramOrientationToggle`)
  * is reused as-is from `shape-library-ui` — this screen only supplies the
  * `boardModel` options and the filter state that feeds them.
@@ -23,6 +24,8 @@ import { auditAllShapes } from "tonal-guitar";
 import {
   boardModel,
   buildCatalog,
+  chordEntryMatchesSelection,
+  scaleEntryMatchesSelection,
   type BoardCell,
   type BoardModelResult,
   type ChordFacetSelection,
@@ -77,6 +80,39 @@ function restrictToRowKeys(model: BoardModelResult, rowKeys: readonly string[] |
     }
   }
   return { columns: model.columns, rows, cells, counts: { shown, total: rows.length * model.columns.length, gaps } };
+}
+
+/**
+ * Downgrades "filled" cells whose `entry` fails a facet predicate to "gap"
+ * (or "draft" if a draft badge exists for that slot) — the Voicing Family /
+ * Root strip (chord) and System / Quality (scale) `FilterBar` chips (spec
+ * §5.4, task 25.2's "wire family/type filters ... from shape-catalog"). None
+ * of these facets correspond to a board row or column the way `typeFilter`/
+ * `activeTypes` do (`restrictToRowKeys`, above) — they narrow which entries
+ * are eligible to fill a cell, not which rows exist — so `rows`/`columns`/
+ * `counts.total` are left untouched; only `cells` and `counts.shown`/`gaps`
+ * are recomputed, mirroring `restrictToRowKeys`'s pattern.
+ */
+export function restrictCellsByEntry(
+  model: BoardModelResult,
+  drafts: Map<string, DraftBadge> | undefined,
+  matches: (entry: ShapeCatalogEntry) => boolean,
+): BoardModelResult {
+  const cells = new Map<string, BoardCell>();
+  let shown = 0;
+  let gaps = 0;
+  for (const cell of model.cells.values()) {
+    if (cell.state === "filled" && cell.entry && !matches(cell.entry)) {
+      const hasDraft = drafts?.has(cell.key) ?? false;
+      cells.set(cell.key, { ...cell, state: hasDraft ? "draft" : "gap", entry: undefined });
+      if (!hasDraft) gaps += 1;
+      continue;
+    }
+    cells.set(cell.key, cell);
+    if (cell.state === "filled") shown += 1;
+    else if (cell.state === "gap") gaps += 1;
+  }
+  return { columns: model.columns, rows: model.rows, cells, counts: { shown, total: model.counts.total, gaps } };
 }
 
 export function BoardScreen() {
@@ -135,8 +171,30 @@ export function BoardScreen() {
       search: nameQuery,
       drafts,
     });
-    return restrictToRowKeys(raw, chordSelection.activeTypes);
-  }, [kind, state.columnAxis, chordSelection.qualityGroup, chordSelection.activeTypes, nameQuery, drafts]);
+    const rowRestricted = restrictToRowKeys(raw, chordSelection.activeTypes);
+
+    // Voicing Family / Root (chord) and System / Quality (scale) narrow
+    // which entries can fill a cell, not which rows exist — apply them as a
+    // cell-level pass after the row-level narrowing above. `ignoring: "type"`
+    // skips re-checking `qualityGroup`/`activeTypes` in
+    // `chordEntryMatchesSelection` since `typeFilter`/`restrictToRowKeys`
+    // already fully applied those two dimensions.
+    if (kind === "chord") {
+      return restrictCellsByEntry(
+        rowRestricted,
+        drafts,
+        (entry) => entry.kind === "chord" && chordEntryMatchesSelection(entry, chordSelection, "type"),
+      );
+    }
+    if (kind === "scale") {
+      return restrictCellsByEntry(
+        rowRestricted,
+        drafts,
+        (entry) => entry.kind === "scale" && scaleEntryMatchesSelection(entry, scaleSelection),
+      );
+    }
+    return rowRestricted;
+  }, [kind, state.columnAxis, chordSelection, nameQuery, drafts, scaleSelection]);
 
   return (
     <section data-testid="board-screen">

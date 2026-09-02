@@ -72,6 +72,14 @@ export function BoardCellCard({ cell, onSelectEntry, columnLabel }: BoardCellCar
 
   // state === "gap"
   if (edit?.onCreateShape) {
+    // Spec §7 / tasks 25.1, 25.3: "Create <X> Shape <type>" — X is the
+    // column (CAGED position etc.), type is the chord/arpeggio type the row
+    // represents. `cell.slot.chordType` already carries the raw row token
+    // (`ChordSlot`/`ArpeggioSlot` both set it to `row.key` for `rowGrouping:
+    // "chordType"`, the only grouping the workbench's Board screen uses) —
+    // falling back to `cell.rowKey` covers any other `rowGrouping` a future
+    // caller might pass, so this never renders an empty "Shape" suffix.
+    const typeLabel = cell.slot.chordType || cell.rowKey;
     return (
       <button
         type="button"
@@ -79,7 +87,7 @@ export function BoardCellCard({ cell, onSelectEntry, columnLabel }: BoardCellCar
         className="tg-board-cell tg-board-cell-gap"
         onClick={() => edit.onCreateShape?.(cell.slot)}
       >
-        Create {columnLabel ?? cell.columnKey}
+        Create {columnLabel ?? cell.columnKey} Shape {typeLabel}
       </button>
     );
   }
