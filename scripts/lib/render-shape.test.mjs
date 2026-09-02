@@ -75,9 +75,9 @@ describe("exportIdentifierFor", () => {
     );
   });
 
-  it("drops apostrophes instead of turning them into separators", () => {
+  it("turns apostrophes into separators, matching src/shape.ts's exportIdentifierFor", () => {
     expect(exportIdentifierFor("chord", { name: "Travis's Voicing" })).toBe(
-      "CHORD_TRAVISS_VOICING"
+      "CHORD_TRAVIS_S_VOICING"
     );
   });
 

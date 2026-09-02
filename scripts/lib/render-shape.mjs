@@ -51,19 +51,18 @@ function assertKind(kind) {
 const IDENTIFIER_PATTERN = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
 
 /**
- * Slugifies a shape `name` into UPPER_SNAKE_CASE: diacritics stripped,
- * apostrophes dropped (not turned into separators), every other run of
- * non-alphanumeric characters collapsed to a single underscore, leading and
- * trailing underscores trimmed.
+ * Slugifies a shape `name` into UPPER_SNAKE_CASE: upper-cased, every run of
+ * non-alphanumeric characters (apostrophes and diacritics included) collapsed
+ * to a single underscore, leading and trailing underscores trimmed.
+ *
+ * Byte-identical to `exportIdentifierFor` in `src/shape.ts` (spec §1.8) so
+ * merge-time collision checks and printed identifiers can never diverge.
  */
 function upperSnake(name) {
   const slug = name
-    .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "") // strip combining diacritics
-    .replace(/['’]/g, "") // drop apostrophes rather than splitting on them
-    .replace(/[^a-zA-Z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "")
-    .toUpperCase();
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
   if (slug === "") {
     throw new TypeError(`exportIdentifierFor: shape name "${name}" produced an empty identifier`);
   }
