@@ -500,3 +500,138 @@ export const arpeggioShapes = {
     });
   },
 };
+
+// ============================================================
+// Arpeggio resolver layer (shape-workbench spec §1.7, D-011)
+// ============================================================
+// Pure, registry-only: resolves "which arpeggio shape should render for this
+// slot" with override → core → derived precedence. The *derived* fallback
+// itself (deriving a run from a chord shape/scale when no arpeggio is
+// registered) lives in the optional tier (integration.ts, spec §2.4) — this
+// module only reports that no stored candidate exists (`tier: "derived"`,
+// no `shape` set).
+
+/** Identifies a (chordType, position, root) slot an arpeggio can occupy. */
+export interface ArpeggioSlot {
+  chordType: string;
+  cagedPosition?: CagedPosition;
+  system?: string;
+  rootString: number;
+  chordShapeName?: string;
+}
+
+export type ArpeggioTier = "override" | "core" | "derived";
+
+export interface ArpeggioResolution {
+  tier: ArpeggioTier;
+  shape?: ArpeggioShape; // set for "override" | "core"
+  core?: ArpeggioShape; // the entry an override replaces, still reachable
+  alternatives: ArpeggioShape[]; // other overrides registered for the same slot
+  slotKey: string;
+}
+
+/**
+ * Stable, deterministic key for an `ArpeggioSlot`:
+ * `${system ?? "*"}|${chordType}|${cagedPosition ?? "*"}|${rootString}`.
+ * `chordShapeName` is descriptive only and never part of the key.
+ */
+export function arpeggioSlotKey(slot: ArpeggioSlot): string {
+  return `${slot.system ?? "*"}|${slot.chordType}|${slot.cagedPosition ?? "*"}|${slot.rootString}`;
+}
+
+/** The slot an `ArpeggioSlot` would occupy, given a registered `ArpeggioShape`. */
+function slotOfArpeggio(shape: ArpeggioShape): ArpeggioSlot {
+  return {
+    chordType: shape.chordType,
+    cagedPosition: shape.cagedPosition,
+    system: shape.system,
+    rootString: shape.rootString,
+  };
+}
+
+/**
+ * Derives the `ArpeggioSlot` a chord shape's arpeggio would occupy:
+ * `chordType`, `cagedPosition`, `system` and `rootString` come straight from
+ * the chord shape, plus `chordShapeName: shape.name` for traceability back
+ * to the grip. `chordType` defaults to `""` when the chord shape doesn't
+ * carry one (optional there, required on `ArpeggioSlot`).
+ */
+export function slotForChordShape(shape: ChordShape): ArpeggioSlot {
+  return {
+    chordType: shape.chordType ?? "",
+    cagedPosition: shape.cagedPosition,
+    system: shape.system,
+    rootString: shape.rootString,
+    chordShapeName: shape.name,
+  };
+}
+
+/**
+ * Resolves the arpeggio that should render for a slot, in override → core →
+ * derived precedence:
+ *
+ * - A registered arpeggio is a **candidate** for `slot` when its own slot
+ *   (`chordType`/`cagedPosition`/`system`/`rootString`) produces the same
+ *   `arpeggioSlotKey`.
+ * - A candidate is an **override** iff its `overrides` field names another
+ *   registered arpeggio whose slot key also matches. When more than one
+ *   override targets the slot, the deterministic pick is the **last
+ *   registered** one (registry array order); the rest are returned in
+ *   `alternatives`.
+ * - Otherwise the **core** candidate is picked from the non-override
+ *   candidates: `featured === true` first, else the first registered.
+ * - `tier: "derived"` (no `shape` set) when no stored candidate exists at all.
+ */
+export function resolveArpeggioForSlot(slot: ArpeggioSlot): ArpeggioResolution {
+  const slotKey = arpeggioSlotKey(slot);
+  const candidates = arpeggioShapes
+    .all()
+    .filter((shape) => arpeggioSlotKey(slotOfArpeggio(shape)) === slotKey);
+
+  const overrideCandidates: ArpeggioShape[] = [];
+  const plainCandidates: ArpeggioShape[] = [];
+  for (const shape of candidates) {
+    const target = shape.overrides !== undefined ? arpeggioShapes.get(shape.overrides) : undefined;
+    const isOverride = target !== undefined && arpeggioSlotKey(slotOfArpeggio(target)) === slotKey;
+    if (isOverride) {
+      overrideCandidates.push(shape);
+    } else {
+      plainCandidates.push(shape);
+    }
+  }
+
+  if (overrideCandidates.length > 0) {
+    const chosen = overrideCandidates[overrideCandidates.length - 1];
+    const alternatives = overrideCandidates.slice(0, -1);
+    const core = chosen.overrides !== undefined ? arpeggioShapes.get(chosen.overrides) : undefined;
+    return { tier: "override", shape: chosen, core, alternatives, slotKey };
+  }
+
+  if (plainCandidates.length > 0) {
+    const featured = plainCandidates.find((shape) => shape.featured === true);
+    const chosen = featured ?? plainCandidates[0];
+    return { tier: "core", shape: chosen, alternatives: [], slotKey };
+  }
+
+  return { tier: "derived", alternatives: [], slotKey };
+}
+
+/**
+ * All registered arpeggio shapes that should be visible in a listing:
+ * excludes every shape that is the `overrides` target of another registered
+ * shape (it's still reachable via `resolveArpeggioForSlot`'s `core` field),
+ * unless `includeOverridden: true` returns everything unfiltered.
+ */
+export function visibleArpeggios(options?: { includeOverridden?: boolean }): ArpeggioShape[] {
+  const all = arpeggioShapes.all();
+  if (options?.includeOverridden) {
+    return all;
+  }
+  const overriddenNames = new Set<string>();
+  for (const shape of all) {
+    if (shape.overrides !== undefined) {
+      overriddenNames.add(shape.overrides);
+    }
+  }
+  return all.filter((shape) => !overriddenNames.has(shape.name));
+}

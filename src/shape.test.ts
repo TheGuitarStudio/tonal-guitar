@@ -947,3 +947,270 @@ describe("exportIdentifierFor (spec §1.8): deterministic <KIND_PREFIX>_<NAME_UP
     expect(new Set(identifiers).size).toBe(names.length);
   });
 });
+
+// ============================================================
+// Task Group 4: Arpeggio Resolver Layer (spec §1.7, D-011)
+//
+// Not yet re-exported from ./index (Group 12's §1.11 task) — import
+// directly from ./shape, same convention as the imports above.
+// ============================================================
+import {
+  arpeggioSlotKey,
+  slotForChordShape,
+  resolveArpeggioForSlot,
+  visibleArpeggios,
+  type ArpeggioSlot,
+} from "./shape";
+
+describe("arpeggioSlotKey (Task Group 4)", () => {
+  const baseSlot: ArpeggioSlot = {
+    chordType: "m7",
+    cagedPosition: "E",
+    system: "caged",
+    rootString: 0,
+  };
+
+  it("is deterministic for identical inputs", () => {
+    expect(arpeggioSlotKey(baseSlot)).toBe(arpeggioSlotKey({ ...baseSlot }));
+  });
+
+  it("uses the exact `${system ?? \"*\"}|${chordType}|${cagedPosition ?? \"*\"}|${rootString}` format", () => {
+    expect(arpeggioSlotKey(baseSlot)).toBe("caged|m7|E|0");
+  });
+
+  it("defaults an absent system to \"*\"", () => {
+    expect(arpeggioSlotKey({ chordType: "m7", cagedPosition: "E", rootString: 0 })).toBe(
+      "*|m7|E|0",
+    );
+  });
+
+  it("defaults an absent cagedPosition to \"*\"", () => {
+    expect(arpeggioSlotKey({ chordType: "m7", system: "caged", rootString: 0 })).toBe(
+      "caged|m7|*|0",
+    );
+  });
+
+  it("ignores chordShapeName — it is descriptive only, never part of the key", () => {
+    expect(arpeggioSlotKey({ ...baseSlot, chordShapeName: "E Shape m7" })).toBe(
+      arpeggioSlotKey(baseSlot),
+    );
+  });
+
+  it("is distinct across chordType variations", () => {
+    expect(arpeggioSlotKey({ ...baseSlot, chordType: "7" })).not.toBe(arpeggioSlotKey(baseSlot));
+  });
+
+  it("is distinct across cagedPosition variations", () => {
+    expect(arpeggioSlotKey({ ...baseSlot, cagedPosition: "A" })).not.toBe(
+      arpeggioSlotKey(baseSlot),
+    );
+  });
+
+  it("is distinct across system variations", () => {
+    expect(arpeggioSlotKey({ ...baseSlot, system: "3nps" })).not.toBe(arpeggioSlotKey(baseSlot));
+  });
+
+  it("is distinct across rootString variations", () => {
+    expect(arpeggioSlotKey({ ...baseSlot, rootString: 1 })).not.toBe(arpeggioSlotKey(baseSlot));
+  });
+});
+
+describe("slotForChordShape (Task Group 4)", () => {
+  it("derives chordType, cagedPosition, system, rootString, and chordShapeName from the chord shape", () => {
+    const chord: ChordShape = {
+      name: "E Shape m7",
+      system: "caged",
+      strings: ["1P", "5P", null, "3m", "5P", "1P"],
+      fingers: [null, null, null, 2, 3, 1],
+      barres: [],
+      rootString: 0,
+      chordType: "m7",
+      cagedPosition: "E",
+    };
+    expect(slotForChordShape(chord)).toEqual({
+      chordType: "m7",
+      cagedPosition: "E",
+      system: "caged",
+      rootString: 0,
+      chordShapeName: "E Shape m7",
+    });
+  });
+
+  it("defaults chordType to \"\" when the chord shape has none", () => {
+    const chord: ChordShape = {
+      name: "Untyped Shape",
+      system: "caged",
+      strings: ["1P"],
+      fingers: [null],
+      barres: [],
+      rootString: 0,
+    };
+    expect(slotForChordShape(chord).chordType).toBe("");
+  });
+});
+
+describe("resolveArpeggioForSlot (Task Group 4)", () => {
+  afterEach(() => {
+    arpeggioShapes.removeAll();
+  });
+
+  const makeArpeggio = (name: string, overrides: Partial<ArpeggioShape> = {}): ArpeggioShape => ({
+    name,
+    system: "caged",
+    strings: [["1P"], null, ["3m"], null, ["5P"], null],
+    rootString: 0,
+    chordType: "m7",
+    cagedPosition: "E",
+    ...overrides,
+  });
+
+  const slot: ArpeggioSlot = {
+    chordType: "m7",
+    cagedPosition: "E",
+    system: "caged",
+    rootString: 0,
+  };
+
+  it("resolves to \"derived\" with no shape when nothing is registered for the slot", () => {
+    const resolution = resolveArpeggioForSlot(slot);
+    expect(resolution.tier).toBe("derived");
+    expect(resolution.shape).toBeUndefined();
+    expect(resolution.core).toBeUndefined();
+    expect(resolution.alternatives).toEqual([]);
+    expect(resolution.slotKey).toBe(arpeggioSlotKey(slot));
+  });
+
+  it("resolves to \"derived\" when a registered shape sits in a different slot", () => {
+    arpeggioShapes.add(makeArpeggio("__tg4_other_slot__", { cagedPosition: "A" }));
+    const resolution = resolveArpeggioForSlot(slot);
+    expect(resolution.tier).toBe("derived");
+    expect(resolution.shape).toBeUndefined();
+  });
+
+  it("resolves to \"core\" (first registered) when one plain candidate is registered", () => {
+    const core = makeArpeggio("__tg4_core__");
+    arpeggioShapes.add(core);
+    const resolution = resolveArpeggioForSlot(slot);
+    expect(resolution.tier).toBe("core");
+    expect(resolution.shape).toEqual(core);
+    expect(resolution.alternatives).toEqual([]);
+  });
+
+  it("prefers featured === true over first-registered among plain candidates", () => {
+    const first = makeArpeggio("__tg4_core_first__");
+    const featured = makeArpeggio("__tg4_core_featured__", { featured: true });
+    arpeggioShapes.add(first);
+    arpeggioShapes.add(featured);
+    const resolution = resolveArpeggioForSlot(slot);
+    expect(resolution.tier).toBe("core");
+    expect(resolution.shape).toEqual(featured);
+  });
+
+  it("falls back to first-registered when no plain candidate is featured", () => {
+    const first = makeArpeggio("__tg4_core_first2__");
+    const second = makeArpeggio("__tg4_core_second2__");
+    arpeggioShapes.add(first);
+    arpeggioShapes.add(second);
+    const resolution = resolveArpeggioForSlot(slot);
+    expect(resolution.tier).toBe("core");
+    expect(resolution.shape).toEqual(first);
+  });
+
+  it("resolves to \"override\" and exposes the reachable core when a single override targets the slot", () => {
+    const core = makeArpeggio("__tg4_core_ov__");
+    const override = makeArpeggio("__tg4_override__", { overrides: "__tg4_core_ov__" });
+    arpeggioShapes.add(core);
+    arpeggioShapes.add(override);
+    const resolution = resolveArpeggioForSlot(slot);
+    expect(resolution.tier).toBe("override");
+    expect(resolution.shape).toEqual(override);
+    expect(resolution.core).toEqual(core);
+    expect(resolution.alternatives).toEqual([]);
+  });
+
+  it("picks the last-registered override deterministically, with the rest in alternatives", () => {
+    const core = makeArpeggio("__tg4_core_multi__");
+    const overrideA = makeArpeggio("__tg4_override_a__", { overrides: "__tg4_core_multi__" });
+    const overrideB = makeArpeggio("__tg4_override_b__", { overrides: "__tg4_core_multi__" });
+    const overrideC = makeArpeggio("__tg4_override_c__", { overrides: "__tg4_core_multi__" });
+    arpeggioShapes.add(core);
+    arpeggioShapes.add(overrideA);
+    arpeggioShapes.add(overrideB);
+    arpeggioShapes.add(overrideC);
+
+    const resolution = resolveArpeggioForSlot(slot);
+    expect(resolution.tier).toBe("override");
+    expect(resolution.shape).toEqual(overrideC);
+    expect(resolution.core).toEqual(core);
+    expect(resolution.alternatives).toEqual([overrideA, overrideB]);
+  });
+
+  it("does not treat a shape as an override when its `overrides` target is in a different slot", () => {
+    const outOfSlotCore = makeArpeggio("__tg4_wrong_slot_core__", { cagedPosition: "A" });
+    const notReallyAnOverride = makeArpeggio("__tg4_not_override__", {
+      overrides: "__tg4_wrong_slot_core__",
+    });
+    arpeggioShapes.add(outOfSlotCore);
+    arpeggioShapes.add(notReallyAnOverride);
+
+    const resolution = resolveArpeggioForSlot(slot);
+    expect(resolution.tier).toBe("core");
+    expect(resolution.shape).toEqual(notReallyAnOverride);
+  });
+
+  it("does not treat a shape as an override when its `overrides` target is unregistered", () => {
+    const dangling = makeArpeggio("__tg4_dangling_override__", { overrides: "__no_such_shape__" });
+    arpeggioShapes.add(dangling);
+
+    const resolution = resolveArpeggioForSlot(slot);
+    expect(resolution.tier).toBe("core");
+    expect(resolution.shape).toEqual(dangling);
+  });
+});
+
+describe("visibleArpeggios (Task Group 4)", () => {
+  afterEach(() => {
+    arpeggioShapes.removeAll();
+  });
+
+  const makeArpeggio = (name: string, overrides: Partial<ArpeggioShape> = {}): ArpeggioShape => ({
+    name,
+    system: "caged",
+    strings: [["1P"], null, ["3m"], null, ["5P"], null],
+    rootString: 0,
+    chordType: "m7",
+    ...overrides,
+  });
+
+  it("excludes shapes that are the `overrides` target of another registered shape by default", () => {
+    const core = makeArpeggio("__tg4_visible_core__");
+    const override = makeArpeggio("__tg4_visible_override__", { overrides: "__tg4_visible_core__" });
+    const untouched = makeArpeggio("__tg4_visible_untouched__");
+    arpeggioShapes.add(core);
+    arpeggioShapes.add(override);
+    arpeggioShapes.add(untouched);
+
+    const names = visibleArpeggios()
+      .map((s) => s.name)
+      .sort();
+    expect(names).toEqual(["__tg4_visible_override__", "__tg4_visible_untouched__"].sort());
+  });
+
+  it("includes overridden shapes when includeOverridden: true", () => {
+    const core = makeArpeggio("__tg4_visible_core2__");
+    const override = makeArpeggio("__tg4_visible_override2__", {
+      overrides: "__tg4_visible_core2__",
+    });
+    arpeggioShapes.add(core);
+    arpeggioShapes.add(override);
+
+    const names = visibleArpeggios({ includeOverridden: true })
+      .map((s) => s.name)
+      .sort();
+    expect(names).toEqual(["__tg4_visible_core2__", "__tg4_visible_override2__"].sort());
+  });
+
+  it("returns [] when nothing is registered", () => {
+    expect(visibleArpeggios()).toEqual([]);
+  });
+});
