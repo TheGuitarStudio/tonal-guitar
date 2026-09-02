@@ -13,6 +13,10 @@ import {
   type ChordShape,
   type ScaleShape,
 } from "./index";
+// CagedPosition/ArpeggioShape are new in this task group and not yet wired
+// through src/index.ts (that's a later group's §1.11 task) — import them
+// directly from the source module.
+import type { CagedPosition, ArpeggioShape } from "./shape";
 
 describe("VoicingFamily and VoicingPatternDictionary — import smoke", () => {
   it("VoicingFamily resolves as a type from src/index (compile-time check)", () => {
@@ -309,5 +313,132 @@ describe("Chord shape registry — hostile key safety (CR-038)", () => {
     const retrieved = chordShapes.get("constructor");
     expect(retrieved).toBeDefined();
     expect(retrieved?.name).toBe("constructor");
+  });
+});
+
+// ============================================================
+// shape-workbench Task Group 2: additive data-model fields
+// ============================================================
+
+describe("shape-workbench additive fields (Task Group 2)", () => {
+  afterEach(() => {
+    removeAllScales();
+    chordShapes.removeAll();
+  });
+
+  it("VoicingFamily accepts 'triad' (compile-time check)", () => {
+    const family: VoicingFamily = "triad";
+    expect(family).toBe("triad");
+  });
+
+  it("CagedPosition accepts each of the five letters (compile-time check)", () => {
+    const positions: CagedPosition[] = ["C", "A", "G", "E", "D"];
+    expect(positions).toHaveLength(5);
+  });
+
+  it("ChordShape accepts and round-trips all shape-workbench optional fields", () => {
+    // Compile-time check: every new field is assignable on the object literal.
+    const shape: ChordShape = {
+      name: "__test_workbench_chord__",
+      system: "caged",
+      strings: ["1P", "5P", "1P", "3m", "5P", "1P"],
+      fingers: [1, 3, 4, 2, 1, 1],
+      barres: [],
+      rootString: 0,
+      cagedPosition: "E",
+      movable: true,
+      parentShape: "E Shape Major",
+      tags: ["core", "beginner"],
+      tuning: ["E2", "A2", "D3", "G3", "B3", "E4"],
+      overrides: "E Shape Minor (legacy)",
+      notes: "Standard E-shape minor barre grip.",
+    };
+    chordShapes.add(shape);
+    const retrieved = chordShapes.get("__test_workbench_chord__");
+    expect(retrieved).toEqual(shape);
+    expect(retrieved?.cagedPosition).toBe("E");
+    expect(retrieved?.movable).toBe(true);
+    expect(retrieved?.parentShape).toBe("E Shape Major");
+    expect(retrieved?.tags).toEqual(["core", "beginner"]);
+    expect(retrieved?.tuning).toEqual(["E2", "A2", "D3", "G3", "B3", "E4"]);
+    expect(retrieved?.overrides).toBe("E Shape Minor (legacy)");
+    expect(retrieved?.notes).toBe("Standard E-shape minor barre grip.");
+  });
+
+  it("ChordShape still accepts a minimal literal with none of the new fields set (additive-only)", () => {
+    const shape: ChordShape = {
+      name: "__test_minimal_workbench_chord__",
+      system: "caged",
+      strings: ["1P", "5P", "1P", "3M", "5P", "1P"],
+      fingers: [1, 3, 4, 2, 1, 1],
+      barres: [],
+      rootString: 0,
+    };
+    expect(shape.cagedPosition).toBeUndefined();
+    expect(shape.movable).toBeUndefined();
+    expect(shape.tags).toBeUndefined();
+    expect(shape.tuning).toBeUndefined();
+    expect(shape.overrides).toBeUndefined();
+    expect(shape.notes).toBeUndefined();
+  });
+
+  it("ScaleShape accepts and round-trips all shape-workbench optional fields", () => {
+    const shape: ScaleShape = {
+      name: "__test_workbench_scale__",
+      system: "caged",
+      strings: [["1P"], ["3M"], null, null, null, null],
+      rootString: 0,
+      cagedPosition: "G",
+      chordType: "maj7",
+      tags: ["core", "jazz"],
+      tuning: ["D2", "A2", "D3", "G3", "B3", "D4"],
+      overrides: "G Shape Major7 (legacy)",
+      notes: "Extended G-shape box.",
+    };
+    addScale(shape);
+    const retrieved = getScale("__test_workbench_scale__");
+    expect(retrieved).toEqual(shape);
+    expect(retrieved?.cagedPosition).toBe("G");
+    expect(retrieved?.chordType).toBe("maj7");
+    expect(retrieved?.tags).toEqual(["core", "jazz"]);
+    expect(retrieved?.tuning).toEqual(["D2", "A2", "D3", "G3", "B3", "D4"]);
+    expect(retrieved?.overrides).toBe("G Shape Major7 (legacy)");
+    expect(retrieved?.notes).toBe("Extended G-shape box.");
+  });
+
+  it("ScaleShape still accepts a minimal literal with none of the new fields set (additive-only)", () => {
+    const shape: ScaleShape = {
+      name: "__test_minimal_workbench_scale__",
+      system: "caged",
+      strings: [["1P"], ["3M"], null, null, null, null],
+      rootString: 0,
+    };
+    expect(shape.cagedPosition).toBeUndefined();
+    expect(shape.chordType).toBeUndefined();
+    expect(shape.tags).toBeUndefined();
+    expect(shape.tuning).toBeUndefined();
+    expect(shape.overrides).toBeUndefined();
+    expect(shape.notes).toBeUndefined();
+  });
+
+  it("ArpeggioShape requires chordType and structurally satisfies ScaleShape (compile-time check)", () => {
+    const arpeggio = {
+      name: "__test_arpeggio__",
+      system: "caged",
+      strings: [["1P"], null, ["3m"], null, ["5P"], null],
+      rootString: 0,
+      chordType: "m7",
+      fingers: [[1], null, [2], null, [4], null],
+      chordShape: "E Shape m7",
+      cagedPosition: "E",
+      overrides: "E Shape m7 Arpeggio (legacy)",
+    } satisfies ArpeggioShape;
+
+    // An ArpeggioShape is structurally a ScaleShape — this assignment must
+    // type-check with no cast.
+    const asScaleShape: ScaleShape = arpeggio;
+
+    expect(arpeggio.chordType).toBe("m7");
+    expect(asScaleShape.name).toBe("__test_arpeggio__");
   });
 });
