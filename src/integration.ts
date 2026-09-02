@@ -13,11 +13,15 @@ import {
 import { majorKey } from "@tonaljs/key";
 
 import {
+  ArpeggioResolution,
+  ChordShape,
   FrettedNote,
   FrettedScale,
   NoFrettedScale,
   ScaleShape,
   all,
+  resolveArpeggioForSlot,
+  slotForChordShape,
 } from "./shape";
 import { buildFrettedScale } from "./build";
 import { noteAt } from "./fretboard";
@@ -25,6 +29,7 @@ import { STANDARD } from "./tuning";
 import { scoreShapeMatch, InferenceProbe, ScoreBreakdown } from "./arpeggio";
 import { parseChordFrets } from "./notation";
 import { relabelShape, RelabelOptions, chromaOf } from "./transform";
+import { CHORD_SCALE_RULE_VERSION, scaleTypeForChordType } from "./chord-scale";
 
 // ============================================================
 // arpeggioFromScale / arpeggioFromShape
@@ -208,6 +213,113 @@ export function relabelShapeToScale(
   }
 
   return relabelShape(shape, scale.intervals, options);
+}
+
+// ============================================================
+// parentBoxForChordShape
+// ============================================================
+
+/**
+ * Selects the registered scale shape ("box") that a chord grip's arpeggio
+ * should be derived from, per the v1 chord-scale rule (`./chord-scale`).
+ *
+ * `scaleTypeForChordType(shape.chordType)` picks the scale type (e.g. `"m"`
+ * -> `"aeolian"`); the box is the first registered `ScaleShape` (any
+ * system) that, once relabeled into `"${root} ${scaleType}"` via
+ * `relabelShapeToScale`, lands its (recomputed) `rootString` on the same
+ * string as the chord grip's own `rootString`. The *relabeled* shape is
+ * returned as `box` — not the original registered entry — so callers can
+ * build directly against it in the requested scale's interval frame (e.g.
+ * `arpeggioFromShape`).
+ *
+ * `tuning` (defaults to `STANDARD`) filters candidates to boxes whose
+ * `strings` length matches the tuning's string count, so a box shaped for a
+ * different string count is never selected.
+ *
+ * Returns `undefined` when:
+ * - `shape.chordType` has no `CHORD_SCALE_RULE` entry (e.g. `dim`, `dim7`,
+ *   `aug` — spec §1.10).
+ * - No registered box is rotation-compatible with the requested scale frame
+ *   at a `rootString` matching the grip's (spec §9 edge case 10 — mode boxes
+ *   not yet registered, e.g. mixolydian/dorian/locrian, are still reachable
+ *   here on demand via `relabelShapeToScale`; this only returns `undefined`
+ *   when nothing registered lines up).
+ *
+ * spec §2.3
+ */
+export function parentBoxForChordShape(
+  shape: ChordShape,
+  root: string,
+  tuning: string[] = STANDARD,
+): { box: ScaleShape; scaleName: string; ruleVersion: number } | undefined {
+  const rule = scaleTypeForChordType(shape.chordType ?? "");
+  if (!rule) {
+    return undefined;
+  }
+
+  const rawScaleName = `${root} ${rule.scaleType}`;
+  const resolvedScale = getScale(rawScaleName);
+  const scaleName = resolvedScale.empty ? rawScaleName : resolvedScale.name;
+
+  for (const candidate of all()) {
+    if (candidate.strings.length !== tuning.length) {
+      continue;
+    }
+    const relabeled = relabelShapeToScale(candidate, rawScaleName);
+    if (relabeled && relabeled.rootString === shape.rootString) {
+      return { box: relabeled, scaleName, ruleVersion: CHORD_SCALE_RULE_VERSION };
+    }
+  }
+
+  return undefined;
+}
+
+// ============================================================
+// arpeggioFor
+// ============================================================
+
+/**
+ * Resolves and builds the arpeggio for a chord grip at a given root, in
+ * override -> core -> derived precedence (`resolveArpeggioForSlot`).
+ *
+ * - `"override"` / `"core"`: builds the stored `ArpeggioShape` directly via
+ *   `buildFrettedScale`.
+ * - `"derived"`: composes `parentBoxForChordShape` + the already-shipped
+ *   `arpeggioFromShape` — zero new arpeggio primitives (spec §2.4).
+ *
+ * The spec is silent on what to return when the derived tier can't find a
+ * parent box (or when a resolved "override"/"core" resolution is somehow
+ * missing its `shape`, which `resolveArpeggioForSlot`'s contract otherwise
+ * guarantees). Both cases fall back to the library's standard no-exceptions
+ * sentinel, `NoFrettedScale`, alongside the (still informative) resolution.
+ *
+ * spec §2.4
+ */
+export function arpeggioFor(
+  shape: ChordShape,
+  root: string,
+  tuning: string[] = STANDARD,
+): { resolution: ArpeggioResolution; fretted: FrettedScale } {
+  const resolution = resolveArpeggioForSlot(slotForChordShape(shape));
+
+  if (resolution.tier !== "derived") {
+    const stored = resolution.shape;
+    const fretted = stored
+      ? buildFrettedScale(stored, root, tuning)
+      : { ...NoFrettedScale };
+    return { resolution, fretted };
+  }
+
+  const parentBox = parentBoxForChordShape(shape, root, tuning);
+  if (!parentBox) {
+    return { resolution, fretted: { ...NoFrettedScale } };
+  }
+
+  const chordName = `${root}${shape.chordType ?? ""}`;
+  return {
+    resolution,
+    fretted: arpeggioFromShape(parentBox.box, chordName, root, tuning),
+  };
 }
 
 // ============================================================
