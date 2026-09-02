@@ -29,12 +29,12 @@
 
 | Layer | Task Group | Status | Agent | Notes |
 | ----- | ---------- | ------ | ----- | ----- |
-| 0 | TG1: Vitest Include Globs & Lint Globs Expansion | pending | - | - |
-| 0 | TG2: Shape Data Model — Additive Fields & New Interfaces | pending | - | - |
-| 0 | TG6: Chord-Scale Rule Module | pending | - | - |
-| 0 | TG7: Changeset Schema Types | pending | - | - |
-| 0 | TG14: Jazz Shells 16 → 8 Correction (D-012) | pending | - | - |
-| 0 | TG20: packages/fretboard-ui — Editing Extensions | pending | - | - |
+| 0 | TG1: Vitest Include Globs & Lint Globs Expansion | complete | sonnet | - |
+| 0 | TG2: Shape Data Model — Additive Fields & New Interfaces | complete | sonnet | - |
+| 0 | TG6: Chord-Scale Rule Module | complete | sonnet | - |
+| 0 | TG7: Changeset Schema Types | complete | sonnet | - |
+| 0 | TG14: Jazz Shells 16 → 8 Correction (D-012) | complete | sonnet | - |
+| 0 | TG20: packages/fretboard-ui — Editing Extensions | complete | sonnet | - |
 | 1 | TG3: Registry Mechanics — Replace-on-Add, remove(), arpeggioShapes Registry | pending | - | - |
 | 1 | TG5: Shape Identity & Geometry Helpers | pending | - | - |
 | 1 | TG16: Single TS Printer — scripts/lib/render-shape.mjs | pending | - | - |
@@ -61,6 +61,8 @@
 | 15 | TG30: Full Regression, CI Pipeline & Gap Analysis | pending | - | - |
 
 ### Oversight Reports
+
+- **Layer 0**: No concerns. Continued.
 
 ### Spec Compliance
 
