@@ -27,8 +27,13 @@ function browserStorage(): WorkbenchStorage | undefined {
   return typeof window === "undefined" ? undefined : window.localStorage;
 }
 
-const WorkbenchStateContext = createContext<WorkbenchState>(initialWorkbenchState);
-const WorkbenchDispatchContext = createContext<Dispatch<WorkbenchAction>>(() => {
+// Exported (alongside the hooks below) so screen tests can render a
+// component subtree against an arbitrary fixture `WorkbenchState` — e.g.
+// one with `drafts` populated — via `WorkbenchStateContext.Provider`
+// directly, without going through `localStorage`/`WorkbenchStoreProvider`'s
+// browser-only persistence machinery.
+export const WorkbenchStateContext = createContext<WorkbenchState>(initialWorkbenchState);
+export const WorkbenchDispatchContext = createContext<Dispatch<WorkbenchAction>>(() => {
   // Default no-op dispatch for components rendered outside a
   // WorkbenchStoreProvider (mirrors shape-library-ui's provider-less
   // default pattern) — never reached once the app is mounted for real.
