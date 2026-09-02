@@ -40,8 +40,8 @@
 | 1 | TG16: Single TS Printer — scripts/lib/render-shape.mjs | complete | sonnet | - |
 | 2 | TG4: Arpeggio Resolver Layer | complete | sonnet | - |
 | 2 | TG8: Fingering Carries Fingers/Barres + autoFingering | complete | sonnet | - |
-| 3 | TG9: Required-Tier Audit Checks | pending | - | - |
-| 3 | TG11: Parent-Box Selection & Arpeggio Derivation | pending | - | - |
+| 3 | TG9: Required-Tier Audit Checks | complete | sonnet | - |
+| 3 | TG11: Parent-Box Selection & Arpeggio Derivation | complete | sonnet | - |
 | 4 | TG10: Optional-Tier Audit Integration (D-006) | pending | - | - |
 | 5 | TG12: Public API Exports | pending | - | - |
 | 6 | TG13: Barre-Fret Offset Migration (D-010) | pending | - | - |
@@ -65,6 +65,7 @@
 - **Layer 0**: No concerns. Continued.
 - **Layer 1**: Aligned; one latent concern (printer identifier naming diverged from exportIdentifierFor on apostrophes/diacritics) — reconciled by lead before Layer 2. Continued.
 - **Layer 2**: No concerns. Continued.
+- **Layer 3**: No concerns. Continued.
 
 ### Spec Compliance
 
