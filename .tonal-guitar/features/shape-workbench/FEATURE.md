@@ -43,7 +43,7 @@
 | 3 | TG9: Required-Tier Audit Checks | complete | sonnet | - |
 | 3 | TG11: Parent-Box Selection & Arpeggio Derivation | complete | sonnet | - |
 | 4 | TG10: Optional-Tier Audit Integration (D-006) | complete | sonnet | - |
-| 5 | TG12: Public API Exports | pending | - | - |
+| 5 | TG12: Public API Exports | complete | sonnet | - |
 | 6 | TG13: Barre-Fret Offset Migration (D-010) | pending | - | - |
 | 6 | TG15: Generator-Owned-Block Prep — Markers & Count Annotations | pending | - | - |
 | 6 | TG21: packages/shape-catalog — Move-Only Extraction | pending | - | - |
@@ -67,6 +67,7 @@
 - **Layer 2**: No concerns. Continued.
 - **Layer 3**: No concerns. Continued.
 - **Layer 4**: No concerns. Continued.
+- **Layer 5**: No concerns. Continued.
 
 ### Spec Compliance
 
