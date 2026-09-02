@@ -57,7 +57,7 @@
 | 12 | TG27: packages/shape-workbench — Export Screen | complete | sonnet | - |
 | 13 | TG19: CAGED Data Changeset — Minor Triads + Major Metadata Backfill (closes #57) | complete | sonnet | - |
 | 13 | TG28: Site — Vertical Slice Integration (D-003 gate) | complete | sonnet | - |
-| 14 | TG29: Site — Incremental Migration & /admin Retirement | pending | - | - |
+| 14 | TG29: Site — Incremental Migration & /admin Retirement | complete | sonnet | - |
 | 15 | TG30: Full Regression, CI Pipeline & Gap Analysis | pending | - | - |
 
 ### Oversight Reports
@@ -69,6 +69,7 @@
 - **Layer 4**: No concerns. Continued.
 - **Layer 5**: No concerns. Continued.
 - **Layer 6**: Aligned; one docstring accuracy fix applied by lead (checkBarreFretOrigin scope claim). Pre-existing EXT_CHORD_A_9 barre-origin issue in extended-chords.ts noted for separate tracking (spec §4.5 no-silent-autofix). Continued.
+- **Layer 14**: No concerns. Continued.
 - **Layer 13**: TG28 site slice landed (static export read-only, shared ShapeCard). TG19 dogfooding: changeset authored via the workbench's production save/build/write code paths (scripted session driving computeSaveDraft/draftToChange/buildChangeset/postChangeset against the running dev server — DOM-click authoring deviation documented), landed via shapes:merge --update-counts, --check idempotent; #57 criterion met (10/10 CAGED triads), #66 round-trip verified (fingers/barres through Fingering into the shared site card, shape data in the site bundle — /shapes is client-rendered so names appear in chunks, not static HTML). Lead fixes: already-applied-add name-unique filter in shapes:merge; Export.test.tsx fixture neutralization. Continued.
 - **Layer 12**: No concerns. Continued.
 - **Layer 11**: Aligned; Layer-10 concerns fixed and verified. One medium concern (spurious name-unique error in Checks card for existing-shape edits) fixed by lead: runChordChecks now filters CHECK_NAME_UNIQUE for origin:"existing" drafts, mirroring the merge script's update filter. Continued.
