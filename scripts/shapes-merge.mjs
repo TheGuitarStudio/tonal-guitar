@@ -759,7 +759,22 @@ async function planMerge(changeset, ctx) {
   const auditWarnings = [];
 
   for (const change of addChanges) {
-    const issues = auditFor(change.kind, change.shape);
+    // CHECK_NAME_UNIQUE is filtered for an ALREADY-APPLIED add (its ident
+    // AND name are present in its own target file): once the add has merged
+    // and the library has been rebuilt, the live dist registry legitimately
+    // contains the shape, so the aggregate audit's registry-backed
+    // name-unique check would refuse every idempotent re-run/--check (spec
+    // §6.6 "re-running the same changeset produces zero diff"). A genuinely
+    // NEW colliding add is unaffected — its ident/name are not yet in its
+    // target file, and rule 6 above still owns merge-time uniqueness.
+    const ownFile = dataFileList.filter((f) => basenameOf(f) === change.file);
+    const ownScan = scanRegisteredShapes(dataDir, ownFile);
+    const alreadyApplied =
+      ownScan.identifiers.has(identByChange.get(change)) &&
+      ownScan.byKind[change.kind].has(change.shape.name);
+    const issues = auditFor(change.kind, change.shape).filter(
+      (issue) => !(alreadyApplied && issue.id === library.CHECK_NAME_UNIQUE),
+    );
     for (const issue of issues) {
       const line = `add ${change.kind} "${change.shape.name}": [${issue.id}] ${issue.message}`;
       (issue.severity === "error" ? auditErrors : auditWarnings).push(line);
