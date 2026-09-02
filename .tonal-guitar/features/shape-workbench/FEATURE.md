@@ -25,6 +25,45 @@
 | Plan      | tasks.md    | done    | 1     | yes      |
 | Implement | FEATURE.md  | pending | 0     | no       |
 
+## Phase 4: Implement
+
+| Layer | Task Group | Status | Agent | Notes |
+| ----- | ---------- | ------ | ----- | ----- |
+| 0 | TG1: Vitest Include Globs & Lint Globs Expansion | pending | - | - |
+| 0 | TG2: Shape Data Model — Additive Fields & New Interfaces | pending | - | - |
+| 0 | TG6: Chord-Scale Rule Module | pending | - | - |
+| 0 | TG7: Changeset Schema Types | pending | - | - |
+| 0 | TG14: Jazz Shells 16 → 8 Correction (D-012) | pending | - | - |
+| 0 | TG20: packages/fretboard-ui — Editing Extensions | pending | - | - |
+| 1 | TG3: Registry Mechanics — Replace-on-Add, remove(), arpeggioShapes Registry | pending | - | - |
+| 1 | TG5: Shape Identity & Geometry Helpers | pending | - | - |
+| 1 | TG16: Single TS Printer — scripts/lib/render-shape.mjs | pending | - | - |
+| 2 | TG4: Arpeggio Resolver Layer | pending | - | - |
+| 2 | TG8: Fingering Carries Fingers/Barres + autoFingering | pending | - | - |
+| 3 | TG9: Required-Tier Audit Checks | pending | - | - |
+| 3 | TG11: Parent-Box Selection & Arpeggio Derivation | pending | - | - |
+| 4 | TG10: Optional-Tier Audit Integration (D-006) | pending | - | - |
+| 5 | TG12: Public API Exports | pending | - | - |
+| 6 | TG13: Barre-Fret Offset Migration (D-010) | pending | - | - |
+| 6 | TG15: Generator-Owned-Block Prep — Markers & Count Annotations | pending | - | - |
+| 6 | TG21: packages/shape-catalog — Move-Only Extraction | pending | - | - |
+| 7 | TG17: Merge Script Core — scripts/shapes-merge.mjs | pending | - | - |
+| 7 | TG22: packages/shape-catalog — New Pure Models | pending | - | - |
+| 8 | TG18: Merge Script Fixtures & Tests | pending | - | - |
+| 8 | TG23: packages/shape-library-ui — Components & Capability Contract | pending | - | - |
+| 9 | TG24: packages/shape-workbench — App Skeleton, Store & Dev-Server Plugin | pending | - | - |
+| 10 | TG25: packages/shape-workbench — Board Screen | pending | - | - |
+| 11 | TG26: packages/shape-workbench — Editor Screen (closes #66) | pending | - | - |
+| 12 | TG27: packages/shape-workbench — Export Screen | pending | - | - |
+| 13 | TG19: CAGED Data Changeset — Minor Triads + Major Metadata Backfill (closes #57) | pending | - | - |
+| 13 | TG28: Site — Vertical Slice Integration (D-003 gate) | pending | - | - |
+| 14 | TG29: Site — Incremental Migration & /admin Retirement | pending | - | - |
+| 15 | TG30: Full Regression, CI Pipeline & Gap Analysis | pending | - | - |
+
+### Oversight Reports
+
+### Spec Compliance
+
 ## Loop History
 
 ## Review History
