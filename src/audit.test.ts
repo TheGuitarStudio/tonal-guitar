@@ -1,23 +1,38 @@
 import { describe, expect, it } from "vitest";
 import {
   auditAllShapes,
+  auditArpeggioShape,
   auditChordShape,
   auditScaleShape,
+  checkBarreFretOrigin,
   checkChordBuildLoss,
   checkChordMetadataCompleteness,
   checkFingerZeroOnMovable,
+  checkFingeringComplete,
   checkFretSpan,
   checkGeometryMismatch,
+  checkNameUnique,
+  checkOverridesTarget,
+  checkPositionSpan,
   checkRepeatedFingerNoBarre,
   checkScaleBuildLoss,
   checkScaleMetadataCompleteness,
+  checkStringsetMismatch,
+  checkTuningMismatch,
   chordShapeGeometry,
+  CHECK_BARRE_FRET_ORIGIN,
   CHECK_BUILD_LOSS,
   CHECK_FINGER_ZERO_ON_MOVABLE,
+  CHECK_FINGERING_COMPLETE,
   CHECK_FRET_SPAN,
   CHECK_GEOMETRY_MISMATCH,
   CHECK_METADATA_COMPLETENESS,
+  CHECK_NAME_UNIQUE,
+  CHECK_OVERRIDES_TARGET,
+  CHECK_POSITION_SPAN,
   CHECK_REPEATED_FINGER_NO_BARRE,
+  CHECK_STRINGSET_MISMATCH,
+  CHECK_TUNING_MISMATCH,
   displayRootFor,
   gripRootFor,
   sourceFrets,
@@ -37,19 +52,24 @@ import type {
   ShapeAuditOptions as ShapeAuditOptionsFromIndex,
 } from "./index";
 import { VERSION } from "./version";
-import { applyChordShape } from "./build";
+import { applyChordShape, buildFrettedScale } from "./build";
 import { STANDARD } from "./tuning";
 import {
   all as allScaleShapes,
+  arpeggioShapes,
   chordShapes,
   get as getScaleShape,
+  ArpeggioShape,
   ChordShape,
   ScaleShape,
 } from "./shape";
 import {
+  BARRE_E_MAJOR,
   BARRE_E_SUS2,
+  OPEN_A_MAJOR,
   OPEN_C_MAJOR,
   OPEN_C_MINOR,
+  OPEN_C_SUS2,
   OPEN_G_AUG,
   OPEN_G_M7B5,
   OPEN_G_SUS2,
@@ -852,6 +872,259 @@ describe("checkScaleMetadataCompleteness", () => {
 });
 
 // ============================================================
+// shape-workbench spec §3.1 — required-tier checks (Group 9)
+// ============================================================
+
+describe("checkStringsetMismatch", () => {
+  it("shape.stringSet absent: []", () => {
+    const shape: ChordShape = {
+      name: "Synthetic No StringSet Fixture",
+      system: "open",
+      strings: ["1P", "5P", null, null, null, null],
+      fingers: [1, 2, null, null, null, null],
+      barres: [],
+      rootString: 0,
+    };
+    expect(checkStringsetMismatch(shape)).toEqual([]);
+  });
+
+  it("shape.stringSet matches playedStringSet(shape): []", () => {
+    expect(checkStringsetMismatch(OPEN_C_MAJOR)).toEqual([]);
+  });
+
+  it("shape.stringSet diverges from playedStringSet(shape): one warning issue with both sets in details", () => {
+    const shape: ChordShape = {
+      ...OPEN_C_MAJOR,
+      name: "Synthetic StringSet Mismatch Fixture",
+      stringSet: [1, 2, 3],
+    };
+    const issues = checkStringsetMismatch(shape);
+    expect(issues.length).toBe(1);
+    expect(issues[0].id).toBe(CHECK_STRINGSET_MISMATCH);
+    expect(issues[0].severity).toBe("warning");
+    expect(issues[0].details).toEqual({
+      stringSet: [1, 2, 3],
+      playedStringSet: [1, 2, 3, 4, 5],
+    });
+  });
+
+  it("registry-wide: no currently-registered chord shape fails checkStringsetMismatch", () => {
+    expectRegistryClean(chordShapes.all(), checkStringsetMismatch, "checkStringsetMismatch");
+  });
+});
+
+describe("checkTuningMismatch", () => {
+  it("shape.tuning absent: []", () => {
+    expect(checkTuningMismatch(OPEN_C_MAJOR)).toEqual([]);
+    expect(checkTuningMismatch(OPEN_C_MAJOR, STANDARD)).toEqual([]);
+  });
+
+  it("shape.tuning matches the build tuning (default STANDARD): []", () => {
+    const shape: ChordShape = { ...OPEN_C_MAJOR, tuning: [...STANDARD] };
+    expect(checkTuningMismatch(shape)).toEqual([]);
+  });
+
+  it("shape.tuning diverges from the build tuning: one warning issue with both tunings in details", () => {
+    const dropD = ["D2", "A2", "D3", "G3", "B3", "E4"];
+    const shape: ChordShape = { ...OPEN_C_MAJOR, tuning: dropD };
+    const issues = checkTuningMismatch(shape, STANDARD);
+    expect(issues.length).toBe(1);
+    expect(issues[0].id).toBe(CHECK_TUNING_MISMATCH);
+    expect(issues[0].severity).toBe("warning");
+    expect(issues[0].details).toEqual({ shapeTuning: dropD, buildTuning: STANDARD });
+  });
+
+  it("shape.tuning matches an explicitly-passed non-standard tuning: []", () => {
+    const dropD = ["D2", "A2", "D3", "G3", "B3", "E4"];
+    const shape: ChordShape = { ...OPEN_C_MAJOR, tuning: dropD };
+    expect(checkTuningMismatch(shape, dropD)).toEqual([]);
+  });
+
+  it("registry-wide: no currently-registered chord shape fails checkTuningMismatch at STANDARD", () => {
+    expectRegistryClean(
+      chordShapes.all(),
+      (shape) => checkTuningMismatch(shape, STANDARD),
+      "checkTuningMismatch",
+    );
+  });
+});
+
+describe("checkBarreFretOrigin", () => {
+  it("no barres: []", () => {
+    expect(checkBarreFretOrigin(OPEN_C_MAJOR, "C")).toEqual([]);
+  });
+
+  it("D-010 worked example — 'A Major Open' (x02220, baseFret 1, barre fret 2, strings 2-4): grip base 2, flags with suggestedOffset 0 (still pre-migration absolute data)", () => {
+    const issues = checkBarreFretOrigin(OPEN_A_MAJOR, "A", STANDARD);
+    expect(issues.length).toBe(1);
+    expect(issues[0].id).toBe(CHECK_BARRE_FRET_ORIGIN);
+    expect(issues[0].severity).toBe("warning");
+    expect(issues[0].details).toMatchObject({
+      barreIndex: 0,
+      fret: 2,
+      gripBase: 2,
+      suggestedOffset: 0,
+    });
+  });
+
+  it("D-010 worked example — 'C Minor Open' (x35543, baseFret 3, barre fret 3, full barre): grip base 3, flags with suggestedOffset 0", () => {
+    const issues = checkBarreFretOrigin(OPEN_C_MINOR, "C", STANDARD);
+    expect(issues.length).toBe(1);
+    expect(issues[0].details).toMatchObject({
+      barreIndex: 0,
+      fret: 3,
+      gripBase: 3,
+      suggestedOffset: 0,
+    });
+  });
+
+  it("D-010 worked example — 'C Sus2 Open' (x30033, baseFret 1, barre fret 3, strings 4-5): flags, offset derived from the source diagram's grip base", () => {
+    const issues = checkBarreFretOrigin(OPEN_C_SUS2, "C", STANDARD);
+    expect(issues.length).toBe(1);
+    expect(issues[0].details).toMatchObject({ barreIndex: 0, fret: 3 });
+  });
+
+  it("D-010 worked example — 'E Form Major Barre' (movable, baseFret 1, barre fret 0): already an offset, not flagged — the trap a blanket fret-baseFret transform would fall into", () => {
+    expect(checkBarreFretOrigin(BARRE_E_MAJOR, "C", STANDARD)).toEqual([]);
+  });
+
+  it("negative fret: flagged regardless of geometry", () => {
+    const shape: ChordShape = {
+      name: "Synthetic Negative Barre Fret Fixture",
+      system: "barre",
+      strings: ["1P", "1P", "1P", null, null, null],
+      fingers: [1, 1, 1, null, null, null],
+      barres: [{ fret: -1, fromString: 0, toString: 2, finger: 1 }],
+      rootString: 0,
+    };
+    const issues = checkBarreFretOrigin(shape, "C", STANDARD);
+    expect(issues.length).toBe(1);
+    expect(issues[0].severity).toBe("warning");
+    expect(issues[0].details).toMatchObject({ barreIndex: 0, fret: -1 });
+  });
+
+  it("fret exceeds the shape's fretted span: flagged", () => {
+    const shape: ChordShape = {
+      name: "Synthetic Oversized Barre Fret Fixture",
+      system: "barre",
+      strings: ["1P", "3M", null, null, null, null],
+      fingers: [1, 2, null, null, null, null],
+      barres: [{ fret: 99, fromString: 0, toString: 1, finger: 1 }],
+      rootString: 0,
+    };
+    const built = applyChordShape(shape, "C", STANDARD);
+    const fretted = built.frets.filter((f): f is number => f != null && f > 0);
+    const span = Math.max(...fretted) - Math.min(...fretted);
+    const issues = checkBarreFretOrigin(shape, "C", STANDARD);
+    expect(issues.length).toBe(1);
+    expect(issues[0].details).toMatchObject({ barreIndex: 0, fret: 99, span });
+  });
+
+  it("prebuilt, if supplied, is used instead of an internal applyChordShape call", () => {
+    const built = applyChordShape(OPEN_A_MAJOR, "A", STANDARD);
+    expect(checkBarreFretOrigin(OPEN_A_MAJOR, "A", STANDARD, built)).toEqual(
+      checkBarreFretOrigin(OPEN_A_MAJOR, "A", STANDARD),
+    );
+  });
+
+  it("no baseFret (jazz shell-style fixture) still applies the span-based checks", () => {
+    const shape: ChordShape = {
+      name: "Synthetic No-BaseFret Barre Fixture",
+      system: "shell",
+      strings: ["1P", "3M", null, null, null, null],
+      fingers: [1, 1, null, null, null, null],
+      barres: [{ fret: 0, fromString: 0, toString: 1, finger: 1 }],
+      rootString: 0,
+    };
+    // fret 0 is within [0, span] and there's no baseFret/geometry — clean.
+    expect(checkBarreFretOrigin(shape, "C", STANDARD)).toEqual([]);
+  });
+});
+
+describe("checkNameUnique", () => {
+  it("brand-new name/identifier against the live chord registry: []", () => {
+    expect(
+      checkNameUnique({ name: "Synthetic Definitely Not Registered Fixture" }, "chord"),
+    ).toEqual([]);
+  });
+
+  it("an already-registered chord shape audited against itself (same object): [] — self-comparison never flags", () => {
+    expect(checkNameUnique(OPEN_C_MAJOR, "chord")).toEqual([]);
+  });
+
+  it("a NEW shape whose name collides with an already-registered chord shape: the name-collision issue fires", () => {
+    // An identical name also derives an identical identifier, so the
+    // identifier-collision issue fires alongside it (see "colliding on both
+    // name and identifier" below) — this test isolates the name-check half.
+    const issues = checkNameUnique({ name: OPEN_C_MAJOR.name }, "chord");
+    const nameIssue = issues.find((i) => i.details?.name === OPEN_C_MAJOR.name && !("identifier" in (i.details ?? {})));
+    expect(nameIssue).toBeDefined();
+    expect(nameIssue?.id).toBe(CHECK_NAME_UNIQUE);
+    expect(nameIssue?.severity).toBe("error");
+    expect(nameIssue?.details).toEqual({ name: OPEN_C_MAJOR.name, kind: "chord" });
+  });
+
+  it("a NEW shape whose derived export identifier collides with an already-registered shape's: one error issue", () => {
+    // "C Major Open!!!" slugs to the identical CHORD_C_MAJOR_OPEN identifier
+    // as the registered OPEN_C_MAJOR ("C Major Open") — different name,
+    // colliding identifier.
+    const issues = checkNameUnique({ name: "C Major Open!!!" }, "chord");
+    expect(issues.length).toBe(1);
+    expect(issues[0].id).toBe(CHECK_NAME_UNIQUE);
+    expect(issues[0].severity).toBe("error");
+    expect(issues[0].details).toMatchObject({ name: "C Major Open!!!" });
+  });
+
+  it("a shape colliding on both name and identifier: two error issues", () => {
+    const issues = checkNameUnique({ name: OPEN_C_MAJOR.name }, "chord");
+    // Same name => same derived identifier => both checks fire.
+    expect(issues.length).toBe(2);
+    expect(issues.every((i) => i.id === CHECK_NAME_UNIQUE)).toBe(true);
+    expect(issues.every((i) => i.severity === "error")).toBe(true);
+  });
+
+  it("options.knownNames is consulted INSTEAD of the live registry for the name check — a merge-time-only collision is caught without touching chordShapes", () => {
+    const knownNames = new Set(["Some Draft Shape Name"]);
+    const issues = checkNameUnique({ name: "Some Draft Shape Name" }, "chord", { knownNames });
+    expect(issues.length).toBe(1);
+    expect(issues[0].id).toBe(CHECK_NAME_UNIQUE);
+
+    // A name that IS registered live, but absent from knownNames, is NOT
+    // flagged by the NAME check when knownNames is supplied — it replaces
+    // the live lookup for that half of the check. knownIdentifiers is passed
+    // as an explicit empty set here too, to isolate that from the
+    // independent identifier-check default (which would otherwise still
+    // consult the live registry and flag the identical derived identifier).
+    expect(
+      checkNameUnique({ name: OPEN_C_MAJOR.name }, "chord", {
+        knownNames,
+        knownIdentifiers: new Set(),
+      }),
+    ).toEqual([]);
+  });
+
+  it("options.knownIdentifiers is consulted INSTEAD of the live registry", () => {
+    const knownIdentifiers = new Set(["CHORD_SOME_DRAFT_SHAPE"]);
+    const issues = checkNameUnique({ name: "Some Draft Shape" }, "chord", {
+      knownIdentifiers,
+    });
+    expect(issues.length).toBe(1);
+    expect(issues[0].id).toBe(CHECK_NAME_UNIQUE);
+  });
+
+  it("works against the scale and arpeggio registries via the kind parameter", () => {
+    const gShape = getScaleShape("G Shape");
+    expect(gShape).toBeDefined();
+    expect(checkNameUnique(gShape as ScaleShape, "scale")).toEqual([]);
+    // Colliding name also derives a colliding identifier (both checks fire).
+    expect(checkNameUnique({ name: (gShape as ScaleShape).name }, "scale").length).toBe(2);
+
+    // Empty arpeggio registry today (no seeded data) — nothing to collide with.
+    expect(checkNameUnique({ name: "Any Arpeggio Name" }, "arpeggio")).toEqual([]);
+  });
+});
+
+// ============================================================
 // `featured` metadata field — audit interaction (shape-detail-panel TG1)
 // ============================================================
 
@@ -1018,6 +1291,52 @@ describe("auditChordShape", () => {
       checkGeometryMismatch(buggyAugFixture, STANDARD),
     );
   });
+
+  it("composes the four new required-tier checks alongside the original six", () => {
+    // A shape combining a stringSet mismatch, a tuning mismatch, and an
+    // absolute (pre-D-010) barre fret all at once — one issue per new check.
+    const shape: ChordShape = {
+      ...OPEN_A_MAJOR,
+      name: "Synthetic Multi-New-Check Fixture",
+      stringSet: [1, 2, 3], // diverges from playedStringSet
+      tuning: ["D2", "A2", "D3", "G3", "B3", "E4"], // diverges from STANDARD
+    };
+    const issues = auditChordShape(shape);
+
+    expect(issues.some((i) => i.id === CHECK_STRINGSET_MISMATCH)).toBe(true);
+    expect(issues.some((i) => i.id === CHECK_TUNING_MISMATCH)).toBe(true);
+    expect(issues.some((i) => i.id === CHECK_BARRE_FRET_ORIGIN)).toBe(true);
+    // Brand-new name — no collision.
+    expect(issues.some((i) => i.id === CHECK_NAME_UNIQUE)).toBe(false);
+
+    expect(issues).toEqual([
+      ...checkFretSpan(shape, "A", STANDARD),
+      ...checkFingerZeroOnMovable(shape),
+      ...checkRepeatedFingerNoBarre(shape),
+      ...checkChordBuildLoss(shape, "A", STANDARD),
+      ...checkChordMetadataCompleteness(shape),
+      ...checkGeometryMismatch(shape, STANDARD),
+      ...checkStringsetMismatch(shape),
+      ...checkTuningMismatch(shape, STANDARD),
+      ...checkBarreFretOrigin(shape, "A", STANDARD),
+      ...checkNameUnique(shape, "chord"),
+    ]);
+  });
+
+  it("checkNameUnique composed into auditChordShape flags a NEW shape colliding with a registered name", () => {
+    const shape: ChordShape = { ...OPEN_C_MAJOR, name: OPEN_C_MAJOR.name };
+    // Same name, different object — a genuine collision, not self-comparison.
+    expect(shape).not.toBe(OPEN_C_MAJOR);
+    const issues = auditChordShape(shape);
+    expect(issues.some((i) => i.id === CHECK_NAME_UNIQUE && i.severity === "error")).toBe(
+      true,
+    );
+  });
+
+  it("checkNameUnique composed into auditChordShape does NOT flag an already-registered shape audited via its own object reference", () => {
+    const issues = auditChordShape(OPEN_C_MAJOR);
+    expect(issues.some((i) => i.id === CHECK_NAME_UNIQUE)).toBe(false);
+  });
 });
 
 describe("auditScaleShape", () => {
@@ -1074,6 +1393,259 @@ describe("auditScaleShape", () => {
     expect(auditScaleShape(CAGED_E, { root: "E", tuning: STANDARD })).toEqual(
       auditScaleShape(CAGED_E, { root: "E" }),
     );
+  });
+});
+
+// ============================================================
+// shape-workbench spec §3.1 — arpeggio-only checks (Group 9)
+// ============================================================
+
+describe("checkPositionSpan", () => {
+  it("build fails (unresolvable root): [] — checkScaleBuildLoss's issue to report, not this one's", () => {
+    const shape: ArpeggioShape = {
+      name: "Synthetic Position Span Unresolvable Fixture",
+      system: "caged",
+      chordType: "M",
+      strings: [["1P"], null, null, null, null, null],
+      rootString: 0,
+    };
+    expect(checkPositionSpan(shape, "H", STANDARD)).toEqual([]);
+  });
+
+  it("single-note run: span is trivially 0, within any maxSpan: []", () => {
+    const shape: ArpeggioShape = {
+      name: "Synthetic Position Span Single-Note Fixture",
+      system: "caged",
+      chordType: "M",
+      strings: [["1P"], null, null, null, null, null],
+      rootString: 0,
+    };
+    expect(checkPositionSpan(shape, "C", STANDARD)).toEqual([]);
+  });
+
+  it("span exceeds maxSpan: one error issue, span computed independently via buildFrettedScale", () => {
+    const shape: ArpeggioShape = {
+      name: "Synthetic Position Span Wide Fixture",
+      system: "caged",
+      chordType: "M",
+      strings: [["1P"], ["7M"], null, null, null, null],
+      rootString: 0,
+    };
+    const result = buildFrettedScale(shape, "C", STANDARD);
+    const fretted = result.notes.map((n) => n.fret).filter((f) => f > 0);
+    const expectedSpan = fretted.length
+      ? Math.max(...fretted) - Math.min(...fretted)
+      : 0;
+    expect(expectedSpan).toBeGreaterThan(0);
+
+    const issues = checkPositionSpan(shape, "C", STANDARD, 0);
+    expect(issues.length).toBe(1);
+    expect(issues[0].id).toBe(CHECK_POSITION_SPAN);
+    expect(issues[0].severity).toBe("error");
+    expect(issues[0].details).toEqual({ span: expectedSpan, maxSpan: 0 });
+  });
+});
+
+describe("checkFingeringComplete", () => {
+  const baseStrings = [["1P"], ["3M"], null, null, null, null] as (string[] | null)[];
+
+  it("shape.fingers absent: []", () => {
+    const shape: ArpeggioShape = {
+      name: "Synthetic Fingering Fixture (no fingers)",
+      system: "caged",
+      chordType: "M",
+      strings: baseStrings,
+      rootString: 0,
+    };
+    expect(checkFingeringComplete(shape)).toEqual([]);
+  });
+
+  it("fingers parallel and consistent with strings: []", () => {
+    const shape: ArpeggioShape = {
+      name: "Synthetic Fingering Fixture (clean)",
+      system: "caged",
+      chordType: "M",
+      strings: baseStrings,
+      rootString: 0,
+      fingers: [[1], [2], null, null, null, null],
+    };
+    expect(checkFingeringComplete(shape)).toEqual([]);
+  });
+
+  it("fingers.length !== strings.length: one error issue", () => {
+    const shape: ArpeggioShape = {
+      name: "Synthetic Fingering Fixture (length mismatch)",
+      system: "caged",
+      chordType: "M",
+      strings: baseStrings,
+      rootString: 0,
+      fingers: [[1], [2], null],
+    };
+    const issues = checkFingeringComplete(shape);
+    expect(issues.length).toBe(1);
+    expect(issues[0].id).toBe(CHECK_FINGERING_COMPLETE);
+    expect(issues[0].severity).toBe("error");
+    expect(issues[0].details).toEqual({ fingersLength: 3, stringsLength: 6 });
+  });
+
+  it("finger entries present for a muted string: one error issue", () => {
+    const shape: ArpeggioShape = {
+      name: "Synthetic Fingering Fixture (muted-with-fingers)",
+      system: "caged",
+      chordType: "M",
+      strings: [["1P"], null, null, null, null, null],
+      rootString: 0,
+      fingers: [[1], [2], null, null, null, null],
+    };
+    const issues = checkFingeringComplete(shape);
+    expect(issues.length).toBe(1);
+    expect(issues[0].details).toEqual({ string: 1, fingerSlot: [2] });
+  });
+
+  it("finger sub-array length mismatch against its string's note count: one error issue", () => {
+    const shape: ArpeggioShape = {
+      name: "Synthetic Fingering Fixture (sub-array mismatch)",
+      system: "caged",
+      chordType: "M",
+      strings: [["1P", "3M"], ["5P"], null, null, null, null],
+      rootString: 0,
+      fingers: [[1], [3], null, null, null, null],
+    };
+    const issues = checkFingeringComplete(shape);
+    expect(issues.length).toBe(1);
+    expect(issues[0].details).toEqual({ string: 0, notesLength: 2, fingersLength: 1 });
+  });
+});
+
+describe("checkOverridesTarget", () => {
+  it("shape.overrides absent: []", () => {
+    const shape: ArpeggioShape = {
+      name: "Synthetic Overrides Fixture (none)",
+      system: "caged",
+      chordType: "M",
+      strings: [["1P"], null, null, null, null, null],
+      rootString: 0,
+    };
+    expect(checkOverridesTarget(shape)).toEqual([]);
+  });
+
+  it("shape.overrides names a registered arpeggio: []", () => {
+    const core: ArpeggioShape = {
+      name: "Synthetic Overrides Core Fixture",
+      system: "caged",
+      chordType: "M",
+      strings: [["1P"], null, null, null, null, null],
+      rootString: 0,
+    };
+    arpeggioShapes.add(core);
+    try {
+      const override: ArpeggioShape = {
+        ...core,
+        name: "Synthetic Overrides Override Fixture",
+        overrides: core.name,
+      };
+      expect(checkOverridesTarget(override)).toEqual([]);
+    } finally {
+      arpeggioShapes.remove(core.name);
+    }
+  });
+
+  it("shape.overrides names an unregistered arpeggio: one error issue", () => {
+    const shape: ArpeggioShape = {
+      name: "Synthetic Overrides Fixture (dangling)",
+      system: "caged",
+      chordType: "M",
+      strings: [["1P"], null, null, null, null, null],
+      rootString: 0,
+      overrides: "Not Registered Anywhere",
+    };
+    const issues = checkOverridesTarget(shape);
+    expect(issues.length).toBe(1);
+    expect(issues[0].id).toBe(CHECK_OVERRIDES_TARGET);
+    expect(issues[0].severity).toBe("error");
+    expect(issues[0].details).toEqual({ overrides: "Not Registered Anywhere" });
+  });
+});
+
+describe("auditArpeggioShape", () => {
+  // Hand-built fixture — no seeded ArpeggioShape data exists yet (spec
+  // §3.1), so this is fixture-only, mirroring auditScaleShape's own tests.
+  const cleanFixture: ArpeggioShape = {
+    name: "Synthetic Clean Arpeggio Fixture",
+    system: "caged",
+    chordType: "M",
+    strings: [["1P"], null, null, null, null, null],
+    rootString: 0,
+    fingers: [[1], null, null, null, null, null],
+  };
+
+  it("clean fixture: []", () => {
+    expect(auditArpeggioShape(cleanFixture)).toEqual([]);
+  });
+
+  it("runs only build-loss/position-span/fingering-complete/overrides-target — never a chord-only check id", () => {
+    const chordOnlyIds = new Set([
+      CHECK_FRET_SPAN,
+      CHECK_FINGER_ZERO_ON_MOVABLE,
+      CHECK_REPEATED_FINGER_NO_BARRE,
+      CHECK_GEOMETRY_MISMATCH,
+      CHECK_STRINGSET_MISMATCH,
+      CHECK_TUNING_MISMATCH,
+      CHECK_BARRE_FRET_ORIGIN,
+      CHECK_NAME_UNIQUE,
+    ]);
+    for (const issue of auditArpeggioShape(cleanFixture)) {
+      expect(chordOnlyIds.has(issue.id)).toBe(false);
+    }
+  });
+
+  it("root defaults to 'C' (ArpeggioShape has no canonicalRoot, mirroring auditScaleShape)", () => {
+    expect(auditArpeggioShape(cleanFixture)).toEqual(
+      auditArpeggioShape(cleanFixture, { root: "C" }),
+    );
+  });
+
+  it("combines build-loss + fingering-complete + overrides-target when all three fail at once", () => {
+    const brokenFixture: ArpeggioShape = {
+      name: "Synthetic Broken Arpeggio Fixture",
+      system: "caged",
+      chordType: "M",
+      strings: [["1P"], ["3M"], null, null, null, null],
+      rootString: 0,
+      fingers: [[1]], // length mismatch against the 6-entry strings array
+      overrides: "Not Registered Anywhere",
+    };
+    const issues = auditArpeggioShape(brokenFixture, { root: "H" }); // unresolvable root
+
+    expect(issues.some((i) => i.id === CHECK_BUILD_LOSS)).toBe(true);
+    expect(issues.some((i) => i.id === CHECK_FINGERING_COMPLETE)).toBe(true);
+    expect(issues.some((i) => i.id === CHECK_OVERRIDES_TARGET)).toBe(true);
+    expect(issues).toEqual([
+      ...checkScaleBuildLoss(brokenFixture, "H", STANDARD),
+      ...checkPositionSpan(brokenFixture, "H", STANDARD, undefined),
+      ...checkFingeringComplete(brokenFixture),
+      ...checkOverridesTarget(brokenFixture),
+    ]);
+  });
+
+  it("options.maxFretSpan threads into checkPositionSpan only", () => {
+    const issues = auditArpeggioShape(cleanFixture, { maxFretSpan: 0 });
+    expect(issues).toEqual([
+      ...checkScaleBuildLoss(cleanFixture, "C", STANDARD),
+      ...checkPositionSpan(cleanFixture, "C", STANDARD, 0),
+      ...checkFingeringComplete(cleanFixture),
+      ...checkOverridesTarget(cleanFixture),
+    ]);
+  });
+
+  it("options.tuning threads into both checkScaleBuildLoss and checkPositionSpan", () => {
+    const dropD = ["D2", "A2", "D3", "G3", "B3", "E4"];
+    expect(auditArpeggioShape(cleanFixture, { tuning: dropD })).toEqual([
+      ...checkScaleBuildLoss(cleanFixture, "C", dropD),
+      ...checkPositionSpan(cleanFixture, "C", dropD, undefined),
+      ...checkFingeringComplete(cleanFixture),
+      ...checkOverridesTarget(cleanFixture),
+    ]);
   });
 });
 
