@@ -8,10 +8,10 @@
 // presentational primitives, and `buildDetail` (which produces the
 // `ScaleDetail` this view renders) all live there.
 import type {
+  CompatibleShapesResult,
   ScaleCatalogEntry,
   ShapeCatalogEntry,
-} from "./shapeLibraryUtils";
-import type { CompatibleShapesResult } from "./shapeDetailUtils";
+} from "shape-catalog";
 import { ShapeCardDiagram } from "./ShapeCardDiagram";
 import { FeaturedMark, IssueBadges } from "./IssueBadges";
 import {

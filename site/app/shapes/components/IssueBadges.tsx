@@ -6,7 +6,7 @@
 // the initial `/shapes` chunk (see `ShapeLibrary.tsx`'s `next/dynamic` import),
 // so shared pieces live here rather than being imported from the panel.
 import type { ShapeAuditIssue } from "tonal-guitar";
-import { badgeClassFor, severityRank } from "./shapeLibraryUtils";
+import { badgeClassFor, severityRank } from "shape-catalog";
 
 /** Sorted, badge-styled list of a shape's audit issues — `null` when there
  * are none. Shared by the grid card and the detail panel so severity

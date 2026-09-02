@@ -15,9 +15,9 @@ import type {
 import {
   chordDisplaySymbol,
   type ChordCatalogEntry,
+  type InversionGroupsResult,
   type ShapeCatalogEntry,
-} from "./shapeLibraryUtils";
-import type { InversionGroupsResult } from "./shapeDetailUtils";
+} from "shape-catalog";
 import { CompactFretboard } from "./CompactFretboard";
 import { ShapeCardDiagram } from "./ShapeCardDiagram";
 import { ShapeCardChordTable } from "./ShapeCardChordTable";

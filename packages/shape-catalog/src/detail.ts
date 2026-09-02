@@ -1,9 +1,9 @@
 // Pure detail-derivation helpers for the shape detail panel (Task Group 12).
-// Same peer-dep boundary as `shapeLibraryUtils.ts`: imports only from
-// "tonal-guitar" (plus this file's own local sibling module), never
-// "@tonaljs/*" directly. All Tonal-touching calls the panel needs live here
-// so `ShapeDetailPanel.tsx` (a later task group) stays free of library calls
-// in JSX and can run everything in a `useMemo` keyed on the selected entry.
+// Same peer-dep boundary as `catalog.ts`: imports only from "tonal-guitar"
+// (plus this file's own local sibling module), never "@tonaljs/*" directly.
+// All Tonal-touching calls the panel needs live here so `ShapeDetailPanel.tsx`
+// (a later task group) stays free of library calls in JSX and can run
+// everything in a `useMemo` keyed on the selected entry.
 //
 // Every helper documented below degrades gracefully — empty array/
 // `undefined`, never throws — for the registry gaps verified in
@@ -28,12 +28,12 @@ import type {
   ChordCatalogEntry,
   ScaleCatalogEntry,
   ShapeCatalogEntry,
-} from "./shapeLibraryUtils";
+} from "./catalog";
 
 // Re-exposed here (12.4) so the panel can pull its report-problem plumbing
 // from the same module as every other detail helper. The implementation
-// stays in `shapeLibraryUtils.ts` — this is a re-export, not a fork.
-export { buildReportUrl } from "./shapeLibraryUtils";
+// stays in `catalog.ts` — this is a re-export, not a fork.
+export { buildReportUrl } from "./catalog";
 
 // ============================================================
 // Chord entries (12.2)

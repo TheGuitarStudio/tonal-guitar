@@ -10,7 +10,7 @@
 // compatible shapes, the report-problem URL) is computed once in
 // `buildDetail`, invoked from a single `useMemo` keyed on `entry` — never for
 // the full ~159-entry catalog. `buildDetail` itself only calls the pure
-// helpers in `shapeDetailUtils.ts` — every Tonal-touching call (including
+// helpers in `shape-catalog` — every Tonal-touching call (including
 // `identifyChord`/`STANDARD`) lives there, keeping this component free of
 // direct library calls in JSX.
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -19,7 +19,7 @@ import type {
   ChordCatalogEntry,
   ScaleCatalogEntry,
   ShapeCatalogEntry,
-} from "./shapeLibraryUtils";
+} from "shape-catalog";
 import {
   alternateFingerings,
   buildReportUrl,
@@ -34,9 +34,12 @@ import {
   type CompatibleShapesResult,
   type InversionGroupsResult,
   type SiblingStepperInfo,
-} from "./shapeDetailUtils";
+} from "shape-catalog";
+import { REPO_SLUG } from "@/lib/repo";
 import { ChordDetailView } from "./ChordDetailView";
 import { ScaleDetailView } from "./ScaleDetailView";
+
+const CATALOG_CONFIG = { repoSlug: REPO_SLUG };
 
 export interface ShapeDetailPanelProps {
   /** The currently selected catalog entry, or `undefined` when no card is
@@ -128,7 +131,7 @@ function buildDetail(
       stepper: siblingStepper(entry, siblings),
       alternates: alternateFingerings(entry),
       inversions: inversionGroups(entry, siblings),
-      reportUrl: buildReportUrl(entry),
+      reportUrl: buildReportUrl(entry, CATALOG_CONFIG),
     };
   }
 
@@ -140,7 +143,7 @@ function buildDetail(
     stepper: siblingScaleStepper(entry, scaleSiblingsList),
     related: relatedScalesForEntry(entry),
     compatible: compatibleShapesForEntry(entry),
-    reportUrl: buildReportUrl(entry),
+    reportUrl: buildReportUrl(entry, CATALOG_CONFIG),
   };
 }
 

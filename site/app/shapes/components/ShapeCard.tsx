@@ -1,7 +1,7 @@
 "use client";
 
 import { memo } from "react";
-import type { ShapeCatalogEntry } from "./shapeLibraryUtils";
+import type { ShapeCatalogEntry } from "shape-catalog";
 import { ShapeCardDiagram } from "./ShapeCardDiagram";
 import { FeaturedMark, IssueBadges } from "./IssueBadges";
 
