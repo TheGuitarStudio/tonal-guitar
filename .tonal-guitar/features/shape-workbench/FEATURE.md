@@ -44,9 +44,9 @@
 | 3 | TG11: Parent-Box Selection & Arpeggio Derivation | complete | sonnet | - |
 | 4 | TG10: Optional-Tier Audit Integration (D-006) | complete | sonnet | - |
 | 5 | TG12: Public API Exports | complete | sonnet | - |
-| 6 | TG13: Barre-Fret Offset Migration (D-010) | pending | - | - |
-| 6 | TG15: Generator-Owned-Block Prep — Markers & Count Annotations | pending | - | - |
-| 6 | TG21: packages/shape-catalog — Move-Only Extraction | pending | - | - |
+| 6 | TG13: Barre-Fret Offset Migration (D-010) | complete | sonnet | - |
+| 6 | TG15: Generator-Owned-Block Prep — Markers & Count Annotations | complete | sonnet | - |
+| 6 | TG21: packages/shape-catalog — Move-Only Extraction | complete | sonnet | - |
 | 7 | TG17: Merge Script Core — scripts/shapes-merge.mjs | pending | - | - |
 | 7 | TG22: packages/shape-catalog — New Pure Models | pending | - | - |
 | 8 | TG18: Merge Script Fixtures & Tests | pending | - | - |
@@ -68,6 +68,7 @@
 - **Layer 3**: No concerns. Continued.
 - **Layer 4**: No concerns. Continued.
 - **Layer 5**: No concerns. Continued.
+- **Layer 6**: Aligned; one docstring accuracy fix applied by lead (checkBarreFretOrigin scope claim). Pre-existing EXT_CHORD_A_9 barre-origin issue in extended-chords.ts noted for separate tracking (spec §4.5 no-silent-autofix). Continued.
 
 ### Spec Compliance
 

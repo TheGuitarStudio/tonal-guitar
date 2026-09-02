@@ -545,8 +545,11 @@ export function checkTuningMismatch(
  *    while a distinct, valid (`>= 0`) offset exists — i.e. the data still
  *    stores the pre-D-010 absolute value instead of the offset. This was the
  *    trigger the Group 13 `open-chords.ts` migration was gated on (see D-010
- *    §4.1) — that migration has landed, and the full registry (including
- *    `src/data/open-chords.ts`) now reports zero issues here.
+ *    §4.1) — that migration has landed, and every `src/data/open-chords.ts`
+ *    shape (voicingFamily "open"/"barre") now reports zero issues here.
+ *    One pre-existing issue elsewhere in the registry (`EXT_CHORD_A_9` in
+ *    `src/data/extended-chords.ts`, absolute-style barre fret) predates
+ *    D-010 and is tracked separately rather than silently auto-fixed.
  *
  * `root`/`tuning`/`prebuilt` mirror `checkFretSpan`'s signature so
  * `auditChordShape` can thread its single hoisted `applyChordShape` build in
