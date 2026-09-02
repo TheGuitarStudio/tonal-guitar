@@ -680,7 +680,7 @@ describe("jazz-shells: build tests and SHELL_DICTIONARY", () => {
   });
 
   it("total shell shapes = 8 (4 types × 2 root strings, one string set per ordering — D-012)", () => {
-    expect(SHELL_SHAPES).toHaveLength(8);
+    expect(SHELL_SHAPES).toHaveLength(8); // shapes-merge:count shell-shape-total
   });
 
   it("SHELL_DICTIONARY keys/values are byte-identical to before the D-012 pairing fix", () => {
@@ -885,7 +885,7 @@ describe("TG10 — Data integrity: chordShapes.all() count after all curated imp
     //   jazz-shells.ts:       8  (4 chord types × 2 root strings — D-012)
     //   extended-chords.ts:  EXTENDED_CHORD_SHAPES.length (grows per curation tier)
     const total = chordShapes.all().length;
-    expect(total).toBe(94 + EXTENDED_CHORD_SHAPES.length);
+    expect(total).toBe(94 + EXTENDED_CHORD_SHAPES.length); // shapes-merge:count chord-shape-total
   });
 
   it("caged-chords-7th adds exactly 11 shapes (validates R-4.1 registration)", () => {
@@ -913,7 +913,7 @@ describe("TG10 — Data integrity: chordShapes.all() count after all curated imp
   it("jazz-shells adds exactly 8 shapes (validates D-012 registration)", () => {
     // 4 chord types × 2 root strings (E-root, A-root) = 8
     const shellCount = chordShapes.query({ voicingFamily: "shell" }).length;
-    expect(shellCount).toBe(8);
+    expect(shellCount).toBe(8); // shapes-merge:count shell-voicing-family-count
   });
 });
 
@@ -1127,7 +1127,7 @@ describe("R5.3 — minor-derived scale-shape registrations: +10 total", () => {
       (s) => s.quality === "minor" || s.quality === "minor-pentatonic",
     );
     expect(derivedMinorShapes.length).toBe(10);
-    expect(names().length).toBe(27);
+    expect(names().length).toBe(27); // shapes-merge:count scale-shape-total
   });
 });
 
@@ -1305,7 +1305,7 @@ describe("TG5 — featured chord shape curation", () => {
   });
 
   it("exactly 32 chord shapes are flagged featured across the registry (17 open-chords.ts + 15 extended-chords.ts)", () => {
-    expect(chordShapes.all().filter((s) => s.featured).length).toBe(32);
+    expect(chordShapes.all().filter((s) => s.featured).length).toBe(32); // shapes-merge:count featured-chord-total
   });
 
   it("featured entries don't trigger a metadata-completeness audit issue that mentions 'featured' — the field is optional/curated and not checked by checkChordMetadataCompleteness", () => {
@@ -1371,6 +1371,6 @@ describe("TG5 — featured scale shape curation", () => {
   });
 
   it("exactly 5 scale shapes are flagged featured across the registry", () => {
-    expect(all().filter((s) => s.featured).length).toBe(5);
+    expect(all().filter((s) => s.featured).length).toBe(5); // shapes-merge:count featured-scale-total
   });
 });

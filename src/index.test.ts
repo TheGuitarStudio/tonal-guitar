@@ -385,21 +385,21 @@ describe("Shape registry", () => {
 
   test("built-in CAGED shapes are registered (5 major + 5 minor)", () => {
     const cagedShapes = all().filter((s) => s.system === "caged");
-    expect(cagedShapes).toHaveLength(10);
+    expect(cagedShapes).toHaveLength(10); // shapes-merge:count caged-scale-total
   });
 
   test("built-in 3NPS patterns are registered (7 shapes)", () => {
     const npsShapes = all().filter((s) => s.system === "3nps");
-    expect(npsShapes).toHaveLength(7);
+    expect(npsShapes).toHaveLength(7); // shapes-merge:count three-nps-scale-total
   });
 
   test("built-in pentatonic boxes are registered (5 major + 5 minor)", () => {
     const pentShapes = all().filter((s) => s.system === "pentatonic");
-    expect(pentShapes).toHaveLength(10);
+    expect(pentShapes).toHaveLength(10); // shapes-merge:count pentatonic-scale-total
   });
 
   test("total registered shapes = 27 (10 CAGED + 7 3NPS + 10 pentatonic)", () => {
-    expect(all()).toHaveLength(27);
+    expect(all()).toHaveLength(27); // shapes-merge:count scale-shape-total
   });
 
   test("removeAll() clears registry, add() re-registers", () => {
