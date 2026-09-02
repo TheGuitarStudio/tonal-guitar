@@ -3,6 +3,7 @@
  * Also covers CR-038: registry hostile-key safety (Map-backed indices).
  */
 import { describe, it, expect, afterEach } from "vitest";
+import shapeSource from "./shape.ts?raw";
 import {
   chordShapes,
   get as getScale,
@@ -1212,5 +1213,27 @@ describe("visibleArpeggios (Task Group 4)", () => {
 
   it("returns [] when nothing is registered", () => {
     expect(visibleArpeggios()).toEqual([]);
+  });
+});
+
+// ============================================================
+// Dependency-tier boundary (CLAUDE.md, spec §9 edge case 6): src/shape.ts
+// stays zero-Tonal-dep — fields, registries, resolvers, and helpers must
+// not pull in @tonaljs/* even transitively via a relative import of a
+// required- or optional-tier module.
+// ============================================================
+
+describe("dependency tier boundary: src/shape.ts stays zero-Tonal", () => {
+  it("has no @tonaljs/* import", () => {
+    expect(shapeSource).not.toMatch(/["']@tonaljs\//);
+  });
+
+  it("does not import ./build, ./audit, ./integration, or ./audit-integration", () => {
+    const importLines = shapeSource
+      .split("\n")
+      .filter((line) => /^\s*import\b/.test(line));
+    for (const line of importLines) {
+      expect(line).not.toMatch(/["']\.\/(build|audit|integration|audit-integration)["']/);
+    }
   });
 });

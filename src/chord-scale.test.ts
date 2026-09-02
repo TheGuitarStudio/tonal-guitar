@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import chordScaleSource from "./chord-scale.ts?raw";
 import {
   CHORD_SCALE_RULE,
   CHORD_SCALE_RULE_VERSION,
@@ -59,5 +60,18 @@ describe("CHORD_SCALE_RULE", () => {
     expect(Object.keys(CHORD_SCALE_RULE).sort()).toEqual(
       ["7", "M", "m", "m7", "m7b5", "maj7"].sort(),
     );
+  });
+});
+
+// ============================================================
+// Dependency-tier boundary (CLAUDE.md, spec §9 edge case 6): src/chord-scale.ts
+// stays zero-Tonal-dep so data/caged-scales-minor.ts and
+// data/pentatonic-minor.ts can rely on it (via transform.ts) with zero
+// optional peers at import time.
+// ============================================================
+
+describe("dependency tier boundary: src/chord-scale.ts stays zero-Tonal", () => {
+  it("has no @tonaljs/* import", () => {
+    expect(chordScaleSource).not.toMatch(/["']@tonaljs\//);
   });
 });

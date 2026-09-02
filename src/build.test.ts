@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import buildSource from "./build.ts?raw";
 import { applyChordShape, autoFingering, buildFrettedScale } from "./build";
 import { gripBaseFret, ChordShape } from "./shape";
 import {
@@ -219,5 +220,27 @@ describe("autoFingering", () => {
     };
     const result = autoFingering(shape, "D", STANDARD);
     expect(result.fingers[0]).toBeNull();
+  });
+});
+
+// ============================================================
+// Dependency-tier boundary (CLAUDE.md, spec §9 edge case 6): src/build.ts
+// stays required-peer — it may use @tonaljs/note and @tonaljs/interval, but
+// must never reach the optional tier (@tonaljs/scale, @tonaljs/chord,
+// @tonaljs/key, or ./integration / ./audit-integration).
+// ============================================================
+
+describe("dependency tier boundary: src/build.ts stays required-peer", () => {
+  it("has no optional-peer @tonaljs/* import", () => {
+    expect(buildSource).not.toMatch(/["']@tonaljs\/(scale|chord|key)["']/);
+  });
+
+  it("does not import ./integration or ./audit-integration", () => {
+    const importLines = buildSource
+      .split("\n")
+      .filter((line) => /^\s*import\b/.test(line));
+    for (const line of importLines) {
+      expect(line).not.toMatch(/["']\.\/(integration|audit-integration)["']/);
+    }
   });
 });

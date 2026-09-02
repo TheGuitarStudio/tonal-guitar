@@ -890,6 +890,26 @@ describe("TG10 — Data integrity: chordShapes.all() count after all curated imp
     expect(total).toBe(99 + EXTENDED_CHORD_SHAPES.length); // shapes-merge:count chord-shape-total
   });
 
+  it("closes #57: chordShapes.query({ system: 'caged' }) filtered to triads (chordType M/m, excluding the caged-chords-7th extended types) returns exactly the 10 CAGED triad shapes by name", () => {
+    const cagedTriads = chordShapes
+      .query({ system: "caged" })
+      .filter((shape) => shape.chordType === "M" || shape.chordType === "m");
+    expect(cagedTriads.map((shape) => shape.name).sort()).toEqual(
+      [
+        "E Shape Major",
+        "A Shape Major",
+        "D Shape Major",
+        "C Shape Major",
+        "G Shape Major",
+        "E Shape Minor",
+        "A Shape Minor",
+        "G Shape Minor",
+        "D Shape Minor",
+        "C Shape Minor",
+      ].sort(),
+    );
+  });
+
   it("caged-chords-7th adds exactly 11 shapes (validates R-4.1 registration)", () => {
     // 4 chord types, but not all CAGED positions exist for each:
     // maj7: E-shape + A-shape + D-shape = 3
