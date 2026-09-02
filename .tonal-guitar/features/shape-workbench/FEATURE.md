@@ -7,7 +7,7 @@
 - [x] Phase 1: Research
 - [x] Phase 2: Shape
 - [x] Phase 3: Plan
-- [ ] Phase 4: Implement
+- [x] Phase 4: Implement
 
 ## Context
 
@@ -23,7 +23,7 @@
 | Research  | research.md | done    | 1     | yes      |
 | Shape     | spec.md     | done    | 1     | no       |
 | Plan      | tasks.md    | done    | 1     | yes      |
-| Implement | FEATURE.md  | pending | 0     | no       |
+| Implement | FEATURE.md  | done    | 2     | yes      |
 
 ## Phase 4: Implement
 
@@ -82,6 +82,7 @@
 ### Spec Compliance
 
 - **Loop 1**: 3 gaps found (0 missing, 3 partial: UpdateChange field-clearing semantics, shape-catalog Tonal peer deps, workbench README docs), 3 fixed.
+- **Loop 2**: 0 gaps remaining.
 
 ## Loop History
 
