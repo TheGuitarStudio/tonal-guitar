@@ -42,7 +42,7 @@
 | 2 | TG8: Fingering Carries Fingers/Barres + autoFingering | complete | sonnet | - |
 | 3 | TG9: Required-Tier Audit Checks | complete | sonnet | - |
 | 3 | TG11: Parent-Box Selection & Arpeggio Derivation | complete | sonnet | - |
-| 4 | TG10: Optional-Tier Audit Integration (D-006) | pending | - | - |
+| 4 | TG10: Optional-Tier Audit Integration (D-006) | complete | sonnet | - |
 | 5 | TG12: Public API Exports | pending | - | - |
 | 6 | TG13: Barre-Fret Offset Migration (D-010) | pending | - | - |
 | 6 | TG15: Generator-Owned-Block Prep — Markers & Count Annotations | pending | - | - |
@@ -66,6 +66,7 @@
 - **Layer 1**: Aligned; one latent concern (printer identifier naming diverged from exportIdentifierFor on apostrophes/diacritics) — reconciled by lead before Layer 2. Continued.
 - **Layer 2**: No concerns. Continued.
 - **Layer 3**: No concerns. Continued.
+- **Layer 4**: No concerns. Continued.
 
 ### Spec Compliance
 
