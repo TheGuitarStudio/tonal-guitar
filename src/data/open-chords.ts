@@ -25,6 +25,13 @@
  * baseFret handling (from chords-db spec):
  *   absFret = baseFret === 1 ? frets[i] : frets[i] + (baseFret - 1)
  *
+ * `barres[].fret` below still stores the pre-D-010 ABSOLUTE fret from the
+ * chords-db source data (this file has not been migrated yet — see the
+ * barre-fret migration task). Per D-010, `Barre.fret` is now defined as an
+ * offset in frets from the shape's grip base (`gripBaseFret`/
+ * `sourceGripBaseFret` in `../shape`), not an absolute fret; resolve with
+ * `absoluteBarreFret` once this file's data is migrated.
+ *
  * Shapes are registered into the chord shape registry at import time.
  */
 
