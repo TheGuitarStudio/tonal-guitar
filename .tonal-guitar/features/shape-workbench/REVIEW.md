@@ -19,7 +19,7 @@
 - [x] Phase 2: Lint/Test Fix
 - [x] Phase 3: Architecture Review
 - [x] Phase 4: Architecture Fix
-- [ ] Phase 5: Code Simplification Review
+- [x] Phase 5: Code Simplification Review
 - [ ] Phase 6: Code Simplification Fix
 - [ ] Phase 7: Specialized Reviews
 - [ ] Phase 8: Specialized Fixes
@@ -221,3 +221,47 @@ Note: the admin area was deleted (moved to shape-workbench); former local duplic
 ### Won't Fix
 
 - (none)
+
+---
+
+## Phase 5: Code Simplification Review
+
+21 findings (2 Important, 19 Suggestion) from five parallel review agents. Everything already tracked in Phase 3 was excluded.
+
+### src/ (library)
+
+- CR-080: [Important] Registry `add`/`remove` logic duplicated identically across three registries in `src/shape.ts:300-327` (scale), `:351-377` (chord), `:438-464` (arpeggio) — extract shared helpers parameterized on the dictionary+index pair.
+- CR-081: [Suggestion] `chordShapes.query` `cagedPosition`/`tags` filter clauses (`src/shape.ts:405-413`) copied verbatim into `arpeggioShapes.query` (`:484-492`).
+- CR-082: [Suggestion] `autoFingering` is ~67 lines with 4-level nesting in `src/build.ts:382-448` — split finger-assignment and barre-collapsing passes.
+- CR-083: [Suggestion] `chordShapeGeometry` computed twice per shape in `auditAllShapes` (`src/audit.ts:1005-1025`) — same redundancy CR-006 fixed for arpeggios.
+- CR-084: [Suggestion] Span computation duplicated near-verbatim three times in `src/audit.ts:127,578,869` — extract `fretSpan(frets)`.
+- CR-085: [Suggestion] `checkCoversChord` re-derives `getChord` resolution that `chordToneChromas` already performs (`src/audit-integration.ts:188/107`) — `getChord` invoked twice per audited arpeggio.
+- CR-086: [Suggestion] `checkNameUnique` packs two dense collision computations into one 53-line function (`src/audit.ts:721-773`) — extract `nameCollides`/`identifierCollides`.
+
+### packages/shape-catalog + scripts/
+
+- CR-087: [Important] `scanRegisteredShapes` and `scanInboundReferences` re-implement identical declaration-chunk scanning in `scripts/shapes-merge.mjs:1307-1360` — grammar changes must be applied twice or the scans diverge; extract shared `scanDeclarationChunks`.
+- CR-088: [Suggestion] `deepEqualArray` (`scripts/shapes-merge.mjs:185-187`) is now a strict subset of `deepEqual` (`:194-207`) — delete and switch the one call site.
+- CR-089: [Suggestion] `FileStates.apply()` rollback branch nests 5 levels in `scripts/shapes-merge.mjs:508-521` — extract a `restoreFile` helper.
+- CR-090: [Suggestion] `planMerge()` is ~630 lines (`scripts/shapes-merge.mjs:665-1296`) — extract the numbered spec rules into `validateRuleN` functions.
+- CR-091: [Suggestion] `detectCollisions` add/rename blocks structurally similar in `packages/shape-catalog/src/changeset.ts:181-251` — shared helper parameterized on `{ trackIdentifier }`.
+
+### packages/shape-library-ui + fretboard-ui
+
+- CR-092: [Suggestion] Toggle-group widget duplicated three times intra-package (`FilterBar.tsx:401-411` private, `ColumnsToggle.tsx:16-34`, `DiagramOrientationToggle.tsx:16-34`) with a11y drift (FilterBar's copy lacks `role="group"`/`aria-label`) — extract one generic `ToggleGroup`. (Distinct from CR-077, which is site-side.)
+- CR-093: [Suggestion] `cellsToChordShape` duplicates `cellsToScaleShapeStrings` root-resolution + cell-sort logic in `packages/fretboard-ui/src/FretboardEditor.tsx:226-230/271-275,233/286` — factor a shared helper.
+
+### packages/shape-workbench
+
+- CR-094: [Suggestion] Byte-identical `copyToClipboard` in `editor/OutputPreview.tsx:23-29` and `export/ExportDiffView.tsx:29-35` — extract shared helper.
+- CR-095: [Suggestion] `resolvedFetch` fallback expression repeated verbatim in `screens/Export.tsx:65,98`.
+- CR-096: [Suggestion] `STATUS_CLASS` badge map duplicated between `editor/ChecksCard.tsx:21-26` and `export/ExportChangeList.tsx:20-25`.
+- CR-097: [Suggestion] `onAddTag` duplicates its body across chord/scale branches in `handlers.ts:176-203` — unify after computing `kind`/`base`/`original` once.
+- CR-098: [Suggestion] `ExportDiffView` TS-fetch effect repeats the same `renderShapeTs().then()` block twice (`export/ExportDiffView.tsx:63-82`) — collapse to a loop.
+
+### site/
+
+- CR-099: [Suggestion] `handleGridSelectEntry` is misleadingly named in `site/app/shapes/components/ShapeLibrary.tsx:353` — it's wired to board and grid alike; rename per its own comment.
+- CR-100: [Suggestion] Grid-view JSX stayed inline (`ShapeLibrary.tsx:650-693`) while the board branch became `ShapeBoardView` — extract a sibling `GridView` for symmetry.
+
+No dead code, orphaned CSS, or stale references from the component-deletion refactor were found (site agent grepped all deleted component names).
