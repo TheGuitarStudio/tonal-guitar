@@ -25,10 +25,10 @@
 - [x] Phase 2: Lint/Test Fix
 - [x] Phase 3: Architecture Review
 - [x] Phase 4: Architecture Fix
-- [ ] Phase 5: Code Simplification Review
-- [ ] Phase 6: Code Simplification Fix
-- [ ] Phase 7: Specialized Reviews
-- [ ] Phase 8: Specialized Fixes
+- [x] Phase 5: Code Simplification Review
+- [x] Phase 6: Code Simplification Fix
+- [x] Phase 7: Specialized Reviews
+- [x] Phase 8: Specialized Fixes
 - [ ] Phase 9: Final Verification
 
 (Loop 1 completed all 9 phases — sections below. Loop 2 findings continue from CR-107.)
@@ -378,3 +378,13 @@ Two opus agents reviewed the loop-1 fix diff (efbd207..HEAD, ~4,900 lines). All 
 - CR-108..CR-111, CR-113 (residual), CR-116..CR-118: GitHub issue #204.
 
 Verification: lint clean, root build clean, `npm test` 1758/1758 (+26), workbench `tsc --noEmit` + vite build clean.
+
+## Phase 5–6 (Loop 2): Code Simplification
+
+Review of the loop-2 fix diff: **NO FINDINGS** — nothing to fix in Phase 6.
+
+## Phase 7–8 (Loop 2): Specialized Review + Fix
+
+Combined security/type-safety review of the loop-2 fix diff. Confirmed: `rawGeometry`/`changeKeys` never reach the changeset JSON (no CR-101/102 regression); mutation-counter cache sound; `changeKeys` fallback crash-safe inside the outer try/catch. One finding:
+
+- CR-122: [Important] Persisted `rawGeometry` accepted with zero structural validation in `packages/shape-workbench/src/store.ts` (`isValidDraftValue`) and returned verbatim by `seedForDraft` into a render-body `buildShapeFromCells` with no error boundary — a malformed persisted entry (`{"cells": "oops"}`) crashes the Editor on resume; the exact CR-119 criterion, unapplied to the field CR-115 added. **Fixed** (by lead): `isValidRawGeometry` guard in `sanitizeDrafts` drops just the malformed `rawGeometry` field (draft survives, falls back to the derive-from-shape seed); 2 regression tests.

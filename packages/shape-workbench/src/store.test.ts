@@ -447,6 +447,36 @@ describe("loadPersistedState", () => {
     expect(drafts["good::slot"].shape.name).toBe("kept");
   });
 
+  it("drops a malformed rawGeometry but keeps the draft itself (CR-122)", () => {
+    const storage = createMemoryStorage();
+    storage.data.set(
+      WORKBENCH_STORAGE_KEY,
+      JSON.stringify({
+        ...initialWorkbenchState,
+        drafts: {
+          "m7::C": { ...gapDraft("kept"), rawGeometry: { cells: "oops", barres: [] } },
+        },
+      }),
+    );
+    const drafts = loadPersistedState(storage).drafts;
+    expect(Object.keys(drafts)).toEqual(["m7::C"]);
+    expect(drafts["m7::C"].shape.name).toBe("kept");
+    expect(drafts["m7::C"].rawGeometry).toBeUndefined();
+  });
+
+  it("keeps a well-formed rawGeometry (CR-122)", () => {
+    const storage = createMemoryStorage();
+    const rawGeometry = { cells: [{ string: 2, fret: 3 }], barres: [] };
+    storage.data.set(
+      WORKBENCH_STORAGE_KEY,
+      JSON.stringify({
+        ...initialWorkbenchState,
+        drafts: { "m7::C": { ...gapDraft("kept"), rawGeometry } },
+      }),
+    );
+    expect(loadPersistedState(storage).drafts["m7::C"].rawGeometry).toEqual(rawGeometry);
+  });
+
   it("regenerates changeKeys from change content when the persisted value is missing/wrong-length (CR-112/CR-119)", () => {
     const storage = createMemoryStorage();
     storage.data.set(

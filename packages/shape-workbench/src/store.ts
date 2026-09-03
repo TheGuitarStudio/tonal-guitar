@@ -207,11 +207,34 @@ function isValidDraftValue(value: unknown): value is WorkbenchDraft {
   return isPlainObject(value) && isPlainObject((value as Record<string, unknown>).shape);
 }
 
+/** `rawGeometry` feeds `seedForDraft` → `useState(seed.cells)` → a
+ * render-body `buildShapeFromCells` call with no error boundary above it
+ * (CR-122), so a malformed persisted value must be dropped here — the draft
+ * itself survives and falls back to the derive-from-shape seed path. */
+function isValidRawGeometry(value: unknown): value is RawGeometry {
+  if (!isPlainObject(value)) return false;
+  const { cells, barres } = value as Record<string, unknown>;
+  return (
+    Array.isArray(cells) &&
+    cells.every(
+      (c) => isPlainObject(c) && typeof (c as Record<string, unknown>).string === "number" && typeof (c as Record<string, unknown>).fret === "number",
+    ) &&
+    Array.isArray(barres) &&
+    barres.every((b) => isPlainObject(b))
+  );
+}
+
 function sanitizeDrafts(value: unknown): Record<string, WorkbenchDraft> {
   if (!isPlainObject(value)) return {};
   const result: Record<string, WorkbenchDraft> = {};
   for (const [key, draft] of Object.entries(value)) {
-    if (isValidDraftValue(draft)) result[key] = draft;
+    if (!isValidDraftValue(draft)) continue;
+    if ("rawGeometry" in draft && !isValidRawGeometry(draft.rawGeometry)) {
+      const { rawGeometry: _dropped, ...rest } = draft;
+      result[key] = rest;
+    } else {
+      result[key] = draft;
+    }
   }
   return result;
 }
