@@ -17,7 +17,7 @@
 
 - [x] Phase 1: Setup
 - [x] Phase 2: Lint/Test Fix
-- [ ] Phase 3: Architecture Review
+- [x] Phase 3: Architecture Review
 - [ ] Phase 4: Architecture Fix
 - [ ] Phase 5: Code Simplification Review
 - [ ] Phase 6: Code Simplification Fix
@@ -44,3 +44,105 @@ All checks passed with no fixes needed:
 - `site`: `next build` — clean (14 static pages)
 
 (`packages/fretboard-ui`, `shape-catalog`, `shape-library-ui` have no build scripts; they are typechecked/tested via the root pipeline.)
+
+---
+
+## Phase 3: Architecture Review
+
+79 findings (15 Critical, 33 Important, 31 Suggestion) from five parallel opus review agents.
+
+### src/ (library)
+
+- CR-001: [Critical] Un-migrated absolute barre frets in `src/data/extended-chords.ts:495` (also `:282`, `:383`, `:548`) — D-010 redefined `Barre.fret` as grip-base offset and `applyChordShape` materializes `gripBase + b.fret` (`src/build.ts:331-335`), but only `open-chords.ts` was migrated. E.g. `EXT_CHORD_A_13` stored `fret: 3` resolves to absolute 5; real barre is 3 (offset 1). `EXT_CHORD_A_DIM7` resolves to 4, real barre at 2 (offset 0). Not caught by `checkBarreFretOrigin` (within span, no `baseFret`). Needs the same `newFret = absoluteFret - sourceGripBase` pass open-chords got.
+- CR-002: [Important] Grip-base offset convention not root-invariant in `src/shape.ts:219` / `src/data/caged-chords-minor.ts:47-50` — `gripBaseFret` excludes open strings, so the base moves for shapes whose root string is open at some roots. `CAGED_CHORD_GM` offsets correct at C, off by one at G; `EXT_CHORD_A_M6` correct at C, off at A. Anchor offsets to a documented reference root/`baseFret`, or include open strings in the base.
+- CR-003: [Important] `Fingering.barres` string indices not remapped by `stringOffset` in `src/build.ts:332-335` — `frets`/`fingers` are tuning-indexed via `strOffset` but `barres.fromString/toString` pass through shape-indexed. `autoFingering` (`src/build.ts:367`) has the mirror problem (returns tuning-length arrays meant to seed shape-indexed fields).
+- CR-004: [Important] `checkNameUnique` self-exclusion is reference equality in `src/audit.ts:683` — any draft/clone of a registered shape is a false positive, forcing downstream to suppress the whole check class (`packages/shape-workbench/src/editor/checks.ts:69`, `scripts/shapes-merge.mjs`), which also suppresses genuine rename-into-collision. Add `options.ignoreName`/`selfName`.
+- CR-005: [Important] `checkNameUnique` unbounded registry scan with per-entry identifier derivation in `src/audit.ts:698` — full audit is O(N²) regex work; workbench re-runs per edit. Build identifier set once per call site or memoize keyed off registry mutation.
+- CR-006: [Important] Arpeggio audit path rebuilds the same shape five times in `src/audit.ts:905` and `src/audit-integration.ts:282` — `checkScaleBuildLoss`, `checkPositionSpan`, `checkChordTonesOnly`, `checkCoversChord`, `checkContainsChordGrip` each call `buildFrettedScale`; thread an optional `prebuilt?: FrettedScale` like the chord path does.
+- CR-007: [Important] CLAUDE.md dependency-layer docs stale for three new modules — `src/audit-integration.ts` (second optional-peer module), `src/chord-scale.ts` and `src/changeset.ts` (new zero-Tonal-dep modules) are absent from the layer lists. Tier placements verified correct; docs need updating.
+- CR-008: [Important] Registered shape names removed/renamed with no CHANGELOG entry in `src/data/jazz-shells.ts:79,139` — D-012 drops shells 16→8 and renames all; names are public lookup keys in a published package. Needs breaking-change CHANGELOG entry (+ version-bump note).
+- CR-009: [Suggestion] `parentBoxForChordShape` re-resolves the Tonal scale once per registry candidate in `src/integration.ts:264`; also rejects 6-string boxes under 7/8-string tunings contradicting `buildFrettedScale`'s `stringOffset` handling.
+- CR-010: [Suggestion] `CHORD_SCALE_RULE` is a mutable export indexed without own-property guard in `src/chord-scale.ts:20,37` — `scaleTypeForChordType("constructor")` returns a prototype member. Use `Object.hasOwn` and freeze the table.
+- CR-011: [Suggestion] `AddChange.shape` is an undiscriminated union in `src/changeset.ts:35` — `kind` and `shape` can disagree; make `ChangesetChange` a per-kind discriminated union.
+- CR-012: [Suggestion] Audit aggregate/API asymmetries in `src/audit.ts:935,769,627` — `auditAllShapes` omits arpeggios; `checkNameUnique` wired only into chord audit; `NameUniqueKind` not re-exported from index.
+- CR-013: [Suggestion] `sourceGripBaseFret` takes a deliberately unused `_shape` parameter in `src/shape.ts:240` but is public API — drop it or use it.
+
+### packages/shape-catalog + scripts/ (merge tooling)
+
+- CR-014: [Critical] No atomicity across multi-file writes in `scripts/shapes-merge.mjs:372-381` — `apply()` writes/unlinks one file at a time with no staging or rollback; a failure mid-loop leaves a half-merged tree. Stage temp files + rename in a second pass, or restore `originalText` on failure.
+- CR-015: [Critical] Partial merges unrecoverable by re-run in `scripts/shapes-merge.mjs:911` — `data-imports` insertion gated on `isNewOnDisk`; after a partial failure the data file exists so re-run skips the `src/index.ts` import and `--check` reports a false no-op. Always push the insertion; the `order.includes(file)` dedupe at `:973` keeps it idempotent.
+- CR-016: [Critical] Whole-file reconstruction silently destroys content outside recognized owned blocks in `scripts/shapes-merge.mjs:890-892,908` (and `:946-953` for remove) — `buildGeneratedFileText` emits only header + imports + parsed blocks; anything unparsed is dropped without refusal.
+- CR-017: [Critical] Identifier validation wider than marker grammar — `scripts/lib/render-shape.mjs:51` accepts `$` in idents but `scripts/lib/owned-blocks.mjs:25` marker parse doesn't, so a `$`-ident block becomes invisible and is destroyed by the next add. Validate `change.ident` against the marker grammar in `shapes-merge.mjs` (`:750`).
+- CR-018: [Critical] `--update-counts` double-increments on re-run in `scripts/shapes-merge.mjs:1073` — no `alreadyApplied` guard (unlike `:814-818`), breaking the §6.6 idempotence contract; untested in `--update-counts` mode.
+- CR-019: [Critical] Renaming `update` bypasses name-uniqueness in `scripts/shapes-merge.mjs:841` — `CHECK_NAME_UNIQUE` filtered for updates and rule 6 (`:731`) only checks adds, but `patch.name` renames are supported (`packages/shape-catalog/src/changeset.ts:105-113`) and `detectCollisions` skips non-adds (`:191`). Rename onto an existing name merges cleanly → duplicate registration.
+- CR-020: [Critical] `locateOwnedRegion` resolves update/remove targets by name only, ignoring `change.kind`, in `scripts/shapes-merge.mjs:230-242` — names are unique per kind only; a chord and scale sharing a name rewrites whichever file lists first, and the raw substring match also hits comments. Filter candidate blocks by declared type annotation matching `change.kind`.
+- CR-021: [Important] Rename-fallback can target an unrelated shape in `scripts/shapes-merge.mjs:298-300` — strategy-2 fallback to `patch.name` can silently overwrite a different registered shape; require deep-equality of the located block with the merged result.
+- CR-022: [Important] `remove` not idempotent and breaks `--check` in `scripts/shapes-merge.mjs:638-650` — re-running an applied remove throws `MergeRefusal` instead of the documented no-op; treat already-absent targets as satisfied.
+- CR-023: [Important] Removals/renames leave dangling `overrides`/`parentShape` references — rule 7 (`scripts/shapes-merge.mjs:768-791`) checks outbound refs only; no inbound-reference check on delete (`:941-956`) or rename.
+- CR-024: [Important] `packages/shape-catalog/src/detail.ts:14-22` imports integration-tier functions requiring optional peers `@tonaljs/scale/chord/key`, but `package.json:9-18` declares only note/interval — and `src/index.ts` re-exports `./detail`. Declare optional peers or split detail behind a subpath.
+- CR-025: [Important] `packages/shape-catalog/src/render.ts:11` imports `../../../scripts/lib/render-shape.mjs`, escaping the package boundary (`"files": ["src"]`) and dragging `import("prettier")` (`scripts/lib/render-shape.mjs:276`) into browser bundles via the barrel.
+- CR-026: [Important] `renderShape` not pure — output depends on prettier resolution and `resolveConfig(process.cwd())` (`scripts/lib/render-shape.mjs:285`), so workbench and merge script format differently (violates §6.5); parity test `packages/shape-catalog/src/render.test.ts:39` compares a function to itself (vacuous). Pin prettier options; golden-string test the fallback.
+- CR-027: [Suggestion] `parseShapeLiteral` fragile first-`=` regex in `scripts/shapes-merge.mjs:1047-1053`; failures throw bare `Error` not `MergeRefusal`.
+- CR-028: [Suggestion] `--force` with missing `tuning` crashes at `scripts/shapes-merge.mjs:586` (`changeset.tuning.length` unguarded); validate `Array.isArray` in structural block.
+- CR-029: [Suggestion] `--out`/`--root` swallow the next flag in `scripts/shapes-merge.mjs:147,151` — reject values starting with `--`.
+- CR-030: [Suggestion] Board cells silently collapse duplicates in `packages/shape-catalog/src/board.ts:302-306` — first match per (row, column) wins; expose a count on `BoardCell`.
+- CR-031: [Suggestion] `diffShape` equality is key-order sensitive (`JSON.stringify` compare) in `packages/shape-catalog/src/diff.ts:50-53`, can emit spurious geometry patches.
+- CR-032: [Suggestion] `badgeClassFor` returns Tailwind classes from the framework-agnostic layer in `packages/shape-catalog/src/catalog.ts:180-185` — class mapping belongs in shape-library-ui.
+- CR-033: [Suggestion] Wildcard ambient module `declare module "*/render-shape.mjs"` in `packages/shape-catalog/src/render-shape-mjs.d.ts:20` is global; scope it to the one real module.
+
+### packages/shape-library-ui + packages/fretboard-ui
+
+- CR-034: [Critical] `cellsToChordShape` drops a mute when the string also carries a fretted cell in `packages/fretboard-ui/src/FretboardEditor.tsx:289-301` — sort + `continue` lets a later fretted cell overwrite a lower-fret muted cell; docstring and test assert the opposite (test fixture only supplies the mute, so it passes). Pre-compute muted-string set and skip those strings.
+- CR-035: [Critical] Circular imports between `packages/shape-library-ui/src/ShapeDetailPanel.tsx:37-38` and `ChordDetailView.tsx:22`/`ScaleDetailView.tsx:11` — resolves only because shared bindings are hoisted `function` declarations; a `const`/`memo` addition becomes a TDZ error. Extract shared primitives/types into their own modules.
+- CR-036: [Important] `packages/shape-library-ui/src/reactGlobal.ts:25` is a Vitest-only workaround shipping an unconditional `globalThis.React` mutation to production (Next RSC/SSR use different React builds), and is load-bearing-by-accident (`ChordDetailView` relies on a transitive import). Fix jsx runtime config in fretboard-ui/vitest instead and delete the module.
+- CR-037: [Important] Five `FretboardEditorProps` declared but never read in `packages/fretboard-ui/src/FretboardEditor.tsx:37-46` (`tool`, `activeFinger`, `barres`, `onBarresChange`, `ghostMarkers`) — type-checked no-ops; implement or remove.
+- CR-038: [Important] `ShapeBoard` re-derives shape-catalog's private cell-key format in `packages/shape-library-ui/src/ShapeBoard.tsx:26-28` (duplicates unexported `cellKey`, `packages/shape-catalog/src/board.ts:126-127`) — format drift renders the board silently empty. Export `cellKey` or attach cells to rows.
+- CR-039: [Important] Scale facets carry two parallel state representations in `packages/shape-library-ui/src/FilterBar.tsx:58-62` (`scaleSelection` + flat `system`/`quality`/`FILTER_ALL`) — counts and `aria-pressed` can disagree; mirror the chord side.
+- CR-040: [Important] `toggleInAllOnSet` facet business logic lives in the UI at `packages/shape-library-ui/src/FilterBar.tsx:361-368` — encodes the "empty = all-on" invariant; move next to facet helpers in catalog.ts and unit-test.
+- CR-041: [Important] Derived state synced via `useEffect` in `packages/shape-library-ui/src/ShapeCard.tsx:78-85` — one-way `visible` should be computed during render.
+- CR-042: [Important] Invalid ARIA structures in `packages/shape-library-ui/src/ShapeBoard.tsx:77-95` (`role="grid"` with rows flattened through Fragments) and `:54` (`role="list"` with `role="group"` children) — drop the roles or use `display: contents` row wrappers with `role="row"`.
+- CR-043: [Important] `fretboard-ui`/`shape-catalog` listed in both `dependencies` and `devDependencies` in `packages/shape-library-ui/package.json:14-23` — hard deps produce the nested-React install forcing `resolve.dedupe` workarounds; move to `peerDependencies`.
+- CR-044: [Important] Select-entry callback named inconsistently across the public API: `onSelect` (`ShapeCard.tsx:37`) vs `onSelectEntry` (`ShapeBoard.tsx:21`, `BoardCellCard.tsx:18`, `ShapeDetailPanel.tsx:52`) with mixed optionality — standardize.
+- CR-045: [Suggestion] Unmemoized per-hover recomputation in `packages/shape-library-ui/src/ChordDetailView.tsx:199-201` (`buildFretMarkers`/`fretRangeFor`/`fretSummary`) and fresh `layout` object per render at `ShapeDiagram.tsx:119-126`.
+- CR-046: [Suggestion] CAGED position order defined three times (`packages/shape-catalog/src/board.ts:117`, `ShapeDetailPanel.tsx:239`, `packages/shape-workbench/src/editor/PropertiesForm.tsx:24`) — export one constant.
+- CR-047: [Suggestion] Audit-payload parsing in presentational component `packages/shape-library-ui/src/ShapeCardChordTable.tsx:20-25` — `CHECK_GEOMETRY_MISMATCH` details knowledge belongs beside the audit types.
+- CR-048: [Suggestion] Library stylesheet declares theme defaults on bare `:root` + media query in `packages/shape-library-ui/src/styles.css:12-34`; site override wins only by import order, and unmapped `--tg-warn`/`--tg-error` give dark badge colors on light theme. Scope with `:where()`/opt-in class.
+- CR-049: [Suggestion] No `"use client"` directives in shape-library-ui despite module-scope `createContext` (`capabilities.ts:26`) and hooks — boundary pushed onto consumers; sibling fretboard-ui marks its components.
+- CR-050: [Suggestion] `packages/shape-library-ui/tsconfig.json:18` reaches into sibling package internals (`../shape-catalog/src/render-shape-mjs.d.ts`) — shape-catalog should ship the shim via its own types entry.
+- CR-051: [Suggestion] `buildDetail`/`buildEntryNameMap` in `packages/shape-library-ui/src/ShapeDetailPanel.tsx:92-127` are pure catalog orchestration; detail-view tests hand-reimplement `buildDetail` (drift risk). Move into shape-catalog (also halves the CR-035 cycle).
+
+### packages/shape-workbench
+
+- CR-052: [Critical] Editor geometry (`cells`/`barres`) lives only in component-local state in `packages/shape-workbench/src/screens/Editor.tsx:84` — breadcrumb/Back/reload discards everything since the last Run-checks/Save; localStorage "crash resilience" persists an empty-geometry draft; no autosave or unsaved-changes guard. Persist derived geometry to the store on change (or at least on unmount/route change).
+- CR-053: [Critical] `onCreateShape` unconditionally overwrites an existing draft in `packages/shape-workbench/src/handlers.ts:127` — and it's the resume path: clicking a draft badge on the Board (`BoardCellCard.tsx:60`) destroys the draft. Reuse `deps.state.drafts[key]` when present.
+- CR-054: [Critical] `onEditShape` re-seeds from the registry and clobbers any in-progress draft for that shape in `packages/shape-workbench/src/handlers.ts:137` — read `state.drafts[entry.shape.name]` first.
+- CR-055: [Critical] Save round-trip silently rewrites interval spellings in `packages/shape-workbench/src/editor/deriveShape.ts:95,66` — cells→shape uses `intervalFromTo` (12 simple names only), so metadata-only edits to shapes using `"9M"`/`"11P"`/`"4A"` etc. emit patches rewriting `strings` (`"9M"`→`"2M"`) that shapes:merge applies to library source. Preserve `base.strings`/`fingers` when derived geometry is semitone-equivalent.
+- CR-056: [Important] `computeSaveDraft` never validates a non-empty name in `packages/shape-workbench/src/editor/saveDraft.ts:43` — empty-name AddChange yields ident `"CHORD_"`, breaks `findDraftForChange` matching, and makes `renderShapeTs` throw. Add a name refusal.
+- CR-057: [Important] Unhandled promise rejections leave TS preview stuck at "rendering…" — no `.catch` on `renderDraftTs` in `packages/shape-workbench/src/editor/OutputPreview.tsx:45` and `packages/shape-workbench/src/export/ExportDiffView.tsx:56,61`; render the error instead.
+- CR-058: [Important] `file`/`ident` duplicated between store draft and local state in `packages/shape-workbench/src/screens/Editor.tsx:91-92` and diverge — property edits re-broadcast stale values; move into the draft and dispatch like other fields.
+- CR-059: [Important] Changeset is append-only in `packages/shape-workbench/src/store.ts:60` — no remove/clear action, no per-row delete on Export screen, double-save appends duplicates, nothing clears after merge. Dedup by target on ADD_CHANGE + clear-after-merge action.
+- CR-060: [Important] `/__workbench/status` and GET changeset endpoints implemented but never called (`packages/shape-workbench/src/plugins/workbench-io.ts:34,252`) — no writable probe, no rehydration from disk; in `vite preview` the POST gets SPA-fallback HTML and a cryptic JSON-parse error. Gate the write button on a status probe.
+- CR-061: [Important] "Write changeset.json" enabled despite detected collisions in `packages/shape-workbench/src/screens/Export.tsx:105,124` — disable or require explicit override when `built.collisions.length > 0`.
+- CR-062: [Suggestion] `capabilities` memoized on the whole `state` in `packages/shape-workbench/src/App.tsx:78` — every keystroke invalidates the provider context; use stable dispatch/navigate + narrow selectors.
+- CR-063: [Suggestion] `autoFingering` seed effect keyed on a fresh-identity object in `packages/shape-workbench/src/screens/Editor.tsx:132` (re-runs every render, guarded by boolean); seed in `handleCellsChange` or lazy initializer. The `seed` memo at line 74 has the same smell.
+- CR-064: [Suggestion] `onEditShape` shallow-copies the registry entry in `packages/shape-workbench/src/handlers.ts:135` — draft, original, and live registry share array references; structured clone is cheap insurance.
+- CR-065: [Suggestion] `REPLACE_STATE` is dead code in `packages/shape-workbench/src/store.ts:42,64` — wire it to GET-changeset rehydration or drop it.
+- CR-066: [Suggestion] `frettedScaleFor` hand-assembles a `FrettedScale` literal inside a component in `packages/shape-workbench/src/editor/IdentifyAndRoots.tsx:50` — move to a pure `editor/*` helper.
+
+### site/
+
+Note: the admin area was deleted (moved to shape-workbench); former local duplicates are gone, not forked. `ShapeBoardView.tsx` is the only site-local component left.
+
+- CR-067: [Critical] Board view renders permanently empty for `kind === "scale"` in `site/app/shapes/components/ShapeBoardView.tsx:54` — `rowGrouping: "chordType"` hardcoded; scale shapes have no `chordType`, so "Showing 0 of 0". Hide the toggle for scales, group differently, or render an explicit chord-only empty state.
+- CR-068: [Important] `next/dynamic` code-split defeated in `site/app/shapes/components/ShapeLibrary.tsx:37` — lazily imports the same barrel line 27 imports statically, so the panel folds into the eager chunk (verified in `.next` output). Deep-import `shape-library-ui/src/ShapeDetailPanel`.
+- CR-069: [Important] "Showing N of M" wrong in Board view at `site/app/shapes/components/ShapeLibrary.tsx:563` — reports the whole registry while `ShapeBoard` renders its own correct count below; two contradictory counts on screen.
+- CR-070: [Important] Most filters silently inert in Board view — FilterBar renders all facets (`ShapeLibrary.tsx:543-565`) but `ShapeBoardView` forwards only `kind`/`nameQuery`; facets still mirror into the URL. Map facets onto boardModel or reduce the control set in board mode.
+- CR-071: [Important] `site/package-lock.json:102` stale for `../packages/shape-catalog` (missing the `@tonaljs/note`/`@tonaljs/interval` peers added in bd9065b) — `npm ci` in deploy workflow validates linked `file:` targets; re-run `npm install --prefix site` and commit.
+- CR-072: [Important] `site/types/shape-catalog-shims.d.ts:23,51` is a third hand-maintained copy of the render-shape signature and its second wildcard matches any `*/render-shape` specifier — root cause is shape-catalog's barrel re-exporting a Node-only printer; split a `render` subpath entry (see CR-025) to delete this file.
+- CR-073: [Suggestion] Add `"sideEffects": false` to shape-catalog (and shape-library-ui) so tree-shaking of `render-shape.mjs`'s `import("prettier")`/`process.cwd()` out of the static export is guaranteed rather than incidental.
+- CR-074: [Suggestion] `site/app/layout.tsx:10` imports the ~700-line tg stylesheet on every route — move to `site/app/shapes/layout.tsx`.
+- CR-075: [Suggestion] "Diagrams" orientation toggle is a no-op in `site/app/shapes/components/ShapeBoardView.tsx:47,66` — omit until board cells render diagrams.
+- CR-076: [Suggestion] `site/app/global.css:16-23` leaves `--tg-warn`/`--tg-error` on media-query defaults — dark-OS + light-site users get dark badge colors; map both under `:root`/`.dark`.
+- CR-077: [Suggestion] Hand-rolled Grid/Board toggle in `site/app/shapes/components/ShapeLibrary.tsx:524-541` duplicates the package's toggle-group markup — export a generic `ToggleGroup` from shape-library-ui.
+- CR-078: [Suggestion] `view` not round-tripped through the shapes URL state (`ShapeLibrary.tsx:106`) — Board view isn't deep-linkable while every filter is.
+- CR-079: [Suggestion] Shared card dropped the deleted local card's `content-visibility: auto` / `contain-intrinsic-size` optimization — add to `.tg-card` in `packages/shape-library-ui/src/styles.css`.
