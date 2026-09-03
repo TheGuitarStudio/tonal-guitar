@@ -4,7 +4,7 @@
  * voicing-family (or `quality`, for scales) tag, `fr N` tag, tags, audit id
  * badge(s), and the diagram. Everything else (metadata table, chord table,
  * report-a-problem link) lives in `ShapeDetailPanel`, which this card's
- * `onSelect` opens.
+ * `onSelectEntry` opens.
  *
  * Capability-gated: an "Edit" affordance (`data-tg-edit`) renders only when
  * `capabilities.edit.onEditShape` is provided (spec §5.3 D-002 invariant).
@@ -34,7 +34,7 @@ import { useLibraryCapabilities } from "./capabilities";
 export interface ShapeCardProps {
   entry: ShapeCatalogEntry;
   /** Invoked with the full entry when the card is clicked/activated. */
-  onSelect: (entry: ShapeCatalogEntry) => void;
+  onSelectEntry?: (entry: ShapeCatalogEntry) => void;
   /** Whether this card is the currently selected/open entry. */
   isSelected: boolean;
   /**
@@ -69,20 +69,20 @@ const ROOT_MARGIN = "600px 0px";
  */
 export const ShapeCard = memo(function ShapeCard({
   entry,
-  onSelect,
+  onSelectEntry,
   isSelected,
   lazy = false,
   eager = false,
 }: ShapeCardProps) {
   const placeholderRef = useRef<HTMLDivElement>(null);
-  const [visible, setVisible] = useState(!lazy || eager);
-
-  useEffect(() => {
-    // Filters can flip a previously-deferred entry into the eager range
-    // (e.g. it now sorts to the top of a failures-first list) — honor that
-    // without waiting on the observer to catch up.
-    if (!lazy || eager) setVisible(true);
-  }, [lazy, eager]);
+  // One-way latch: once the observer (or a fail-open path) has mounted the
+  // real card, it never unmounts again. `visible` itself is computed during
+  // render rather than synced via a separate effect+state pair — so a
+  // filter change that flips a previously-deferred entry into the eager
+  // range (e.g. it now sorts to the top of a failures-first list) is
+  // reflected immediately, with no effect required (CR-041).
+  const [mounted, setMounted] = useState(false);
+  const visible = !lazy || eager || mounted;
 
   useEffect(() => {
     if (!lazy || visible) return;
@@ -91,14 +91,14 @@ export const ShapeCard = memo(function ShapeCard({
     if (typeof IntersectionObserver === "undefined") {
       // No observer support (unexpected in any target browser, but fail
       // open rather than leaving the card permanently unmounted).
-      setVisible(true);
+      setMounted(true);
       return;
     }
 
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries.some((e) => e.isIntersecting)) {
-          setVisible(true);
+          setMounted(true);
         }
       },
       { rootMargin: ROOT_MARGIN },
@@ -121,10 +121,10 @@ export const ShapeCard = memo(function ShapeCard({
     );
   }
 
-  return <ShapeCardContent entry={entry} onSelect={onSelect} isSelected={isSelected} />;
+  return <ShapeCardContent entry={entry} onSelectEntry={onSelectEntry} isSelected={isSelected} />;
 });
 
-function ShapeCardContent({ entry, onSelect, isSelected }: Omit<ShapeCardProps, "lazy" | "eager">) {
+function ShapeCardContent({ entry, onSelectEntry, isSelected }: Omit<ShapeCardProps, "lazy" | "eager">) {
   const { name, shape, issues } = entry;
   const capabilities = useLibraryCapabilities();
   const chordShape = entry.kind === "chord" ? entry.shape : undefined;
@@ -141,7 +141,7 @@ function ShapeCardContent({ entry, onSelect, isSelected }: Omit<ShapeCardProps, 
 
   return (
     <div className="tg-card-wrapper">
-      <button type="button" onClick={() => onSelect(entry)} aria-pressed={isSelected} aria-current={isSelected ? "true" : undefined} className="tg-card">
+      <button type="button" onClick={() => onSelectEntry?.(entry)} aria-pressed={isSelected} aria-current={isSelected ? "true" : undefined} className="tg-card">
         <div className="tg-card-header">
           <h3 className="tg-card-title">{name}</h3>
           {shape.featured && <FeaturedMark />}

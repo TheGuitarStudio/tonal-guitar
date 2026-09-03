@@ -88,8 +88,6 @@ function EditorInner({ slotKey, draft }: { slotKey: string; draft: DraftShape })
   const [labelMode, setLabelMode] = useState<LabelDisplayMode>("intervals");
   const [fretRange, setFretRange] = useState<[number, number]>([0, 12]);
   const [autoSeeded, setAutoSeeded] = useState(false);
-  const [file, setFile] = useState<string | undefined>(draft.origin === "gap" ? draft.file : undefined);
-  const [ident, setIdent] = useState<string | undefined>(draft.origin === "gap" ? draft.ident : undefined);
   const [saveMessage, setSaveMessage] = useState<string | undefined>(undefined);
 
   function handleCellsChange(next: EditorCell[]) {
@@ -99,6 +97,18 @@ function EditorInner({ slotKey, draft }: { slotKey: string; draft: DraftShape })
   function handleShapeFieldChange(patch: Partial<ChordShape>) {
     const nextShape: ChordShape = { ...shape, ...patch };
     dispatch({ type: "SET_DRAFT", key: slotKey, draft: { ...draft, shape: nextShape } });
+  }
+
+  // `file`/`ident` (CR-058) live on the store draft only — no local
+  // component-state shadow that can diverge from it. Dispatched exactly
+  // like `handleShapeFieldChange` above, just against `DraftShape`'s own
+  // fields instead of a `Partial<ChordShape>` patch.
+  function handleFileChange(nextFile: string) {
+    dispatch({ type: "SET_DRAFT", key: slotKey, draft: { ...draft, file: nextFile } });
+  }
+
+  function handleIdentChange(nextIdent: string) {
+    dispatch({ type: "SET_DRAFT", key: slotKey, draft: { ...draft, ident: nextIdent } });
   }
 
   const derivedShape = buildShapeFromCells(shape, cells, barres, tuning, state.authorRoot);
@@ -132,14 +142,26 @@ function EditorInner({ slotKey, draft }: { slotKey: string; draft: DraftShape })
   }, [derivedShape, autoSeeded]);
 
   function persistDraft(nextShape: ChordShape) {
-    const nextDraft: DraftShape = {
-      ...draft,
-      shape: nextShape,
-      ...(draft.origin === "gap" ? { file, ident } : {}),
-    };
+    const nextDraft: DraftShape = { ...draft, shape: nextShape };
     dispatch({ type: "SET_DRAFT", key: slotKey, draft: nextDraft });
     return nextDraft;
   }
+
+  // Persists the derived geometry (cells/barres) into the store draft
+  // whenever it changes (CR-052) — without this, the breadcrumb/Back button
+  // or a reload discards every edit since the last Run-checks/Save, and
+  // localStorage "crash resilience" (spec §5.4) only ever persists an
+  // empty-geometry draft. `derivedShape` (computed above via
+  // `buildShapeFromCells`) is read from render scope rather than
+  // re-derived here; the effect is intentionally keyed on `cells`/`barres`
+  // alone (not `derivedShape`'s own identity, which is a fresh object every
+  // render) so this can't loop — dispatching SET_DRAFT changes `draft`,
+  // which changes `derivedShape`'s *value* next render, but never re-fires
+  // this effect since `cells`/`barres` themselves didn't change.
+  useEffect(() => {
+    if (derivedShape === undefined) return;
+    persistDraft(derivedShape);
+  }, [cells, barres]);
 
   function handleRunChecks() {
     if (derivedShape === undefined) {
@@ -158,8 +180,7 @@ function EditorInner({ slotKey, draft }: { slotKey: string; draft: DraftShape })
   }
 
   function handleSave() {
-    const draftForSave: DraftShape = draft.origin === "gap" ? { ...draft, file, ident } : draft;
-    const result = computeSaveDraft(draftForSave, cells, barres, tuning, state.authorRoot);
+    const result = computeSaveDraft(draft, cells, barres, tuning, state.authorRoot);
     if (!result.ok) {
       setSaveMessage(result.error);
       return;
@@ -240,10 +261,6 @@ function EditorInner({ slotKey, draft }: { slotKey: string; draft: DraftShape })
               fretRange={fretRange}
               layout={{ orientation: state.orientation }}
               labelMode={labelMode}
-              tool={tool}
-              activeFinger={activeFinger}
-              barres={barres}
-              onBarresChange={setBarres}
             />
           )}
 
@@ -253,13 +270,13 @@ function EditorInner({ slotKey, draft }: { slotKey: string; draft: DraftShape })
         <div className="tg-editor-right">
           <IdentifyRow shape={displayShape} root={state.authorRoot} tuning={tuning} />
           <AtOtherRoots shape={displayShape} tuning={tuning} />
-          <OutputPreview draft={{ ...draft, shape: displayShape, ...(draft.origin === "gap" ? { file, ident } : {}) }} />
+          <OutputPreview draft={{ ...draft, shape: displayShape }} />
           <PropertiesForm
-            draft={draft.origin === "gap" ? { ...draft, file, ident } : draft}
+            draft={draft}
             shape={shape}
             onShapeChange={handleShapeFieldChange}
-            onFileChange={setFile}
-            onIdentChange={setIdent}
+            onFileChange={handleFileChange}
+            onIdentChange={handleIdentChange}
           />
           <ChecksCard
             shape={displayShape}

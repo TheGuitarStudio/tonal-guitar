@@ -261,12 +261,48 @@ describe("buildChangeset — collision detection", () => {
     expect(result.collisions.some((c) => c.reason === "identifier")).toBe(true);
   });
 
-  it("ignores update/remove changes for collision purposes", () => {
+  it("ignores update/remove changes for collision purposes when the update doesn't rename", () => {
     const changes: ChangesetChange[] = [
       { op: "update", kind: "chord", name: "A Shape Major", patch: { tags: ["core"] } },
       { op: "remove", kind: "chord", name: "A Shape Major" },
     ];
     const result = buildChangeset({ version: "0.2.0", tuning: ["E2"], changes });
     expect(result.collisions).toEqual([]);
+  });
+
+  // CR-019: a renaming `update` (`patch.name` set to a name already used by
+  // a DIFFERENT registered shape) is a real collision — previously
+  // `detectCollisions` only ever looked at `op === "add"` changes, so this
+  // slipped through undetected on the authoring side.
+  it("flags a renaming update whose new `patch.name` collides with a different registered shape", () => {
+    const changes: ChangesetChange[] = [
+      {
+        op: "update",
+        kind: "chord",
+        name: "A Shape Major",
+        patch: { name: "E Shape Major" }, // already a registered, DIFFERENT chord
+      },
+    ];
+    const result = buildChangeset({ version: "0.2.0", tuning: ["E2"], changes });
+    expect(result.collisions).toHaveLength(1);
+    expect(result.collisions[0]).toMatchObject({ reason: "name" });
+  });
+
+  it("does not flag a renaming update whose new `patch.name` is unused", () => {
+    const changes: ChangesetChange[] = [
+      { op: "update", kind: "chord", name: "A Shape Major", patch: { name: "Totally Novel Renamed Shape" } },
+    ];
+    const result = buildChangeset({ version: "0.2.0", tuning: ["E2"], changes });
+    expect(result.collisions).toEqual([]);
+  });
+
+  it("flags two updates in the same batch renaming onto the same new name", () => {
+    const changes: ChangesetChange[] = [
+      { op: "update", kind: "chord", name: "A Shape Major", patch: { name: "Batch Renamed Shape" } },
+      { op: "update", kind: "chord", name: "D Shape Major", patch: { name: "Batch Renamed Shape" } },
+    ];
+    const result = buildChangeset({ version: "0.2.0", tuning: ["E2"], changes });
+    expect(result.collisions).toHaveLength(1);
+    expect(result.collisions[0]).toMatchObject({ reason: "name" });
   });
 });

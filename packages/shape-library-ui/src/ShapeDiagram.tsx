@@ -8,7 +8,6 @@
  *
  * Read-only, capability-independent: never emits `data-tg-edit`.
  */
-import "./reactGlobal";
 import { Fretboard, defaultTheme, type FretboardTheme, type FretMarker, type FretboardLayout, type LabelMode, type Orientation } from "fretboard-ui";
 import type { FrettedScale } from "tonal-guitar";
 

@@ -48,7 +48,11 @@ function assertKind(kind) {
   }
 }
 
-const IDENTIFIER_PATTERN = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
+// CR-017: intersection of JS identifier syntax and the marker grammar
+// (`scripts/lib/owned-blocks.mjs`'s `[A-Za-z0-9_-]+`) — excludes `$` (valid
+// JS, not valid in a marker) and hyphens/leading digits (valid in a marker,
+// not valid JS), so every accepted ident round-trips through both.
+const IDENTIFIER_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 /**
  * Slugifies a shape `name` into UPPER_SNAKE_CASE: upper-cased, every run of
@@ -278,15 +282,32 @@ function loadPrettier() {
   return prettierModulePromise;
 }
 
+// CR-026: pinned explicit options — never `resolveConfig(process.cwd())`.
+// Resolving a config off the caller's cwd made `renderShape` depend on
+// where/how it's invoked (a `.prettierrc` anywhere above the workbench's
+// cwd vs. the merge script's repo root would silently format differently),
+// breaking the "pure function of its inputs" contract this module's own
+// header documents. These values match prettier's own v3 defaults (and the
+// fallback formatter's PRINT_WIDTH/INDENT_UNIT below), so behavior is
+// unchanged for this repo (which has no `.prettierrc`) — only the
+// *source* of the options changes, from "whatever's discoverable" to fixed.
+const PRETTIER_OPTIONS = {
+  parser: "typescript",
+  semi: true,
+  singleQuote: false,
+  trailingComma: "all",
+  printWidth: PRINT_WIDTH,
+  tabWidth: INDENT_UNIT.length,
+};
+
 async function tryFormatWithPrettier(source) {
   const prettier = await loadPrettier();
   if (!prettier) return null;
   try {
-    const config = (await prettier.resolveConfig(process.cwd())) ?? {};
-    return await prettier.format(source, { ...config, parser: "typescript" });
+    return await prettier.format(source, PRETTIER_OPTIONS);
   } catch {
-    // Any failure (missing parser support, malformed source, resolveConfig
-    // error, ...) falls back to the printer's own formatting below.
+    // Any failure (missing parser support, malformed source, ...) falls
+    // back to the printer's own formatting below.
     return null;
   }
 }

@@ -43,6 +43,37 @@ export type FetchLike = (url: string, init?: FetchInit) => Promise<FetchResponse
  * client-side code (see that file's own doc comment). */
 export const CHANGESET_ENDPOINT = "/__workbench/changeset";
 
+/** The dev-server plugin's status endpoint (`plugins/workbench-io.ts`'s
+ * `STATUS_PATH`) — a literal for the same reason as `CHANGESET_ENDPOINT`
+ * above. Only ever reachable when the app is running under `vite dev`; a
+ * `vite preview`/`vite build` static server has no such route and falls
+ * back to the SPA's `index.html`, which is what `fetchWorkbenchStatus`
+ * below is built to detect and report as "unreachable" (CR-060). */
+export const STATUS_ENDPOINT = "/__workbench/status";
+
+export type WorkbenchStatus =
+  | { reachable: true; writable: boolean }
+  | { reachable: false };
+
+/**
+ * Probes the dev-server plugin's `GET /__workbench/status` endpoint. Used
+ * to gate the "Write changeset.json" button (CR-060): under `vite preview`
+ * or a static build there is no such route, so the response is either a
+ * non-JSON SPA fallback (`response.json()` throws) or simply not `ok` —
+ * both collapse to `{ reachable: false }` here rather than surfacing a
+ * cryptic JSON-parse error at write time.
+ */
+export async function fetchWorkbenchStatus(fetchImpl: FetchLike): Promise<WorkbenchStatus> {
+  try {
+    const response = await fetchImpl(STATUS_ENDPOINT);
+    if (!response.ok) return { reachable: false };
+    const body = (await response.json()) as { writable?: unknown };
+    return { reachable: true, writable: body.writable === true };
+  } catch {
+    return { reachable: false };
+  }
+}
+
 export type WriteOutcome =
   | { ok: true; path: string; bytes: number; changeCount: number; writtenAt: string }
   | { ok: false; message: string };

@@ -18,7 +18,7 @@
 - [x] Phase 1: Setup
 - [x] Phase 2: Lint/Test Fix
 - [x] Phase 3: Architecture Review
-- [ ] Phase 4: Architecture Fix
+- [x] Phase 4: Architecture Fix
 - [ ] Phase 5: Code Simplification Review
 - [ ] Phase 6: Code Simplification Fix
 - [ ] Phase 7: Specialized Reviews
@@ -27,9 +27,9 @@
 
 ## Statistics
 
-- Critical: 0 fixed, 0 remaining | Important: 0 fixed, 0 deferred
-- GitHub Issues Created: (none yet)
-- Total Commits: 0 | Total Fixes: 0 | Final Status: IN PROGRESS
+- Critical: 15 fixed, 0 remaining | Important: 29 fixed, 4 deferred | Suggestion: 31 deferred
+- GitHub Issues Created: #192–#199
+- Total Commits: 3 | Total Fixes: 44 | Final Status: IN PROGRESS
 
 ---
 
@@ -146,3 +146,78 @@ Note: the admin area was deleted (moved to shape-workbench); former local duplic
 - CR-077: [Suggestion] Hand-rolled Grid/Board toggle in `site/app/shapes/components/ShapeLibrary.tsx:524-541` duplicates the package's toggle-group markup — export a generic `ToggleGroup` from shape-library-ui.
 - CR-078: [Suggestion] `view` not round-tripped through the shapes URL state (`ShapeLibrary.tsx:106`) — Board view isn't deep-linkable while every filter is.
 - CR-079: [Suggestion] Shared card dropped the deleted local card's `content-visibility: auto` / `contain-intrinsic-size` optimization — add to `.tg-card` in `packages/shape-library-ui/src/styles.css`.
+
+---
+
+## Phase 4: Architecture Fixes
+
+### Fixed
+
+**Library (src/):**
+- CR-001: Fixed — 6 un-migrated barre frets corrected in `extended-chords.ts` (A_9 3→1, A_M9 3→2, A_13 3→1, A_DIM7 2→0, E_69 2→0, A_69 2→0), verified via scratch builds at three roots; all other data files swept clean. Stale audit comments updated.
+- CR-003: Fixed — `applyChordShape` barres remapped by `strOffset` (clamped); `autoFingering` now returns shape-indexed output; 7-string regression tests added.
+- CR-004: Fixed — `checkNameUnique` gained `options.selfName` (additive; reference-equality exclusion kept); unit tests added.
+- CR-005: Fixed — identifier→names index cached per kind keyed by registry size.
+- CR-006: Fixed — `prebuilt?: FrettedScale` threaded through the five arpeggio checks; single `buildFrettedScale` hoisted in both aggregate paths.
+- CR-007: Fixed — CLAUDE.md dependency layers updated for `chord-scale.ts`, `changeset.ts`, `audit-integration.ts`.
+- CR-008: Fixed — CHANGELOG `[Unreleased]` entry for the jazz-shell breaking change (16→8, renames); verified no other data file renames/removals.
+
+**Merge tooling (scripts/ + shape-catalog):**
+- CR-014: Fixed — `apply()` stages temp file + `renameSync` with full rollback of applied writes/unlinks on mid-loop failure.
+- CR-015: Fixed — data-imports insertion unconditional; `order.includes(file)` dedupe keeps idempotency.
+- CR-016: Fixed — `assertReconstructible()` refuses (new `unrecognized-content` rule) when reconstruction wouldn't reproduce the current file byte-for-byte (add + remove paths).
+- CR-017: Fixed — `IDENTIFIER_PATTERN` tightened to marker∩JS grammar; idents validated in shapes-merge before other rules.
+- CR-018: Fixed — `--update-counts` skips already-applied adds (and absent removes); regression test in that mode.
+- CR-019: Fixed — rule 6b refuses renaming updates colliding with same-kind names; `detectCollisions` also checks renames on the authoring side.
+- CR-020: Fixed — `locateOwnedRegion` kind-aware two-pass (also fixed a wrong-kind shadowing bug caught by the new regression test).
+- CR-021: Fixed — rename-fallback requires reapplying patch/unset to the located block to be a no-op (deep-equal) before trusting it.
+- CR-022: Fixed — remove is idempotent; already-absent targets satisfied in apply and `--check`.
+- CR-023: Fixed — `scanInboundReferences()` refuses removes/renames leaving dangling `overrides`/`parentShape` (with same-changeset exemptions).
+- CR-024: Fixed — optional peers `@tonaljs/scale/chord/key` declared with `peerDependenciesMeta.optional`.
+- CR-026: Fixed — pinned `PRETTIER_OPTIONS` (no `resolveConfig`); vacuous parity test replaced with golden-string fallback assertion.
+
+**UI packages:**
+- CR-034: Fixed — `cellsToChordShape` pre-computes muted-string set; mute always wins; both-ordering tests added.
+- CR-035: Fixed — shared primitives extracted to `detailPrimitives.tsx` + `detailTypes.ts`; import graph is a DAG; barrel unchanged.
+- CR-036: Fixed — `reactGlobal.ts` deleted; root vitest.config.ts uses `esbuild: { jsx: "automatic" }`.
+- CR-037: Fixed — five no-op props removed from `FretboardEditorProps`; workbench call site cleaned up.
+- CR-038: Fixed — `cellKey` exported from shape-catalog board.ts and consumed by ShapeBoard.
+- CR-040: Fixed — `toggleInAllOnSet` moved to shape-catalog catalog.ts with 5 invariant tests.
+- CR-041: Fixed — ShapeCard one-way `visible` latch; sync effect deleted.
+- CR-042: Fixed — invalid `grid`/`list`/`group` roles dropped from ShapeBoard.
+- CR-043: Fixed — `fretboard-ui`/`shape-catalog` moved to peerDependencies in shape-library-ui; all lockfiles refreshed by lead.
+- CR-044: Fixed — select-entry callback standardized to optional `onSelectEntry` across the package + consumers.
+
+**Workbench:**
+- CR-052: Fixed — geometry changes dispatch `SET_DRAFT` with the derived shape, so store + localStorage track live edits.
+- CR-053: Fixed — `onCreateShape` reuses an existing draft (Board draft-badge resume path).
+- CR-054: Fixed — `onEditShape` prefers the in-progress draft over registry re-seed.
+- CR-055: Fixed — `preserveBaseSpelling` keeps original interval spellings when chroma-equivalent; metadata-only edits emit no `strings` patch (tests incl. "9M" end-to-end).
+- CR-056: Fixed — empty/whitespace name refusal in `computeSaveDraft`.
+- CR-057: Fixed — rejection handlers render errors in OutputPreview and ExportDiffView.
+- CR-058: Fixed — `file`/`ident` live on the draft only; local shadow state removed.
+- CR-059: Fixed — `ADD_CHANGE` dedups by kind::name; `REMOVE_CHANGE` + `CLEAR_CHANGES` actions with Export-screen UI; reducer + UI tests.
+- CR-060: Fixed — Export screen probes `/__workbench/status` on mount; explicit "dev server required" disabled state.
+- CR-061: Fixed — write button disabled with visible reason when collisions are present.
+
+**Site:**
+- CR-067: Fixed — Board toggle disabled for scales (tooltip + no-op onClick) and `ShapeBoardView` short-circuits with an explicit "Board view is chord-only" state.
+- CR-068: Fixed — deep-imported `ShapeDetailPanel` AND converted all static barrel imports in ShapeLibrary/ShapeBoardView to deep imports (barrel pull-in defeated the split otherwise); verified: panel strings now only in async chunk, /shapes First Load JS 15.1→11 kB.
+- CR-069: Fixed — FilterBar count hidden in board mode via `.tg-filterbar-board-mode` wrapper; ShapeBoard's header is the single count.
+- CR-070: Fixed — inert facet/sort/failing-only controls hidden in board mode via the same wrapper CSS (FilterBar's public API untouched); kind toggle + name search stay live.
+- CR-071: Fixed — `npm install` re-run in site/ (and all packages) after the peer-dependency changes; lockfiles committed.
+
+### Deferred
+
+- CR-002: GitHub issue #192 — grip-base barre offset convention not root-invariant (design decision).
+- CR-025, CR-072, CR-073: GitHub issue #193 — split Node-only render printer out of the shape-catalog browser barrel.
+- CR-039: GitHub issue #194 — FilterBar scale-facet dual-state refactor (public prop surface).
+- CR-009..CR-013: GitHub issue #195 — library suggestions.
+- CR-027..CR-033: GitHub issue #196 — merge-tooling & shape-catalog suggestions.
+- CR-045..CR-051: GitHub issue #197 — UI package suggestions.
+- CR-062..CR-066: GitHub issue #198 — workbench suggestions.
+- CR-074..CR-079: GitHub issue #199 — site suggestions.
+
+### Won't Fix
+
+- (none)

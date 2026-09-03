@@ -52,6 +52,60 @@ describe("cellsToChordShape", () => {
     expect(result!.fingers[1]).toBeNull();
   });
 
+  it("a muted cell always wins over a fretted cell on the same string, mute-first array ordering", () => {
+    // The mute has a lower fret than the fretted cell, so it also sorts
+    // first internally — this is the exact scenario that regressed before
+    // the fix (a later-processed fretted cell overwrote the mute).
+    const cells: EditorCell[] = [
+      { string: 0, fret: 0, isRoot: true },
+      { string: 1, fret: 0, muted: true },
+      { string: 1, fret: 2, finger: 2 },
+    ];
+
+    const result = cellsToChordShape(cells, STANDARD);
+
+    expect(result).not.toBeNull();
+    expect(result!.strings[1]).toBeNull();
+    expect(result!.fingers[1]).toBeNull();
+  });
+
+  it("a muted cell always wins over a fretted cell on the same string, fretted-first array ordering", () => {
+    // The mute has a higher fret than the fretted cell, so it sorts second
+    // internally — the ordering where the pre-fix code happened to work by
+    // accident. Both orderings must agree that mute wins.
+    const cells: EditorCell[] = [
+      { string: 0, fret: 0, isRoot: true },
+      { string: 1, fret: 2, finger: 2 },
+      { string: 1, fret: 5, muted: true },
+    ];
+
+    const result = cellsToChordShape(cells, STANDARD);
+
+    expect(result).not.toBeNull();
+    expect(result!.strings[1]).toBeNull();
+    expect(result!.fingers[1]).toBeNull();
+  });
+
+  it("a muted cell wins over a same-fret fretted cell regardless of array order (sort-stability check)", () => {
+    const muteFirst: EditorCell[] = [
+      { string: 0, fret: 0, isRoot: true },
+      { string: 1, fret: 2, muted: true },
+      { string: 1, fret: 2, finger: 2 },
+    ];
+    const frettedFirst: EditorCell[] = [
+      { string: 0, fret: 0, isRoot: true },
+      { string: 1, fret: 2, finger: 2 },
+      { string: 1, fret: 2, muted: true },
+    ];
+
+    for (const cells of [muteFirst, frettedFirst]) {
+      const result = cellsToChordShape(cells, STANDARD);
+      expect(result).not.toBeNull();
+      expect(result!.strings[1]).toBeNull();
+      expect(result!.fingers[1]).toBeNull();
+    }
+  });
+
   it("leaves strings with no cell as null (unplayed)", () => {
     const cells: EditorCell[] = [{ string: 0, fret: 0, isRoot: true }];
     const result = cellsToChordShape(cells, STANDARD);

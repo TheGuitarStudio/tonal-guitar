@@ -64,7 +64,11 @@ describe("BoardScreen", () => {
   it("renders the full CAGED column set (C, A, G, E, D) as board headers", () => {
     expect(expectedModel.columns.map((c) => c.key)).toEqual(["C", "A", "G", "E", "D"]);
     const html = renderBoard();
-    const columnHeaderCount = (html.match(/role="columnheader"/g) ?? []).length;
+    // CR-042: `ShapeBoard` dropped the (invalid) `role="columnheader"`
+    // markup — `class="tg-board-header"` (exact, not the `tg-board-header-bar`
+    // wrapper above it) is what every header cell (including the
+    // aria-hidden corner spacer) carries instead.
+    const columnHeaderCount = (html.match(/class="tg-board-header"/g) ?? []).length;
     // +1 for ShapeBoard's aria-hidden corner spacer cell.
     expect(columnHeaderCount).toBe(expectedModel.columns.length + 1);
   });

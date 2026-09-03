@@ -31,6 +31,7 @@ function copyToClipboard(text: string): void {
 export function OutputPreview({ draft }: OutputPreviewProps) {
   const [tab, setTab] = useState<PreviewTab>("ts");
   const [tsText, setTsText] = useState<string | undefined>(undefined);
+  const [tsError, setTsError] = useState<string | undefined>(undefined);
 
   const previewable = canPreviewChange(draft);
   const targetFile = targetFileFor(draft);
@@ -40,11 +41,21 @@ export function OutputPreview({ draft }: OutputPreviewProps) {
     let cancelled = false;
     if (!previewable) {
       setTsText(undefined);
+      setTsError(undefined);
       return;
     }
-    renderDraftTs(draft).then((text) => {
-      if (!cancelled) setTsText(text);
-    });
+    setTsError(undefined);
+    renderDraftTs(draft).then(
+      (text) => {
+        if (!cancelled) setTsText(text);
+      },
+      (error: unknown) => {
+        if (!cancelled) {
+          setTsText(undefined);
+          setTsError(error instanceof Error ? error.message : "Failed to render TS preview.");
+        }
+      },
+    );
     return () => {
       cancelled = true;
     };
@@ -83,7 +94,7 @@ export function OutputPreview({ draft }: OutputPreviewProps) {
           {tab === "ts" && (
             <div>
               <pre className="tg-mono" data-testid="output-preview-ts">
-                {tsText ?? "rendering…"}
+                {tsText ?? (tsError !== undefined ? `Error: ${tsError}` : "rendering…")}
               </pre>
               <button
                 type="button"

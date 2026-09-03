@@ -16,6 +16,7 @@ import { buildShapeFromCells } from "./deriveShape";
 export const NO_ROOT_MESSAGE =
   'Mark a root (interval "1P") before saving — marking a root is what makes the shape movable.';
 export const NO_FILE_MESSAGE = "Choose a target file before saving this new shape.";
+export const NO_NAME_MESSAGE = "Name this shape before saving — an empty name breaks changeset matching.";
 
 export type SaveDraftResult =
   | { ok: true; shape: ChordShape; draft: DraftShape; change: ChangesetChange }
@@ -43,6 +44,9 @@ export function computeSaveDraft(
   const shape = buildShapeFromCells(draft.shape as ChordShape, cells, barres, tuning, authorRoot);
   if (shape === undefined) {
     return { ok: false, error: NO_ROOT_MESSAGE };
+  }
+  if (shape.name.trim().length === 0) {
+    return { ok: false, error: NO_NAME_MESSAGE };
   }
   if (draft.origin === "gap" && draft.file === undefined) {
     return { ok: false, error: NO_FILE_MESSAGE };

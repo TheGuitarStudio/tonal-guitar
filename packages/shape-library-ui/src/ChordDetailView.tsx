@@ -1,8 +1,10 @@
 /**
- * Ported from `site/app/shapes/components/ChordDetailView.tsx`. Split out
- * of `ShapeDetailPanel.tsx` there — the root panel, the shared
- * presentational primitives, and `buildDetail` (which produces the
- * `ChordDetail` this view renders) all live there.
+ * Ported from `site/app/shapes/components/ChordDetailView.tsx`. The root
+ * panel (`ShapeDetailPanel.tsx`, including `buildDetail`, which produces
+ * the `ChordDetail` this view renders) is a sibling module, not an
+ * ancestor: the shared presentational primitives and the `ChordDetail`
+ * type live in `./detailPrimitives`/`./detailTypes` so this view doesn't
+ * import back from the panel (CR-035 — keeps the import graph a DAG).
  *
  * The site's `CompactFretboard.tsx` (alternate-fingering thumbnails with a
  * hover/focus enlarged preview) isn't part of this package's public
@@ -19,7 +21,8 @@ import { buildFretMarkers, fretRangeFor, fretSummary, MONOCHROME_THEME } from ".
 import { ShapeCardDiagram } from "./ShapeCardDiagram";
 import { ShapeCardChordTable } from "./ShapeCardChordTable";
 import { FeaturedMark, IssueBadges } from "./IssueBadges";
-import { ReportProblemLink, Section, SiblingStepper, siblingIndexAt, type ChordDetail } from "./ShapeDetailPanel";
+import { ReportProblemLink, Section, SiblingStepper, siblingIndexAt } from "./detailPrimitives";
+import type { ChordDetail } from "./detailTypes";
 
 export function ChordDetailView({
   detail,

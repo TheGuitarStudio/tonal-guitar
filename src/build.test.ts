@@ -9,7 +9,7 @@ import {
   CAGED_CHORD_D,
 } from "./data/caged-chords";
 import { OPEN_C_MAJOR } from "./data/open-chords";
-import { STANDARD } from "./tuning";
+import { STANDARD, STANDARD_7 } from "./tuning";
 
 // ============================================================
 // Regression guard: additive-only change (spec §2.1, task 8.1)
@@ -148,6 +148,44 @@ describe("applyChordShape — barres", () => {
     applyChordShape(CAGED_CHORD_E, "G", STANDARD);
     expect(CAGED_CHORD_E.barres).toEqual(originalBarres);
   });
+
+  // CR-003 regression: on a 7-string tuning, barres.fromString/toString must
+  // shift by the same shape→tuning strOffset that frets/fingers already do,
+  // not stay shape-indexed.
+  it("remaps fromString/toString by strOffset on a 7-string tuning", () => {
+    // CAGED_CHORD_A is a 6-string shape; strOffset on STANDARD_7 (7 strings)
+    // is 7 - 6 = 1.
+    const result6 = applyChordShape(CAGED_CHORD_A, "D", STANDARD);
+    const result7 = applyChordShape(CAGED_CHORD_A, "D", STANDARD_7);
+
+    expect(result6.barres).toEqual([
+      { fret: 5, fromString: 1, toString: 5, finger: 1 },
+      { fret: 7, fromString: 2, toString: 4, finger: 3 },
+    ]);
+    expect(result7.barres).toEqual([
+      { fret: 5, fromString: 2, toString: 6, finger: 1 },
+      { fret: 7, fromString: 3, toString: 5, finger: 3 },
+    ]);
+  });
+
+  it("clamps a remapped toString to the tuning's last valid index (7-string shape on 6-string tuning)", () => {
+    // strOffset is 0 when the tuning is shorter than the shape (per
+    // stringOffset's doc comment), so a 7-string shape's barre.toString: 6
+    // stays 6 unless clamped — out of bounds for STANDARD's 6 strings
+    // (indices 0-5).
+    const shape: ChordShape = {
+      name: "Synthetic 7-String Barre Fixture",
+      system: "custom",
+      strings: ["1P", "1P", "1P", "1P", "1P", "1P", "1P"],
+      fingers: [1, 1, 1, 1, 1, 1, 1],
+      barres: [{ fret: 0, fromString: 0, toString: 6, finger: 1 }],
+      rootString: 0,
+    };
+    const result = applyChordShape(shape, "C", STANDARD);
+    expect(result.barres).toEqual([
+      { fret: result.barres[0].fret, fromString: 0, toString: 5, finger: 1 },
+    ]);
+  });
 });
 
 // ============================================================
@@ -221,6 +259,25 @@ describe("autoFingering", () => {
     };
     const result = autoFingering(shape, "D", STANDARD);
     expect(result.fingers[0]).toBeNull();
+  });
+
+  // CR-003 regression: on a 7-string tuning, the returned fingers/barres must
+  // stay shape-indexed (length shape.strings.length) so they can seed
+  // shape-indexed ChordShape.fingers/barres directly, not tuning-length
+  // arrays shifted by strOffset.
+  it("returns shape-indexed fingers/barres (not tuning-length) on a 7-string tuning", () => {
+    const shape = {
+      name: "E Shape Major",
+      system: "caged",
+      strings: ["1P", "5P", "1P", "3M", "5P", "1P"] as (string | null)[],
+      rootString: 0,
+    };
+    const result6 = autoFingering(shape, "E", STANDARD);
+    const result7 = autoFingering(shape, "E", STANDARD_7);
+
+    expect(result7.fingers).toHaveLength(shape.strings.length);
+    expect(result7.fingers).toEqual(result6.fingers);
+    expect(result7.barres).toEqual(result6.barres);
   });
 });
 

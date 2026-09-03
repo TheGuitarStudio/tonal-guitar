@@ -168,6 +168,30 @@ describe("ExportScreen", () => {
     expect(html).toContain("Last written: 2026-09-01T00:00:00.000Z");
   });
 
+  it("renders the write button disabled and 'Checking dev server…' before the status probe resolves (CR-060)", () => {
+    // `renderToString` never runs effects, so the mount-time status probe
+    // never resolves — this is exactly the pre-probe state a real client
+    // render briefly passes through too.
+    const state: WorkbenchState = { ...initialWorkbenchState, changes: [addChange] };
+    const html = renderExport(state);
+    expect(html).toContain("workbench-status-checking");
+    expect(html).toMatch(/data-testid="write-changeset-button"[^>]*disabled/);
+  });
+
+  it("disables the write button and shows a visible reason when built.collisions.length > 0 (CR-061)", () => {
+    const withCollision: WorkbenchState = { ...initialWorkbenchState, changes: [collidingAdd] };
+    const html = renderExport(withCollision);
+    expect(html).toContain("write-blocked-collisions");
+    expect(html).toMatch(/data-testid="write-changeset-button"[^>]*disabled/);
+  });
+
+  it("renders a Remove button per change row (CR-059) and a Clear changeset button", () => {
+    const state: WorkbenchState = { ...initialWorkbenchState, changes: [addChange, removeChange] };
+    const html = stripReactComments(renderExport(state));
+    expect((html.match(/data-testid="export-change-remove"/g) ?? []).length).toBe(2);
+    expect(html).toContain("clear-changes-button");
+  });
+
   it("displays the exact shapes:merge command, a sample transcript, and the Dry run/Undo hints verbatim", () => {
     const state: WorkbenchState = { ...initialWorkbenchState, changes: [addChange] };
     const html = stripReactComments(renderExport(state));

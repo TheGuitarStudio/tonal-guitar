@@ -16,6 +16,7 @@ import {
   ChordShape,
   ScaleShape,
   ArpeggioShape,
+  FrettedScale,
   isMovable,
   playedStringSet,
   gripBaseFret,
@@ -244,17 +245,25 @@ export function checkChordBuildLoss(
  *    entries) exceeds `builtCount` (`result.notes.length`) — some
  *    individual interval within the shape couldn't be resolved and was
  *    dropped.
+ *
+ * `prebuilt`, if supplied, is used in place of an internal
+ * `buildFrettedScale` call — lets `auditArpeggioShape` hoist one shared
+ * build across the checks that use identical (shape, root, tuning) arguments
+ * (CR-006), mirroring `checkFretSpan`'s `prebuilt` parameter on the chord
+ * path. Standalone callers (and `auditScaleShape`) omit it and get the
+ * original self-contained behavior.
  */
 export function checkScaleBuildLoss(
   shape: ScaleShape,
   root: string,
   tuning: string[] = STANDARD,
+  prebuilt?: FrettedScale,
 ): ShapeAuditIssue[] {
   const slotCount = shape.strings.reduce(
     (sum, s) => sum + (s ? s.length : 0),
     0,
   );
-  const result = buildFrettedScale(shape, root, tuning);
+  const result = prebuilt ?? buildFrettedScale(shape, root, tuning);
 
   if (result.empty) {
     return [
@@ -547,10 +556,11 @@ export function checkTuningMismatch(
  *    stores the pre-D-010 absolute value instead of the offset. This was the
  *    trigger the Group 13 `open-chords.ts` migration was gated on (see D-010
  *    §4.1) — that migration has landed, and every `src/data/open-chords.ts`
- *    shape (voicingFamily "open"/"barre") now reports zero issues here.
- *    One pre-existing issue elsewhere in the registry (`EXT_CHORD_A_9` in
- *    `src/data/extended-chords.ts`, absolute-style barre fret) predates
- *    D-010 and is tracked separately rather than silently auto-fixed.
+ *    shape (voicingFamily "open"/"barre") now reports zero issues here. The
+ *    other `src/data/*.ts` modules with barre-carrying shapes (e.g.
+ *    `extended-chords.ts`, `caged-chords*.ts`) have since had their own
+ *    pre-D-010 absolute barre frets migrated to grip-base offsets too
+ *    (CR-001).
  *
  * `root`/`tuning`/`prebuilt` mirror `checkFretSpan`'s signature so
  * `auditChordShape` can thread its single hoisted `applyChordShape` build in
@@ -649,6 +659,39 @@ function registryAllFor(kind: NameUniqueKind): NamedShape[] {
 }
 
 /**
+ * CR-005: `checkNameUnique` is called once per shape during a full-registry
+ * audit (`auditAllShapes`/`auditChordShapeFull` etc.), and each call used to
+ * re-derive `exportIdentifierFor` (regex work) for every OTHER registered
+ * entry — O(N) work per call, O(N²) for an N-shape audit. This caches an
+ * `identifier -> names sharing it` index per `kind`, keyed off the
+ * registry's current size so it's rebuilt (once) whenever a shape is
+ * added/removed, and reused across same-size calls in between — e.g. a full
+ * audit pass. Kept simple/pure-ish: size-keyed, not a true mutation token, so
+ * an in-place same-size rename between calls would serve a stale index until
+ * the next size change (acceptable per the "simple" brief).
+ */
+const identifierIndexCache = new Map<
+  NameUniqueKind,
+  { size: number; byIdentifier: Map<string, string[]> }
+>();
+
+function identifierIndexFor(kind: NameUniqueKind): Map<string, string[]> {
+  const all = registryAllFor(kind);
+  const cached = identifierIndexCache.get(kind);
+  if (cached && cached.size === all.length) return cached.byIdentifier;
+
+  const byIdentifier = new Map<string, string[]>();
+  for (const entry of all) {
+    const id = exportIdentifierFor(kind, entry);
+    const names = byIdentifier.get(id);
+    if (names) names.push(entry.name);
+    else byIdentifier.set(id, [entry.name]);
+  }
+  identifierIndexCache.set(kind, { size: all.length, byIdentifier });
+  return byIdentifier;
+}
+
+/**
  * Errors when `shape.name` is already registered in the target `kind`
  * registry, or `exportIdentifierFor(kind, shape)` collides with another
  * registered entry's derived identifier.
@@ -666,21 +709,35 @@ function registryAllFor(kind: NameUniqueKind): NamedShape[] {
  * check a whole changeset's names/identifiers (including other new entries
  * in the same changeset) against a merge-time snapshot without touching the
  * live registry.
+ *
+ * `options.selfName` (CR-004), when supplied, additionally excludes any
+ * registry entry named `selfName` from BOTH collision checks (name and
+ * identifier) — on top of, not instead of, the existing reference-equality
+ * exclusion. Lets a draft/clone of an already-registered shape (a fresh
+ * object, so reference equality never matches its own prior registration)
+ * audit itself — including a rename — without a false self-collision, while
+ * a genuine rename into another entry's name/identifier still flags.
  */
 export function checkNameUnique(
   shape: NamedShape,
   kind: NameUniqueKind,
-  options?: { knownNames?: Set<string>; knownIdentifiers?: Set<string> },
+  options?: { knownNames?: Set<string>; knownIdentifiers?: Set<string>; selfName?: string },
 ): ShapeAuditIssue[] {
   const issues: ShapeAuditIssue[] = [];
   const identifier = exportIdentifierFor(kind, shape);
+  const selfIdentifier =
+    options?.selfName !== undefined
+      ? exportIdentifierFor(kind, { name: options.selfName })
+      : undefined;
 
   const nameCollides =
     options?.knownNames !== undefined
-      ? options.knownNames.has(shape.name)
+      ? options.knownNames.has(shape.name) && shape.name !== options.selfName
       : (() => {
           const existing = registryGetFor(kind, shape.name);
-          return existing !== undefined && existing !== shape;
+          return (
+            existing !== undefined && existing !== shape && shape.name !== options?.selfName
+          );
         })();
 
   if (nameCollides) {
@@ -694,9 +751,11 @@ export function checkNameUnique(
 
   const identifierCollides =
     options?.knownIdentifiers !== undefined
-      ? options.knownIdentifiers.has(identifier)
-      : registryAllFor(kind).some(
-          (entry) => entry !== shape && exportIdentifierFor(kind, entry) === identifier,
+      ? options.knownIdentifiers.has(identifier) && identifier !== selfIdentifier
+      : (identifierIndexFor(kind).get(identifier) ?? []).some(
+          (name) =>
+            name !== options?.selfName &&
+            !(name === shape.name && registryGetFor(kind, name) === shape),
         );
 
   if (identifierCollides) {
@@ -792,14 +851,19 @@ export function auditScaleShape(
  * `applyChordShape`) and takes `max - min` over the built notes' non-open
  * frets. Skipped when the build itself fails (`result.empty`) — that failure
  * is `checkScaleBuildLoss`'s to report, not this check's.
+ *
+ * `prebuilt`, if supplied, is used in place of an internal
+ * `buildFrettedScale` call (CR-006) — see `checkScaleBuildLoss`'s matching
+ * parameter.
  */
 export function checkPositionSpan(
   shape: ArpeggioShape,
   root: string,
   tuning: string[] = STANDARD,
   maxSpan = 4,
+  prebuilt?: FrettedScale,
 ): ShapeAuditIssue[] {
-  const result = buildFrettedScale(shape, root, tuning);
+  const result = prebuilt ?? buildFrettedScale(shape, root, tuning);
   if (result.empty) return [];
 
   const fretted = result.notes.map((n) => n.fret).filter((f) => f > 0);
@@ -901,6 +965,11 @@ export function checkOverridesTarget(shape: ArpeggioShape): ShapeAuditIssue[] {
  * (`auditArpeggioShapeIntegration`, `src/audit-integration.ts`, not this
  * module). `root` defaults to `"C"` (`ArpeggioShape` has no `canonicalRoot`,
  * mirroring `auditScaleShape`'s default); `tuning` defaults to `STANDARD`.
+ *
+ * `buildFrettedScale(shape, root, tuning)` is built once here and threaded
+ * into `checkScaleBuildLoss`/`checkPositionSpan` (their `prebuilt` param,
+ * CR-006) since both call it with the exact same arguments — avoids two
+ * redundant rebuilds per audited arpeggio.
  */
 export function auditArpeggioShape(
   shape: ArpeggioShape,
@@ -908,10 +977,11 @@ export function auditArpeggioShape(
 ): ShapeAuditIssue[] {
   const root = options.root ?? "C";
   const tuning = options.tuning ?? STANDARD;
+  const built = buildFrettedScale(shape, root, tuning);
 
   return [
-    ...checkScaleBuildLoss(shape, root, tuning),
-    ...checkPositionSpan(shape, root, tuning, options.maxFretSpan),
+    ...checkScaleBuildLoss(shape, root, tuning, built),
+    ...checkPositionSpan(shape, root, tuning, options.maxFretSpan, built),
     ...checkFingeringComplete(shape),
     ...checkOverridesTarget(shape),
   ];

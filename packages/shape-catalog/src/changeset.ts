@@ -188,28 +188,63 @@ function detectCollisions(
   const seenIdentifiers = new Set<string>(extraKnownIdentifiers);
 
   for (const change of changes) {
-    if (change.op !== "add") continue;
-    const kind = change.kind;
-    const shapeLike = { name: change.shape.name };
-    const identifier = change.ident ?? exportIdentifierFor(kind, shapeLike);
+    if (change.op === "add") {
+      const kind = change.kind;
+      const shapeLike = { name: change.shape.name };
+      const identifier = change.ident ?? exportIdentifierFor(kind, shapeLike);
 
-    const liveIssues = checkNameUnique(shapeLike, kind);
-    const batchIssues = checkNameUnique(shapeLike, kind, {
-      knownNames: seenNames,
-      knownIdentifiers: seenIdentifiers,
-    });
-
-    for (const issue of [...liveIssues, ...batchIssues]) {
-      if (issue.id !== CHECK_NAME_UNIQUE) continue;
-      collisions.push({
-        change,
-        reason: isIdentifierCollisionMessage(issue.message) ? "identifier" : "name",
-        detail: issue.message,
+      const liveIssues = checkNameUnique(shapeLike, kind);
+      const batchIssues = checkNameUnique(shapeLike, kind, {
+        knownNames: seenNames,
+        knownIdentifiers: seenIdentifiers,
       });
+
+      for (const issue of [...liveIssues, ...batchIssues]) {
+        if (issue.id !== CHECK_NAME_UNIQUE) continue;
+        collisions.push({
+          change,
+          reason: isIdentifierCollisionMessage(issue.message) ? "identifier" : "name",
+          detail: issue.message,
+        });
+      }
+
+      seenNames.add(change.shape.name);
+      seenIdentifiers.add(identifier);
+      continue;
     }
 
-    seenNames.add(change.shape.name);
-    seenIdentifiers.add(identifier);
+    // CR-019: a renaming `update` (`patch.name` differs from the shape's
+    // current `name`) needs the same name-collision check `add` gets above —
+    // otherwise the Workbench can build (and offer to write) a changeset
+    // that merges cleanly into a duplicate registration. Identifier
+    // collisions are NOT checked here: an `update` never derives a fresh
+    // export identifier (the merge script keeps a renamed shape's marker
+    // identifier fixed at whatever it was set to at `add` time), so running
+    // it through `exportIdentifierFor(kind, { name: newName })` would flag
+    // false "identifier" collisions unrelated to what actually gets written.
+    if (change.op === "update" && typeof change.patch?.name === "string" && change.patch.name !== change.name) {
+      const kind = change.kind;
+      const shapeLike = { name: change.patch.name };
+
+      const liveIssues = checkNameUnique(shapeLike, kind).filter(
+        (issue) => !isIdentifierCollisionMessage(issue.message),
+      );
+      const batchIssues = checkNameUnique(shapeLike, kind, {
+        knownNames: seenNames,
+        knownIdentifiers: seenIdentifiers,
+      }).filter((issue) => !isIdentifierCollisionMessage(issue.message));
+
+      for (const issue of [...liveIssues, ...batchIssues]) {
+        if (issue.id !== CHECK_NAME_UNIQUE) continue;
+        collisions.push({ change, reason: "name", detail: issue.message });
+      }
+
+      // Tracked so a LATER change in this same batch renaming onto the same
+      // new name is also caught (mirrors `add`'s within-batch tracking
+      // above) — identifiers are deliberately NOT tracked here, per the
+      // comment above.
+      seenNames.add(shapeLike.name);
+    }
   }
 
   return collisions;

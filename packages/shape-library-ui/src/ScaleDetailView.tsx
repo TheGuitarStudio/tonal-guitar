@@ -1,14 +1,17 @@
 /**
- * Ported from `site/app/shapes/components/ScaleDetailView.tsx`. Split out
- * of `ShapeDetailPanel.tsx` there — the root panel, the shared
- * presentational primitives, and `buildDetail` (which produces the
- * `ScaleDetail` this view renders) all live there. Read-only: never emits
- * `data-tg-edit`.
+ * Ported from `site/app/shapes/components/ScaleDetailView.tsx`. The root
+ * panel (`ShapeDetailPanel.tsx`, including `buildDetail`, which produces
+ * the `ScaleDetail` this view renders) is a sibling module, not an
+ * ancestor: the shared presentational primitives and the `ScaleDetail`
+ * type live in `./detailPrimitives`/`./detailTypes` so this view doesn't
+ * import back from the panel (CR-035 — keeps the import graph a DAG).
+ * Read-only: never emits `data-tg-edit`.
  */
 import type { CompatibleShapesResult, ScaleCatalogEntry, ShapeCatalogEntry } from "shape-catalog";
 import { ShapeCardDiagram } from "./ShapeCardDiagram";
 import { FeaturedMark, IssueBadges } from "./IssueBadges";
-import { ReportProblemLink, Section, SiblingStepper, siblingIndexAt, type ScaleDetail } from "./ShapeDetailPanel";
+import { ReportProblemLink, Section, SiblingStepper, siblingIndexAt } from "./detailPrimitives";
+import type { ScaleDetail } from "./detailTypes";
 
 export function ScaleDetailView({
   detail,

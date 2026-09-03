@@ -12,7 +12,7 @@
  * stays safe under `renderToString`/SSR prerender.
  */
 import { Fragment } from "react";
-import type { BoardModelResult, ShapeCatalogEntry } from "shape-catalog";
+import { cellKey, type BoardModelResult, type ShapeCatalogEntry } from "shape-catalog";
 import { BoardCellCard } from "./BoardCellCard";
 import { useLibraryCapabilities } from "./capabilities";
 
@@ -21,10 +21,6 @@ export interface ShapeBoardProps {
   onSelectEntry?: (entry: ShapeCatalogEntry) => void;
   collapseToSingleColumn?: boolean;
   className?: string;
-}
-
-function cellKeyFor(rowKey: string, columnKey: string): string {
-  return `${rowKey}::${columnKey}`;
 }
 
 export function ShapeBoard({ model, onSelectEntry, collapseToSingleColumn = false, className }: ShapeBoardProps) {
@@ -51,12 +47,12 @@ export function ShapeBoard({ model, onSelectEntry, collapseToSingleColumn = fals
     return (
       <div className={className}>
         {header}
-        <div className={["tg-board", "tg-board-collapsed"].join(" ")} role="list">
+        <div className={["tg-board", "tg-board-collapsed"].join(" ")}>
           {model.rows.map((row) => (
-            <div key={row.key} className="tg-board-group" role="group" aria-label={row.label}>
+            <div key={row.key} className="tg-board-group">
               <div className="tg-board-row-label">{row.label}</div>
               {model.columns.map((column) => {
-                const cell = model.cells.get(cellKeyFor(row.key, column.key));
+                const cell = model.cells.get(cellKey(row.key, column.key));
                 if (!cell) return null;
                 return (
                   <BoardCellCard key={cell.key} cell={cell} onSelectEntry={onSelectEntry} columnLabel={column.label} />
@@ -74,20 +70,18 @@ export function ShapeBoard({ model, onSelectEntry, collapseToSingleColumn = fals
   return (
     <div className={className}>
       {header}
-      <div className="tg-board" role="grid" style={{ gridTemplateColumns }}>
-        <div className="tg-board-header" role="columnheader" aria-hidden="true" />
+      <div className="tg-board" style={{ gridTemplateColumns }}>
+        <div className="tg-board-header" aria-hidden="true" />
         {model.columns.map((column) => (
-          <div key={column.key} className="tg-board-header" role="columnheader">
+          <div key={column.key} className="tg-board-header">
             {column.label}
           </div>
         ))}
         {model.rows.map((row) => (
           <Fragment key={row.key}>
-            <div className="tg-board-row-label" role="rowheader">
-              {row.label}
-            </div>
+            <div className="tg-board-row-label">{row.label}</div>
             {model.columns.map((column) => {
-              const cell = model.cells.get(cellKeyFor(row.key, column.key));
+              const cell = model.cells.get(cellKey(row.key, column.key));
               if (!cell) return <div key={column.key} className="tg-board-cell" />;
               return <BoardCellCard key={cell.key} cell={cell} onSelectEntry={onSelectEntry} />;
             })}

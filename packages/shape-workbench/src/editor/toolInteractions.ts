@@ -3,10 +3,9 @@
  * `cells`/`onChange` pair (spec §5.4 Editor requirements: "Tools: Select /
  * Note / Root / Finger (1–4) / Barre (drag across strings) / Mute").
  *
- * `fretboard-ui`'s `FretboardEditor` accepts a `tool`/`activeFinger` prop
- * pair but — by its own doc comment — "doesn't yet branch on it": its
- * internal double-click-to-add/remove and "Set root"/"Clear" buttons always
- * run the same plain-note semantics regardless of which tool is selected.
+ * `fretboard-ui`'s `FretboardEditor` has no concept of tools: its internal
+ * double-click-to-add/remove and "Set root"/"Clear" buttons always run the
+ * same plain-note semantics regardless of which tool is selected here.
  * Group 26 owns turning that raw `cells` diff into the six tools' real
  * semantics, without touching `fretboard-ui` (out of scope for this group).
  *

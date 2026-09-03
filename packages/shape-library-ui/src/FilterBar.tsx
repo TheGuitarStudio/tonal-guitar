@@ -22,6 +22,7 @@ import {
   distinctVoicingFamilies,
   scaleQualityCounts,
   scaleSystemCounts,
+  toggleInAllOnSet,
   voicingFamilyCounts,
 } from "shape-catalog";
 
@@ -350,22 +351,6 @@ function ScaleFacets({ entries, selection, system, onSystemChange, quality, onQu
 // ============================================================
 // Shared chip primitives
 // ============================================================
-
-/**
- * Toggles `value` within a multi-select facet whose "unset" (empty array)
- * state means "every option in `all` is on". The first toggle away from
- * that implicit all-on state materializes it as an explicit set built from
- * `all`; toggling back up to cover every option in `all` collapses back to
- * `[]` so "all on" and "no narrowing" stay the same state.
- */
-function toggleInAllOnSet(active: readonly string[], all: readonly string[], value: string): string[] {
-  const base = active.length > 0 ? active : all;
-  const next = new Set(base);
-  if (next.has(value)) next.delete(value);
-  else next.add(value);
-  if (next.size === all.length) return [];
-  return [...next];
-}
 
 interface FacetRowProps {
   label: string;

@@ -17,9 +17,9 @@
  * (each carrying `data-tg-edit`) render only when the corresponding
  * `EditCapabilities` callback is provided (spec §5.3 D-002 invariant).
  */
-import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
-import type { CagedPosition, ChordShape, ScalesContainingChordResult } from "tonal-guitar";
-import type { ChordCatalogEntry, ScaleCatalogEntry, ShapeCatalogEntry } from "shape-catalog";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import type { CagedPosition } from "tonal-guitar";
+import type { ShapeCatalogEntry } from "shape-catalog";
 import {
   alternateFingerings,
   chordDetailFor,
@@ -30,13 +30,18 @@ import {
   scaleSiblings,
   siblingScaleStepper,
   siblingStepper,
-  type CompatibleShapesResult,
-  type InversionGroupsResult,
-  type SiblingStepperInfo,
 } from "shape-catalog";
 import { ChordDetailView } from "./ChordDetailView";
 import { ScaleDetailView } from "./ScaleDetailView";
 import { useLibraryCapabilities } from "./capabilities";
+import { Section, SiblingStepper, siblingIndexAt, ReportProblemLink } from "./detailPrimitives";
+import type { ChordDetail, ScaleDetail, PanelDetail } from "./detailTypes";
+
+// Re-exported so the package barrel (`index.ts`) — and any code importing
+// directly from this module — keep working unchanged after the CR-035
+// extraction into `detailPrimitives.tsx`/`detailTypes.ts`.
+export { Section, SiblingStepper, siblingIndexAt, ReportProblemLink };
+export type { ChordDetail, ScaleDetail };
 
 export interface ShapeDetailPanelProps {
   /** The currently selected catalog entry, or `undefined` when no card is
@@ -49,7 +54,7 @@ export interface ShapeDetailPanelProps {
    * triggering card's DOM — the parent is expected to move focus back to it. */
   onClose: () => void;
   /** Called when the user swaps to a different shape from inside the panel. */
-  onSelectEntry: (entry: ShapeCatalogEntry) => void;
+  onSelectEntry?: (entry: ShapeCatalogEntry) => void;
   /** Bumped by the parent whenever the panel opens (or its entry changes)
    * from OUTSIDE the panel — never for swaps originating inside the panel. */
   focusOnOpenKey: number;
@@ -62,32 +67,16 @@ export interface ShapeDetailPanelProps {
   renderAsBottomSheet?: boolean;
 }
 
+// `onSelectEntry` is optional on `ShapeDetailPanelProps` (CR-044 — matches
+// `ShapeBoard`/`BoardCellCard`), but `ChordDetailView`/`ScaleDetailView`
+// still require a real callback; this fills the gap when the caller omits
+// one rather than threading optionality through every sibling-link/stepper
+// helper inside those views.
+const NOOP_SELECT_ENTRY = () => {};
+
 // ============================================================
 // Detail computation — the panel's single Tonal-derivation useMemo
 // ============================================================
-
-export interface ChordDetail {
-  kind: "chord";
-  entry: ChordCatalogEntry;
-  identified: string[];
-  chordName: string | undefined;
-  scales: ScalesContainingChordResult | undefined;
-  siblings: ChordShape[];
-  stepper: SiblingStepperInfo;
-  alternates: ChordShape[];
-  inversions: InversionGroupsResult;
-}
-
-export interface ScaleDetail {
-  kind: "scale";
-  entry: ScaleCatalogEntry;
-  siblings: ScaleCatalogEntry[];
-  stepper: SiblingStepperInfo;
-  related: Array<{ root: string; scale: string }>;
-  compatible: CompatibleShapesResult;
-}
-
-type PanelDetail = ChordDetail | ScaleDetail;
 
 function buildDetail(entry: ShapeCatalogEntry, catalog: readonly ShapeCatalogEntry[]): PanelDetail {
   if (entry.kind === "chord") {
@@ -228,9 +217,9 @@ export function ShapeDetailPanel({
       <EditControls entry={entry} capabilities={capabilities} />
 
       {detail.kind === "chord" ? (
-        <ChordDetailView detail={detail} chordCatalogByName={chordCatalogByName} onSelectEntry={onSelectEntry} />
+        <ChordDetailView detail={detail} chordCatalogByName={chordCatalogByName} onSelectEntry={onSelectEntry ?? NOOP_SELECT_ENTRY} />
       ) : (
-        <ScaleDetailView detail={detail} scaleCatalogByName={scaleCatalogByName} onSelectEntry={onSelectEntry} />
+        <ScaleDetailView detail={detail} scaleCatalogByName={scaleCatalogByName} onSelectEntry={onSelectEntry ?? NOOP_SELECT_ENTRY} />
       )}
     </aside>
   );
@@ -308,79 +297,6 @@ function EditControls({
   );
 }
 
-// ============================================================
-// Shared presentational primitives
-// ============================================================
-
-export function Section({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <section className="tg-section">
-      <h3 className="tg-section-title">{title}</h3>
-      {children}
-    </section>
-  );
-}
-
-export function SiblingStepper({
-  index,
-  total,
-  itemLabel,
-  onPrev,
-  onNext,
-}: {
-  index: number;
-  total: number;
-  itemLabel: string;
-  onPrev: () => void;
-  onNext: () => void;
-}) {
-  if (total <= 1) return null;
-  const position = index === -1 ? "?" : index + 1;
-  return (
-    <div className="tg-stepper">
-      <button type="button" onClick={onPrev} disabled={index <= 0} aria-label={`Previous ${itemLabel}`} className="tg-chip">
-        &#8592;
-      </button>
-      <span>
-        {itemLabel} {position} of {total}
-      </span>
-      <button
-        type="button"
-        onClick={onNext}
-        disabled={index === -1 || index >= total - 1}
-        aria-label={`Next ${itemLabel}`}
-        className="tg-chip"
-      >
-        &#8594;
-      </button>
-    </div>
-  );
-}
-
-/**
- * Bounds-checked target index for a Prev/Next sibling-stepper step:
- * `stepper.index + offset`, or `undefined` when the stepper has no current
- * position (`index === -1`) or the target would fall outside `[0, total)`.
- */
-export function siblingIndexAt(stepper: SiblingStepperInfo, offset: number, total: number): number | undefined {
-  if (stepper.index === -1) return undefined;
-  const targetIndex = stepper.index + offset;
-  if (targetIndex < 0 || targetIndex >= total) return undefined;
-  return targetIndex;
-}
-
-/** "Report a problem" link — reads `reportIssueUrl` from `LibraryCapabilities`
- * (not `EditCapabilities`: both the read-only site and the workbench may
- * want it). Renders nothing when no such capability is injected. */
-export function ReportProblemLink({ entry }: { entry: ShapeCatalogEntry }) {
-  const capabilities = useLibraryCapabilities();
-  const reportUrl = capabilities.reportIssueUrl?.(entry);
-  if (!reportUrl) return null;
-  return (
-    <p className="tg-report-link">
-      <a href={reportUrl} target="_blank" rel="noreferrer" className="tg-link">
-        Report a problem with this shape
-      </a>
-    </p>
-  );
-}
+// Shared presentational primitives (Section, SiblingStepper, siblingIndexAt,
+// ReportProblemLink) live in `./detailPrimitives` and are re-exported near
+// the top of this file — see the CR-035 comment there.

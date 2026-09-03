@@ -104,6 +104,36 @@ describe("buildShapeFromCells", () => {
   });
 });
 
+describe("buildShapeFromCells — compound interval spelling preservation (CR-055)", () => {
+  const EXTENDED: ChordShape = {
+    ...EMPTY_SHAPE,
+    name: "Extended Voicing",
+    strings: ["1P", "5P", "7m", "3M", "5P", "9M"],
+    fingers: [1, 3, 1, 2, 4, 4],
+    rootString: 0,
+  };
+
+  it("keeps a compound spelling ('9M') when re-derived geometry is only chroma-equivalent, not actually changed", () => {
+    // `intervalFromTo` (the base editor's cells->interval conversion) only
+    // emits the 12 simple names, so round-tripping unchanged cells through
+    // `cellsToChordShape` would naively collapse "9M" (14 semitones) down to
+    // "2M" (its mod-12 chroma) even though nothing about the grip changed.
+    const { cells, barres } = seedCellsFromShape(EXTENDED, STANDARD, "A");
+    const rebuilt = buildShapeFromCells(EXTENDED, cells, barres, STANDARD, "A");
+    expect(rebuilt).toBeDefined();
+    expect(rebuilt?.strings).toEqual(EXTENDED.strings);
+    expect(rebuilt?.strings[5]).toBe("9M");
+  });
+
+  it("uses the freshly-derived (simple) spelling once the finger at that string actually changes", () => {
+    const { cells, barres } = seedCellsFromShape(EXTENDED, STANDARD, "A");
+    const editedCells = cells.map((c) => (c.string === 5 ? { ...c, finger: 3 } : c));
+    const rebuilt = buildShapeFromCells(EXTENDED, editedCells, barres, STANDARD, "A");
+    expect(rebuilt?.fingers[5]).toBe(3);
+    expect(rebuilt?.strings[5]).toBe("2M");
+  });
+});
+
 describe("seedCellsFromShape / buildShapeFromCells round trip", () => {
   it("round-trips an authored shape's strings/fingers through seed -> build", () => {
     const shape: ChordShape = {

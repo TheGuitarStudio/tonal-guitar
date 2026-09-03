@@ -14,7 +14,7 @@ import { get as getChord, detect as detectChord } from "@tonaljs/chord";
 import { chroma as noteChroma, transpose as noteTranspose } from "@tonaljs/note";
 
 import { applyChordShape, buildFrettedScale, Fingering } from "./build";
-import { chordShapes, arpeggioShapes, ChordShape, ArpeggioShape } from "./shape";
+import { chordShapes, arpeggioShapes, ChordShape, ArpeggioShape, FrettedScale } from "./shape";
 import { STANDARD } from "./tuning";
 import {
   auditChordShape,
@@ -122,16 +122,23 @@ function chordToneChromas(chordType: string, root: string): Set<number> | null {
  * strays outside the chord it's supposed to outline. Skipped when
  * `chordType` doesn't resolve (`chordToneChromas` returns `null`) or the
  * arpeggio fails to build.
+ *
+ * `prebuilt`, if supplied, is used in place of an internal
+ * `buildFrettedScale` call — lets `auditArpeggioShapeIntegration` hoist one
+ * shared build across the checks that use identical (shape, root, tuning)
+ * arguments (CR-006), mirroring `checkIdentifyMismatch`'s `prebuilt`
+ * parameter on the chord path.
  */
 export function checkChordTonesOnly(
   shape: ArpeggioShape,
   root: string,
   tuning: string[] = STANDARD,
+  prebuilt?: FrettedScale,
 ): ShapeAuditIssue[] {
   const chordChromas = chordToneChromas(shape.chordType, root);
   if (chordChromas === null) return [];
 
-  const built = buildFrettedScale(shape, root, tuning);
+  const built = prebuilt ?? buildFrettedScale(shape, root, tuning);
   if (built.empty) return [];
 
   const extraNotes = built.notes.filter((n) => {
@@ -167,16 +174,21 @@ export function checkChordTonesOnly(
  * that never touches every interval the chord requires (e.g. a "m7" run
  * that never plays the 7th). Skipped when `chordType` doesn't resolve or the
  * arpeggio fails to build.
+ *
+ * `prebuilt`, if supplied, is used in place of an internal
+ * `buildFrettedScale` call (CR-006) — see `checkChordTonesOnly`'s matching
+ * parameter.
  */
 export function checkCoversChord(
   shape: ArpeggioShape,
   root: string,
   tuning: string[] = STANDARD,
+  prebuilt?: FrettedScale,
 ): ShapeAuditIssue[] {
   const chord = getChord(shape.chordType);
   if (chord.empty || chord.intervals.length === 0) return [];
 
-  const built = buildFrettedScale(shape, root, tuning);
+  const built = prebuilt ?? buildFrettedScale(shape, root, tuning);
   if (built.empty) return [];
 
   const builtChromas = new Set(
@@ -212,18 +224,25 @@ export function checkCoversChord(
  *
  * Skipped (`[]`) when `shape.chordShape` is absent, when it doesn't resolve
  * to a registered `ChordShape`, or when the arpeggio itself fails to build.
+ *
+ * `prebuilt`, if supplied, is used in place of an internal
+ * `buildFrettedScale` call for the ARPEGGIO's own build only (CR-006) — see
+ * `checkChordTonesOnly`'s matching parameter. The referenced grip's own
+ * `applyChordShape` build (`gripBuild`, a different shape) is unrelated and
+ * always computed internally.
  */
 export function checkContainsChordGrip(
   shape: ArpeggioShape,
   root: string,
   tuning: string[] = STANDARD,
+  prebuilt?: FrettedScale,
 ): ShapeAuditIssue[] {
   if (shape.chordShape === undefined) return [];
 
   const grip = chordShapes.get(shape.chordShape);
   if (grip === undefined) return [];
 
-  const arpeggioBuild = buildFrettedScale(shape, root, tuning);
+  const arpeggioBuild = prebuilt ?? buildFrettedScale(shape, root, tuning);
   if (arpeggioBuild.empty) return [];
 
   const gripBuild = applyChordShape(grip, root, tuning);
@@ -278,6 +297,13 @@ export function auditChordShapeIntegration(
  * covers-chord, contains-chord-grip. `root` defaults to `"C"` and `tuning`
  * to `STANDARD`, mirroring `auditArpeggioShape`'s (./audit) defaults —
  * `ArpeggioShape` has no `canonicalRoot`.
+ *
+ * `buildFrettedScale(shape, root, tuning)` is built once here and threaded
+ * into all three checks (their `prebuilt` param, CR-006) since they all call
+ * it with the exact same arguments for the arpeggio's own build — avoids
+ * three redundant rebuilds per audited arpeggio. `checkContainsChordGrip`'s
+ * separate `applyChordShape` build of the referenced grip is unrelated and
+ * stays internal to that check.
  */
 export function auditArpeggioShapeIntegration(
   shape: ArpeggioShape,
@@ -285,11 +311,12 @@ export function auditArpeggioShapeIntegration(
 ): ShapeAuditIssue[] {
   const root = options.root ?? "C";
   const tuning = options.tuning ?? STANDARD;
+  const built = buildFrettedScale(shape, root, tuning);
 
   return [
-    ...checkChordTonesOnly(shape, root, tuning),
-    ...checkCoversChord(shape, root, tuning),
-    ...checkContainsChordGrip(shape, root, tuning),
+    ...checkChordTonesOnly(shape, root, tuning, built),
+    ...checkCoversChord(shape, root, tuning, built),
+    ...checkContainsChordGrip(shape, root, tuning, built),
   ];
 }
 

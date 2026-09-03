@@ -16,14 +16,20 @@
  * `../export/*` — this file is wiring + layout, mirroring `Editor.tsx`'s
  * split between screen and `../editor/*` helpers.
  */
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { VERSION } from "tonal-guitar";
 import { buildChangeset } from "shape-catalog";
 import { useWorkbenchDispatch, useWorkbenchState } from "../StoreProvider";
 import { ExportChangeList } from "../export/ExportChangeList";
 import { ExportDiffView } from "../export/ExportDiffView";
 import { summarizeChangesByKindAndOp } from "../export/changeInfo";
-import { writeChangesetAndDispatch, type FetchLike, type WriteOutcome } from "../export/writeChangeset";
+import {
+  fetchWorkbenchStatus,
+  writeChangesetAndDispatch,
+  type FetchLike,
+  type WorkbenchStatus,
+  type WriteOutcome,
+} from "../export/writeChangeset";
 import { DRY_RUN_HINT, MERGE_COMMAND, SAMPLE_TRANSCRIPT, UNDO_HINT } from "../export/mergeCommand";
 
 export interface ExportScreenProps {
@@ -44,6 +50,26 @@ export function ExportScreen({ fetchImpl }: ExportScreenProps = {}) {
   const dispatch = useWorkbenchDispatch();
   const [selectedIndex, setSelectedIndex] = useState<number | undefined>(state.changes.length > 0 ? 0 : undefined);
   const [writeState, setWriteState] = useState<WriteUiState>({ status: "idle" });
+  const [workbenchStatus, setWorkbenchStatus] = useState<WorkbenchStatus | undefined>(undefined);
+
+  // Probes the dev-server plugin's `/__workbench/status` endpoint once on
+  // mount (CR-060) — the app never calls it, so under `vite preview`/`vite
+  // build` the "Write changeset.json" POST would otherwise hit the SPA
+  // fallback and fail with a cryptic JSON-parse error instead of an
+  // explicit "dev server required" state. Runs client-side only (never
+  // during `renderToString`, matching every other async effect in this
+  // package), and resolves the same `fetchImpl` injection point `handleWrite`
+  // uses below.
+  useEffect(() => {
+    let cancelled = false;
+    const resolvedFetch: FetchLike = fetchImpl ?? ((url, init) => window.fetch(url, init));
+    fetchWorkbenchStatus(resolvedFetch).then((result) => {
+      if (!cancelled) setWorkbenchStatus(result);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const built = useMemo(
     () => buildChangeset({ version: VERSION, tuning: state.tuning, changes: state.changes }),
@@ -52,6 +78,20 @@ export function ExportScreen({ fetchImpl }: ExportScreenProps = {}) {
   const tally = useMemo(() => summarizeChangesByKindAndOp(state.changes), [state.changes]);
   const selectedChange =
     selectedIndex !== undefined ? state.changes[selectedIndex] : undefined;
+
+  function handleRemove(index: number): void {
+    dispatch({ type: "REMOVE_CHANGE", index });
+    setSelectedIndex((current) => {
+      if (current === undefined) return current;
+      if (index === current) return undefined;
+      return index < current ? current - 1 : current;
+    });
+  }
+
+  function handleClearChanges(): void {
+    dispatch({ type: "CLEAR_CHANGES" });
+    setSelectedIndex(undefined);
+  }
 
   async function handleWrite(): Promise<void> {
     setWriteState({ status: "writing" });
@@ -79,7 +119,12 @@ export function ExportScreen({ fetchImpl }: ExportScreenProps = {}) {
         changes={state.changes}
         selectedIndex={selectedIndex}
         onSelect={setSelectedIndex}
+        onRemove={handleRemove}
       />
+
+      <button type="button" data-testid="clear-changes-button" onClick={handleClearChanges}>
+        Clear changeset
+      </button>
 
       <div className="tg-section" data-testid="export-counts-touched">
         <h3 className="tg-section-title">Test counts touched</h3>
@@ -121,7 +166,31 @@ export function ExportScreen({ fetchImpl }: ExportScreenProps = {}) {
 
       <div className="tg-section" data-testid="export-write">
         <h3 className="tg-section-title">Write changeset.json</h3>
-        <button type="button" data-testid="write-changeset-button" onClick={() => void handleWrite()}>
+        {workbenchStatus === undefined && (
+          <p className="tg-muted" data-testid="workbench-status-checking">
+            Checking dev server…
+          </p>
+        )}
+        {workbenchStatus !== undefined && !workbenchStatus.reachable && (
+          <p role="alert" data-testid="workbench-status-unreachable">
+            Dev server required — the workbench I/O plugin only runs under{" "}
+            <code className="tg-mono">npm run dev</code>, not <code className="tg-mono">vite preview</code>/
+            <code className="tg-mono">vite build</code>. Writing changeset.json is disabled.
+          </p>
+        )}
+        {built.collisions.length > 0 && (
+          <p role="alert" data-testid="write-blocked-collisions">
+            Resolve the name/identifier collision(s) above before writing changeset.json.
+          </p>
+        )}
+        <button
+          type="button"
+          data-testid="write-changeset-button"
+          disabled={
+            workbenchStatus === undefined || !workbenchStatus.reachable || built.collisions.length > 0
+          }
+          onClick={() => void handleWrite()}
+        >
           Write changeset.json
         </button>
         {writeState.status === "writing" && <p className="tg-muted">Writing…</p>}

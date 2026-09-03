@@ -24,7 +24,21 @@ import {
   type ShapeGroup,
   type ShapeKind,
 } from "shape-catalog";
-import { FilterBar, FILTER_ALL, ShapeCard, ShapeLibraryProvider, type ChordSortOption } from "shape-library-ui";
+// Deep-imported from their own files rather than the `shape-library-ui`
+// barrel (`./index.ts`) — see the `ShapeDetailPanel` comment below. Without
+// a `"sideEffects": false` in `shape-library-ui`'s `package.json` (not this
+// site's to add — it'd be a change to that package, not this one),
+// webpack must conservatively assume every module the barrel re-exports
+// might have import-time side effects, so importing *anything* through the
+// unqualified `"shape-library-ui"` specifier pulls `index.ts`'s entire
+// re-export graph — `ShapeDetailPanel`/`ChordDetailView`/`ScaleDetailView`
+// included — into whatever chunk this static import lands in. Importing
+// `FilterBar`/`ShapeCard`/`ShapeLibraryProvider` from their own files
+// instead means this static import never reaches `index.ts` at all, so it
+// no longer drags the detail-panel code along with it.
+import { FilterBar, FILTER_ALL, type ChordSortOption } from "shape-library-ui/src/FilterBar";
+import { ShapeCard } from "shape-library-ui/src/ShapeCard";
+import { ShapeLibraryProvider } from "shape-library-ui/src/capabilities";
 import { REPO_SLUG } from "@/lib/repo";
 import { ShapeBoardView } from "./ShapeBoardView";
 
@@ -34,8 +48,30 @@ import { ShapeBoardView } from "./ShapeBoardView";
 // `/shapes` bundle (spec §7 step 4 / acceptance criteria). Pulled from
 // `shape-library-ui` rather than a local file now that the panel (and
 // `ChordDetailView`/`ScaleDetailView`) are fully shared components.
+//
+// Deep-imports the module directly (CR-068) rather than going through the
+// `shape-library-ui` barrel — and, per the comment above the static imports,
+// this file's OTHER `shape-library-ui` imports are now also deep imports
+// rather than going through the barrel, so `index.ts` (and its re-export of
+// this very module) is never reachable from this file's synchronous import
+// graph at all. Deep-importing the dynamic side alone was not sufficient by
+// itself: as long as some other static import in this file still went
+// through the barrel, `ShapeDetailPanel` stayed reachable synchronously via
+// that barrel's re-export and webpack folded it into the eager page chunk
+// regardless of how the lazy side referenced it (verified against the built
+// `.next/react-loadable-manifest.json`, which listed this dynamic import
+// with an empty `files: []` — i.e. no separate chunk was ever produced —
+// until BOTH this file's static imports above AND `ShapeBoardView.tsx`'s
+// own `shape-library-ui` import (it's statically imported by this file, so
+// its barrel usage mattered just as much) stopped going through the
+// barrel. With every static path deep-imported, the manifest now lists a
+// real chunk file for this entry and the built page chunk no longer
+// contains the panel's markup/strings — confirmed by grepping the built
+// `.next/static/chunks/` output for panel-only text like "Close shape
+// details": absent from `app/shapes/page-*.js`, present only in the new
+// on-demand chunk.
 const ShapeDetailPanel = dynamic(
-  () => import("shape-library-ui").then((mod) => mod.ShapeDetailPanel),
+  () => import("shape-library-ui/src/ShapeDetailPanel").then((mod) => mod.ShapeDetailPanel),
   { ssr: false },
 );
 
@@ -275,7 +311,7 @@ export function ShapeLibrary() {
   // plain function declaration here would be recreated on every
   // `ShapeLibrary` render (e.g. every time a different card's selection
   // flips `isSelected`), which would give every one of the ~159 cards a new
-  // `onSelect` reference and force them all to re-render. Reads
+  // `onSelectEntry` reference and force them all to re-render. Reads
   // `selectedEntryRef.current` (kept in sync by the effect above) rather
   // than the reactive `selectedEntry` state directly, since a closure
   // created once at mount can't otherwise see later state.
@@ -310,7 +346,7 @@ export function ShapeLibrary() {
 
   // Grid-originated selection (CR-026): identical to `handleSelectEntry`,
   // plus bumping `focusPanelKey` so the panel pulls focus in — this is the
-  // callback wired to every card's `onSelect` (grid and board alike), never
+  // callback wired to every card's `onSelectEntry` (grid and board alike), never
   // to `ShapeDetailPanel`'s internal `onSelectEntry` (which stays
   // `handleSelectEntry` unmodified so in-panel navigation never steals
   // focus back to the panel root it's already inside).
@@ -327,7 +363,7 @@ export function ShapeLibrary() {
   // bubble phase), so it reliably captures the actual clicked `<button>`
   // regardless of whether the browser also moved focus there (Safari/
   // Firefox don't focus buttons on mouse click by default, so relying on
-  // `document.activeElement` in `onSelect` itself would be unreliable) and
+  // `document.activeElement` in `onSelectEntry` itself would be unreliable) and
   // regardless of whether the card lives in the pinned section, a grouped
   // section, or a board cell.
   function handleResultsClickCapture(event: MouseEvent<HTMLDivElement>) {
@@ -533,36 +569,64 @@ export function ShapeLibrary() {
               <button
                 type="button"
                 aria-pressed={view === "board"}
-                onClick={() => setView("board")}
+                // Board view groups by chord type (`ShapeBoardView`'s
+                // `boardModel` call is hardcoded to `rowGrouping:
+                // "chordType"`) — scale shapes carry no such facet, so the
+                // board would always render "Showing 0 of 0" for them
+                // (CR-067). Disabling the toggle here is the primary guard;
+                // `ShapeBoardView` also renders its own explicit chord-only
+                // empty state in case `kind` flips to "scale" while board
+                // is already open (the FilterBar's kind toggle stays live
+                // in board mode — see CR-070).
+                disabled={kind === "scale"}
+                aria-disabled={kind === "scale"}
+                title={kind === "scale" ? "Board view is chord-only" : undefined}
+                onClick={() => {
+                  if (kind === "scale") return;
+                  setView("board");
+                }}
               >
                 Board
               </button>
             </div>
           </div>
 
-          <FilterBar
-            entries={catalog}
-            kind={kind}
-            onKindChange={handleKindChange}
-            chordSelection={chordSelection}
-            onQualityGroupChange={setQualityGroup}
-            onActiveTypesChange={setActiveTypes}
-            onActiveVoicingFamiliesChange={setActiveVoicingFamilies}
-            onRootChange={setRoot}
-            chordSort={chordSort}
-            onChordSortChange={setChordSort}
-            scaleSelection={scaleSelection}
-            system={system}
-            onSystemChange={setSystem}
-            quality={quality}
-            onQualityChange={setQuality}
-            nameQuery={nameQuery}
-            onNameQueryChange={setNameQuery}
-            failingOnly={failingOnly}
-            onFailingOnlyChange={setFailingOnly}
-            shownCount={view === "grid" ? matchedEntries.length : totalCount}
-            totalCount={totalCount}
-          />
+          {/* Board view only ever forwards `kind`/`nameQuery` into
+           * `boardModel` (`ShapeBoardView` takes no other facet props) — every
+           * other FilterBar control (sort, failing-only, quality/voicing/root
+           * or system/quality chips) is inert there, and the "Showing N of M"
+           * count would contradict `ShapeBoard`'s own header count below
+           * (CR-069/CR-070). `FilterBar` has no prop to suppress those
+           * sections itself (its surface is all data, not layout toggles),
+           * and its public API isn't ours to change from `site/` — so this
+           * wraps it in a board-mode class instead and hides the inert parts
+           * with CSS (`app/global.css`), leaving the kind toggle and name
+           * search live in both views. */}
+          <div className={view === "board" ? "tg-filterbar-board-mode" : undefined}>
+            <FilterBar
+              entries={catalog}
+              kind={kind}
+              onKindChange={handleKindChange}
+              chordSelection={chordSelection}
+              onQualityGroupChange={setQualityGroup}
+              onActiveTypesChange={setActiveTypes}
+              onActiveVoicingFamiliesChange={setActiveVoicingFamilies}
+              onRootChange={setRoot}
+              chordSort={chordSort}
+              onChordSortChange={setChordSort}
+              scaleSelection={scaleSelection}
+              system={system}
+              onSystemChange={setSystem}
+              quality={quality}
+              onQualityChange={setQuality}
+              nameQuery={nameQuery}
+              onNameQueryChange={setNameQuery}
+              failingOnly={failingOnly}
+              onFailingOnlyChange={setFailingOnly}
+              shownCount={matchedEntries.length}
+              totalCount={totalCount}
+            />
+          </div>
 
           <h2
             ref={resultsHeadingRef}
@@ -599,7 +663,7 @@ export function ShapeLibrary() {
                         entry={entry}
                         lazy
                         eager
-                        onSelect={handleGridSelectEntry}
+                        onSelectEntry={handleGridSelectEntry}
                         isSelected={selectedEntry?.kind === entry.kind && selectedEntry.name === entry.name}
                       />
                     ))}
@@ -676,7 +740,7 @@ function GroupSection({
             entry={entry}
             lazy
             eager={eagerNames.has(`${entry.kind}-${entry.name}`)}
-            onSelect={onSelectEntry}
+            onSelectEntry={onSelectEntry}
             isSelected={selectedEntry?.kind === entry.kind && selectedEntry.name === entry.name}
           />
         ))}

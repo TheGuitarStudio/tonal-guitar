@@ -14,6 +14,7 @@ export interface ExportChangeListProps {
   changes: readonly ChangesetChange[];
   selectedIndex: number | undefined;
   onSelect: (index: number) => void;
+  onRemove: (index: number) => void;
 }
 
 const STATUS_CLASS: Record<string, string> = {
@@ -23,7 +24,7 @@ const STATUS_CLASS: Record<string, string> = {
   "n/a": "tg-badge",
 };
 
-export function ExportChangeList({ state, changes, selectedIndex, onSelect }: ExportChangeListProps) {
+export function ExportChangeList({ state, changes, selectedIndex, onSelect, onRemove }: ExportChangeListProps) {
   return (
     <table className="tg-table" data-testid="export-change-list">
       <thead>
@@ -32,6 +33,7 @@ export function ExportChangeList({ state, changes, selectedIndex, onSelect }: Ex
           <th>Shape</th>
           <th>Target file</th>
           <th>Checks</th>
+          <th></th>
         </tr>
       </thead>
       <tbody>
@@ -66,6 +68,11 @@ export function ExportChangeList({ state, changes, selectedIndex, onSelect }: Ex
                 <span className={STATUS_CLASS[status]} data-testid="export-change-status">
                   {status}
                 </span>
+              </td>
+              <td>
+                <button type="button" data-testid="export-change-remove" onClick={() => onRemove(index)}>
+                  Remove
+                </button>
               </td>
             </tr>
           );

@@ -1,11 +1,10 @@
 /**
  * Barre authoring form, shown while the "Barre" tool is active (spec §5.4:
- * "Barre (drag across strings)"). `fretboard-ui`'s `FretboardEditor` accepts
- * `barres`/`onBarresChange` but — like `tool`/`activeFinger` — never
- * branches on them internally (no drag-gesture support), so barre spans are
- * authored here as an explicit from/to/offset/finger form instead of a
- * fretboard gesture. `barre.fret` is always the D-010 grip-base *offset*,
- * never an absolute fret — the same convention every stored `Barre` uses.
+ * "Barre (drag across strings)"). `fretboard-ui`'s `FretboardEditor` has no
+ * drag-gesture support for barres, so barre spans are authored here as an
+ * explicit from/to/offset/finger form instead of a fretboard gesture.
+ * `barre.fret` is always the D-010 grip-base *offset*, never an absolute
+ * fret — the same convention every stored `Barre` uses.
  */
 import { useState } from "react";
 import type { Barre } from "tonal-guitar";

@@ -22,6 +22,7 @@
 import { cellsToChordShape, frettedNotesToCells, type EditorCell } from "fretboard-ui";
 import { applyChordShape, isMovable } from "tonal-guitar";
 import type { Barre, ChordShape } from "tonal-guitar";
+import { semitones } from "@tonaljs/interval";
 
 export interface ChordGeometry {
   strings: (string | null)[];
@@ -55,6 +56,44 @@ export function deriveChordGeometry(
   return { strings: result.strings, fingers: result.fingers, rootString };
 }
 
+// Normalize an interval's semitone width to [0, 12) — spelling-agnostic
+// chroma, so "9M" (14 semitones) and "2M" (2 semitones) compare equal.
+function mod12(n: number): number {
+  return ((n % 12) + 12) % 12;
+}
+function chromaOfInterval(ivl: string): number {
+  return mod12(semitones(ivl));
+}
+
+/**
+ * Per-string: `cellsToChordShape`'s underlying `intervalFromTo` only emits
+ * the 12 simple interval names (spelling-agnostic chroma, e.g. always
+ * `"2M"`, never a compound like `"9M"`), so re-deriving geometry from
+ * unchanged cells silently collapses a registry shape authored with
+ * `"9M"`/`"11P"`/`"4A"` etc. down to its simple form. When a derived
+ * string's chroma matches `base.strings` at the same index and the finger
+ * there is unchanged, keep `base`'s original spelling instead of the
+ * collapsed one — this is what keeps a metadata-only edit from silently
+ * rewriting `strings` in the save patch (spec §9 edge case 9 / CR-055).
+ */
+function preserveBaseSpelling(
+  base: ChordShape,
+  geometry: ChordGeometry,
+): (string | null)[] {
+  return geometry.strings.map((derived, i) => {
+    const baseInterval = base.strings[i];
+    if (
+      derived === null ||
+      baseInterval === null ||
+      baseInterval === undefined ||
+      base.fingers[i] !== geometry.fingers[i]
+    ) {
+      return derived;
+    }
+    return chromaOfInterval(derived) === chromaOfInterval(baseInterval) ? baseInterval : derived;
+  });
+}
+
 /**
  * Merges freshly-derived geometry (strings/fingers/rootString) and the
  * author's explicit `barres` array into `base` — every other field on
@@ -75,7 +114,7 @@ export function buildShapeFromCells(
 
   return {
     ...base,
-    strings: geometry.strings,
+    strings: preserveBaseSpelling(base, geometry),
     fingers: geometry.fingers,
     rootString: geometry.rootString,
     barres,

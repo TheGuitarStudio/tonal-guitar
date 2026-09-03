@@ -9,16 +9,14 @@
   "peerDependencies": {
     "react": "^18.0.0 || ^19.0.0",
     "react-dom": "^18.0.0 || ^19.0.0",
-    "tonal-guitar": "*"
+    "tonal-guitar": "*",
+    "fretboard-ui": "*",
+    "shape-catalog": "*"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
     "fretboard-ui": "file:../fretboard-ui",
     "shape-catalog": "file:../shape-catalog",
     "tonal-guitar": "file:../.."
-  },
-  "dependencies": {
-    "fretboard-ui": "file:../fretboard-ui",
-    "shape-catalog": "file:../shape-catalog"
   }
 }

@@ -24,7 +24,16 @@
 import { useMemo, useState } from "react";
 import type { Orientation } from "fretboard-ui";
 import { boardModel, type BoardAxis, type ShapeCatalogEntry, type ShapeKind } from "shape-catalog";
-import { ColumnsToggle, DiagramOrientationToggle, ShapeBoard } from "shape-library-ui";
+// Deep-imported from their own files rather than the `shape-library-ui`
+// barrel (CR-068, see `ShapeLibrary.tsx`'s import comment): this component
+// is statically imported by `ShapeLibrary.tsx`, so an unqualified
+// `from "shape-library-ui"` import here would drag `index.ts`'s whole
+// re-export graph — including the dynamically-imported `ShapeDetailPanel` —
+// back into the eager `/shapes` chunk regardless of how `ShapeLibrary.tsx`
+// itself imports things.
+import { ColumnsToggle } from "shape-library-ui/src/ColumnsToggle";
+import { DiagramOrientationToggle } from "shape-library-ui/src/DiagramOrientationToggle";
+import { ShapeBoard } from "shape-library-ui/src/ShapeBoard";
 
 export interface ShapeBoardViewProps {
   catalog: readonly ShapeCatalogEntry[];
@@ -46,16 +55,36 @@ export function ShapeBoardView({
   const [columnAxis, setColumnAxis] = useState<BoardAxis>("cagedPosition");
   const [orientation, setOrientation] = useState<Orientation>("horizontal");
 
+  // `boardModel`'s `rowGrouping: "chordType"` is chord-only — scale shapes
+  // carry no `chordType` facet, so grouping by it always yields zero rows
+  // (CR-067). The "Board" toggle in `ShapeLibrary` is disabled whenever
+  // `kind === "scale"`, but `kind` can still flip to "scale" out from under
+  // an already-open board view via the FilterBar's own kind toggle (still
+  // rendered in board mode per CR-070) — so this component defends itself
+  // too, rather than trusting the toggle's disabled state to be the only
+  // guard against a scale+board combination ever rendering.
+  const isBoardSupported = kind === "chord";
+
   const model = useMemo(
     () =>
-      boardModel(catalog, {
-        kind,
-        axis: columnAxis,
-        rowGrouping: "chordType",
-        search: nameQuery,
-      }),
-    [catalog, kind, columnAxis, nameQuery],
+      isBoardSupported
+        ? boardModel(catalog, {
+            kind,
+            axis: columnAxis,
+            rowGrouping: "chordType",
+            search: nameQuery,
+          })
+        : undefined,
+    [catalog, kind, columnAxis, nameQuery, isBoardSupported],
   );
+
+  if (!isBoardSupported || !model) {
+    return (
+      <p className="text-sm text-fd-muted-foreground">
+        Board view is chord-only. Switch to Grid to browse scale shapes.
+      </p>
+    );
+  }
 
   return (
     <div>

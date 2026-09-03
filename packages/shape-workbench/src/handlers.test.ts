@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { auditAllShapes } from "tonal-guitar";
 import type { AddChange, CagedPosition } from "tonal-guitar";
-import { buildCatalog, type ChordCatalogEntry, type ChordSlot, type ShapeCatalogEntry } from "shape-catalog";
+import {
+  buildCatalog,
+  type ChordCatalogEntry,
+  type ChordSlot,
+  type DraftShape,
+  type ShapeCatalogEntry,
+} from "shape-catalog";
 import { createEditCapabilities, slotKeyFor, type HandlerDeps } from "./handlers";
 import { initialWorkbenchState, type WorkbenchAction, type WorkbenchState } from "./store";
 import type { Route } from "./router";
@@ -57,6 +63,22 @@ describe("createEditCapabilities", () => {
     expect(navigated).toEqual([{ type: "editor", id: "m7::C" }]);
   });
 
+  it("onCreateShape reuses an existing draft for the slot instead of overwriting it (CR-053)", () => {
+    const inProgress: WorkbenchState = {
+      ...initialWorkbenchState,
+      drafts: {
+        "m7::C": { kind: "chord", origin: "gap", shape: { ...chordEntry.shape, name: "In progress" } },
+      },
+    };
+    const { deps, dispatched, navigated } = harness(inProgress);
+    createEditCapabilities(deps).onCreateShape!(gapChordSlot);
+
+    // No SET_DRAFT dispatched — the resume path must not clobber the
+    // in-progress draft with a fresh blank one.
+    expect(dispatched).toEqual([]);
+    expect(navigated).toEqual([{ type: "editor", id: "m7::C" }]);
+  });
+
   it("onEditShape seeds an existing-origin draft keyed by the shape name and navigates to the editor", () => {
     const { deps, dispatched, navigated } = harness();
     createEditCapabilities(deps).onEditShape!(chordEntry);
@@ -72,6 +94,26 @@ describe("createEditCapabilities", () => {
     // corrupt the live registry entry).
     expect(action.draft.shape).not.toBe(chordEntry.shape);
 
+    expect(navigated).toEqual([{ type: "editor", id: chordEntry.shape.name }]);
+  });
+
+  it("onEditShape reuses an existing draft for the shape instead of clobbering it with the registry entry (CR-054)", () => {
+    const inProgress: DraftShape = {
+      kind: "chord",
+      origin: "existing",
+      shape: { ...chordEntry.shape, tags: ["mid-edit"] },
+      original: chordEntry.shape,
+    };
+    const state: WorkbenchState = {
+      ...initialWorkbenchState,
+      drafts: { [chordEntry.shape.name]: inProgress },
+    };
+    const { deps, dispatched, navigated } = harness(state);
+    createEditCapabilities(deps).onEditShape!(chordEntry);
+
+    // No SET_DRAFT dispatched — the in-progress draft's edits (the "mid-edit"
+    // tag) must survive reopening the same shape from the Board.
+    expect(dispatched).toEqual([]);
     expect(navigated).toEqual([{ type: "editor", id: chordEntry.shape.name }]);
   });
 

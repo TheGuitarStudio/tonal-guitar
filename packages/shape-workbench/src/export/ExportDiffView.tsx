@@ -42,6 +42,8 @@ export function ExportDiffView({ state, change }: ExportDiffViewProps) {
   const [tab, setTab] = useState<DiffTab>("ts");
   const [beforeTs, setBeforeTs] = useState<string | undefined>(undefined);
   const [afterTs, setAfterTs] = useState<string | undefined>(undefined);
+  const [beforeError, setBeforeError] = useState<string | undefined>(undefined);
+  const [afterError, setAfterError] = useState<string | undefined>(undefined);
 
   const diff = changeShapeDiff(state, change);
   const after = changeAfterShape(state, change);
@@ -51,16 +53,32 @@ export function ExportDiffView({ state, change }: ExportDiffViewProps) {
     let cancelled = false;
     setBeforeTs(undefined);
     setAfterTs(undefined);
+    setBeforeError(undefined);
+    setAfterError(undefined);
+
+    function errorMessage(error: unknown): string {
+      return error instanceof Error ? error.message : "Failed to render TS preview.";
+    }
 
     if (after !== undefined) {
-      renderShapeTs(change.kind, after as unknown as ShapeLike).then((text) => {
-        if (!cancelled) setAfterTs(text);
-      });
+      renderShapeTs(change.kind, after as unknown as ShapeLike).then(
+        (text) => {
+          if (!cancelled) setAfterTs(text);
+        },
+        (error: unknown) => {
+          if (!cancelled) setAfterError(errorMessage(error));
+        },
+      );
     }
     if (before !== undefined) {
-      renderShapeTs(change.kind, before as unknown as ShapeLike).then((text) => {
-        if (!cancelled) setBeforeTs(text);
-      });
+      renderShapeTs(change.kind, before as unknown as ShapeLike).then(
+        (text) => {
+          if (!cancelled) setBeforeTs(text);
+        },
+        (error: unknown) => {
+          if (!cancelled) setBeforeError(errorMessage(error));
+        },
+      );
     }
     return () => {
       cancelled = true;
@@ -106,13 +124,13 @@ export function ExportDiffView({ state, change }: ExportDiffViewProps) {
                 <>
                   <p className="tg-muted">before:</p>
                   <pre className="tg-mono" data-testid="export-diff-ts-before">
-                    {beforeTs ?? "rendering…"}
+                    {beforeTs ?? (beforeError !== undefined ? `Error: ${beforeError}` : "rendering…")}
                   </pre>
                 </>
               )}
               <p className="tg-muted">after:</p>
               <pre className="tg-mono" data-testid="export-diff-ts-after">
-                {afterTs ?? "rendering…"}
+                {afterTs ?? (afterError !== undefined ? `Error: ${afterError}` : "rendering…")}
               </pre>
               <button
                 type="button"

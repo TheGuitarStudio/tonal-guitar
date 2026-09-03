@@ -1244,6 +1244,12 @@ describe("shapes-merge: oversight fix C — a renaming update stays idempotent a
     withFixtureRoot(async (dir) => {
       const renamePatch = baseChangeset([
         { op: "update", kind: "chord", name: "A Shape Major", patch: { name: "A Shape Major (CAGED)" } },
+        // CR-023: "A Shape Minor" (src/data/caged-chords-minor.ts)
+        // inbound-references "A Shape Major" via `parentShape` — renaming
+        // the parent without also fixing up that reference in the same
+        // changeset is refused (dangling reference). Patching both together
+        // is the documented way to do a coordinated rename.
+        { op: "update", kind: "chord", name: "A Shape Minor", patch: { parentShape: "A Shape Major (CAGED)" } },
       ]);
       const changesetPath = writeChangeset(dir, renamePatch, "hand-authored-rename.json");
 
@@ -1308,6 +1314,285 @@ describe("shapes-merge: UpdateChange.unset — field clearing (spec-compliance g
       const err = await expectRefusalWithNoWrites(dir, fixtureChangesetPath("unset-patch-conflict-refusal.json"));
       expect(err.rule).toBe("unset-conflict");
       expect(err.message).toMatch(/cagedPosition/);
+    }),
+  );
+});
+
+/**
+ * Code-review regression coverage (`.tonal-guitar/features/shape-workbench/REVIEW.md`
+ * Phase 3, CR-015/016/017/018/019/020/022).
+ */
+
+describe("shapes-merge: CR-020 — locateOwnedRegion is kind-aware (chord/scale sharing a name)", () => {
+  it(
+    "an update targeting kind: scale resolves the scale block, not a chord block sharing the same name",
+    withFixtureRoot(async (dir) => {
+      const sharedName = "Shared Fixture Kind Collision Name";
+      const chordAddPath = writeChangeset(
+        dir,
+        baseChangeset([
+          { op: "add", kind: "chord", file: "kind-collision-chord", shape: { ...C_SHAPE_MINOR, name: sharedName } },
+        ]),
+        "add-chord.json",
+      );
+      await runMerge([chordAddPath, "--root", dir]);
+
+      const scaleAddPath = writeChangeset(
+        dir,
+        baseChangeset([
+          {
+            op: "add",
+            kind: "scale",
+            file: "kind-collision-scale",
+            shape: {
+              name: sharedName,
+              system: "custom",
+              strings: [["1P"], ["1P"], ["1P"], ["1P"], ["1P"], ["1P"]],
+              rootString: 0,
+            },
+          },
+        ]),
+        "add-scale.json",
+      );
+      await runMerge([scaleAddPath, "--root", dir]);
+
+      const chordBefore = readFileSync(realDataFile(dir, "kind-collision-chord"), "utf8");
+      const updatePath = writeChangeset(
+        dir,
+        baseChangeset([{ op: "update", kind: "scale", name: sharedName, patch: { notes: "scale-only update" } }]),
+        "update-scale.json",
+      );
+      const result = await runMerge([updatePath, "--root", dir]);
+      expect(result.plan.updated).toBe(1);
+
+      // The chord block sharing the same `name` is byte-identical — untouched.
+      expect(readFileSync(realDataFile(dir, "kind-collision-chord"), "utf8")).toBe(chordBefore);
+      const scaleAfter = readFileSync(realDataFile(dir, "kind-collision-scale"), "utf8");
+      expect(scaleAfter).toContain('notes: "scale-only update"');
+    }),
+  );
+});
+
+describe("shapes-merge: CR-022 — remove is idempotent (already-absent target is satisfied)", () => {
+  it(
+    "removing an already-removed shape is a no-op for both apply and --check",
+    withFixtureRoot(async (dir) => {
+      const addPath = writeChangeset(
+        dir,
+        baseChangeset([{ op: "add", kind: "chord", file: "caged-chords-fixture", shape: C_SHAPE_MINOR }]),
+        "add.json",
+      );
+      await runMerge([addPath, "--root", dir]);
+      const removePath = writeChangeset(
+        dir,
+        baseChangeset([{ op: "remove", kind: "chord", name: "Z Shape Fixture Minor" }]),
+        "remove.json",
+      );
+      const first = await runMerge([removePath, "--root", dir]);
+      expect(first.plan.removed).toBe(1);
+      expect(existsSync(realDataFile(dir, "caged-chords-fixture"))).toBe(false);
+
+      // Re-running the same remove: target already absent — satisfied, not
+      // a MergeRefusal.
+      const second = await runMerge([removePath, "--root", dir]);
+      expect(second.plan.removed).toBe(1);
+      expect(second.plan.files.changed()).toHaveLength(0);
+
+      const check = await runMerge([removePath, "--root", dir, "--check"]);
+      expect(check.mode).toBe("check");
+      expect(check.ok).toBe(true);
+    }),
+  );
+
+  it(
+    "removing a name that never existed at all is also satisfied, not refused",
+    withFixtureRoot(async (dir) => {
+      const removePath = writeChangeset(
+        dir,
+        baseChangeset([{ op: "remove", kind: "chord", name: "Totally Nonexistent Shape Xyz CR022" }]),
+      );
+      const result = await runMerge([removePath, "--root", dir]);
+      expect(result.plan.removed).toBe(1);
+      expect(result.plan.files.changed()).toHaveLength(0);
+    }),
+  );
+});
+
+describe("shapes-merge: CR-015 — data-imports insertion recovers a partial merge (not gated on isNewOnDisk)", () => {
+  it(
+    "re-running an add whose data file exists but whose src/index.ts import is missing still inserts the import",
+    withFixtureRoot(async (dir) => {
+      const addPath = writeChangeset(
+        dir,
+        baseChangeset([{ op: "add", kind: "chord", file: "caged-chords-fixture", shape: C_SHAPE_MINOR }]),
+      );
+      await runMerge([addPath, "--root", dir]);
+      expect(readFileSync(realIndexFile(dir), "utf8")).toContain('import "./data/caged-chords-fixture";');
+
+      // Simulate a partial prior failure: the data file landed but its
+      // src/index.ts import never did.
+      const indexPath = realIndexFile(dir);
+      const withoutImport = readFileSync(indexPath, "utf8").replace('import "./data/caged-chords-fixture";\n', "");
+      expect(withoutImport).not.toContain('import "./data/caged-chords-fixture";');
+      writeFileSync(indexPath, withoutImport);
+
+      // Re-running the SAME add changeset must recover: the data file
+      // already matches (no diff there), but the import is re-inserted —
+      // previously gated on `isNewOnDisk` (false here), which made this a
+      // false no-op.
+      const result = await runMerge([addPath, "--root", dir]);
+      expect(readFileSync(indexPath, "utf8")).toContain('import "./data/caged-chords-fixture";');
+      expect(result.plan.files.changed().some((f) => f.relPath.endsWith("index.ts"))).toBe(true);
+
+      const check = await runMerge([addPath, "--root", dir, "--check"]);
+      expect(check.mode).toBe("check");
+      expect(check.ok).toBe(true);
+    }),
+  );
+});
+
+describe("shapes-merge: CR-016 — refuses to reconstruct a generated file holding unrecognized content", () => {
+  it(
+    "an add targeting a generated file that's been hand-edited outside the owned-block structure is refused",
+    withFixtureRoot(async (dir) => {
+      const addPath = writeChangeset(
+        dir,
+        baseChangeset([{ op: "add", kind: "chord", file: "caged-chords-fixture", shape: C_SHAPE_MINOR }]),
+      );
+      await runMerge([addPath, "--root", dir]);
+
+      const filePath = realDataFile(dir, "caged-chords-fixture");
+      const original = readFileSync(filePath, "utf8");
+      writeFileSync(filePath, original.replace(GENERATED_HEADER, `${GENERATED_HEADER}\n// hand-added note`));
+
+      const secondAddPath = writeChangeset(
+        dir,
+        baseChangeset([{ op: "add", kind: "chord", file: "caged-chords-fixture", shape: G_SHAPE_MINOR }]),
+        "add2.json",
+      );
+      const err = await expectRefusalWithNoWrites(dir, secondAddPath);
+      expect(err.rule).toBe("unrecognized-content");
+    }),
+  );
+});
+
+describe("shapes-merge: CR-017 — explicit ident must satisfy the marker-grammar ∩ JS-identifier intersection", () => {
+  it(
+    "an explicit ident containing `$` is refused before any write",
+    withFixtureRoot(async (dir) => {
+      const changesetPath = writeChangeset(
+        dir,
+        baseChangeset([
+          { op: "add", kind: "chord", file: "caged-chords-fixture", ident: "CHORD_$BAD", shape: C_SHAPE_MINOR },
+        ]),
+      );
+      const err = await expectRefusalWithNoWrites(dir, changesetPath);
+      expect(err.rule).toBe("invalid-ident");
+    }),
+  );
+
+  it(
+    "an explicit ident containing a hyphen is refused before any write",
+    withFixtureRoot(async (dir) => {
+      const changesetPath = writeChangeset(
+        dir,
+        baseChangeset([
+          { op: "add", kind: "chord", file: "caged-chords-fixture", ident: "CHORD-BAD", shape: C_SHAPE_MINOR },
+        ]),
+      );
+      const err = await expectRefusalWithNoWrites(dir, changesetPath);
+      expect(err.rule).toBe("invalid-ident");
+    }),
+  );
+
+  it(
+    "a valid explicit ident (letters/digits/underscore, no leading digit) is accepted",
+    withFixtureRoot(async (dir) => {
+      const changesetPath = writeChangeset(
+        dir,
+        baseChangeset([
+          { op: "add", kind: "chord", file: "caged-chords-fixture", ident: "CHORD_OK_123", shape: C_SHAPE_MINOR },
+        ]),
+      );
+      const result = await runMerge([changesetPath, "--root", dir]);
+      expect(result.mode).toBe("merge");
+    }),
+  );
+});
+
+describe("shapes-merge: CR-018 — --update-counts does not double-increment on re-run", () => {
+  it(
+    "re-running an already-applied add with --update-counts leaves the count file unchanged the second time",
+    withFixtureRoot(async (dir) => {
+      const scaleShape = {
+        name: "Test Scale For Counts CR018",
+        system: "custom",
+        strings: [["1P"], ["1P"], ["1P"], ["1P"], ["1P"], ["1P"]],
+        rootString: 0,
+      };
+      const changesetPath = writeChangeset(
+        dir,
+        baseChangeset([{ op: "add", kind: "scale", file: "test-scale-counts-cr018", shape: scaleShape }]),
+      );
+      const dataTestPath = path.join(dir, "src", "data", "data.test.ts");
+
+      const first = await runMerge([changesetPath, "--root", dir, "--update-counts"]);
+      expect(first.plan.countsTouched.some((c) => c.name === "scale-shape-total" && c.delta === 1)).toBe(true);
+      const afterFirst = readFileSync(dataTestPath, "utf8");
+
+      // Re-running the SAME changeset: the add is already applied (no file
+      // diff), so --update-counts must not bump the annotated count again.
+      const second = await runMerge([changesetPath, "--root", dir, "--update-counts"]);
+      expect(second.plan.files.changed()).toHaveLength(0);
+      expect(second.plan.countsTouched.some((c) => c.name === "scale-shape-total")).toBe(false);
+      expect(readFileSync(dataTestPath, "utf8")).toBe(afterFirst);
+    }),
+  );
+});
+
+describe("shapes-merge: CR-019 — a renaming update refuses to collide with an existing name", () => {
+  it(
+    "renaming a fixture chord onto an already-registered name of the same kind is refused, no writes",
+    withFixtureRoot(async (dir) => {
+      const addPath = writeChangeset(
+        dir,
+        baseChangeset([{ op: "add", kind: "chord", file: "caged-chords-fixture", shape: C_SHAPE_MINOR }]),
+      );
+      await runMerge([addPath, "--root", dir]);
+
+      const renamePath = writeChangeset(
+        dir,
+        baseChangeset([
+          { op: "update", kind: "chord", name: "Z Shape Fixture Minor", patch: { name: "E Shape Major" } },
+        ]),
+      );
+      const err = await expectRefusalWithNoWrites(dir, renamePath);
+      expect(err.rule).toBe("name-unique");
+    }),
+  );
+
+  it(
+    "renaming onto a genuinely unused name succeeds",
+    withFixtureRoot(async (dir) => {
+      const addPath = writeChangeset(
+        dir,
+        baseChangeset([{ op: "add", kind: "chord", file: "caged-chords-fixture", shape: C_SHAPE_MINOR }]),
+      );
+      await runMerge([addPath, "--root", dir]);
+
+      const renamePath = writeChangeset(
+        dir,
+        baseChangeset([
+          {
+            op: "update",
+            kind: "chord",
+            name: "Z Shape Fixture Minor",
+            patch: { name: "Z Shape Fixture Minor Renamed CR019" },
+          },
+        ]),
+      );
+      const result = await runMerge([renamePath, "--root", dir]);
+      expect(result.plan.updated).toBe(1);
     }),
   );
 });

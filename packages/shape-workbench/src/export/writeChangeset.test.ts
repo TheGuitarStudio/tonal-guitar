@@ -9,7 +9,9 @@ import type { AddChange } from "tonal-guitar";
 import { initialWorkbenchState, type WorkbenchAction, type WorkbenchState } from "../store";
 import {
   CHANGESET_ENDPOINT,
+  fetchWorkbenchStatus,
   postChangeset,
+  STATUS_ENDPOINT,
   writeChangesetAndDispatch,
   type FetchInit,
   type FetchLike,
@@ -79,6 +81,45 @@ describe("postChangeset", () => {
     };
     const result = await postChangeset({}, fetchImpl);
     expect(result).toEqual({ ok: false, message: "offline" });
+  });
+});
+
+describe("fetchWorkbenchStatus (CR-060)", () => {
+  it("reports reachable:true with the endpoint's `writable` flag on a 200 response", async () => {
+    const capture: { url?: string } = {};
+    const fetchImpl = fakeFetch(
+      { ok: true, status: 200, json: async () => ({ writable: true, repoRoot: "/repo", libraryVersion: "0.2.0" }) },
+      capture,
+    );
+    const result = await fetchWorkbenchStatus(fetchImpl);
+    expect(result).toEqual({ reachable: true, writable: true });
+    expect(capture.url).toBe(STATUS_ENDPOINT);
+  });
+
+  it("reports reachable:false on a non-2xx response (e.g. vite preview's SPA fallback returning a 404/200-HTML)", async () => {
+    const fetchImpl = fakeFetch({ ok: false, status: 404, json: async () => ({}) });
+    const result = await fetchWorkbenchStatus(fetchImpl);
+    expect(result).toEqual({ reachable: false });
+  });
+
+  it("reports reachable:false when the response body isn't JSON (vite preview's SPA fallback serves index.html)", async () => {
+    const fetchImpl: FetchLike = async () => ({
+      ok: true,
+      status: 200,
+      json: async () => {
+        throw new SyntaxError("Unexpected token '<'");
+      },
+    });
+    const result = await fetchWorkbenchStatus(fetchImpl);
+    expect(result).toEqual({ reachable: false });
+  });
+
+  it("reports reachable:false when the fetch itself rejects (no dev server running at all)", async () => {
+    const fetchImpl: FetchLike = async () => {
+      throw new Error("offline");
+    };
+    const result = await fetchWorkbenchStatus(fetchImpl);
+    expect(result).toEqual({ reachable: false });
   });
 });
 

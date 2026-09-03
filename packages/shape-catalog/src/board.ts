@@ -123,7 +123,11 @@ const INVERSION_LABELS: Readonly<Record<string, string>> = {
   "3": "3rd inversion",
 };
 
-function cellKey(rowKey: string, columnKey: string): string {
+/** Canonical `BoardCell.key` format — exported so consumers (e.g.
+ * shape-library-ui's `ShapeBoard`) look up board cells without re-deriving
+ * this format themselves (CR-038: format drift there renders the board
+ * silently empty). */
+export function cellKey(rowKey: string, columnKey: string): string {
   return `${rowKey}::${columnKey}`;
 }
 

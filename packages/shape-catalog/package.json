@@ -9,7 +9,21 @@
   "peerDependencies": {
     "tonal-guitar": "*",
     "@tonaljs/note": "^4.12.0",
-    "@tonaljs/interval": "^5.1.0"
+    "@tonaljs/interval": "^5.1.0",
+    "@tonaljs/scale": "^4.13.0",
+    "@tonaljs/chord": "^6.1.0",
+    "@tonaljs/key": "^4.11.0"
+  },
+  "peerDependenciesMeta": {
+    "@tonaljs/scale": {
+      "optional": true
+    },
+    "@tonaljs/chord": {
+      "optional": true
+    },
+    "@tonaljs/key": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@tonaljs/note": "^4.12.0",

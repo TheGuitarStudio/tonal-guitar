@@ -21,3 +21,27 @@
   --tg-accent: hsl(var(--primary));
   --tg-gap: hsl(var(--muted));
 }
+
+/*
+ * Board-view reduction (CR-069/CR-070): `ShapeLibrary` wraps `shape-library-
+ * ui`'s `FilterBar` in `.tg-filterbar-board-mode` while `view === "board"`.
+ * `FilterBar` has no prop to suppress individual sections (its surface is
+ * all data — selections/counts/callbacks — not layout toggles), and its
+ * public API is `shape-library-ui`'s, not this site's to change, so the
+ * inert-in-board-mode parts are hidden here by class instead: the sort
+ * select and "Failing only" checkbox (`ShapeBoardView` forwards neither to
+ * `boardModel`), the whole chord/scale facet block (`ChordFacets`/
+ * `ScaleFacets`, both rendered as the sibling `.tg-filterbar` immediately
+ * following `.tg-filterbar-row` — none of those facets are forwarded
+ * either), and the "Showing N of M" count (`ShapeBoard` renders its own
+ * correct count in its own header below — two counts on screen would
+ * otherwise contradict each other). The kind toggle and name search stay
+ * visible; `ShapeBoardView` reads both.
+ */
+.tg-filterbar-board-mode .tg-checkbox-label,
+.tg-filterbar-board-mode .tg-select,
+.tg-filterbar-board-mode .tg-count,
+.tg-filterbar-board-mode .tg-sr-only,
+.tg-filterbar-board-mode .tg-filterbar-row + .tg-filterbar {
+  display: none;
+}

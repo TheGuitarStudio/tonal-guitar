@@ -127,6 +127,65 @@ describe("workbenchReducer", () => {
     expect(initialWorkbenchState.changes).toEqual([]);
   });
 
+  it("ADD_CHANGE replaces an existing change targeting the same shape instead of appending a duplicate (CR-059)", () => {
+    let state = workbenchReducer(initialWorkbenchState, {
+      type: "ADD_CHANGE",
+      change: addChangeFor("A Shape Major"),
+    });
+    const updated: AddChange = { ...addChangeFor("A Shape Major"), file: "caged-chords-updated" };
+    state = workbenchReducer(state, { type: "ADD_CHANGE", change: updated });
+
+    expect(state.changes).toHaveLength(1);
+    expect((state.changes[0] as AddChange).file).toBe("caged-chords-updated");
+  });
+
+  it("ADD_CHANGE dedups by kind+name, not op alone — an update and a remove for the same name are distinct targets only when kind differs", () => {
+    let state = workbenchReducer(initialWorkbenchState, {
+      type: "ADD_CHANGE",
+      change: { op: "update", kind: "chord", name: "Shared Name", patch: {} },
+    });
+    state = workbenchReducer(state, {
+      type: "ADD_CHANGE",
+      change: { op: "remove", kind: "chord", name: "Shared Name" },
+    });
+    // Same kind+name -> the remove replaces the update.
+    expect(state.changes).toEqual([{ op: "remove", kind: "chord", name: "Shared Name" }]);
+  });
+
+  it("REMOVE_CHANGE deletes only the targeted index", () => {
+    let state = workbenchReducer(initialWorkbenchState, {
+      type: "ADD_CHANGE",
+      change: addChangeFor("A Shape Major"),
+    });
+    state = workbenchReducer(state, { type: "ADD_CHANGE", change: addChangeFor("D Shape Major") });
+    state = workbenchReducer(state, { type: "REMOVE_CHANGE", index: 0 });
+    expect(state.changes.map((c) => (c as AddChange).shape.name)).toEqual(["D Shape Major"]);
+  });
+
+  it("REMOVE_CHANGE is a no-op for an out-of-range index", () => {
+    const state = workbenchReducer(initialWorkbenchState, {
+      type: "ADD_CHANGE",
+      change: addChangeFor("A Shape Major"),
+    });
+    const next = workbenchReducer(state, { type: "REMOVE_CHANGE", index: 5 });
+    expect(next).toBe(state);
+  });
+
+  it("CLEAR_CHANGES empties the changeset", () => {
+    let state = workbenchReducer(initialWorkbenchState, {
+      type: "ADD_CHANGE",
+      change: addChangeFor("A Shape Major"),
+    });
+    state = workbenchReducer(state, { type: "ADD_CHANGE", change: addChangeFor("D Shape Major") });
+    state = workbenchReducer(state, { type: "CLEAR_CHANGES" });
+    expect(state.changes).toEqual([]);
+  });
+
+  it("CLEAR_CHANGES is a no-op (same reference) when already empty", () => {
+    const next = workbenchReducer(initialWorkbenchState, { type: "CLEAR_CHANGES" });
+    expect(next).toBe(initialWorkbenchState);
+  });
+
   it("SET_LAST_WRITTEN_AT records the write timestamp", () => {
     const state = workbenchReducer(initialWorkbenchState, {
       type: "SET_LAST_WRITTEN_AT",

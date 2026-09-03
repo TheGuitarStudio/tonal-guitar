@@ -38,8 +38,21 @@ export type WorkbenchAction =
   | { type: "SET_DRAFT"; key: string; draft: DraftShape }
   | { type: "REMOVE_DRAFT"; key: string }
   | { type: "ADD_CHANGE"; change: ChangesetChange }
+  | { type: "REMOVE_CHANGE"; index: number }
+  | { type: "CLEAR_CHANGES" }
   | { type: "SET_LAST_WRITTEN_AT"; timestamp: string }
   | { type: "REPLACE_STATE"; state: WorkbenchState };
+
+/** The op-target identity a `ChangesetChange` represents — `kind` plus
+ * whichever of `shape.name` (`AddChange`) / `name` (`UpdateChange`/
+ * `RemoveChange`) names the shape it targets. Two changes sharing this key
+ * are "the same edit" for `ADD_CHANGE`'s dedup (CR-059): saving the same
+ * shape a second time must replace its pending change, not append a
+ * duplicate row next to it. */
+function changeTargetKey(change: ChangesetChange): string {
+  const name = change.op === "add" ? change.shape.name : change.name;
+  return `${change.kind}::${name}`;
+}
 
 export function workbenchReducer(state: WorkbenchState, action: WorkbenchAction): WorkbenchState {
   switch (action.type) {
@@ -57,8 +70,18 @@ export function workbenchReducer(state: WorkbenchState, action: WorkbenchAction)
       delete drafts[action.key];
       return { ...state, drafts };
     }
-    case "ADD_CHANGE":
-      return { ...state, changes: [...state.changes, action.change] };
+    case "ADD_CHANGE": {
+      const key = changeTargetKey(action.change);
+      const changes = state.changes.filter((c) => changeTargetKey(c) !== key);
+      return { ...state, changes: [...changes, action.change] };
+    }
+    case "REMOVE_CHANGE": {
+      if (action.index < 0 || action.index >= state.changes.length) return state;
+      const changes = state.changes.filter((_, i) => i !== action.index);
+      return { ...state, changes };
+    }
+    case "CLEAR_CHANGES":
+      return state.changes.length === 0 ? state : { ...state, changes: [] };
     case "SET_LAST_WRITTEN_AT":
       return { ...state, lastWrittenAt: action.timestamp };
     case "REPLACE_STATE":

@@ -121,20 +121,36 @@ export interface HandlerDeps {
   navigate: (route: Route) => void;
 }
 
+/**
+ * Seeds a brand-new gap-origin draft ONLY when `key` has no draft yet —
+ * this is the Board's draft-badge resume path (`BoardCellCard.tsx`'s
+ * "in-progress" badge): clicking it must reopen the in-progress draft, not
+ * clobber it with a freshly-blanked one (CR-053).
+ */
 function onCreateShape(deps: HandlerDeps, slot: BoardSlot): void {
   const key = slotKeyFor(slot);
-  const draft = draftForSlot(slot, deps.state.tuning.length);
-  deps.dispatch({ type: "SET_DRAFT", key, draft });
+  if (!(key in deps.state.drafts)) {
+    const draft = draftForSlot(slot, deps.state.tuning.length);
+    deps.dispatch({ type: "SET_DRAFT", key, draft });
+  }
   deps.navigate({ type: "editor", id: key });
 }
 
+/**
+ * Re-seeds from the live registry entry ONLY when `key` has no draft yet —
+ * reopening a shape that's already mid-edit (e.g. via the Board's
+ * draft-badge resume path) must reuse `deps.state.drafts[key]`, not clobber
+ * in-progress edits with a fresh snapshot of the registered shape (CR-054).
+ */
 function onEditShape(deps: HandlerDeps, entry: ShapeCatalogEntry): void {
   const key = entry.shape.name;
-  const draft: DraftShape =
-    entry.kind === "chord"
-      ? { kind: "chord", origin: "existing", shape: { ...entry.shape }, original: { ...entry.shape } }
-      : { kind: "scale", origin: "existing", shape: { ...entry.shape }, original: { ...entry.shape } };
-  deps.dispatch({ type: "SET_DRAFT", key, draft });
+  if (!(key in deps.state.drafts)) {
+    const draft: DraftShape =
+      entry.kind === "chord"
+        ? { kind: "chord", origin: "existing", shape: { ...entry.shape }, original: { ...entry.shape } }
+        : { kind: "scale", origin: "existing", shape: { ...entry.shape }, original: { ...entry.shape } };
+    deps.dispatch({ type: "SET_DRAFT", key, draft });
+  }
   deps.navigate({ type: "editor", id: key });
 }
 

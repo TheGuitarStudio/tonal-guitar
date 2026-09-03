@@ -34,9 +34,35 @@ const REPRESENTATIVE_SCALE = {
   cagedPosition: "E" as const,
 };
 
+// CR-026: `renderShapeTs === renderShape` (asserted implicitly below by
+// every byte-identical-output test — `render.ts` just re-exports the
+// printer) is a vacuous parity check on its own, since a `toBe` between two
+// bindings of the SAME function reference can never fail regardless of what
+// the printer actually does. This golden string (captured from the
+// no-prettier fallback formatter, the deterministic path with no external
+// tool involved) instead pins the ACTUAL output shape/format, so a future
+// change to the printer that breaks formatting — even one that keeps
+// `render.ts`'s re-export intact — fails this test.
+const REPRESENTATIVE_CHORD_FALLBACK_GOLDEN =
+  'export const CHORD_A_SHAPE_MINOR: ChordShape = {\n' +
+  '  name: "A Shape Minor",\n' +
+  '  system: "caged",\n' +
+  '  strings: [null, "1P", "5P", "1P", "4P", "5P"],\n' +
+  '  fingers: [null, 1, 3, 4, 1, 1],\n' +
+  '  barres: [\n' +
+  '    { fret: 0, fromString: 1, toString: 5, finger: 1 },\n' +
+  '    { fret: 2, fromString: 3, toString: 4, finger: 4 },\n' +
+  '  ],\n' +
+  '  rootString: 1,\n' +
+  '  chordType: "m",\n' +
+  '  cagedPosition: "A",\n' +
+  '  tags: ["barre", "movable"],\n' +
+  '};\n';
+
 describe("renderShapeTs — printer parity with scripts/lib/render-shape.mjs", () => {
-  it("is literally the same function reference as the printer's renderShape export", () => {
-    expect(renderShapeTs).toBe(renderShape);
+  it("no-prettier fallback output matches a committed golden string (not a self-comparison)", async () => {
+    const out = await renderShapeTs("chord", REPRESENTATIVE_CHORD, { usePrettier: false });
+    expect(out).toBe(REPRESENTATIVE_CHORD_FALLBACK_GOLDEN);
   });
 
   it("produces byte-identical output for a representative chord shape (prettier path)", async () => {

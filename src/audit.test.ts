@@ -962,10 +962,10 @@ describe("checkBarreFretOrigin", () => {
 
   it("registry-wide: every open-chords.ts shape (voicingFamily 'open'/'barre' — the 70 shapes/35 barres entries this task migrates) passes checkBarreFretOrigin cleanly (D-010 migration regression gate)", () => {
     // Scoped to open-chords.ts's own voicingFamily values rather than the
-    // full chordShapes registry: a pre-existing, unrelated checkBarreFretOrigin
-    // issue on EXT_CHORD_A_9 (src/data/extended-chords.ts) predates this
-    // migration and is out of scope per spec §4.5 ("no silent auto-fixing" —
-    // reported and tracked separately, not fixed as a side effect here).
+    // full chordShapes registry — the other src/data/*.ts modules (e.g.
+    // extended-chords.ts, caged-chords*.ts) have since had their own
+    // pre-D-010 absolute barre frets migrated to grip-base offsets too (see
+    // CR-001), but this test's scope stays open-chords.ts-only per its name.
     const openChordsShapes = [
       ...chordShapes.query({ voicingFamily: "open" }),
       ...chordShapes.query({ voicingFamily: "barre" }),
@@ -1110,6 +1110,39 @@ describe("checkNameUnique", () => {
 
     // Empty arpeggio registry today (no seeded data) — nothing to collide with.
     expect(checkNameUnique({ name: "Any Arpeggio Name" }, "arpeggio")).toEqual([]);
+  });
+
+  // CR-004: options.selfName lets a draft/clone (a fresh object, so
+  // reference equality never matches its own prior registration) exclude
+  // its own name from both collision checks, while a genuine collision with
+  // a DIFFERENT registered entry still flags.
+  describe("options.selfName", () => {
+    it("a clone of an already-registered shape (unchanged name, different object) is NOT flagged when selfName matches", () => {
+      const draft = { ...OPEN_C_MAJOR };
+      // Without selfName, the clone (different reference) falsely collides
+      // with its own live registration.
+      expect(checkNameUnique(draft, "chord").length).toBeGreaterThan(0);
+      expect(checkNameUnique(draft, "chord", { selfName: OPEN_C_MAJOR.name })).toEqual([]);
+    });
+
+    it("a genuine rename INTO another registered shape's name still flags, even with selfName set to the draft's own prior name", () => {
+      const issues = checkNameUnique(
+        { name: OPEN_C_MAJOR.name },
+        "chord",
+        { selfName: "Some Other Prior Draft Name" },
+      );
+      expect(issues.length).toBeGreaterThan(0);
+    });
+
+    it("a rename to a brand-new, non-colliding name is clean regardless of selfName", () => {
+      expect(
+        checkNameUnique(
+          { name: "Synthetic Renamed Draft Fixture" },
+          "chord",
+          { selfName: OPEN_C_MAJOR.name },
+        ),
+      ).toEqual([]);
+    });
   });
 });
 
