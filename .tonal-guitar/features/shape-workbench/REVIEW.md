@@ -20,7 +20,7 @@
 - [x] Phase 3: Architecture Review
 - [x] Phase 4: Architecture Fix
 - [x] Phase 5: Code Simplification Review
-- [ ] Phase 6: Code Simplification Fix
+- [x] Phase 6: Code Simplification Fix
 - [ ] Phase 7: Specialized Reviews
 - [ ] Phase 8: Specialized Fixes
 - [ ] Phase 9: Final Verification
@@ -265,3 +265,19 @@ Note: the admin area was deleted (moved to shape-workbench); former local duplic
 - CR-100: [Suggestion] Grid-view JSX stayed inline (`ShapeLibrary.tsx:650-693`) while the board branch became `ShapeBoardView` — extract a sibling `GridView` for symmetry.
 
 No dead code, orphaned CSS, or stale references from the component-deletion refactor were found (site agent grepped all deleted component names).
+
+---
+
+## Phase 6: Code Simplification Fixes
+
+### Fixed
+
+- CR-080: Fixed — module-private generic `upsertShape`/`removeShapeByName` helpers in `src/shape.ts`; all three registries delegate to them. Public API and behavior unchanged.
+- CR-087: Fixed — shared `scanDeclarationChunks` generator in `scripts/shapes-merge.mjs`; `scanRegisteredShapes` and `scanInboundReferences` rebuilt on it, keeping their own field-extraction logic.
+
+### Deferred
+
+- CR-081..CR-086, CR-088..CR-091: GitHub issue #200 — library & merge-tooling simplification suggestions.
+- CR-092..CR-100: GitHub issue #201 — UI/workbench/site simplification suggestions.
+
+Verification: `npm run lint` clean, `npm run build` clean, `npm test` 1701/1701.

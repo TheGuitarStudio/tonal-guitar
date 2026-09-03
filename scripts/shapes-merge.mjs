@@ -1298,6 +1298,28 @@ async function planMerge(changeset, ctx) {
 const TYPE_TO_KIND = { ChordShape: "chord", ScaleShape: "scale", ArpeggioShape: "arpeggio" };
 
 /**
+ * Shared scan core for `scanRegisteredShapes`/`scanInboundReferences`: walks
+ * every `<dataDir>/*.ts` file (managed or not) and yields one
+ * `{ identifier, kind, chunk }` per top-level
+ * `export const IDENT: (ChordShape|ScaleShape|ArpeggioShape) = { ... }`
+ * declaration — `chunk` is the declaration's source slice, from its `export
+ * const` up to (but not including) the next declaration's start (or EOF for
+ * the last one), for callers to pull fields out of via their own regexes.
+ */
+function* scanDeclarationChunks(dataDir, files) {
+  const declPattern = /export const ([A-Za-z_$][A-Za-z0-9_$]*)\s*:\s*(ChordShape|ScaleShape|ArpeggioShape)\s*=/g;
+  for (const file of files) {
+    const source = readFileSync(path.join(dataDir, file), "utf8");
+    const matches = [...source.matchAll(declPattern)];
+    for (const [i, m] of matches.entries()) {
+      const start = m.index;
+      const end = i + 1 < matches.length ? matches[i + 1].index : source.length;
+      yield { identifier: m[1], kind: TYPE_TO_KIND[m[2]], chunk: source.slice(start, end) };
+    }
+  }
+}
+
+/**
  * Scans every `<dataDir>/*.ts` file (managed or not) for every top-level
  * `export const IDENT: (ChordShape|ScaleShape|ArpeggioShape) = { ... }`
  * declaration, bucketing each declared shape's `name` field by kind and
@@ -1307,18 +1329,10 @@ const TYPE_TO_KIND = { ChordShape: "chord", ScaleShape: "scale", ArpeggioShape: 
 function scanRegisteredShapes(dataDir, files) {
   const byKind = { chord: new Set(), scale: new Set(), arpeggio: new Set() };
   const identifiers = new Set();
-  for (const file of files) {
-    const source = readFileSync(path.join(dataDir, file), "utf8");
-    const declPattern = /export const ([A-Za-z_$][A-Za-z0-9_$]*)\s*:\s*(ChordShape|ScaleShape|ArpeggioShape)\s*=/g;
-    const matches = [...source.matchAll(declPattern)];
-    matches.forEach((m, i) => {
-      identifiers.add(m[1]);
-      const kind = TYPE_TO_KIND[m[2]];
-      const start = m.index;
-      const end = i + 1 < matches.length ? matches[i + 1].index : source.length;
-      const nameMatch = source.slice(start, end).match(/name:\s*"((?:[^"\\]|\\.)*)"/);
-      if (kind && nameMatch) byKind[kind].add(JSON.parse(`"${nameMatch[1]}"`));
-    });
+  for (const { identifier, kind, chunk } of scanDeclarationChunks(dataDir, files)) {
+    identifiers.add(identifier);
+    const nameMatch = chunk.match(/name:\s*"((?:[^"\\]|\\.)*)"/);
+    if (kind && nameMatch) byKind[kind].add(JSON.parse(`"${nameMatch[1]}"`));
   }
   return { byKind, identifiers };
 }
@@ -1333,28 +1347,19 @@ function scanRegisteredShapes(dataDir, files) {
  */
 function scanInboundReferences(dataDir, files) {
   const byKind = { chord: new Map(), scale: new Map(), arpeggio: new Map() };
-  for (const file of files) {
-    const source = readFileSync(path.join(dataDir, file), "utf8");
-    const declPattern = /export const ([A-Za-z_$][A-Za-z0-9_$]*)\s*:\s*(ChordShape|ScaleShape|ArpeggioShape)\s*=/g;
-    const matches = [...source.matchAll(declPattern)];
-    matches.forEach((m, i) => {
-      const kind = TYPE_TO_KIND[m[2]];
-      if (!kind) return;
-      const start = m.index;
-      const end = i + 1 < matches.length ? matches[i + 1].index : source.length;
-      const chunk = source.slice(start, end);
-      const nameMatch = chunk.match(/name:\s*"((?:[^"\\]|\\.)*)"/);
-      const refererName = nameMatch ? JSON.parse(`"${nameMatch[1]}"`) : undefined;
-      if (refererName === undefined) return;
-      for (const field of ["overrides", "parentShape"]) {
-        const fieldMatch = chunk.match(new RegExp(`${field}:\\s*"((?:[^"\\\\]|\\\\.)*)"`));
-        if (!fieldMatch) continue;
-        const target = JSON.parse(`"${fieldMatch[1]}"`);
-        const list = byKind[kind].get(target) ?? [];
-        list.push({ refererName, field });
-        byKind[kind].set(target, list);
-      }
-    });
+  for (const { kind, chunk } of scanDeclarationChunks(dataDir, files)) {
+    if (!kind) continue;
+    const nameMatch = chunk.match(/name:\s*"((?:[^"\\]|\\.)*)"/);
+    const refererName = nameMatch ? JSON.parse(`"${nameMatch[1]}"`) : undefined;
+    if (refererName === undefined) continue;
+    for (const field of ["overrides", "parentShape"]) {
+      const fieldMatch = chunk.match(new RegExp(`${field}:\\s*"((?:[^"\\\\]|\\\\.)*)"`));
+      if (!fieldMatch) continue;
+      const target = JSON.parse(`"${fieldMatch[1]}"`);
+      const list = byKind[kind].get(target) ?? [];
+      list.push({ refererName, field });
+      byKind[kind].set(target, list);
+    }
   }
   return byKind;
 }

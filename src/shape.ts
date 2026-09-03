@@ -279,6 +279,47 @@ export function exportIdentifierFor(
  * lives, analogous to Tonal.js's own ScaleType/ChordType registries.
  */
 // ============================================================
+// Registry helpers (shared by the scale/chord/arpeggio registries below)
+// ============================================================
+// Module-private: the three registries share identical
+// add-or-replace-by-name / remove-by-name logic over a (dictionary array,
+// name→shape index) pair. Parameterizing on that pair keeps each registry's
+// own add()/remove() a one-line call while preserving exact prior behavior.
+
+function upsertShape<T extends { name: string }>(
+  dict: T[],
+  idx: Map<string, T>,
+  shape: T,
+): T {
+  const existing = idx.get(shape.name);
+  if (existing !== undefined) {
+    const position = dict.indexOf(existing);
+    if (position !== -1) {
+      dict[position] = shape;
+    } else {
+      dict.push(shape);
+    }
+  } else {
+    dict.push(shape);
+  }
+  idx.set(shape.name, shape);
+  return shape;
+}
+
+function removeShapeByName<T>(dict: T[], idx: Map<string, T>, name: string): boolean {
+  const existing = idx.get(name);
+  if (existing === undefined) {
+    return false;
+  }
+  const position = dict.indexOf(existing);
+  if (position !== -1) {
+    dict.splice(position, 1);
+  }
+  idx.delete(name);
+  return true;
+}
+
+// ============================================================
 // Scale shape registry
 // ============================================================
 
@@ -298,32 +339,11 @@ export function names(): string[] {
 }
 
 export function add(shape: ScaleShape): ScaleShape {
-  const existing = index.get(shape.name);
-  if (existing !== undefined) {
-    const position = dictionary.indexOf(existing);
-    if (position !== -1) {
-      dictionary[position] = shape;
-    } else {
-      dictionary.push(shape);
-    }
-  } else {
-    dictionary.push(shape);
-  }
-  index.set(shape.name, shape);
-  return shape;
+  return upsertShape(dictionary, index, shape);
 }
 
 export function remove(name: string): boolean {
-  const existing = index.get(name);
-  if (existing === undefined) {
-    return false;
-  }
-  const position = dictionary.indexOf(existing);
-  if (position !== -1) {
-    dictionary.splice(position, 1);
-  }
-  index.delete(name);
-  return true;
+  return removeShapeByName(dictionary, index, name);
 }
 
 export function removeAll(): void {
@@ -349,31 +369,10 @@ export const chordShapes = {
     return chordDictionary.map((s) => s.name);
   },
   add(shape: ChordShape): ChordShape {
-    const existing = chordIndex.get(shape.name);
-    if (existing !== undefined) {
-      const position = chordDictionary.indexOf(existing);
-      if (position !== -1) {
-        chordDictionary[position] = shape;
-      } else {
-        chordDictionary.push(shape);
-      }
-    } else {
-      chordDictionary.push(shape);
-    }
-    chordIndex.set(shape.name, shape);
-    return shape;
+    return upsertShape(chordDictionary, chordIndex, shape);
   },
   remove(name: string): boolean {
-    const existing = chordIndex.get(name);
-    if (existing === undefined) {
-      return false;
-    }
-    const position = chordDictionary.indexOf(existing);
-    if (position !== -1) {
-      chordDictionary.splice(position, 1);
-    }
-    chordIndex.delete(name);
-    return true;
+    return removeShapeByName(chordDictionary, chordIndex, name);
   },
   removeAll(): void {
     chordDictionary = [];
@@ -436,31 +435,10 @@ export const arpeggioShapes = {
     return arpeggioDictionary.map((s) => s.name);
   },
   add(shape: ArpeggioShape): ArpeggioShape {
-    const existing = arpeggioIndex.get(shape.name);
-    if (existing !== undefined) {
-      const position = arpeggioDictionary.indexOf(existing);
-      if (position !== -1) {
-        arpeggioDictionary[position] = shape;
-      } else {
-        arpeggioDictionary.push(shape);
-      }
-    } else {
-      arpeggioDictionary.push(shape);
-    }
-    arpeggioIndex.set(shape.name, shape);
-    return shape;
+    return upsertShape(arpeggioDictionary, arpeggioIndex, shape);
   },
   remove(name: string): boolean {
-    const existing = arpeggioIndex.get(name);
-    if (existing === undefined) {
-      return false;
-    }
-    const position = arpeggioDictionary.indexOf(existing);
-    if (position !== -1) {
-      arpeggioDictionary.splice(position, 1);
-    }
-    arpeggioIndex.delete(name);
-    return true;
+    return removeShapeByName(arpeggioDictionary, arpeggioIndex, name);
   },
   removeAll(): void {
     arpeggioDictionary = [];
