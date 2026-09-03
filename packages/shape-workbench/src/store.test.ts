@@ -52,6 +52,7 @@ describe("initialWorkbenchState", () => {
       columnAxis: "cagedPosition",
       drafts: {},
       changes: [],
+      changeKeys: [],
     });
   });
 });
@@ -118,8 +119,13 @@ describe("workbenchReducer", () => {
     let state = workbenchReducer(initialWorkbenchState, {
       type: "ADD_CHANGE",
       change: addChangeFor("A Shape Major"),
+      sourceKey: "slot-a",
     });
-    state = workbenchReducer(state, { type: "ADD_CHANGE", change: addChangeFor("D Shape Major") });
+    state = workbenchReducer(state, {
+      type: "ADD_CHANGE",
+      change: addChangeFor("D Shape Major"),
+      sourceKey: "slot-d",
+    });
     expect(state.changes.map((c) => (c as AddChange).shape.name)).toEqual([
       "A Shape Major",
       "D Shape Major",
@@ -127,45 +133,131 @@ describe("workbenchReducer", () => {
     expect(initialWorkbenchState.changes).toEqual([]);
   });
 
-  it("ADD_CHANGE replaces an existing change targeting the same shape instead of appending a duplicate (CR-059)", () => {
+  it("ADD_CHANGE replaces an existing change from the SAME draft (sourceKey) instead of appending a duplicate (CR-059)", () => {
     let state = workbenchReducer(initialWorkbenchState, {
       type: "ADD_CHANGE",
       change: addChangeFor("A Shape Major"),
+      sourceKey: "slot-a",
     });
     const updated: AddChange = { ...addChangeFor("A Shape Major"), file: "caged-chords-updated" };
-    state = workbenchReducer(state, { type: "ADD_CHANGE", change: updated });
+    state = workbenchReducer(state, { type: "ADD_CHANGE", change: updated, sourceKey: "slot-a" });
 
     expect(state.changes).toHaveLength(1);
     expect((state.changes[0] as AddChange).file).toBe("caged-chords-updated");
   });
 
-  it("ADD_CHANGE dedups by kind+name, not op alone — an update and a remove for the same name are distinct targets only when kind differs", () => {
+  it("ADD_CHANGE replaces the same draft's earlier add even after a rename, keyed by the stable sourceKey, not the shape name (CR-113)", () => {
+    let state = workbenchReducer(initialWorkbenchState, {
+      type: "ADD_CHANGE",
+      change: addChangeFor("Original Name"),
+      sourceKey: "slot-a",
+    });
+    state = workbenchReducer(state, {
+      type: "ADD_CHANGE",
+      change: addChangeFor("Renamed"),
+      sourceKey: "slot-a",
+    });
+    expect(state.changes).toHaveLength(1);
+    expect((state.changes[0] as AddChange).shape.name).toBe("Renamed");
+  });
+
+  it("ADD_CHANGE keeps two DISTINCT drafts (different sourceKeys) that save shapes sharing a name — detectCollisions needs both present (CR-112)", () => {
+    let state = workbenchReducer(initialWorkbenchState, {
+      type: "ADD_CHANGE",
+      change: addChangeFor("Dup Name"),
+      sourceKey: "slot-1",
+    });
+    state = workbenchReducer(state, {
+      type: "ADD_CHANGE",
+      change: addChangeFor("Dup Name"),
+      sourceKey: "slot-2",
+    });
+    expect(state.changes).toHaveLength(2);
+    expect(state.changes.every((c) => (c as AddChange).shape.name === "Dup Name")).toBe(true);
+  });
+
+  it("ADD_CHANGE for an add never collides with an update/remove targeting the same name (CR-112)", () => {
     let state = workbenchReducer(initialWorkbenchState, {
       type: "ADD_CHANGE",
       change: { op: "update", kind: "chord", name: "Shared Name", patch: {} },
+      sourceKey: "Shared Name",
+    });
+    state = workbenchReducer(state, {
+      type: "ADD_CHANGE",
+      change: addChangeFor("Shared Name"),
+      sourceKey: "gap-slot",
+    });
+    expect(state.changes).toHaveLength(2);
+  });
+
+  it("ADD_CHANGE dedups an update against an earlier update for the same name (kept keyed by op+name, CR-112)", () => {
+    let state = workbenchReducer(initialWorkbenchState, {
+      type: "ADD_CHANGE",
+      change: { op: "update", kind: "chord", name: "Shared Name", patch: { chordType: "m" } },
+      sourceKey: "Shared Name",
+    });
+    state = workbenchReducer(state, {
+      type: "ADD_CHANGE",
+      change: { op: "update", kind: "chord", name: "Shared Name", patch: { chordType: "maj" } },
+      sourceKey: "Shared Name",
+    });
+    expect(state.changes).toEqual([{ op: "update", kind: "chord", name: "Shared Name", patch: { chordType: "maj" } }]);
+  });
+
+  it("ADD_CHANGE does NOT dedup an update against a remove for the same name — op is part of the key (CR-112)", () => {
+    // Neither op currently reaches ADD_CHANGE from this package's own UI
+    // (`draftToChange` only ever emits "add"/"update"), so this is
+    // exercising the reducer's dedup key directly per the CR-112 spec:
+    // `update::<name>` and `remove::<name>` are deliberately distinct keys,
+    // unlike the pre-fix `kind::name` key that collapsed them together.
+    let state = workbenchReducer(initialWorkbenchState, {
+      type: "ADD_CHANGE",
+      change: { op: "update", kind: "chord", name: "Shared Name", patch: {} },
+      sourceKey: "Shared Name",
     });
     state = workbenchReducer(state, {
       type: "ADD_CHANGE",
       change: { op: "remove", kind: "chord", name: "Shared Name" },
+      sourceKey: "Shared Name",
     });
-    // Same kind+name -> the remove replaces the update.
-    expect(state.changes).toEqual([{ op: "remove", kind: "chord", name: "Shared Name" }]);
+    expect(state.changes).toHaveLength(2);
   });
 
   it("REMOVE_CHANGE deletes only the targeted index", () => {
     let state = workbenchReducer(initialWorkbenchState, {
       type: "ADD_CHANGE",
       change: addChangeFor("A Shape Major"),
+      sourceKey: "slot-a",
     });
-    state = workbenchReducer(state, { type: "ADD_CHANGE", change: addChangeFor("D Shape Major") });
+    state = workbenchReducer(state, {
+      type: "ADD_CHANGE",
+      change: addChangeFor("D Shape Major"),
+      sourceKey: "slot-d",
+    });
     state = workbenchReducer(state, { type: "REMOVE_CHANGE", index: 0 });
     expect(state.changes.map((c) => (c as AddChange).shape.name)).toEqual(["D Shape Major"]);
+  });
+
+  it("REMOVE_CHANGE keeps changeKeys in lockstep with changes (so a later ADD_CHANGE dedups correctly)", () => {
+    let state = workbenchReducer(initialWorkbenchState, {
+      type: "ADD_CHANGE",
+      change: addChangeFor("A Shape Major"),
+      sourceKey: "slot-a",
+    });
+    state = workbenchReducer(state, {
+      type: "ADD_CHANGE",
+      change: addChangeFor("D Shape Major"),
+      sourceKey: "slot-d",
+    });
+    state = workbenchReducer(state, { type: "REMOVE_CHANGE", index: 0 });
+    expect(state.changeKeys).toEqual(["add::slot-d"]);
   });
 
   it("REMOVE_CHANGE is a no-op for an out-of-range index", () => {
     const state = workbenchReducer(initialWorkbenchState, {
       type: "ADD_CHANGE",
       change: addChangeFor("A Shape Major"),
+      sourceKey: "slot-a",
     });
     const next = workbenchReducer(state, { type: "REMOVE_CHANGE", index: 5 });
     expect(next).toBe(state);
@@ -175,10 +267,16 @@ describe("workbenchReducer", () => {
     let state = workbenchReducer(initialWorkbenchState, {
       type: "ADD_CHANGE",
       change: addChangeFor("A Shape Major"),
+      sourceKey: "slot-a",
     });
-    state = workbenchReducer(state, { type: "ADD_CHANGE", change: addChangeFor("D Shape Major") });
+    state = workbenchReducer(state, {
+      type: "ADD_CHANGE",
+      change: addChangeFor("D Shape Major"),
+      sourceKey: "slot-d",
+    });
     state = workbenchReducer(state, { type: "CLEAR_CHANGES" });
     expect(state.changes).toEqual([]);
+    expect(state.changeKeys).toEqual([]);
   });
 
   it("CLEAR_CHANGES is a no-op (same reference) when already empty", () => {
@@ -287,6 +385,77 @@ describe("loadPersistedState", () => {
     expect(loadPersistedState(storage).changes).toEqual([]);
   });
 
+  it("falls back to the initial authorRoot when the persisted value isn't a string (CR-119)", () => {
+    const storage = createMemoryStorage();
+    storage.data.set(WORKBENCH_STORAGE_KEY, JSON.stringify({ ...initialWorkbenchState, authorRoot: 42 }));
+    expect(loadPersistedState(storage).authorRoot).toBe("A");
+  });
+
+  it("falls back to the initial orientation when the persisted value isn't a legal Orientation (CR-119)", () => {
+    const storage = createMemoryStorage();
+    storage.data.set(
+      WORKBENCH_STORAGE_KEY,
+      JSON.stringify({ ...initialWorkbenchState, orientation: "sideways" }),
+    );
+    expect(loadPersistedState(storage).orientation).toBe("vertical");
+  });
+
+  it("falls back to the initial columnAxis when the persisted value isn't a legal ColumnAxis (CR-119)", () => {
+    const storage = createMemoryStorage();
+    storage.data.set(WORKBENCH_STORAGE_KEY, JSON.stringify({ ...initialWorkbenchState, columnAxis: "hostile" }));
+    expect(loadPersistedState(storage).columnAxis).toBe("cagedPosition");
+  });
+
+  it("drops a non-string lastWrittenAt rather than carrying it through (CR-119)", () => {
+    const storage = createMemoryStorage();
+    storage.data.set(WORKBENCH_STORAGE_KEY, JSON.stringify({ ...initialWorkbenchState, lastWrittenAt: 12345 }));
+    expect(loadPersistedState(storage).lastWrittenAt).toBeUndefined();
+  });
+
+  it("keeps a valid string lastWrittenAt (CR-119)", () => {
+    const storage = createMemoryStorage();
+    storage.data.set(
+      WORKBENCH_STORAGE_KEY,
+      JSON.stringify({ ...initialWorkbenchState, lastWrittenAt: "2026-01-01T00:00:00.000Z" }),
+    );
+    expect(loadPersistedState(storage).lastWrittenAt).toBe("2026-01-01T00:00:00.000Z");
+  });
+
+  it("drops a null draft entry rather than crashing downstream matchers (CR-119)", () => {
+    const storage = createMemoryStorage();
+    storage.data.set(
+      WORKBENCH_STORAGE_KEY,
+      JSON.stringify({ ...initialWorkbenchState, drafts: { "m7::C": null } }),
+    );
+    expect(loadPersistedState(storage).drafts).toEqual({});
+  });
+
+  it("drops a draft entry missing `shape`, keeping other valid entries (CR-119)", () => {
+    const storage = createMemoryStorage();
+    storage.data.set(
+      WORKBENCH_STORAGE_KEY,
+      JSON.stringify({
+        ...initialWorkbenchState,
+        drafts: {
+          "bad::slot": { kind: "chord", origin: "gap" },
+          "good::slot": gapDraft("kept"),
+        },
+      }),
+    );
+    const drafts = loadPersistedState(storage).drafts;
+    expect(Object.keys(drafts)).toEqual(["good::slot"]);
+    expect(drafts["good::slot"].shape.name).toBe("kept");
+  });
+
+  it("regenerates changeKeys from change content when the persisted value is missing/wrong-length (CR-112/CR-119)", () => {
+    const storage = createMemoryStorage();
+    storage.data.set(
+      WORKBENCH_STORAGE_KEY,
+      JSON.stringify({ ...initialWorkbenchState, changes: [addChangeFor("A Shape Major")] }),
+    );
+    expect(loadPersistedState(storage).changeKeys).toEqual(["add::A Shape Major"]);
+  });
+
   it("falls back to the initial state entirely when the persisted JSON top-level value isn't a plain object (CR-105)", () => {
     const storage = createMemoryStorage();
 
@@ -332,7 +501,7 @@ describe("persistState", () => {
     persistState(state, storage);
     expect(Object.keys(JSON.parse(storage.data.get(WORKBENCH_STORAGE_KEY)!).drafts)).toEqual(["m7::C"]);
 
-    state = workbenchReducer(state, { type: "ADD_CHANGE", change: addChangeFor("one") });
+    state = workbenchReducer(state, { type: "ADD_CHANGE", change: addChangeFor("one"), sourceKey: "m7::C" });
     persistState(state, storage);
     expect(JSON.parse(storage.data.get(WORKBENCH_STORAGE_KEY)!).changes).toHaveLength(1);
 

@@ -136,4 +136,27 @@ describe("computeSaveDraft", () => {
     expect(result.shape.strings).toEqual(original.strings);
     expect(result.shape.strings[5]).toBe("9M");
   });
+
+  it("a finger-only relabel on a '9M' string emits a patch with fingers changed and NO strings change (CR-114)", () => {
+    const original: ChordShape = {
+      ...EMPTY_SHAPE,
+      name: "Extended Voicing",
+      strings: ["1P", "5P", "7m", "3M", "5P", "9M"],
+      fingers: [1, 3, 1, 2, 4, 4],
+      rootString: 0,
+    };
+    const draft: DraftShape = { kind: "chord", origin: "existing", shape: original, original };
+    const { cells, barres } = seedCellsFromShape(original, STANDARD, "A");
+    const editedCells = cells.map((c) => (c.string === 5 ? { ...c, finger: 3 } : c));
+
+    const result = computeSaveDraft(draft, editedCells, barres, STANDARD, "A");
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("unreachable");
+    expect(result.change.op).toBe("update");
+    if (result.change.op !== "update") throw new Error("unreachable");
+    expect(result.change.patch.strings).toBeUndefined();
+    expect(result.change.patch.fingers).toBeDefined();
+    expect((result.change.patch.fingers as (number | null)[])[5]).toBe(3);
+    expect(result.shape.strings[5]).toBe("9M");
+  });
 });

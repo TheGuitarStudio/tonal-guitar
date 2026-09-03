@@ -279,6 +279,25 @@ export function exportIdentifierFor(
  * lives, analogous to Tonal.js's own ScaleType/ChordType registries.
  */
 // ============================================================
+// Registry mutation counter (CR-107)
+// ============================================================
+// Monotonically-increasing counter, bumped on every registry mutation
+// (add/replace, remove, removeAll) across all three registries (scale,
+// chord, arpeggio). Callers that need to detect "did the registry change
+// since I last looked" (e.g. audit.ts's identifier-index cache) should key
+// off this instead of registry *size* — size alone goes stale on a
+// net-zero-size `remove(old); add(renamed)` sequence, since it's unchanged
+// before/after. Module-private state, mirroring the registries themselves
+// (see the "one sanctioned mutation seam" note above) — exposed only via the
+// reader below.
+let registryMutationCount = 0;
+
+/** Current value of the registry mutation counter — see CR-107 note above. */
+export function registryMutationVersion(): number {
+  return registryMutationCount;
+}
+
+// ============================================================
 // Registry helpers (shared by the scale/chord/arpeggio registries below)
 // ============================================================
 // Module-private: the three registries share identical
@@ -303,6 +322,7 @@ function upsertShape<T extends { name: string }>(
     dict.push(shape);
   }
   idx.set(shape.name, shape);
+  registryMutationCount++;
   return shape;
 }
 
@@ -316,6 +336,7 @@ function removeShapeByName<T>(dict: T[], idx: Map<string, T>, name: string): boo
     dict.splice(position, 1);
   }
   idx.delete(name);
+  registryMutationCount++;
   return true;
 }
 
@@ -349,6 +370,7 @@ export function remove(name: string): boolean {
 export function removeAll(): void {
   dictionary = [];
   index = new Map();
+  registryMutationCount++;
 }
 
 // ============================================================
@@ -377,6 +399,7 @@ export const chordShapes = {
   removeAll(): void {
     chordDictionary = [];
     chordIndex = new Map();
+    registryMutationCount++;
   },
   query(filter: {
     chordType?: string;
@@ -443,6 +466,7 @@ export const arpeggioShapes = {
   removeAll(): void {
     arpeggioDictionary = [];
     arpeggioIndex = new Map();
+    registryMutationCount++;
   },
   query(filter: {
     chordType?: string;

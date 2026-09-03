@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { STANDARD } from "tonal-guitar";
-import type { ChordShape } from "tonal-guitar";
+import type { Barre, ChordShape } from "tonal-guitar";
 import type { EditorCell } from "fretboard-ui";
 import {
   buildShapeFromCells,
@@ -8,6 +8,9 @@ import {
   deriveRootString,
   movableReason,
   seedCellsFromShape,
+  seedForDraft,
+  shapeIsBlank,
+  withGeometry,
 } from "./deriveShape";
 
 const EMPTY_SHAPE: ChordShape = {
@@ -125,12 +128,71 @@ describe("buildShapeFromCells — compound interval spelling preservation (CR-05
     expect(rebuilt?.strings[5]).toBe("9M");
   });
 
-  it("uses the freshly-derived (simple) spelling once the finger at that string actually changes", () => {
+  it("keeps the compound spelling ('9M') on a finger-only relabel — fingers are patched separately from spelling (CR-114)", () => {
+    // A finger relabel with no geometry change at all must not collapse
+    // that string's compound spelling: the finger and the interval spelling
+    // are independent fields on `ChordShape`, and `buildShapeFromCells`
+    // always sets `fingers: geometry.fingers` regardless of what
+    // `preserveBaseSpelling` decides for `strings`.
     const { cells, barres } = seedCellsFromShape(EXTENDED, STANDARD, "A");
     const editedCells = cells.map((c) => (c.string === 5 ? { ...c, finger: 3 } : c));
     const rebuilt = buildShapeFromCells(EXTENDED, editedCells, barres, STANDARD, "A");
     expect(rebuilt?.fingers[5]).toBe(3);
-    expect(rebuilt?.strings[5]).toBe("2M");
+    expect(rebuilt?.fingers[5]).not.toBe(EXTENDED.fingers[5]);
+    expect(rebuilt?.strings[5]).toBe("9M");
+    expect(rebuilt?.strings).toEqual(EXTENDED.strings);
+  });
+});
+
+describe("shapeIsBlank / seedForDraft / withGeometry — raw geometry persistence (CR-115)", () => {
+  const ROOTED: ChordShape = {
+    ...EMPTY_SHAPE,
+    name: "A Shape Major",
+    strings: ["1P", "5P", "1P", "3M", "5P", "1P"],
+    fingers: [1, 3, 3, 2, 1, 1],
+    rootString: 0,
+  };
+  const SOME_CELLS: EditorCell[] = [
+    { string: 0, fret: 5, isRoot: true },
+    { string: 1, fret: 7 },
+  ];
+  const SOME_BARRES: Barre[] = [{ fret: 0, fromString: 0, toString: 5, finger: 1 }];
+
+  it("shapeIsBlank is true only for an all-null, barre-less shape", () => {
+    expect(shapeIsBlank(EMPTY_SHAPE)).toBe(true);
+    expect(shapeIsBlank(ROOTED)).toBe(false);
+  });
+
+  it("withGeometry always refreshes rawGeometry, even on a destructive edit that derives no shape", () => {
+    const draft = { kind: "chord" as const, origin: "existing" as const, shape: ROOTED, original: ROOTED };
+    const cleared = withGeometry(draft, [], [], undefined);
+    expect(cleared.rawGeometry).toEqual({ cells: [], barres: [] });
+    // `shape` stays at its last valid value — display/save still fall back
+    // to it — but rawGeometry above is what `seedForDraft` reads back.
+    expect(cleared.shape).toBe(ROOTED);
+  });
+
+  it("withGeometry updates shape too when a valid derivedShape is given", () => {
+    const draft = { kind: "chord" as const, origin: "gap" as const, shape: EMPTY_SHAPE };
+    const next = withGeometry(draft, SOME_CELLS, SOME_BARRES, ROOTED);
+    expect(next.rawGeometry).toEqual({ cells: SOME_CELLS, barres: SOME_BARRES });
+    expect(next.shape).toBe(ROOTED);
+  });
+
+  it("seedForDraft rehydrates from rawGeometry rather than the stale last-valid shape, so a cleared grip stays cleared on resume", () => {
+    const draft = { shape: ROOTED, rawGeometry: { cells: [], barres: [] } };
+    expect(seedForDraft(draft, STANDARD, "A")).toEqual({ cells: [], barres: [] });
+  });
+
+  it("seedForDraft falls back to seedCellsFromShape when there's no rawGeometry yet (pre-CR-115 behavior)", () => {
+    const draft = { shape: ROOTED };
+    const seeded = seedForDraft(draft, STANDARD, "A");
+    expect(seeded).toEqual(seedCellsFromShape(ROOTED, STANDARD, "A"));
+  });
+
+  it("seedForDraft falls back to an empty seed for a still-blank gap draft with no rawGeometry", () => {
+    const draft = { shape: EMPTY_SHAPE };
+    expect(seedForDraft(draft, STANDARD, "A")).toEqual({ cells: [], barres: [] });
   });
 });
 

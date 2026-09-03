@@ -1144,6 +1144,61 @@ describe("checkNameUnique", () => {
       ).toEqual([]);
     });
   });
+
+  // CR-107: the identifier-index cache used to be keyed on the registry's
+  // current *size*, which goes stale after a net-zero-size
+  // `remove(old); add(renamed)` sequence — a rename — since the size before
+  // and after is identical. If the renamed entry's derived identifier then
+  // collides with some other already-registered shape, the stale (size-keyed)
+  // cache would silently miss it. Now keyed on the shared registry mutation
+  // counter (`registryMutationVersion`) instead, so any add/remove
+  // invalidates it regardless of whether size happens to end up unchanged.
+  it("detects an identifier collision introduced by a same-size remove(old)+add(renamed) rename", () => {
+    const oldShape: ChordShape = {
+      name: "CR-107 Cache Fixture Old",
+      system: "caged",
+      chordType: "M",
+      strings: ["1P", null, null, null, null, null],
+      fingers: [1, null, null, null, null, null],
+      barres: [],
+      rootString: 0,
+    };
+    chordShapes.add(oldShape);
+    try {
+      // Warm the identifier-index cache while `oldShape` is registered, so a
+      // stale, size-keyed cache would remember this size.
+      checkNameUnique({ name: "CR-107 Cache Fixture Unrelated Warm" }, "chord");
+
+      const renamedShape: ChordShape = {
+        ...oldShape,
+        name: "CR-107 Cache Fixture Renamed",
+      };
+      // Net-zero size change relative to the warmed state above: -1
+      // (remove) then +1 (add) — the exact staleness trigger a size-keyed
+      // cache would miss.
+      chordShapes.remove(oldShape.name);
+      chordShapes.add(renamedShape);
+
+      try {
+        // Different name, but the same derived export identifier as
+        // `renamedShape` (mirrors the "C Major Open!!!" pattern above).
+        const candidate = { name: "CR-107 Cache Fixture Renamed!!!" };
+        const issues = checkNameUnique(candidate, "chord");
+        const identifierIssue = issues.find((i) => "identifier" in (i.details ?? {}));
+        expect(identifierIssue).toBeDefined();
+        expect(identifierIssue?.id).toBe(CHECK_NAME_UNIQUE);
+        expect(identifierIssue?.severity).toBe("error");
+        expect(identifierIssue?.details).toMatchObject({
+          name: candidate.name,
+          kind: "chord",
+        });
+      } finally {
+        chordShapes.remove(renamedShape.name);
+      }
+    } finally {
+      chordShapes.remove(oldShape.name);
+    }
+  });
 });
 
 // ============================================================

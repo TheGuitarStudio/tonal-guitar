@@ -23,6 +23,7 @@ import { cellsToChordShape, frettedNotesToCells, type EditorCell } from "fretboa
 import { applyChordShape, isMovable } from "tonal-guitar";
 import type { Barre, ChordShape } from "tonal-guitar";
 import { semitones } from "@tonaljs/interval";
+import type { RawGeometry, WorkbenchDraft } from "../store";
 
 export interface ChordGeometry {
   strings: (string | null)[];
@@ -71,10 +72,18 @@ function chromaOfInterval(ivl: string): number {
  * `"2M"`, never a compound like `"9M"`), so re-deriving geometry from
  * unchanged cells silently collapses a registry shape authored with
  * `"9M"`/`"11P"`/`"4A"` etc. down to its simple form. When a derived
- * string's chroma matches `base.strings` at the same index and the finger
- * there is unchanged, keep `base`'s original spelling instead of the
- * collapsed one — this is what keeps a metadata-only edit from silently
- * rewriting `strings` in the save patch (spec §9 edge case 9 / CR-055).
+ * string's chroma matches `base.strings` at the same index, keep `base`'s
+ * original spelling instead of the collapsed one — this is what keeps a
+ * metadata-only (or finger-only) edit from silently rewriting `strings` in
+ * the save patch (spec §9 edge case 9 / CR-055).
+ *
+ * Deliberately independent of whether the finger at that string changed
+ * (CR-114): fingers are carried on their own `geometry.fingers` array and
+ * patched separately (`buildShapeFromCells` below sets `fingers:
+ * geometry.fingers` unconditionally) — gating spelling-preservation on
+ * finger equality made a pure finger relabel (e.g. re-fingering a "9M"
+ * string) spuriously collapse that string's spelling too, the exact silent
+ * `strings` rewrite CR-055 was meant to prevent.
  */
 function preserveBaseSpelling(
   base: ChordShape,
@@ -82,12 +91,7 @@ function preserveBaseSpelling(
 ): (string | null)[] {
   return geometry.strings.map((derived, i) => {
     const baseInterval = base.strings[i];
-    if (
-      derived === null ||
-      baseInterval === null ||
-      baseInterval === undefined ||
-      base.fingers[i] !== geometry.fingers[i]
-    ) {
+    if (derived === null || baseInterval === null || baseInterval === undefined) {
       return derived;
     }
     return chromaOfInterval(derived) === chromaOfInterval(baseInterval) ? baseInterval : derived;
@@ -142,6 +146,66 @@ export function seedCellsFromShape(
     finger: shape.fingers[cell.string] ?? null,
   }));
   return { cells, barres: shape.barres.map((barre) => ({ ...barre })) };
+}
+
+/** Whether a `"gap"`-origin draft's shape has already been fully authored
+ * elsewhere (`onDuplicateToPosition` seeds from an existing shape) — a
+ * blank shape has no cells/barres to lose, so it's the only case where
+ * `seedForDraft` (with no `rawGeometry` yet) is safe to seed as empty
+ * rather than round-tripping through `seedCellsFromShape`. Also gates the
+ * Editor's one-time auto-fingering seed (tasks.md 26.6), which must not run
+ * against an already-authored grip. */
+export function shapeIsBlank(shape: ChordShape): boolean {
+  return (
+    shape.strings.every((s) => s === null) && shape.fingers.every((f) => f === null) && shape.barres.length === 0
+  );
+}
+
+/**
+ * The Editor's initial `cells`/`barres` local state for a slot (CR-115):
+ * prefers `draft.rawGeometry` — the exact editor state as last left,
+ * including a destructive edit that derives no valid `ChordShape` (clearing
+ * the grip, muting every string, removing the root) — over re-deriving from
+ * `draft.shape`. Without this, resuming a draft after such an edit
+ * resurrects whatever notes were on the shape the LAST valid save/seed left
+ * behind, silently undoing the clear. Falls back to the pre-CR-115
+ * behavior — an empty seed for a still-blank gap draft, or
+ * `seedCellsFromShape` off the authored shape — only when there's no
+ * `rawGeometry` yet (a brand-new draft, or one saved by a build that
+ * predates this field).
+ */
+export function seedForDraft(
+  draft: { shape: ChordShape; rawGeometry?: RawGeometry },
+  tuning: string[],
+  root: string,
+): { cells: EditorCell[]; barres: Barre[] } {
+  if (draft.rawGeometry !== undefined) return draft.rawGeometry;
+  if (shapeIsBlank(draft.shape)) return { cells: [], barres: [] };
+  return seedCellsFromShape(draft.shape, tuning, root);
+}
+
+/**
+ * Merges the Editor's live `cells`/`barres` into `draft` (CR-115): always
+ * refreshes `rawGeometry` to the exact current editor state — even a
+ * destructive edit that derives no valid shape — and only updates `shape`
+ * when `derivedShape` is defined. A destructive edit therefore leaves
+ * `draft.shape` at its last valid value (still used for Checks/Table/Output
+ * preview's display fallback, and for save, which always refuses on
+ * `undefined` regardless) while `rawGeometry` becomes the source of truth
+ * `seedForDraft` reads back on resume — so a cleared grip stays cleared
+ * instead of being silently resurrected by the stale `shape`.
+ */
+export function withGeometry(
+  draft: WorkbenchDraft,
+  cells: EditorCell[],
+  barres: Barre[],
+  derivedShape: ChordShape | undefined,
+): WorkbenchDraft {
+  return {
+    ...draft,
+    rawGeometry: { cells, barres },
+    ...(derivedShape !== undefined ? { shape: derivedShape } : {}),
+  };
 }
 
 /**

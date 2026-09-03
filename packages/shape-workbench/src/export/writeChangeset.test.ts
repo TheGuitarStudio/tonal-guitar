@@ -10,12 +10,14 @@ import { initialWorkbenchState, type WorkbenchAction, type WorkbenchState } from
 import {
   CHANGESET_ENDPOINT,
   fetchWorkbenchStatus,
+  isWriteDisabled,
   postChangeset,
   STATUS_ENDPOINT,
   writeChangesetAndDispatch,
   type FetchInit,
   type FetchLike,
   type FetchResponseLike,
+  type WorkbenchStatus,
 } from "./writeChangeset";
 
 const addChange: AddChange = {
@@ -144,6 +146,32 @@ describe("fetchWorkbenchStatus (CR-060)", () => {
     };
     const result = await fetchWorkbenchStatus(fetchImpl);
     expect(result).toEqual({ reachable: false });
+  });
+});
+
+describe("isWriteDisabled (CR-121)", () => {
+  const reachableWritable: WorkbenchStatus = { reachable: true, writable: true };
+  const reachableNotWritable: WorkbenchStatus = { reachable: true, writable: false };
+  const unreachable: WorkbenchStatus = { reachable: false };
+
+  it("is disabled while the status probe hasn't resolved yet", () => {
+    expect(isWriteDisabled(undefined, 0)).toBe(true);
+  });
+
+  it("is disabled when the dev server is unreachable", () => {
+    expect(isWriteDisabled(unreachable, 0)).toBe(true);
+  });
+
+  it("is disabled when reachable but not writable (the CR-121 gap) even with zero collisions", () => {
+    expect(isWriteDisabled(reachableNotWritable, 0)).toBe(true);
+  });
+
+  it("is disabled when collisions are pending, even if reachable and writable", () => {
+    expect(isWriteDisabled(reachableWritable, 1)).toBe(true);
+  });
+
+  it("is enabled only when reachable, writable, and collision-free", () => {
+    expect(isWriteDisabled(reachableWritable, 0)).toBe(false);
   });
 });
 

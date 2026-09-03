@@ -22,6 +22,7 @@ import {
   gripBaseFret,
   sourceGripBaseFret,
   exportIdentifierFor,
+  registryMutationVersion,
 } from "./shape";
 import { STANDARD } from "./tuning";
 import { chroma, transpose } from "@tonaljs/note";
@@ -664,30 +665,37 @@ function registryAllFor(kind: NameUniqueKind): NamedShape[] {
  * re-derive `exportIdentifierFor` (regex work) for every OTHER registered
  * entry — O(N) work per call, O(N²) for an N-shape audit. This caches an
  * `identifier -> names sharing it` index per `kind`, keyed off the
- * registry's current size so it's rebuilt (once) whenever a shape is
- * added/removed, and reused across same-size calls in between — e.g. a full
- * audit pass. Kept simple/pure-ish: size-keyed, not a true mutation token, so
- * an in-place same-size rename between calls would serve a stale index until
- * the next size change (acceptable per the "simple" brief).
+ * registries' shared mutation counter (`registryMutationVersion`, CR-107) so
+ * it's rebuilt (once) whenever any registry is mutated, and reused across
+ * same-version calls in between — e.g. a full audit pass. The counter is
+ * global (not per-kind) but that's fine here: it only widens cache reuse
+ * slightly less than a per-kind counter would, never stales it.
+ *
+ * CR-107: this used to key on `registryAllFor(kind).length` instead, which
+ * goes stale on a net-zero-size `remove(old); add(renamed)` sequence between
+ * calls (size unchanged, but the index is now wrong) — a real
+ * false-negative/false-positive risk, not just the narrower "in-place
+ * same-size rename" the old comment described. Keying on the mutation
+ * counter fixes both.
  */
 const identifierIndexCache = new Map<
   NameUniqueKind,
-  { size: number; byIdentifier: Map<string, string[]> }
+  { version: number; byIdentifier: Map<string, string[]> }
 >();
 
 function identifierIndexFor(kind: NameUniqueKind): Map<string, string[]> {
-  const all = registryAllFor(kind);
+  const version = registryMutationVersion();
   const cached = identifierIndexCache.get(kind);
-  if (cached && cached.size === all.length) return cached.byIdentifier;
+  if (cached && cached.version === version) return cached.byIdentifier;
 
   const byIdentifier = new Map<string, string[]>();
-  for (const entry of all) {
+  for (const entry of registryAllFor(kind)) {
     const id = exportIdentifierFor(kind, entry);
     const names = byIdentifier.get(id);
     if (names) names.push(entry.name);
     else byIdentifier.set(id, [entry.name]);
   }
-  identifierIndexCache.set(kind, { size: all.length, byIdentifier });
+  identifierIndexCache.set(kind, { version, byIdentifier });
   return byIdentifier;
 }
 

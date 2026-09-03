@@ -24,7 +24,7 @@
 - [x] Phase 1: Setup
 - [x] Phase 2: Lint/Test Fix
 - [x] Phase 3: Architecture Review
-- [ ] Phase 4: Architecture Fix
+- [x] Phase 4: Architecture Fix
 - [ ] Phase 5: Code Simplification Review
 - [ ] Phase 6: Code Simplification Fix
 - [ ] Phase 7: Specialized Reviews
@@ -360,3 +360,21 @@ Two opus agents reviewed the loop-1 fix diff (efbd207..HEAD, ~4,900 lines). All 
 - CR-119: [Important ↑] CR-105 hardening stops short in `packages/shape-workbench/src/store.ts:156-158` — `authorRoot`/`orientation`/`columnAxis` spread through unvalidated (non-string `authorRoot` throws in `applyChordShape`) and `drafts` *values* are unchecked (`{"m7::C": null}` still crashes `findDraftForChange`) — the original failure mode.
 - CR-120: [Important ↑] `deriveShape.ts:25` imports `@tonaljs/interval` but `packages/shape-workbench/package.json` declares no `@tonaljs/*` dependency — resolves via the root by accident; the same undeclared-dependency pattern CR-024/CR-043 fixed. Declare it.
 - CR-121: [Important ↑] The CR-060 write gate checks only `reachable`, ignoring the probe's `writable` flag (`packages/shape-workbench/src/screens/Export.tsx:179-181`) — a reachable-but-read-only `.workbench/` still shows an enabled button that fails at POST time. Gate on both.
+
+## Phase 4 (Loop 2): Architecture Fixes
+
+### Fixed
+
+- CR-107: Fixed — `registryMutationVersion()` counter in shape.ts (incremented by `upsertShape`/`removeShapeByName`/`removeAll`); audit cache keyed on it; regression test for the remove+add rename.
+- CR-112/CR-113: Fixed — adds deduped by originating draft slot key (`sourceKey` threaded through ADD_CHANGE; parallel `changeKeys` bookkeeping since ChangesetChange is serialized verbatim), update/remove by `op::name`; distinct same-name drafts both survive for `detectCollisions`. 6 reducer tests.
+- CR-114: Fixed — finger-equality guard removed; spelling preserved on chroma equivalence alone; tests updated + finger-only-relabel patch test.
+- CR-115: Fixed — `rawGeometry` on drafts via `withGeometry`/`seedForDraft`; persistence effect no longer bails on invalid geometry; destructive-clear → resume round-trip tested.
+- CR-119: Fixed — `authorRoot`/`orientation`/`columnAxis`/`lastWrittenAt` and per-entry `drafts` validation with per-field fallback. 8 tests.
+- CR-120: Fixed — `@tonaljs/interval` declared in shape-workbench dependencies; lockfile refreshed by lead.
+- CR-121: Fixed — `isWriteDisabled(status, collisionCount)` gates on `writable` with a distinct not-writable alert. 5 tests.
+
+### Deferred
+
+- CR-108..CR-111, CR-113 (residual), CR-116..CR-118: GitHub issue #204.
+
+Verification: lint clean, root build clean, `npm test` 1758/1758 (+26), workbench `tsc --noEmit` + vite build clean.

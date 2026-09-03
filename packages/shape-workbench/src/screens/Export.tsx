@@ -25,6 +25,7 @@ import { ExportDiffView } from "../export/ExportDiffView";
 import { summarizeChangesByKindAndOp } from "../export/changeInfo";
 import {
   fetchWorkbenchStatus,
+  isWriteDisabled,
   writeChangesetAndDispatch,
   type FetchLike,
   type WorkbenchStatus,
@@ -178,6 +179,12 @@ export function ExportScreen({ fetchImpl }: ExportScreenProps = {}) {
             <code className="tg-mono">vite build</code>. Writing changeset.json is disabled.
           </p>
         )}
+        {workbenchStatus !== undefined && workbenchStatus.reachable && !workbenchStatus.writable && (
+          <p role="alert" data-testid="workbench-status-not-writable">
+            The dev server is reachable but <span className="tg-mono">.workbench/</span> isn't
+            writable — check its filesystem permissions. Writing changeset.json is disabled.
+          </p>
+        )}
         {built.collisions.length > 0 && (
           <p role="alert" data-testid="write-blocked-collisions">
             Resolve the name/identifier collision(s) above before writing changeset.json.
@@ -186,9 +193,7 @@ export function ExportScreen({ fetchImpl }: ExportScreenProps = {}) {
         <button
           type="button"
           data-testid="write-changeset-button"
-          disabled={
-            workbenchStatus === undefined || !workbenchStatus.reachable || built.collisions.length > 0
-          }
+          disabled={isWriteDisabled(workbenchStatus, built.collisions.length)}
           onClick={() => void handleWrite()}
         >
           Write changeset.json

@@ -56,6 +56,25 @@ export type WorkbenchStatus =
   | { reachable: false };
 
 /**
+ * Whether "Write changeset.json" should be disabled, and why (CR-121): the
+ * CR-060 gate only checked `reachable`, so a reachable-but-read-only
+ * `.workbench/` (e.g. wrong filesystem permissions) still showed an
+ * enabled button that would fail at POST time instead of being caught up
+ * front by the very probe meant to catch exactly this. A pure function
+ * (rather than inlining the boolean expression in `screens/Export.tsx`) so
+ * each gate reason is independently unit-testable without the status
+ * probe's `useEffect` actually running — this package's `renderToString`-only
+ * component tests never execute effects (see `fetchWorkbenchStatus`'s own
+ * tests above for the same reason this is split out).
+ */
+export function isWriteDisabled(status: WorkbenchStatus | undefined, collisionCount: number): boolean {
+  if (status === undefined) return true;
+  if (!status.reachable) return true;
+  if (!status.writable) return true;
+  return collisionCount > 0;
+}
+
+/**
  * Probes the dev-server plugin's `GET /__workbench/status` endpoint. Used
  * to gate the "Write changeset.json" button (CR-060): under `vite preview`
  * or a static build there is no such route, so the response is either a

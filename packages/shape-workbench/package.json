@@ -13,7 +13,8 @@
     "tonal-guitar": "file:../..",
     "fretboard-ui": "file:../fretboard-ui",
     "shape-catalog": "file:../shape-catalog",
-    "shape-library-ui": "file:../shape-library-ui"
+    "shape-library-ui": "file:../shape-library-ui",
+    "@tonaljs/interval": "^5.1.0"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

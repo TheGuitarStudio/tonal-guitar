@@ -21,11 +21,10 @@ import { useEffect, useMemo, useState } from "react";
 import { Fretboard, type EditorCell, type Orientation } from "fretboard-ui";
 import type { Barre, ChordShape } from "tonal-guitar";
 import { autoFingering } from "tonal-guitar";
-import type { DraftShape } from "shape-catalog";
 import { FretboardEditor } from "fretboard-ui";
 import { useWorkbenchDispatch, useWorkbenchState } from "../StoreProvider";
 import { navigateToRoute } from "../useRoute";
-import type { WorkbenchState } from "../store";
+import type { WorkbenchState, WorkbenchDraft } from "../store";
 import { ToolPalette, type LabelDisplayMode } from "../editor/ToolPalette";
 import { BarreEditor } from "../editor/BarreEditor";
 import { ChordTable } from "../editor/ChordTable";
@@ -33,7 +32,7 @@ import { ChecksCard } from "../editor/ChecksCard";
 import { OutputPreview } from "../editor/OutputPreview";
 import { PropertiesForm } from "../editor/PropertiesForm";
 import { IdentifyRow, AtOtherRoots } from "../editor/IdentifyAndRoots";
-import { buildShapeFromCells, seedCellsFromShape } from "../editor/deriveShape";
+import { buildShapeFromCells, seedForDraft, shapeIsBlank, withGeometry } from "../editor/deriveShape";
 import { applyCellsChange, type ActiveFinger, type EditorTool } from "../editor/toolInteractions";
 import { computeSaveDraft } from "../editor/saveDraft";
 import "../editor/editor.css";
@@ -46,16 +45,6 @@ function isDraftInChangeset(state: WorkbenchState, name: string): boolean {
   return state.changes.some((change) => (change.op === "add" ? change.shape.name === name : change.name === name));
 }
 
-/** Whether a `"gap"`-origin draft's shape has already been fully authored
- * elsewhere (`onDuplicateToPosition` seeds from an existing shape) — in
- * that case the auto-fingering seed (spec §5.4/tasks.md 26.6) must not run,
- * since it would clobber the fingers/barres already carried over. */
-function shapeIsBlank(shape: ChordShape): boolean {
-  return (
-    shape.strings.every((s) => s === null) && shape.fingers.every((f) => f === null) && shape.barres.length === 0
-  );
-}
-
 function fingerLabelMarkers(cells: EditorCell[]) {
   return cells.map((c) => ({
     string: c.string,
@@ -65,21 +54,24 @@ function fingerLabelMarkers(cells: EditorCell[]) {
   }));
 }
 
-function EditorInner({ slotKey, draft }: { slotKey: string; draft: DraftShape }) {
+function EditorInner({ slotKey, draft }: { slotKey: string; draft: WorkbenchDraft }) {
   const state = useWorkbenchState();
   const dispatch = useWorkbenchDispatch();
   const shape = draft.shape as ChordShape;
   const tuning = state.tuning;
 
-  const seed = useMemo(() => {
-    if (shapeIsBlank(shape)) return { cells: [] as EditorCell[], barres: [] as Barre[] };
-    return seedCellsFromShape(shape, tuning, state.authorRoot);
+  const seed = useMemo(
+    () => seedForDraft({ shape, rawGeometry: draft.rawGeometry }, tuning, state.authorRoot),
     // Computed once at mount (EditorInner is remounted per slotKey via the
     // `key` prop in EditorScreen below) — intentionally keyed on `slotKey`
     // alone, NOT re-run when authorRoot changes later, so switching
     // "Author at root" re-anchors the SAME grip's interval frame rather
-    // than re-seeding from scratch.
-  }, [slotKey]);
+    // than re-seeding from scratch. `seedForDraft` prefers `draft.rawGeometry`
+    // (the exact editor state as last left, CR-115) over re-deriving from
+    // `draft.shape` — this is what makes a resumed draft rehydrate a
+    // cleared grip as cleared rather than resurrecting the last valid shape.
+    [slotKey],
+  );
 
   const [cells, setCells] = useState<EditorCell[]>(seed.cells);
   const [barres, setBarres] = useState<Barre[]>(seed.barres);
@@ -142,25 +134,32 @@ function EditorInner({ slotKey, draft }: { slotKey: string; draft: DraftShape })
   }, [derivedShape, autoSeeded]);
 
   function persistDraft(nextShape: ChordShape) {
-    const nextDraft: DraftShape = { ...draft, shape: nextShape };
+    const nextDraft: WorkbenchDraft = { ...draft, shape: nextShape };
     dispatch({ type: "SET_DRAFT", key: slotKey, draft: nextDraft });
     return nextDraft;
   }
 
-  // Persists the derived geometry (cells/barres) into the store draft
-  // whenever it changes (CR-052) — without this, the breadcrumb/Back button
-  // or a reload discards every edit since the last Run-checks/Save, and
-  // localStorage "crash resilience" (spec §5.4) only ever persists an
-  // empty-geometry draft. `derivedShape` (computed above via
-  // `buildShapeFromCells`) is read from render scope rather than
-  // re-derived here; the effect is intentionally keyed on `cells`/`barres`
-  // alone (not `derivedShape`'s own identity, which is a fresh object every
-  // render) so this can't loop — dispatching SET_DRAFT changes `draft`,
-  // which changes `derivedShape`'s *value* next render, but never re-fires
-  // this effect since `cells`/`barres` themselves didn't change.
+  // Persists the editor's live geometry into the store draft whenever it
+  // changes (CR-052) — without this, the breadcrumb/Back button or a reload
+  // discards every edit since the last Run-checks/Save, and localStorage
+  // "crash resilience" (spec §5.4) only ever persists an empty-geometry
+  // draft. Unlike the pre-CR-115 version, this ALWAYS dispatches — even
+  // when `derivedShape` is `undefined` (a destructive edit: clearing the
+  // grip, muting every string, removing the root) — via `withGeometry`,
+  // which refreshes `draft.rawGeometry` unconditionally and only touches
+  // `draft.shape` when there's a valid derived shape to store. Bailing out
+  // entirely on an invalid geometry (the old behavior) meant a destructive
+  // edit was never persisted at all, so the CR-053/CR-054 draft-reuse path
+  // would reopen the stale last-valid shape and resurrect notes the author
+  // had just cleared. `derivedShape` (computed above via
+  // `buildShapeFromCells`) is read from render scope rather than re-derived
+  // here; the effect is intentionally keyed on `cells`/`barres` alone (not
+  // `derivedShape`'s own identity, which is a fresh object every render) so
+  // this can't loop — dispatching SET_DRAFT changes `draft`, which changes
+  // `derivedShape`'s *value* next render, but never re-fires this effect
+  // since `cells`/`barres` themselves didn't change.
   useEffect(() => {
-    if (derivedShape === undefined) return;
-    persistDraft(derivedShape);
+    dispatch({ type: "SET_DRAFT", key: slotKey, draft: withGeometry(draft, cells, barres, derivedShape) });
   }, [cells, barres]);
 
   function handleRunChecks() {
@@ -186,7 +185,11 @@ function EditorInner({ slotKey, draft }: { slotKey: string; draft: DraftShape })
       return;
     }
     dispatch({ type: "SET_DRAFT", key: slotKey, draft: result.draft });
-    dispatch({ type: "ADD_CHANGE", change: result.change });
+    // `sourceKey: slotKey` (CR-112/CR-113) — the stable identity ADD_CHANGE
+    // dedups an AddChange by, so saving this SAME draft again (even after a
+    // rename) replaces its own earlier add instead of leaving both/instead
+    // of colliding with an unrelated draft that happens to share a name.
+    dispatch({ type: "ADD_CHANGE", change: result.change, sourceKey: slotKey });
     navigateToRoute({ type: "board" });
   }
 
