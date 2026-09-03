@@ -1,7 +1,13 @@
 # Code Review: feat/shape-workbench
 
 **Date:** 2026-09-02 | **Base:** main | **Scope:** full
-**Commits:** 81 | **Files Changed:** 197 | **Loop:** 1/2
+**Commits:** 81 (at loop-1 start) | **Files Changed:** 197 | **Loop:** 2/2
+
+## Loop 1 Summary
+
+- Findings: 106 total (19 Critical, 37 Important, 50 Suggestion)
+- Fixed: 51 (all 19 Critical, 32 Important) | Deferred: 55 (5 Important, 50 Suggestion → issues #192–#202) | Won't Fix: 0
+- Review commits: 8 | Final verification: lint clean, build clean, 1732/1732 tests, workbench + site builds clean → **PASS**
 
 ## Affected Packages
 
@@ -13,23 +19,25 @@
 - `site/` (18 files changed)
 - `scripts/` (merge tooling + fixtures, ~34 files changed)
 
-## Review Progress
+## Review Progress (Loop 2)
 
 - [x] Phase 1: Setup
-- [x] Phase 2: Lint/Test Fix
-- [x] Phase 3: Architecture Review
-- [x] Phase 4: Architecture Fix
-- [x] Phase 5: Code Simplification Review
-- [x] Phase 6: Code Simplification Fix
-- [x] Phase 7: Specialized Reviews
-- [x] Phase 8: Specialized Fixes
+- [ ] Phase 2: Lint/Test Fix
+- [ ] Phase 3: Architecture Review
+- [ ] Phase 4: Architecture Fix
+- [ ] Phase 5: Code Simplification Review
+- [ ] Phase 6: Code Simplification Fix
+- [ ] Phase 7: Specialized Reviews
+- [ ] Phase 8: Specialized Fixes
 - [ ] Phase 9: Final Verification
+
+(Loop 1 completed all 9 phases — sections below. Loop 2 findings continue from CR-107.)
 
 ## Statistics
 
-- Critical: 15 fixed, 0 remaining | Important: 29 fixed, 4 deferred | Suggestion: 31 deferred
-- GitHub Issues Created: #192–#199
-- Total Commits: 3 | Total Fixes: 44 | Final Status: IN PROGRESS
+- Critical: 19 fixed, 0 remaining | Important: 32 fixed, 5 deferred | Suggestion: 50 deferred
+- GitHub Issues Created: #192–#202
+- Total Commits: 8 | Total Fixes: 51 | Final Status: LOOP 1 PASS — LOOP 2 IN PROGRESS
 
 ---
 
