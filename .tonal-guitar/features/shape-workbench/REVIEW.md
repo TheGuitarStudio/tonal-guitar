@@ -22,8 +22,8 @@
 ## Review Progress (Loop 2)
 
 - [x] Phase 1: Setup
-- [ ] Phase 2: Lint/Test Fix
-- [ ] Phase 3: Architecture Review
+- [x] Phase 2: Lint/Test Fix
+- [x] Phase 3: Architecture Review
 - [ ] Phase 4: Architecture Fix
 - [ ] Phase 5: Code Simplification Review
 - [ ] Phase 6: Code Simplification Fix
@@ -332,3 +332,31 @@ All other `as` casts checked were guarded by upstream `kind` checks or internal 
 - CR-106: GitHub issue #202 — keyboard operability for the fretboard editor grid.
 
 Verification: lint clean, root build clean, `npm test` 1732/1732 (+31 new), workbench `tsc --noEmit` + vite build clean.
+
+---
+
+# Loop 2
+
+## Phase 2 (Loop 2): Lint/Test
+
+`npm run lint` clean, `npm test` 1732/1732 — no fixes needed.
+
+## Phase 3 (Loop 2): Architecture Review of Loop-1 Fixes
+
+Two opus agents reviewed the loop-1 fix diff (efbd207..HEAD, ~4,900 lines). All six CR-001 barre corrections re-derived and confirmed; CR-003/CR-015/CR-016/CR-022/CR-026/CR-080/CR-101 verified sound (allowlists complete against all shape type fields; reconstructibility safe against real data files; pinned prettier options match repo output). 15 findings; severities marked ↑ were triaged up by the lead because they undermine loop-1 Critical/Important fixes.
+
+- CR-107: [Important] Identifier-index cache keyed on registry *length* goes stale on `remove(old); add(renamed)` (net-zero size) in `src/audit.ts:659-687` — silent false negatives/positives in `checkNameUnique`. Key on a mutation counter incremented by `upsertShape`/`removeShapeByName` instead.
+- CR-108: [Suggestion] Orphan `.shapes-merge-tmp-*` file survives rollback when `renameSync` fails in `scripts/shapes-merge.mjs:507-528` — track `tmpPath` and unlink best-effort in the catch.
+- CR-109: [Suggestion] A satisfied (already-absent) `remove` silently counts into `plan.removed` in `scripts/shapes-merge.mjs:876-880,1270-1278` — a typo'd name reports success; push a warning.
+- CR-110: [Suggestion] `detectCollisions` docstring still claims update/remove exemption that CR-019 removed (`packages/shape-catalog/src/changeset.ts:172-180`).
+- CR-111: [Suggestion] Barre clamping on truncated tunings synthesizes a degenerate barre over strings never covered in `src/build.ts:338-344` — filter out-of-range barres like the frets loop does.
+- CR-112: [Important] `ADD_CHANGE` dedup by `kind::name` collapses *distinct* changes sharing a name (two gap drafts with the same name; add matching an update/remove target) in `packages/shape-workbench/src/store.ts:48,73` — an authored change silently vanishes and the within-batch collision path `detectCollisions`/CR-061 gates on becomes unreachable. Key adds by their stable slot/draft key and only replace true same-target re-saves.
+- CR-113: [Suggestion] Add-change dedup key uses current `shape.name`, so renaming between saves orphans the old add (`store.ts:48`) — folded into the CR-112 fix.
+- CR-114: [Important ↑] `preserveBaseSpelling`'s finger-equality guard (`packages/shape-workbench/src/editor/deriveShape.ts:89`) makes a finger relabel spuriously collapse that string's compound spelling into the patch — the exact silent `strings` rewrite CR-055 was meant to prevent (and now test-locked). Preserve spelling on chroma equality regardless of finger changes (fingers are patched separately).
+- CR-115: [Important ↑] The CR-052 persistence effect bails on invalid geometry (`packages/shape-workbench/src/screens/Editor.tsx:162`), so destructive edits (clearing the grip, unrooting) are never persisted and the CR-053/054 reuse path resurrects deleted notes. Persist destructive states too (store the raw cells/barres or an explicit cleared marker).
+- CR-116: [Suggestion] Persistence effect deps omit `state.authorRoot` (`Editor.tsx:164`) — a root switch isn't persisted until the next cell edit.
+- CR-117: [Suggestion] CR-041's latch lets an `eager` true→false flip unmount an already-rendered card (`packages/shape-library-ui/src/ShapeCard.tsx:85`) — layout jump the old sticky `setVisible(true)` didn't have; the "never unmounts" comment is now inaccurate.
+- CR-118: [Suggestion] `readRequestBody` destroys the socket before the 413 is sent (`packages/shape-workbench/src/plugins/workbench-io.ts:254,376-378`) — client sees a connection reset, and `sendJson` writes to a destroyed socket.
+- CR-119: [Important ↑] CR-105 hardening stops short in `packages/shape-workbench/src/store.ts:156-158` — `authorRoot`/`orientation`/`columnAxis` spread through unvalidated (non-string `authorRoot` throws in `applyChordShape`) and `drafts` *values* are unchecked (`{"m7::C": null}` still crashes `findDraftForChange`) — the original failure mode.
+- CR-120: [Important ↑] `deriveShape.ts:25` imports `@tonaljs/interval` but `packages/shape-workbench/package.json` declares no `@tonaljs/*` dependency — resolves via the root by accident; the same undeclared-dependency pattern CR-024/CR-043 fixed. Declare it.
+- CR-121: [Important ↑] The CR-060 write gate checks only `reachable`, ignoring the probe's `writable` flag (`packages/shape-workbench/src/screens/Export.tsx:179-181`) — a reachable-but-read-only `.workbench/` still shows an enabled button that fails at POST time. Gate on both.
