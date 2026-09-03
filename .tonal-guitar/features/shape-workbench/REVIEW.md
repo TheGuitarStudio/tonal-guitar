@@ -21,7 +21,7 @@
 - [x] Phase 4: Architecture Fix
 - [x] Phase 5: Code Simplification Review
 - [x] Phase 6: Code Simplification Fix
-- [ ] Phase 7: Specialized Reviews
+- [x] Phase 7: Specialized Reviews
 - [ ] Phase 8: Specialized Fixes
 - [ ] Phase 9: Final Verification
 
@@ -281,3 +281,28 @@ No dead code, orphaned CSS, or stale references from the component-deletion refa
 - CR-092..CR-100: GitHub issue #201 — UI/workbench/site simplification suggestions.
 
 Verification: `npm run lint` clean, `npm run build` clean, `npm test` 1701/1701.
+
+---
+
+## Phase 7: Specialized Reviews
+
+6 findings (4 Critical, 1 Important, 1 Important-downgraded).
+
+### Security
+
+- CR-101: [Critical] Arbitrary TypeScript injection into generated `src/data/*.ts` via unescaped object-literal keys — `scripts/lib/render-shape.mjs:178-187` (`collectKeys`) appends any unknown `shape`/`patch` keys as "extra" fields and `renderTopLevelObject`/`renderNestedObject` (`:238-246,260-264`) interpolate key names unescaped; nothing in `shapes-merge.mjs` allowlists keys. A malicious changeset key like `"x\": 1 }; …; const y = { z"` injects top-level statements into a file later imported by build/test. Fix: reject keys not matching `IDENTIFIER_PATTERN`/known field lists (top-level and nested `barres` entries) before rendering.
+- CR-102: [Critical] No Origin/Host/Content-Type validation on the workbench-io endpoints (`packages/shape-workbench/src/plugins/workbench-io.ts:268-324`) — a `Content-Type: text/plain` POST is a CORS simple request, so any web page open while `vite dev` runs can overwrite `.workbench/changeset.json` (content attacker-controlled; path containment is enforced). Chains with CR-101 into no-interaction code execution via the documented `shapes:merge` workflow. Fix: require `application/json` and reject mismatched `Origin` (when present) / non-local `Host`.
+- CR-103: [Important] Unbounded request-body read in `readRequestBody` (`workbench-io.ts:226-233`) — memory-exhaustion DoS against the dev server; cap at a few MB.
+
+No XSS vectors found (all shape data rendered via JSX text); no secret-handling changes in the diff.
+
+### Type Safety
+
+- CR-104: [Critical] Unvalidated `as` cast on `fetch().json()` success body in `packages/shape-workbench/src/export/writeChangeset.ts:115` — a wrong-shaped response silently reports a successful write with `undefined` fields; validate structurally like the error path already does.
+- CR-105: [Critical] Unvalidated `JSON.parse(raw) as Partial<WorkbenchState>` on the localStorage read in `packages/shape-workbench/src/store.ts:130` — a structurally-wrong persisted value flows into live state (`state.changes.some(...)` etc. assume shapes); validate `drafts`/`changes` structure, falling back to `initialWorkbenchState`.
+
+All other `as` casts checked were guarded by upstream `kind` checks or internal round-trips.
+
+### Accessibility
+
+- CR-106: [Important] Fretboard editor grid is mouse-only — `packages/fretboard-ui/src/Fretboard.tsx:159-320` / `FretboardEditor.tsx:53-215` have no `tabIndex`/`role`/`onKeyDown`; a keyboard-only user cannot place, root, finger, or mute a note in the workbench editor. Needs roving-tabindex grid cells with arrow-key navigation + Enter/Space, or a parallel keyboard input path. *(Reported Critical by the review agent; triaged to Important: the workbench is a local dev-facing tool per the review weighting, and the fix is a substantial feature — deferred with a tracking issue rather than patched inline.)* Everything else already passes: `role="img"` + labels on diagrams, Escape/focus management on the panel, `aria-live` regions, labeled icon buttons, no suppressed focus outlines.
