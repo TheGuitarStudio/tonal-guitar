@@ -91,6 +91,24 @@ function messageFrom(body: unknown, status: number): string {
 }
 
 /**
+ * CR-104: structural validation of the write endpoint's success body
+ * (`{ path, bytes, changeCount }`, `plugins/workbench-io.ts`'s
+ * `handleChangesetPost`), mirroring `messageFrom`'s error-path style —
+ * `postChangeset` no longer trusts an unchecked `as` cast on a 2xx response
+ * body that could be anything (a proxy, a misbehaving/compromised dev
+ * server, ...). Returns `undefined` when the body doesn't match, which the
+ * caller turns into an `ok: false` result instead of a bogus `ok: true`.
+ */
+function successBodyFrom(body: unknown): { path: string; bytes: number; changeCount: number } | undefined {
+  if (typeof body !== "object" || body === null) return undefined;
+  const record = body as Record<string, unknown>;
+  if (typeof record.path !== "string") return undefined;
+  if (typeof record.bytes !== "number") return undefined;
+  if (typeof record.changeCount !== "number") return undefined;
+  return { path: record.path, bytes: record.bytes, changeCount: record.changeCount };
+}
+
+/**
  * POSTs `changeset` to the dev-server plugin's write endpoint. Pure network
  * call — no store access, no dispatch — so it's independently testable
  * against a fake `FetchLike`, mirroring
@@ -112,7 +130,13 @@ export async function postChangeset(
     if (!response.ok) {
       return { ok: false, message: messageFrom(body, response.status) };
     }
-    const parsed = body as { path: string; bytes: number; changeCount: number };
+    const parsed = successBodyFrom(body);
+    if (!parsed) {
+      return {
+        ok: false,
+        message: "malformed response from the workbench write endpoint (expected { path, bytes, changeCount })",
+      };
+    }
     return { ok: true, path: parsed.path, bytes: parsed.bytes, changeCount: parsed.changeCount, writtenAt: now() };
   } catch (error) {
     return {

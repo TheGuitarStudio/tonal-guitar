@@ -160,14 +160,32 @@ const ARPEGGIO_FIELD_ORDER = [
   "notes",
 ];
 
-const FIELD_ORDER = /** @type {const} */ ({
+export const FIELD_ORDER = /** @type {const} */ ({
   chord: CHORD_FIELD_ORDER,
   scale: SCALE_FIELD_ORDER,
   arpeggio: ARPEGGIO_FIELD_ORDER,
 });
 
 // `src/shape.ts`'s `Barre` field order.
-const BARRE_KEYS = ["fret", "fromString", "toString", "finger"];
+export const BARRE_KEYS = ["fret", "fromString", "toString", "finger"];
+
+// CR-101: every object key this printer interpolates unescaped into
+// generated TypeScript (`<key>: <value>`) must itself be a valid JS
+// identifier — otherwise a hostile key (e.g. `x": 1 }; injected(); const y =
+// { z`) could break out of the object literal and inject arbitrary source
+// into a generated `src/data/*.ts` file. Known field names (the
+// `FIELD_ORDER`/`BARRE_KEYS` constants above) are always safe since they're
+// hardcoded in this module; this guard only ever fires for a key that came
+// from unvalidated input (an "extra"/unrecognized shape field, or a nested
+// object's own keys).
+function assertValidKey(key) {
+  if (!IDENTIFIER_PATTERN.test(key)) {
+    throw new TypeError(
+      `renderShape: object key ${JSON.stringify(key)} is not a valid identifier (must match ${IDENTIFIER_PATTERN}) ` +
+        `— refusing to print it as unescaped TypeScript`
+    );
+  }
+}
 
 /**
  * Known keys (in canonical order) that are present and defined on `shape`,
@@ -183,6 +201,7 @@ function collectKeys(shape, knownOrder) {
   const extra = Object.keys(shape)
     .filter((key) => !known.has(key) && shape[key] !== undefined)
     .sort();
+  for (const key of extra) assertValidKey(key);
   return [...present, ...extra];
 }
 
@@ -197,7 +216,9 @@ function nestedObjectKeys(obj) {
   const keys = Object.keys(obj).filter((key) => obj[key] !== undefined);
   const keySet = new Set(keys);
   const isBarreLike = BARRE_KEYS.length === keySet.size && BARRE_KEYS.every((key) => keySet.has(key));
-  return isBarreLike ? BARRE_KEYS.slice() : keys.sort();
+  const ordered = isBarreLike ? BARRE_KEYS.slice() : keys.sort();
+  for (const key of ordered) assertValidKey(key);
+  return ordered;
 }
 
 // ============================================================

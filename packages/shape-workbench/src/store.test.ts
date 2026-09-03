@@ -250,6 +250,55 @@ describe("loadPersistedState", () => {
     );
     expect(loadPersistedState(storage).tuning).toEqual(STANDARD);
   });
+
+  it("falls back to {} for drafts when the persisted value is an array, not a plain object (CR-105)", () => {
+    const storage = createMemoryStorage();
+    storage.data.set(
+      WORKBENCH_STORAGE_KEY,
+      JSON.stringify({ ...initialWorkbenchState, drafts: ["not", "an", "object"] }),
+    );
+    expect(loadPersistedState(storage).drafts).toEqual({});
+  });
+
+  it("falls back to {} for drafts when the persisted value is null (CR-105)", () => {
+    const storage = createMemoryStorage();
+    storage.data.set(WORKBENCH_STORAGE_KEY, JSON.stringify({ ...initialWorkbenchState, drafts: null }));
+    expect(loadPersistedState(storage).drafts).toEqual({});
+  });
+
+  it("falls back to [] for changes when the persisted value is not an array (CR-105)", () => {
+    const storage = createMemoryStorage();
+    storage.data.set(
+      WORKBENCH_STORAGE_KEY,
+      JSON.stringify({ ...initialWorkbenchState, changes: { hostile: true } }),
+    );
+    expect(loadPersistedState(storage).changes).toEqual([]);
+  });
+
+  it("falls back to [] for changes when any entry is not an object (CR-105)", () => {
+    const storage = createMemoryStorage();
+    storage.data.set(
+      WORKBENCH_STORAGE_KEY,
+      JSON.stringify({
+        ...initialWorkbenchState,
+        changes: [addChangeFor("A Shape Major"), "not an object", 42],
+      }),
+    );
+    expect(loadPersistedState(storage).changes).toEqual([]);
+  });
+
+  it("falls back to the initial state entirely when the persisted JSON top-level value isn't a plain object (CR-105)", () => {
+    const storage = createMemoryStorage();
+
+    storage.data.set(WORKBENCH_STORAGE_KEY, JSON.stringify(["a", "malicious", "array"]));
+    expect(loadPersistedState(storage)).toEqual(initialWorkbenchState);
+
+    storage.data.set(WORKBENCH_STORAGE_KEY, JSON.stringify("just a string"));
+    expect(loadPersistedState(storage)).toEqual(initialWorkbenchState);
+
+    storage.data.set(WORKBENCH_STORAGE_KEY, JSON.stringify(42));
+    expect(loadPersistedState(storage)).toEqual(initialWorkbenchState);
+  });
 });
 
 describe("persistState", () => {

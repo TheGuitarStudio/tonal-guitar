@@ -223,13 +223,100 @@ function sendJson(res: ServerResponse, status: number, body: unknown): void {
   res.end(json);
 }
 
-function readRequestBody(req: IncomingMessage): Promise<string> {
+// CR-103: an unbounded body read lets any client (accidentally or not) feed
+// the dev server an arbitrarily large POST body, buffering all of it into
+// memory before ever validating it. Capped well above any real changeset
+// (a few MB of shape JSON is enormous already) but far below "exhaust the
+// machine's memory".
+export const MAX_REQUEST_BODY_BYTES = 8 * 1024 * 1024; // 8 MB
+
+export class RequestBodyTooLargeError extends Error {}
+
+/**
+ * Buffers `req`'s body into a UTF-8 string, destroying the request and
+ * rejecting with `RequestBodyTooLargeError` once more than `maxBytes` have
+ * arrived (CR-103) — the caller maps that specifically to a 413, distinct
+ * from a generic malformed-JSON 400.
+ */
+export function readRequestBody(
+  req: IncomingMessage,
+  maxBytes: number = MAX_REQUEST_BODY_BYTES,
+): Promise<string> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
-    req.on("data", (chunk: Buffer) => chunks.push(chunk));
-    req.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
-    req.on("error", reject);
+    let total = 0;
+    let settled = false;
+    req.on("data", (chunk: Buffer) => {
+      if (settled) return;
+      total += chunk.length;
+      if (total > maxBytes) {
+        settled = true;
+        req.destroy();
+        reject(new RequestBodyTooLargeError(`request body exceeds ${maxBytes} bytes`));
+        return;
+      }
+      chunks.push(chunk);
+    });
+    req.on("end", () => {
+      if (settled) return;
+      settled = true;
+      resolve(Buffer.concat(chunks).toString("utf8"));
+    });
+    req.on("error", (err) => {
+      if (settled) return;
+      settled = true;
+      reject(err);
+    });
   });
+}
+
+// ============================================================
+// CR-102: CSRF hardening for the POST endpoint. A cross-origin page can
+// still send a `text/plain`-labeled, simple-request POST without triggering
+// a CORS preflight — requiring `application/json` (a non-simple content
+// type) forces the browser to preflight first, and the dev server never
+// opts a cross-origin preflight in. The Origin check below is a second,
+// independent layer: even a request that somehow arrives as
+// `application/json` cross-origin (e.g. a misconfigured proxy) is rejected
+// unless its `Origin` matches the request's own `Host` — but a request with
+// NO `Origin` header at all (every non-browser client: curl, the merge
+// script's own tooling, ...) is allowed, since only browsers reliably send
+// `Origin` on same-origin requests too.
+// ============================================================
+
+const JSON_CONTENT_TYPE = "application/json";
+
+function headerValue(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+/** True when `contentType` (a raw `Content-Type` header value, parameters —
+ * e.g. `; charset=utf-8` — allowed and ignored) is exactly `application/json`. */
+export function isJsonContentType(contentType: string | string[] | undefined): boolean {
+  const raw = headerValue(contentType);
+  if (typeof raw !== "string") return false;
+  return raw.split(";")[0].trim().toLowerCase() === JSON_CONTENT_TYPE;
+}
+
+/**
+ * True when the request is same-origin (its `Origin` header's host matches
+ * its own `Host` header) or carries no `Origin` header at all (a non-browser
+ * client). False for any cross-origin `Origin`, or a present-but-unparsable
+ * `Origin`/missing `Host`.
+ */
+export function isSameOriginRequest(
+  origin: string | string[] | undefined,
+  host: string | string[] | undefined,
+): boolean {
+  const originValue = headerValue(origin);
+  if (typeof originValue !== "string") return true; // no Origin header — CLI/tooling client
+  const hostValue = headerValue(host);
+  if (typeof hostValue !== "string") return false;
+  try {
+    return new URL(originValue).host === hostValue;
+  } catch {
+    return false;
+  }
 }
 
 async function handleStatus(
@@ -270,11 +357,26 @@ async function handleChangesetPost(
   res: ServerResponse,
   repoRoot: string,
 ): Promise<void> {
+  // CR-102: content-type gate first (forces a preflight for any cross-origin
+  // browser request before the Origin check below even runs), then origin.
+  if (!isJsonContentType(req.headers["content-type"])) {
+    sendJson(res, 415, { message: "Content-Type must be application/json" });
+    return;
+  }
+  if (!isSameOriginRequest(req.headers.origin, req.headers.host)) {
+    sendJson(res, 403, { message: "Cross-origin request rejected" });
+    return;
+  }
+
   let payload: unknown;
   try {
     const raw = await readRequestBody(req);
     payload = raw.length > 0 ? JSON.parse(raw) : undefined;
-  } catch {
+  } catch (err) {
+    if (err instanceof RequestBodyTooLargeError) {
+      sendJson(res, 413, { message: err.message });
+      return;
+    }
     sendJson(res, 400, { message: "Request body must be valid JSON" });
     return;
   }

@@ -3,12 +3,20 @@
  * schema validation, and the read/write functions against a real scratch
  * directory — all independent of a running Vite server (spec/tasks 24.1).
  */
+import { Buffer } from "node:buffer";
+import { EventEmitter } from "node:events";
 import { promises as fs } from "node:fs";
+import type { IncomingMessage } from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   CHANGESET_FILE_NAME,
+  isJsonContentType,
+  isSameOriginRequest,
+  MAX_REQUEST_BODY_BYTES,
+  readRequestBody,
+  RequestBodyTooLargeError,
   resolveChangesetPath,
   resolveWithinWorkbench,
   resolveWorkbenchDir,
@@ -113,6 +121,91 @@ describe("validateChangesetPayload", () => {
   it("rejects an unknown op", () => {
     const bad = { ...validChangeset, changes: [{ op: "delete", kind: "chord", name: "X" }] };
     expect(validateChangesetPayload(bad).ok).toBe(false);
+  });
+});
+
+describe("isJsonContentType (CR-102)", () => {
+  it("accepts a bare application/json", () => {
+    expect(isJsonContentType("application/json")).toBe(true);
+  });
+
+  it("accepts application/json with a charset parameter", () => {
+    expect(isJsonContentType("application/json; charset=utf-8")).toBe(true);
+  });
+
+  it("is case-insensitive", () => {
+    expect(isJsonContentType("Application/JSON")).toBe(true);
+  });
+
+  it("rejects text/plain (CSRF-simple-request content type)", () => {
+    expect(isJsonContentType("text/plain")).toBe(false);
+  });
+
+  it("rejects a missing content-type header", () => {
+    expect(isJsonContentType(undefined)).toBe(false);
+  });
+});
+
+describe("isSameOriginRequest (CR-102)", () => {
+  it("allows a request with no Origin header at all (CLI/tooling clients)", () => {
+    expect(isSameOriginRequest(undefined, "localhost:5173")).toBe(true);
+  });
+
+  it("allows a same-origin Origin header", () => {
+    expect(isSameOriginRequest("http://localhost:5173", "localhost:5173")).toBe(true);
+  });
+
+  it("rejects a cross-origin Origin header", () => {
+    expect(isSameOriginRequest("http://evil.example", "localhost:5173")).toBe(false);
+  });
+
+  it("rejects an Origin header when the Host header is missing", () => {
+    expect(isSameOriginRequest("http://localhost:5173", undefined)).toBe(false);
+  });
+
+  it("rejects an unparsable Origin header rather than treating it as same-origin", () => {
+    expect(isSameOriginRequest("not a url", "localhost:5173")).toBe(false);
+  });
+});
+
+/** A hand-written `IncomingMessage`-like fake (EventEmitter + `destroy()`)
+ * so `readRequestBody` can be exercised without a real HTTP connection —
+ * mirrors this suite's existing no-mocking-library style. `emit()`s happen
+ * on a microtask so `readRequestBody`'s listeners are attached first. */
+function fakeRequest(chunks: Buffer[]): { req: IncomingMessage; wasDestroyed: () => boolean } {
+  const emitter = new EventEmitter();
+  let destroyed = false;
+  Object.assign(emitter, {
+    destroy: () => {
+      destroyed = true;
+    },
+  });
+  queueMicrotask(() => {
+    for (const chunk of chunks) emitter.emit("data", chunk);
+    emitter.emit("end");
+  });
+  return { req: emitter as unknown as IncomingMessage, wasDestroyed: () => destroyed };
+}
+
+describe("readRequestBody (CR-103)", () => {
+  it("resolves the concatenated UTF-8 body when under the byte cap", async () => {
+    const { req } = fakeRequest([Buffer.from("hello "), Buffer.from("world")]);
+    await expect(readRequestBody(req, 1024)).resolves.toBe("hello world");
+  });
+
+  it("defaults the cap to 8 MB", () => {
+    expect(MAX_REQUEST_BODY_BYTES).toBe(8 * 1024 * 1024);
+  });
+
+  it("rejects with RequestBodyTooLargeError and destroys the request once the cap is exceeded", async () => {
+    const { req, wasDestroyed } = fakeRequest([Buffer.alloc(10), Buffer.alloc(10)]);
+    await expect(readRequestBody(req, 15)).rejects.toBeInstanceOf(RequestBodyTooLargeError);
+    expect(wasDestroyed()).toBe(true);
+  });
+
+  it("accepts a body exactly at the cap", async () => {
+    const { req } = fakeRequest([Buffer.alloc(15)]);
+    await expect(readRequestBody(req, 15)).resolves.toHaveLength(15);
   });
 });
 

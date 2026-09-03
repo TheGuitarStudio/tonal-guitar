@@ -1597,6 +1597,102 @@ describe("shapes-merge: CR-019 — a renaming update refuses to collide with an 
   );
 });
 
+describe("shapes-merge: CR-101 — hostile/unrecognized object keys are refused, never written", () => {
+  const HOSTILE_KEY = 'x": 1 }; injected(); const y = { z';
+
+  it(
+    "refuses an add whose shape carries a hostile/unrecognized key (TS-injection attempt)",
+    withFixtureRoot(async (dir) => {
+      const shape = { ...C_SHAPE_MINOR, [HOSTILE_KEY]: 1 };
+      const changesetPath = writeChangeset(
+        dir,
+        baseChangeset([{ op: "add", kind: "chord", file: "caged-chords-fixture", shape }]),
+      );
+      const err = await expectRefusalWithNoWrites(dir, changesetPath);
+      expect(err.rule).toBe("unknown-field");
+    }),
+  );
+
+  it(
+    "refuses an add whose shape carries a syntactically-valid but unrecognized field",
+    withFixtureRoot(async (dir) => {
+      const shape = { ...C_SHAPE_MINOR, notARealField: true };
+      const changesetPath = writeChangeset(
+        dir,
+        baseChangeset([{ op: "add", kind: "chord", file: "caged-chords-fixture", shape }]),
+      );
+      const err = await expectRefusalWithNoWrites(dir, changesetPath);
+      expect(err.rule).toBe("unknown-field");
+    }),
+  );
+
+  it(
+    "refuses an update whose patch carries a hostile/unrecognized key",
+    withFixtureRoot(async (dir) => {
+      const changesetPath = writeChangeset(
+        dir,
+        baseChangeset([
+          {
+            op: "update",
+            kind: "chord",
+            name: "A Shape Major",
+            patch: { [HOSTILE_KEY]: 1 },
+          },
+        ]),
+      );
+      const err = await expectRefusalWithNoWrites(dir, changesetPath);
+      expect(err.rule).toBe("unknown-field");
+    }),
+  );
+
+  it(
+    "refuses an add whose barres entry carries an unrecognized field",
+    withFixtureRoot(async (dir) => {
+      const shape = {
+        ...C_SHAPE_MINOR,
+        barres: [{ fret: 0, fromString: 0, toString: 5, finger: 1, evil: 1 }],
+      };
+      const changesetPath = writeChangeset(
+        dir,
+        baseChangeset([{ op: "add", kind: "chord", file: "caged-chords-fixture", shape }]),
+      );
+      const err = await expectRefusalWithNoWrites(dir, changesetPath);
+      expect(err.rule).toBe("unknown-field");
+    }),
+  );
+
+  it(
+    "refuses an update whose patch barres entry carries a hostile key",
+    withFixtureRoot(async (dir) => {
+      const changesetPath = writeChangeset(
+        dir,
+        baseChangeset([
+          {
+            op: "update",
+            kind: "chord",
+            name: "A Shape Major",
+            patch: { barres: [{ fret: 0, fromString: 1, toString: 5, finger: 1, [HOSTILE_KEY]: 1 }] },
+          },
+        ]),
+      );
+      const err = await expectRefusalWithNoWrites(dir, changesetPath);
+      expect(err.rule).toBe("unknown-field");
+    }),
+  );
+
+  it(
+    "still accepts a well-formed add/update with only recognized fields",
+    withFixtureRoot(async (dir) => {
+      const changesetPath = writeChangeset(
+        dir,
+        baseChangeset([{ op: "add", kind: "chord", file: "caged-chords-fixture", shape: C_SHAPE_MINOR }]),
+      );
+      const result = await runMerge([changesetPath, "--root", dir]);
+      expect(result.plan.added).toBe(1);
+    }),
+  );
+});
+
 /**
  * Task 18.4: every fixture test above runs against a `--root`-isolated temp
  * copy — this is the suite-wide proof that none of them ever fell through

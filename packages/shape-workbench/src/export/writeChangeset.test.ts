@@ -82,6 +82,30 @@ describe("postChangeset", () => {
     const result = await postChangeset({}, fetchImpl);
     expect(result).toEqual({ ok: false, message: "offline" });
   });
+
+  it("returns ok:false (not a bogus ok:true) when a 2xx body is missing path/bytes/changeCount (CR-104)", async () => {
+    const fetchImpl = fakeFetch({ ok: true, status: 200, json: async () => ({ path: "/repo/.workbench/changeset.json" }) });
+    const result = await postChangeset({}, fetchImpl);
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("unreachable");
+    expect(result.message).toMatch(/malformed/i);
+  });
+
+  it("returns ok:false when a 2xx body's fields have the wrong types (CR-104)", async () => {
+    const fetchImpl = fakeFetch({
+      ok: true,
+      status: 200,
+      json: async () => ({ path: 123, bytes: "512", changeCount: null }),
+    });
+    const result = await postChangeset({}, fetchImpl);
+    expect(result.ok).toBe(false);
+  });
+
+  it("returns ok:false when a 2xx body is not an object at all (CR-104)", async () => {
+    const fetchImpl = fakeFetch({ ok: true, status: 200, json: async () => "not an object" });
+    const result = await postChangeset({}, fetchImpl);
+    expect(result.ok).toBe(false);
+  });
 });
 
 describe("fetchWorkbenchStatus (CR-060)", () => {

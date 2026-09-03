@@ -50,7 +50,12 @@ import {
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { parseOwnedBlocks, findOwnedBlock, parseCountMarkers } from "./lib/owned-blocks.mjs";
-import { renderShape, exportIdentifierFor as scriptExportIdentifierFor } from "./lib/render-shape.mjs";
+import {
+  renderShape,
+  exportIdentifierFor as scriptExportIdentifierFor,
+  FIELD_ORDER,
+  BARRE_KEYS,
+} from "./lib/render-shape.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SCRIPT_REPO_ROOT = path.resolve(__dirname, "..");
@@ -744,6 +749,58 @@ async function planMerge(changeset, ctx) {
           `syntax (no "$", hyphens, or leading digit)`,
       );
     }
+  }
+
+  // ---- CR-101: unknown-field allowlist (add.shape / update.patch, + barres
+  // entries) --------------------------------------------------------------
+  // A hostile key (e.g. `x": 1 }; injected(); const y = { z`) interpolated
+  // unescaped into generated TypeScript by `renderShape` would otherwise let
+  // a changeset inject arbitrary source into `src/data/*.ts`.
+  // `render-shape.mjs`'s printer now refuses any key that isn't a valid JS
+  // identifier as a last line of defense, but this allowlist is the primary,
+  // earlier check: refused before any audit/write happens, with a clearer
+  // MergeRefusal (not a raw TypeError), and it also refuses a
+  // syntactically-valid-but-unrecognized field name, not just a
+  // syntax-breaking one. Allowlists are derived from `FIELD_ORDER`/
+  // `BARRE_KEYS` in `scripts/lib/render-shape.mjs` — the single source of
+  // truth for which fields each kind prints — so the two checks can never
+  // drift apart.
+  function assertKnownShapeFields(kind, obj, label) {
+    if (obj === null || typeof obj !== "object" || Array.isArray(obj)) return; // caught elsewhere
+    const allowed = new Set(FIELD_ORDER[kind] ?? []);
+    for (const key of Object.keys(obj)) {
+      if (!allowed.has(key)) {
+        throw new MergeRefusal(
+          "unknown-field",
+          `${label}: field ${JSON.stringify(key)} is not a recognized ${kind} field`,
+        );
+      }
+    }
+    if (Array.isArray(obj.barres)) {
+      const allowedBarreKeys = new Set(BARRE_KEYS);
+      obj.barres.forEach((barre, index) => {
+        if (barre === null || typeof barre !== "object" || Array.isArray(barre)) return; // caught elsewhere
+        for (const key of Object.keys(barre)) {
+          if (!allowedBarreKeys.has(key)) {
+            throw new MergeRefusal(
+              "unknown-field",
+              `${label}: barres[${index}] field ${JSON.stringify(key)} is not a recognized Barre field`,
+            );
+          }
+        }
+      });
+    }
+  }
+
+  for (const change of addChanges) {
+    assertKnownShapeFields(
+      change.kind,
+      change.shape ?? {},
+      `add ${change.kind} "${change.shape?.name ?? "?"}"`,
+    );
+  }
+  for (const change of updateChanges) {
+    assertKnownShapeFields(change.kind, change.patch ?? {}, `update ${change.kind} "${change.name}"`);
   }
 
   // ---- rule 4: per-kind required fields (add only) -------------------------

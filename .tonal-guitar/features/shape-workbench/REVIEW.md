@@ -22,7 +22,7 @@
 - [x] Phase 5: Code Simplification Review
 - [x] Phase 6: Code Simplification Fix
 - [x] Phase 7: Specialized Reviews
-- [ ] Phase 8: Specialized Fixes
+- [x] Phase 8: Specialized Fixes
 - [ ] Phase 9: Final Verification
 
 ## Statistics
@@ -306,3 +306,21 @@ All other `as` casts checked were guarded by upstream `kind` checks or internal 
 ### Accessibility
 
 - CR-106: [Important] Fretboard editor grid is mouse-only — `packages/fretboard-ui/src/Fretboard.tsx:159-320` / `FretboardEditor.tsx:53-215` have no `tabIndex`/`role`/`onKeyDown`; a keyboard-only user cannot place, root, finger, or mute a note in the workbench editor. Needs roving-tabindex grid cells with arrow-key navigation + Enter/Space, or a parallel keyboard input path. *(Reported Critical by the review agent; triaged to Important: the workbench is a local dev-facing tool per the review weighting, and the fix is a substantial feature — deferred with a tracking issue rather than patched inline.)* Everything else already passes: `role="img"` + labels on diagrams, Escape/focus management on the panel, `aria-live` regions, labeled icon buttons, no suppressed focus outlines.
+
+---
+
+## Phase 8: Specialized Fixes
+
+### Fixed
+
+- CR-101: Fixed — `assertValidKey` in render-shape.mjs (identifier-pattern check on every unescaped key, last line of defense) + `assertKnownShapeFields` in shapes-merge.mjs refusing (`unknown-field`) any shape/patch/barre key outside the per-kind `FIELD_ORDER`/`BARRE_KEYS` allowlists (primary defense). 9 regression tests incl. the hostile-key payload; nothing is written.
+- CR-102: Fixed — workbench-io POST now returns 415 for non-`application/json` (forces CORS preflight) and 403 for cross-origin `Origin`; no-Origin tooling clients still work. 9 unit tests.
+- CR-103: Fixed — `readRequestBody` capped at 8 MB, request destroyed, 413 returned. 4 tests.
+- CR-104: Fixed — `successBodyFrom` validates the write response structurally; malformed responses return `ok: false`. 3 tests.
+- CR-105: Fixed — `loadPersistedState` validates the parsed payload (plain object; `drafts` object / `changes` array of objects) with per-field fallback. 5 tests.
+
+### Deferred
+
+- CR-106: GitHub issue #202 — keyboard operability for the fretboard editor grid.
+
+Verification: lint clean, root build clean, `npm test` 1732/1732 (+31 new), workbench `tsc --noEmit` + vite build clean.

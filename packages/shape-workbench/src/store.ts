@@ -107,13 +107,35 @@ export interface WorkbenchStorage {
   setItem(key: string, value: string): void;
 }
 
+/** A non-null, non-array object — the minimum shape check a JSON value must
+ * pass before it's safe to spread or index into (CR-105). */
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** `changes` must be an array whose entries are at least plain objects
+ * (CR-105) — full `ChangesetChange` shape validation happens downstream
+ * (`buildChangeset`/the merge script's own audit), this is just enough to
+ * keep a corrupt/hostile localStorage payload from crashing the reducer or
+ * silently carrying garbage entries into a written changeset. */
+function isValidChangesArray(value: unknown): value is ChangesetChange[] {
+  return Array.isArray(value) && value.every(isPlainObject);
+}
+
 /**
  * Loads persisted state on startup. Falls back to `initialWorkbenchState`
- * when there's no storage, nothing persisted yet, or the persisted value is
- * corrupt/unparsable — persistence is best-effort crash resilience, never a
- * hard dependency. `tuning` is always forced back to `STANDARD` regardless
- * of what was persisted: it's locked in MVP (spec §5.4), so a stale
- * persisted value from a future non-STANDARD build must never leak in.
+ * when there's no storage, nothing persisted yet, the persisted value is
+ * corrupt/unparsable, or (CR-105) the parsed JSON isn't even a plain object
+ * — persistence is best-effort crash resilience, never a hard dependency,
+ * and a non-object top-level value (a bare string/number/array/boolean)
+ * would otherwise spread garbage properties onto the returned state.
+ * `drafts`/`changes` are validated individually and fall back to their
+ * initial empty value when malformed, rather than failing the whole
+ * payload — matching this function's existing per-field null-coalescing
+ * style for those two fields. `tuning` is always forced back to `STANDARD`
+ * regardless of what was persisted: it's locked in MVP (spec §5.4), so a
+ * stale persisted value from a future non-STANDARD build must never leak
+ * in.
  */
 export function loadPersistedState(storage: WorkbenchStorage | undefined | null): WorkbenchState {
   if (!storage) return initialWorkbenchState;
@@ -127,13 +149,14 @@ export function loadPersistedState(storage: WorkbenchStorage | undefined | null)
   if (!raw) return initialWorkbenchState;
 
   try {
-    const parsed = JSON.parse(raw) as Partial<WorkbenchState>;
+    const parsed: unknown = JSON.parse(raw);
+    if (!isPlainObject(parsed)) return initialWorkbenchState;
     return {
       ...initialWorkbenchState,
       ...parsed,
       tuning: STANDARD,
-      drafts: parsed.drafts ?? {},
-      changes: parsed.changes ?? [],
+      drafts: isPlainObject(parsed.drafts) ? (parsed.drafts as Record<string, DraftShape>) : {},
+      changes: isValidChangesArray(parsed.changes) ? parsed.changes : [],
     };
   } catch {
     return initialWorkbenchState;

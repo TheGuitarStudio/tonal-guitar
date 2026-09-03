@@ -215,6 +215,26 @@ describe("renderShape — quoting and literal formatting", () => {
   });
 });
 
+describe("renderShape — CR-101: unrecognized object keys must be valid identifiers", () => {
+  const HOSTILE_KEY = 'x": 1 }; injected(); const y = { z';
+
+  it("rejects a hostile key on an unrecognized top-level field", async () => {
+    const hostile = { ...REPRESENTATIVE_CHORD, [HOSTILE_KEY]: 1 };
+    await expect(renderShape("chord", hostile)).rejects.toThrow(TypeError);
+  });
+
+  it("rejects a hostile key inside a nested object value", async () => {
+    const hostile = { ...REPRESENTATIVE_CHORD, weirdField: { [HOSTILE_KEY]: 1 } };
+    await expect(renderShape("chord", hostile)).rejects.toThrow(TypeError);
+  });
+
+  it("still accepts a well-formed unrecognized extra field", async () => {
+    const shape = { ...REPRESENTATIVE_CHORD, extraField: "fine" };
+    const out = await renderShape("chord", shape, { usePrettier: false });
+    expect(out).toContain('extraField: "fine"');
+  });
+});
+
 describe("renderShape — scale and arpeggio kinds", () => {
   it("renders a representative ScaleShape with the SCALE_ prefix and ScaleShape type", async () => {
     const out = await renderShape("scale", REPRESENTATIVE_SCALE);
