@@ -29,23 +29,16 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Lint
-        run: npm run lint
-
-      - name: Test
-        run: npm test
-
-      - name: Build
-        run: npm run build
-
       # `packages/*` and `site/` are separate npm roots (each `file:`-linked
       # to `tonal-guitar` and to each other), not an npm workspace — root
-      # `npm ci` above never touches their `node_modules`, so each needs its
-      # own install before its build can resolve its dependencies. Order
-      # matters: `fretboard-ui` has no cross-`packages/*` deps, `shape-catalog`
-      # only needs the root package, `shape-library-ui` needs both of those,
-      # `shape-workbench` needs all three, and `site` needs `shape-catalog` +
-      # `shape-library-ui` + `fretboard-ui` (spec §7's `transpilePackages`).
+      # `npm ci` above never touches their `node_modules`. Each needs its own
+      # install BEFORE the root `npm test` below, because the root vitest run
+      # includes `packages/**` test files that import the sibling packages.
+      # Order matters: `fretboard-ui` has no cross-`packages/*` deps,
+      # `shape-catalog` only needs the root package, `shape-library-ui` needs
+      # both of those, `shape-workbench` needs all three, and `site` needs
+      # `shape-catalog` + `shape-library-ui` + `fretboard-ui` (spec §7's
+      # `transpilePackages`).
       - name: Install fretboard-ui dependencies
         run: npm ci
         working-directory: packages/fretboard-ui
@@ -61,6 +54,15 @@ jobs:
       - name: Install shape-workbench dependencies
         run: npm ci
         working-directory: packages/shape-workbench
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
 
       - name: Build shape-workbench (typecheck + bundle)
         run: npm run build
