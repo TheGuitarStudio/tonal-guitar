@@ -1,0 +1,25 @@
+{
+  "$schema": "tonal-guitar/changeset@1",
+  "version": "0.2.0",
+  "tuning": ["E2", "A2", "D3", "G3", "B3", "E4"],
+  "changes": [
+    {
+      "op": "add",
+      "kind": "chord",
+      "file": "caged-chords-fixture",
+      "shape": {
+        "name": "Z Shape Fixture Minor",
+        "system": "caged",
+        "strings": [null, "1P", "3m", "5P", "1P", null],
+        "fingers": [null, 3, 1, 4, 2, null],
+        "barres": [],
+        "rootString": 1,
+        "chordType": "m",
+        "voicingFamily": "caged",
+        "cagedPosition": "C",
+        "parentShape": "C Shape Major",
+        "tags": ["caged", "triad", "core"]
+      }
+    }
+  ]
+}

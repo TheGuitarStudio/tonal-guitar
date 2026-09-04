@@ -4,6 +4,7 @@ coverage/
 *.tsbuildinfo
 .DS_Store
 scratch/
+.workbench/
 
 # Local secrets — npm publish token lives in .env (stub: .env.example); .npmrc references it.
 .env

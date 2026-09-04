@@ -8,7 +8,22 @@
  */
 
 import { applyChordShape, buildFrettedScale, Fingering } from "./build";
-import { all, chordShapes, ChordShape, ScaleShape } from "./shape";
+import {
+  all,
+  get as getScaleShape,
+  chordShapes,
+  arpeggioShapes,
+  ChordShape,
+  ScaleShape,
+  ArpeggioShape,
+  FrettedScale,
+  isMovable,
+  playedStringSet,
+  gripBaseFret,
+  sourceGripBaseFret,
+  exportIdentifierFor,
+  registryMutationVersion,
+} from "./shape";
 import { STANDARD } from "./tuning";
 import { chroma, transpose } from "@tonaljs/note";
 
@@ -66,6 +81,16 @@ export const CHECK_REPEATED_FINGER_NO_BARRE = "repeated-finger-no-barre";
 export const CHECK_BUILD_LOSS = "build-loss";
 export const CHECK_METADATA_COMPLETENESS = "metadata-completeness";
 export const CHECK_GEOMETRY_MISMATCH = "geometry-mismatch";
+// shape-workbench spec §3.1 — required-tier checks.
+export const CHECK_STRINGSET_MISMATCH = "stringset-mismatch";
+export const CHECK_TUNING_MISMATCH = "tuning-mismatch";
+export const CHECK_BARRE_FRET_ORIGIN = "barre-fret-origin";
+export const CHECK_NAME_UNIQUE = "name-unique";
+// shape-workbench spec §3.1 — arpeggio-only tier-safe checks, analogous to
+// checkFretSpan/checkChordBuildLoss but scoped to arpeggio geometry.
+export const CHECK_POSITION_SPAN = "position-span";
+export const CHECK_FINGERING_COMPLETE = "fingering-complete";
+export const CHECK_OVERRIDES_TARGET = "overrides-target";
 
 // ============================================================
 // Root helper
@@ -116,14 +141,15 @@ export function checkFretSpan(
 }
 
 /**
- * Flags movable shapes (`canonicalRoot === undefined`) that assert finger 0
- * (an open string) anywhere in `fingers`. Movable shapes are, by definition,
- * never played with an open string — promotes the `data.test.ts:826-836`
- * (issue #39) invariant to a first-class check. Static: no `applyChordShape`
- * call.
+ * Flags movable shapes (`isMovable(shape)`, shape-workbench spec §1.8 —
+ * explicit `movable` when set, else `canonicalRoot === undefined`) that
+ * assert finger 0 (an open string) anywhere in `fingers`. Movable shapes are,
+ * by definition, never played with an open string — promotes the
+ * `data.test.ts:826-836` (issue #39) invariant to a first-class check.
+ * Static: no `applyChordShape` call.
  */
 export function checkFingerZeroOnMovable(shape: ChordShape): ShapeAuditIssue[] {
-  if (shape.canonicalRoot !== undefined) return [];
+  if (!isMovable(shape)) return [];
   if (!shape.fingers.includes(0)) return [];
 
   return [
@@ -220,17 +246,25 @@ export function checkChordBuildLoss(
  *    entries) exceeds `builtCount` (`result.notes.length`) — some
  *    individual interval within the shape couldn't be resolved and was
  *    dropped.
+ *
+ * `prebuilt`, if supplied, is used in place of an internal
+ * `buildFrettedScale` call — lets `auditArpeggioShape` hoist one shared
+ * build across the checks that use identical (shape, root, tuning) arguments
+ * (CR-006), mirroring `checkFretSpan`'s `prebuilt` parameter on the chord
+ * path. Standalone callers (and `auditScaleShape`) omit it and get the
+ * original self-contained behavior.
  */
 export function checkScaleBuildLoss(
   shape: ScaleShape,
   root: string,
   tuning: string[] = STANDARD,
+  prebuilt?: FrettedScale,
 ): ShapeAuditIssue[] {
   const slotCount = shape.strings.reduce(
     (sum, s) => sum + (s ? s.length : 0),
     0,
   );
-  const result = buildFrettedScale(shape, root, tuning);
+  const result = prebuilt ?? buildFrettedScale(shape, root, tuning);
 
   if (result.empty) {
     return [
@@ -263,10 +297,11 @@ export function checkScaleBuildLoss(
  * harmonic-metadata fields every meaningfully-cataloged chord shape should
  * carry. `stringSet`/`canonicalRoot`/`baseFret` are intentionally NOT
  * required: many valid shapes (movable CAGED forms, jazz shells) omit them
- * by design. The 5 base CAGED majors in `caged-chords.ts` lack both
- * `chordType` and `voicingFamily` — this is legitimately incomplete
- * metadata (they predate the R-1.1 metadata fields) and is expected to
- * surface here as a warning, not silently ignored.
+ * by design. The 5 base CAGED majors in `caged-chords.ts` were backfilled
+ * with `chordType: "M"`, `voicingFamily: "caged"`, and `cagedPosition` (see
+ * §4.4 of the shape-workbench spec), so the registry currently has no
+ * chord shape that surfaces a warning here — this check exists to catch
+ * future additions that omit the fields, not to flag known-incomplete data.
  */
 export function checkChordMetadataCompleteness(shape: ChordShape): ShapeAuditIssue[] {
   const missing: string[] = [];
@@ -451,6 +486,301 @@ export function checkGeometryMismatch(
 }
 
 // ============================================================
+// Required-tier checks (shape-workbench spec §3.1)
+// ============================================================
+
+/** Order- and length-sensitive array equality (mirrors `toEqual`'s deep-equal semantics). */
+function arraysEqual<T>(a: readonly T[], b: readonly T[]): boolean {
+  return a.length === b.length && a.every((v, i) => v === b[i]);
+}
+
+/**
+ * Flags chord shapes whose explicit `stringSet` diverges from the strings
+ * actually played (`playedStringSet(shape)`, ./shape). Skipped (`[]`) when
+ * `stringSet` is absent — many valid shapes omit it. Static: no
+ * `applyChordShape` call.
+ */
+export function checkStringsetMismatch(shape: ChordShape): ShapeAuditIssue[] {
+  if (shape.stringSet === undefined) return [];
+
+  const played = playedStringSet(shape);
+  if (arraysEqual(shape.stringSet, played)) return [];
+
+  return [
+    {
+      id: CHECK_STRINGSET_MISMATCH,
+      severity: "warning",
+      message:
+        `shape.stringSet [${shape.stringSet.join(", ")}] does not match the ` +
+        `played string set [${played.join(", ")}]`,
+      details: { stringSet: shape.stringSet, playedStringSet: played },
+    },
+  ];
+}
+
+/**
+ * Flags chord shapes whose explicit `tuning` diverges from the tuning the
+ * shape is actually being built against. Skipped (`[]`) when `shape.tuning`
+ * is absent (the common case — absence means "use STANDARD", per the field's
+ * doc comment in ./shape).
+ */
+export function checkTuningMismatch(
+  shape: ChordShape,
+  tuning: string[] = STANDARD,
+): ShapeAuditIssue[] {
+  if (shape.tuning === undefined) return [];
+  if (arraysEqual(shape.tuning, tuning)) return [];
+
+  return [
+    {
+      id: CHECK_TUNING_MISMATCH,
+      severity: "warning",
+      message:
+        `shape.tuning [${shape.tuning.join(", ")}] does not match the build ` +
+        `tuning [${tuning.join(", ")}]`,
+      details: { shapeTuning: shape.tuning, buildTuning: tuning },
+    },
+  ];
+}
+
+/**
+ * Flags a `Barre.fret` that cannot be a valid grip-base offset (D-010):
+ *
+ * 1. `fret < 0` — an offset is never negative.
+ * 2. `fret > span` — `span` is the shape's own fretted span (same
+ *    `checkFretSpan` computation: max − min over non-null, non-open built
+ *    frets), and an offset can never exceed the span it's measured within.
+ * 3. For `baseFret`-carrying shapes with a resolvable grip root (see
+ *    `chordShapeGeometry`): `fret` equals the ABSOLUTE fret the source
+ *    diagram implies for the barre's strings (`sourceFrets[barre.fromString]`)
+ *    while a distinct, valid (`>= 0`) offset exists — i.e. the data still
+ *    stores the pre-D-010 absolute value instead of the offset. This was the
+ *    trigger the Group 13 `open-chords.ts` migration was gated on (see D-010
+ *    §4.1) — that migration has landed, and every `src/data/open-chords.ts`
+ *    shape (voicingFamily "open"/"barre") now reports zero issues here. The
+ *    other `src/data/*.ts` modules with barre-carrying shapes (e.g.
+ *    `extended-chords.ts`, `caged-chords*.ts`) have since had their own
+ *    pre-D-010 absolute barre frets migrated to grip-base offsets too
+ *    (CR-001).
+ *
+ * `root`/`tuning`/`prebuilt` mirror `checkFretSpan`'s signature so
+ * `auditChordShape` can thread its single hoisted `applyChordShape` build in
+ * without a second rebuild (CR-001).
+ */
+export function checkBarreFretOrigin(
+  shape: ChordShape,
+  root: string,
+  tuning: string[] = STANDARD,
+  prebuilt?: Fingering,
+): ShapeAuditIssue[] {
+  if (shape.barres.length === 0) return [];
+
+  const { frets } = prebuilt ?? applyChordShape(shape, root, tuning);
+  const fretted = frets.filter((f): f is number => f != null && f > 0);
+  const span = fretted.length ? Math.max(...fretted) - Math.min(...fretted) : 0;
+  const gripBase = gripBaseFret(frets);
+  const geometry = chordShapeGeometry(shape, tuning);
+
+  const issues: ShapeAuditIssue[] = [];
+
+  shape.barres.forEach((barre, barreIndex) => {
+    const clampedOffset = Math.min(Math.max(barre.fret - gripBase, 0), Math.max(span, 0));
+
+    if (barre.fret < 0) {
+      issues.push({
+        id: CHECK_BARRE_FRET_ORIGIN,
+        severity: "warning",
+        message: `Barre ${barreIndex}'s fret (${barre.fret}) is negative — a grip-base offset can never be negative`,
+        details: { barreIndex, fret: barre.fret, span, gripBase, suggestedOffset: clampedOffset },
+      });
+      return;
+    }
+
+    if (barre.fret > span) {
+      issues.push({
+        id: CHECK_BARRE_FRET_ORIGIN,
+        severity: "warning",
+        message:
+          `Barre ${barreIndex}'s fret (${barre.fret}) exceeds the shape's fretted span ` +
+          `(${span}) — an offset cannot exceed the span it's measured within`,
+        details: { barreIndex, fret: barre.fret, span, gripBase, suggestedOffset: clampedOffset },
+      });
+      return;
+    }
+
+    if (geometry == null) return;
+
+    const absoluteSourceFret = geometry.sourceFrets[barre.fromString];
+    if (absoluteSourceFret == null) return;
+
+    const sourceGripBase = sourceGripBaseFret(shape, geometry.sourceFrets);
+    const suggestedOffset = absoluteSourceFret - sourceGripBase;
+    if (
+      barre.fret === absoluteSourceFret &&
+      suggestedOffset >= 0 &&
+      suggestedOffset !== barre.fret
+    ) {
+      issues.push({
+        id: CHECK_BARRE_FRET_ORIGIN,
+        severity: "warning",
+        message:
+          `Barre ${barreIndex}'s fret (${barre.fret}) equals the absolute source-diagram fret ` +
+          `rather than a grip-base offset — did you mean offset ${suggestedOffset}?`,
+        details: { barreIndex, fret: barre.fret, span, gripBase, suggestedOffset },
+      });
+    }
+  });
+
+  return issues;
+}
+
+type NamedShape = { name: string };
+export type NameUniqueKind = "chord" | "scale" | "arpeggio";
+
+function registryGetFor(kind: NameUniqueKind, name: string): NamedShape | undefined {
+  switch (kind) {
+    case "chord":
+      return chordShapes.get(name);
+    case "scale":
+      return getScaleShape(name);
+    case "arpeggio":
+      return arpeggioShapes.get(name);
+  }
+}
+
+function registryAllFor(kind: NameUniqueKind): NamedShape[] {
+  switch (kind) {
+    case "chord":
+      return chordShapes.all();
+    case "scale":
+      return all();
+    case "arpeggio":
+      return arpeggioShapes.all();
+  }
+}
+
+/**
+ * CR-005: `checkNameUnique` is called once per shape during a full-registry
+ * audit (`auditAllShapes`/`auditChordShapeFull` etc.), and each call used to
+ * re-derive `exportIdentifierFor` (regex work) for every OTHER registered
+ * entry — O(N) work per call, O(N²) for an N-shape audit. This caches an
+ * `identifier -> names sharing it` index per `kind`, keyed off the
+ * registries' shared mutation counter (`registryMutationVersion`, CR-107) so
+ * it's rebuilt (once) whenever any registry is mutated, and reused across
+ * same-version calls in between — e.g. a full audit pass. The counter is
+ * global (not per-kind) but that's fine here: it only widens cache reuse
+ * slightly less than a per-kind counter would, never stales it.
+ *
+ * CR-107: this used to key on `registryAllFor(kind).length` instead, which
+ * goes stale on a net-zero-size `remove(old); add(renamed)` sequence between
+ * calls (size unchanged, but the index is now wrong) — a real
+ * false-negative/false-positive risk, not just the narrower "in-place
+ * same-size rename" the old comment described. Keying on the mutation
+ * counter fixes both.
+ */
+const identifierIndexCache = new Map<
+  NameUniqueKind,
+  { version: number; byIdentifier: Map<string, string[]> }
+>();
+
+function identifierIndexFor(kind: NameUniqueKind): Map<string, string[]> {
+  const version = registryMutationVersion();
+  const cached = identifierIndexCache.get(kind);
+  if (cached && cached.version === version) return cached.byIdentifier;
+
+  const byIdentifier = new Map<string, string[]>();
+  for (const entry of registryAllFor(kind)) {
+    const id = exportIdentifierFor(kind, entry);
+    const names = byIdentifier.get(id);
+    if (names) names.push(entry.name);
+    else byIdentifier.set(id, [entry.name]);
+  }
+  identifierIndexCache.set(kind, { version, byIdentifier });
+  return byIdentifier;
+}
+
+/**
+ * Errors when `shape.name` is already registered in the target `kind`
+ * registry, or `exportIdentifierFor(kind, shape)` collides with another
+ * registered entry's derived identifier.
+ *
+ * Default behavior (no `options`) consults the LIVE registry — safe to
+ * compose into `auditChordShape` for already-registered shapes because a
+ * shape is never flagged against itself: the registry stores at most one
+ * object per name (registration replaces, never duplicates), so a
+ * self-comparison only ever matches by reference, never flags. It only fires
+ * for a genuinely different, already-registered entry sharing the candidate
+ * shape's name or derived identifier.
+ *
+ * `options.knownNames`/`options.knownIdentifiers`, when supplied, are
+ * consulted INSTEAD of the live registry — lets the `shapes:merge` script
+ * check a whole changeset's names/identifiers (including other new entries
+ * in the same changeset) against a merge-time snapshot without touching the
+ * live registry.
+ *
+ * `options.selfName` (CR-004), when supplied, additionally excludes any
+ * registry entry named `selfName` from BOTH collision checks (name and
+ * identifier) — on top of, not instead of, the existing reference-equality
+ * exclusion. Lets a draft/clone of an already-registered shape (a fresh
+ * object, so reference equality never matches its own prior registration)
+ * audit itself — including a rename — without a false self-collision, while
+ * a genuine rename into another entry's name/identifier still flags.
+ */
+export function checkNameUnique(
+  shape: NamedShape,
+  kind: NameUniqueKind,
+  options?: { knownNames?: Set<string>; knownIdentifiers?: Set<string>; selfName?: string },
+): ShapeAuditIssue[] {
+  const issues: ShapeAuditIssue[] = [];
+  const identifier = exportIdentifierFor(kind, shape);
+  const selfIdentifier =
+    options?.selfName !== undefined
+      ? exportIdentifierFor(kind, { name: options.selfName })
+      : undefined;
+
+  const nameCollides =
+    options?.knownNames !== undefined
+      ? options.knownNames.has(shape.name) && shape.name !== options.selfName
+      : (() => {
+          const existing = registryGetFor(kind, shape.name);
+          return (
+            existing !== undefined && existing !== shape && shape.name !== options?.selfName
+          );
+        })();
+
+  if (nameCollides) {
+    issues.push({
+      id: CHECK_NAME_UNIQUE,
+      severity: "error",
+      message: `Shape name "${shape.name}" is already registered in the ${kind} registry`,
+      details: { name: shape.name, kind },
+    });
+  }
+
+  const identifierCollides =
+    options?.knownIdentifiers !== undefined
+      ? options.knownIdentifiers.has(identifier) && identifier !== selfIdentifier
+      : (identifierIndexFor(kind).get(identifier) ?? []).some(
+          (name) =>
+            name !== options?.selfName &&
+            !(name === shape.name && registryGetFor(kind, name) === shape),
+        );
+
+  if (identifierCollides) {
+    issues.push({
+      id: CHECK_NAME_UNIQUE,
+      severity: "error",
+      message:
+        `Export identifier "${identifier}" for shape "${shape.name}" collides with an ` +
+        `existing src/data identifier`,
+      details: { identifier, name: shape.name, kind },
+    });
+  }
+
+  return issues;
+}
+
+// ============================================================
 // Aggregate functions
 // ============================================================
 
@@ -488,6 +818,10 @@ export function auditChordShape(
     ...checkChordBuildLoss(shape, root, tuning, built),
     ...checkChordMetadataCompleteness(shape),
     ...checkGeometryMismatch(shape, tuning),
+    ...checkStringsetMismatch(shape),
+    ...checkTuningMismatch(shape, tuning),
+    ...checkBarreFretOrigin(shape, root, tuning, built),
+    ...checkNameUnique(shape, "chord"),
   ];
 }
 
@@ -509,6 +843,155 @@ export function auditScaleShape(
   return [
     ...checkScaleBuildLoss(shape, root, tuning),
     ...checkScaleMetadataCompleteness(shape),
+  ];
+}
+
+// ============================================================
+// Arpeggio-only checks (shape-workbench spec §3.1)
+// ============================================================
+// Tier-safe only: no chord-tone verification here (that needs
+// @tonaljs/chord and lives in the optional-tier audit-integration.ts).
+
+/**
+ * Flags arpeggio shapes whose built position span exceeds `maxSpan`.
+ * Analogous to `checkFretSpan`, scoped to arpeggio geometry: builds via
+ * `buildFrettedScale` (arpeggios have no single grip to reconstruct via
+ * `applyChordShape`) and takes `max - min` over the built notes' non-open
+ * frets. Skipped when the build itself fails (`result.empty`) — that failure
+ * is `checkScaleBuildLoss`'s to report, not this check's.
+ *
+ * `prebuilt`, if supplied, is used in place of an internal
+ * `buildFrettedScale` call (CR-006) — see `checkScaleBuildLoss`'s matching
+ * parameter.
+ */
+export function checkPositionSpan(
+  shape: ArpeggioShape,
+  root: string,
+  tuning: string[] = STANDARD,
+  maxSpan = 4,
+  prebuilt?: FrettedScale,
+): ShapeAuditIssue[] {
+  const result = prebuilt ?? buildFrettedScale(shape, root, tuning);
+  if (result.empty) return [];
+
+  const fretted = result.notes.map((n) => n.fret).filter((f) => f > 0);
+  const span = fretted.length ? Math.max(...fretted) - Math.min(...fretted) : 0;
+
+  if (span <= maxSpan) return [];
+
+  return [
+    {
+      id: CHECK_POSITION_SPAN,
+      severity: "error",
+      message: `Position span of ${span} exceeds the maximum playable span of ${maxSpan}`,
+      details: { span, maxSpan },
+    },
+  ];
+}
+
+/**
+ * Flags a structurally inconsistent `ArpeggioShape.fingers` (per-string,
+ * parallel to `strings[]`): a length mismatch against `strings`, a finger
+ * entry present for a muted (`null`) string, or a finger sub-array whose
+ * length doesn't match its string's note-array length. Skipped (`[]`) when
+ * `fingers` is absent entirely — it's optional.
+ */
+export function checkFingeringComplete(shape: ArpeggioShape): ShapeAuditIssue[] {
+  if (shape.fingers === undefined) return [];
+
+  const { strings, fingers } = shape;
+
+  if (fingers.length !== strings.length) {
+    return [
+      {
+        id: CHECK_FINGERING_COMPLETE,
+        severity: "error",
+        message:
+          `shape.fingers has ${fingers.length} string entries but shape.strings has ` +
+          `${strings.length}`,
+        details: { fingersLength: fingers.length, stringsLength: strings.length },
+      },
+    ];
+  }
+
+  const issues: ShapeAuditIssue[] = [];
+  for (let i = 0; i < strings.length; i++) {
+    const notes = strings[i];
+    const fingerSlot = fingers[i];
+
+    if (notes == null) {
+      if (fingerSlot != null && fingerSlot.length > 0) {
+        issues.push({
+          id: CHECK_FINGERING_COMPLETE,
+          severity: "error",
+          message: `String ${i} is muted in shape.strings but shape.fingers[${i}] is non-empty`,
+          details: { string: i, fingerSlot },
+        });
+      }
+      continue;
+    }
+
+    if (fingerSlot == null || fingerSlot.length !== notes.length) {
+      issues.push({
+        id: CHECK_FINGERING_COMPLETE,
+        severity: "error",
+        message:
+          `String ${i} has ${notes.length} note(s) in shape.strings but ` +
+          `${fingerSlot?.length ?? 0} finger(s) in shape.fingers`,
+        details: { string: i, notesLength: notes.length, fingersLength: fingerSlot?.length ?? 0 },
+      });
+    }
+  }
+
+  return issues;
+}
+
+/**
+ * Verifies that an override arpeggio's named core (`shape.overrides`) is
+ * actually registered in `arpeggioShapes`. Skipped (`[]`) when `overrides`
+ * is absent (the shape isn't an override).
+ */
+export function checkOverridesTarget(shape: ArpeggioShape): ShapeAuditIssue[] {
+  if (shape.overrides === undefined) return [];
+  if (arpeggioShapes.get(shape.overrides) !== undefined) return [];
+
+  return [
+    {
+      id: CHECK_OVERRIDES_TARGET,
+      severity: "error",
+      message: `shape.overrides names "${shape.overrides}", which is not registered in arpeggioShapes`,
+      details: { overrides: shape.overrides },
+    },
+  ];
+}
+
+/**
+ * Runs only the tier-safe arpeggio checks (shape-workbench spec §3.1):
+ * build-loss, position-span, fingering-complete, overrides-target. Chord-tone
+ * verification (does the run actually outline `chordType`?) needs
+ * `@tonaljs/chord` and lives in the optional tier
+ * (`auditArpeggioShapeIntegration`, `src/audit-integration.ts`, not this
+ * module). `root` defaults to `"C"` (`ArpeggioShape` has no `canonicalRoot`,
+ * mirroring `auditScaleShape`'s default); `tuning` defaults to `STANDARD`.
+ *
+ * `buildFrettedScale(shape, root, tuning)` is built once here and threaded
+ * into `checkScaleBuildLoss`/`checkPositionSpan` (their `prebuilt` param,
+ * CR-006) since both call it with the exact same arguments — avoids two
+ * redundant rebuilds per audited arpeggio.
+ */
+export function auditArpeggioShape(
+  shape: ArpeggioShape,
+  options: ShapeAuditOptions = {},
+): ShapeAuditIssue[] {
+  const root = options.root ?? "C";
+  const tuning = options.tuning ?? STANDARD;
+  const built = buildFrettedScale(shape, root, tuning);
+
+  return [
+    ...checkScaleBuildLoss(shape, root, tuning, built),
+    ...checkPositionSpan(shape, root, tuning, options.maxFretSpan, built),
+    ...checkFingeringComplete(shape),
+    ...checkOverridesTarget(shape),
   ];
 }
 

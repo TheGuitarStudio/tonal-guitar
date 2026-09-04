@@ -18,9 +18,42 @@ jobs:
         with:
           node-version: 20
           cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            packages/fretboard-ui/package-lock.json
+            packages/shape-catalog/package-lock.json
+            packages/shape-library-ui/package-lock.json
+            packages/shape-workbench/package-lock.json
+            site/package-lock.json
 
       - name: Install dependencies
         run: npm ci
+
+      # `packages/*` and `site/` are separate npm roots (each `file:`-linked
+      # to `tonal-guitar` and to each other), not an npm workspace — root
+      # `npm ci` above never touches their `node_modules`. Each needs its own
+      # install BEFORE the root `npm test` below, because the root vitest run
+      # includes `packages/**` test files that import the sibling packages.
+      # Order matters: `fretboard-ui` has no cross-`packages/*` deps,
+      # `shape-catalog` only needs the root package, `shape-library-ui` needs
+      # both of those, `shape-workbench` needs all three, and `site` needs
+      # `shape-catalog` + `shape-library-ui` + `fretboard-ui` (spec §7's
+      # `transpilePackages`).
+      - name: Install fretboard-ui dependencies
+        run: npm ci
+        working-directory: packages/fretboard-ui
+
+      - name: Install shape-catalog dependencies
+        run: npm ci
+        working-directory: packages/shape-catalog
+
+      - name: Install shape-library-ui dependencies
+        run: npm ci
+        working-directory: packages/shape-library-ui
+
+      - name: Install shape-workbench dependencies
+        run: npm ci
+        working-directory: packages/shape-workbench
 
       - name: Lint
         run: npm run lint
@@ -30,3 +63,15 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: Build shape-workbench (typecheck + bundle)
+        run: npm run build
+        working-directory: packages/shape-workbench
+
+      - name: Install site dependencies
+        run: npm ci
+        working-directory: site
+
+      - name: Build site (static-export smoke)
+        run: npm run build
+        working-directory: site

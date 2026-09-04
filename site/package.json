@@ -25,6 +25,8 @@
     "next": "^14.2.24",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "shape-catalog": "file:../packages/shape-catalog",
+    "shape-library-ui": "file:../packages/shape-library-ui",
     "tonal-guitar": "file:.."
   },
   "devDependencies": {

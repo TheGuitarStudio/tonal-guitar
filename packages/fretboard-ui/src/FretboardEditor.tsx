@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useState, type CSSProperties } from "react";
 import { midi as toMidi, fromMidiSharps } from "@tonaljs/note";
-import type { FrettedNote } from "tonal-guitar";
+import type { Barre, FrettedNote } from "tonal-guitar";
 import { Fretboard, type FretboardProps } from "./Fretboard";
 import { intervalFromTo, intervalToDegreeNumber } from "./intervals";
 import type { FretMarker, FretboardLayout, FretboardTheme, LabelMode } from "./types";
@@ -15,6 +15,10 @@ export interface EditorCell {
   string: number;
   fret: number;
   isRoot?: boolean;
+  /** Fingering number (1-4) assigned via the "finger" tool. */
+  finger?: number | null;
+  /** Marks this string as explicitly muted ("x") via the "mute" tool. */
+  muted?: boolean;
 }
 
 export interface FretboardEditorProps {
@@ -236,6 +240,60 @@ export function cellsToScaleShapeStrings(
     byString[c.string] = list;
   }
   return { strings: byString, rootString: rootCell?.string ?? 0 };
+}
+
+/**
+ * Convert editor cells into a tonal-guitar `ChordShape`-style grip: one
+ * interval per string (unlike `cellsToScaleShapeStrings`, which allows
+ * several notes per string). Companion to `cellsToScaleShapeStrings`.
+ *
+ * A cell with `muted: true` clears that string (`strings[i] = null`,
+ * matching the "muted" convention documented in `src/audit.ts`); a muted
+ * cell always wins for its string, even if another (fretted) cell for the
+ * same string is also present, regardless of array order. Among non-muted
+ * cells, when multiple target the same string, the last one (by fret,
+ * ascending) wins. `barres` is always returned empty — barre grouping is
+ * tracked separately by callers, not derived from cells.
+ *
+ * Returns `null` if no root cell is set (and no `rootPitchClass` override
+ * is provided) — a chord shape without a marked root has no interval frame.
+ */
+export function cellsToChordShape(
+  cells: EditorCell[],
+  tuning: string[],
+  rootPitchClass?: string,
+): {
+  strings: (string | null)[];
+  fingers: (number | null)[];
+  barres: Barre[];
+  rootString: number;
+} | null {
+  const rootCell = cells.find((c) => c.isRoot);
+  const rootPc =
+    rootPitchClass ??
+    (rootCell ? pcAt(tuning, rootCell.string, rootCell.fret) : null);
+  if (!rootPc) return null;
+
+  const strings: (string | null)[] = tuning.map(() => null);
+  const fingers: (number | null)[] = tuning.map(() => null);
+
+  // Pre-compute the muted-string set from ALL cells (not just whichever
+  // cell for a string happens to be processed first) so a muted string is
+  // never overridden by a fretted cell on the same string, regardless of
+  // sort order.
+  const mutedStrings = new Set(cells.filter((c) => c.muted).map((c) => c.string));
+
+  const sorted = [...cells].sort((a, b) => a.string - b.string || a.fret - b.fret);
+  for (const c of sorted) {
+    if (mutedStrings.has(c.string)) continue;
+    const pc = pcAt(tuning, c.string, c.fret);
+    const ivl = intervalFromTo(rootPc, pc);
+    if (!ivl) continue;
+    strings[c.string] = ivl;
+    fingers[c.string] = c.finger ?? (c.fret === 0 ? 0 : null);
+  }
+
+  return { strings, fingers, barres: [], rootString: rootCell?.string ?? 0 };
 }
 
 /**

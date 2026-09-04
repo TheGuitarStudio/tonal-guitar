@@ -1,0 +1,12 @@
+{
+  "$schema": "tonal-guitar/changeset@1",
+  "version": "0.2.0",
+  "tuning": ["E2", "A2", "D3", "G3", "B3", "E4"],
+  "changes": [
+    {
+      "op": "remove",
+      "kind": "scale",
+      "name": "Test Featured Caged Scale For Remove Counts"
+    }
+  ]
+}

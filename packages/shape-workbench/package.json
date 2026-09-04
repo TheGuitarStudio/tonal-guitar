@@ -1,0 +1,25 @@
+{
+  "name": "shape-workbench",
+  "version": "0.0.1",
+  "description": "Local-only Vite + React authoring app for the tonal-guitar shape registries",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "tonal-guitar": "file:../..",
+    "fretboard-ui": "file:../fretboard-ui",
+    "shape-catalog": "file:../shape-catalog",
+    "shape-library-ui": "file:../shape-library-ui",
+    "@tonaljs/interval": "^5.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "typescript": "^5.7.3",
+    "vite": "^5.4.11"
+  }
+}

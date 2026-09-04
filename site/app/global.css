@@ -1,3 +1,47 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/*
+ * Map `shape-library-ui`'s `--tg-*` custom properties (spec §5.3) onto the
+ * raw HSL-triplet variables Fumadocs' Tailwind preset defines on `:root` /
+ * `.dark` (`--background`, `--border`, `--foreground`, `--muted`,
+ * `--muted-foreground`, `--primary` — see
+ * `fumadocs-ui/dist/tailwind-plugin.js`'s `defaultPreset`). This keeps the
+ * shared card/board components visually consistent with the rest of the
+ * docs site, including its light/dark toggle (class-based, not just
+ * `prefers-color-scheme`). `--tg-warn`/`--tg-error` have no Fumadocs
+ * equivalent, so the package's own defaults apply unchanged.
+ */
+:root {
+  --tg-surface: hsl(var(--card));
+  --tg-border: hsl(var(--border));
+  --tg-fg: hsl(var(--foreground));
+  --tg-muted: hsl(var(--muted-foreground));
+  --tg-accent: hsl(var(--primary));
+  --tg-gap: hsl(var(--muted));
+}
+
+/*
+ * Board-view reduction (CR-069/CR-070): `ShapeLibrary` wraps `shape-library-
+ * ui`'s `FilterBar` in `.tg-filterbar-board-mode` while `view === "board"`.
+ * `FilterBar` has no prop to suppress individual sections (its surface is
+ * all data — selections/counts/callbacks — not layout toggles), and its
+ * public API is `shape-library-ui`'s, not this site's to change, so the
+ * inert-in-board-mode parts are hidden here by class instead: the sort
+ * select and "Failing only" checkbox (`ShapeBoardView` forwards neither to
+ * `boardModel`), the whole chord/scale facet block (`ChordFacets`/
+ * `ScaleFacets`, both rendered as the sibling `.tg-filterbar` immediately
+ * following `.tg-filterbar-row` — none of those facets are forwarded
+ * either), and the "Showing N of M" count (`ShapeBoard` renders its own
+ * correct count in its own header below — two counts on screen would
+ * otherwise contradict each other). The kind toggle and name search stay
+ * visible; `ShapeBoardView` reads both.
+ */
+.tg-filterbar-board-mode .tg-checkbox-label,
+.tg-filterbar-board-mode .tg-select,
+.tg-filterbar-board-mode .tg-count,
+.tg-filterbar-board-mode .tg-sr-only,
+.tg-filterbar-board-mode .tg-filterbar-row + .tg-filterbar {
+  display: none;
+}

@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- **Jazz shell voicings — reduced and renamed (breaking).** `src/data/jazz-shells.ts` now registers 8 `chordShapes` entries (one **E-root** and one **A-root** shell per chord type — `maj7`, `m7`, `7`, `m7b5`) instead of the previous 16 (every combination of 2 string sets × 2 voice orderings per chord type). Shape names are public `chordShapes` lookup keys, so this is a breaking rename/removal for any consumer keying off the old names:
+  - Old `"Shell <type> R37 123"` (string set `[1,2,3]`, R-3-7 ordering) → new `"Shell <type> A-root"` (same voicing, renamed).
+  - Old `"Shell <type> R37 012"`, `"Shell <type> R73 012"`, and `"Shell <type> R73 123"` are removed — no longer registered.
+  - New `"Shell <type> E-root"` is a new voicing (string set `[0,2,3]`, R-7-3 ordering — skips the A string), not a rename of any previously-registered shell.
+  - Applies to all four chord types, e.g. `"Shell maj7 R37 012"` → removed, `"Shell maj7 R37 123"` → `"Shell maj7 A-root"`, `"Shell maj7 R73 012"`/`"Shell maj7 R73 123"` → removed, `"Shell maj7 E-root"` → new.
+
 ## [0.2.0] — 2026-08-02
 
 ### Added

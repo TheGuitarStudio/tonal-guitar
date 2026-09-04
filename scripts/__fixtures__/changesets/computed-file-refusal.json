@@ -1,0 +1,18 @@
+{
+  "$schema": "tonal-guitar/changeset@1",
+  "version": "0.2.0",
+  "tuning": ["E2", "A2", "D3", "G3", "B3", "E4"],
+  "changes": [
+    {
+      "op": "add",
+      "kind": "scale",
+      "file": "pentatonic-minor",
+      "shape": {
+        "name": "Pentatonic Box 1 Minor Duplicate",
+        "system": "pentatonic",
+        "strings": [["1P"], ["1P"], ["1P"], ["1P"], ["1P"], ["1P"]],
+        "rootString": 0
+      }
+    }
+  ]
+}

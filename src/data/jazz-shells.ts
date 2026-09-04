@@ -2,14 +2,20 @@
  * Jazz shell voicings for maj7, m7, 7 (dominant), and m7b5.
  *
  * Shell voicings are 3-note grips (root + 3rd + 7th) that omit the 5th.
- * They are the building blocks of jazz comping and outline the harmony
- * efficiently on two adjacent string sets:
- *   - String set "654" = [0,1,2]  (low E, A, D strings)
- *   - String set "543" = [1,2,3]  (A, D, G strings)
+ * They are the two traditional Freddie-Green-style shells, each pairing
+ * exactly one voice ordering with the string set it's actually played on:
+ *   - E-root shell: root on string 6 (low E), 7th on string 4 (D), 3rd on
+ *     string 3 (G) — string set [0,2,3], skipping the A string. Uses the
+ *     R-7-3 ordering (7th voiced simply, 3rd voiced a compound 10th up).
+ *   - A-root shell: root on string 5 (A), 3rd on string 4 (D), 7th on
+ *     string 3 (G) — string set [1,2,3], adjacent strings. Uses the
+ *     R-3-7 ordering (3rd and 7th both voiced simply).
  *
  * The SHELL_DICTIONARY uses the @tonaljs/voicing-dictionary format:
  * keyed by Tonal chord-type alias, values = space-joined interval patterns
- * ordered low voice to high voice. Two orderings exist per chord type:
+ * ordered low voice to high voice. Both orderings are retained in the
+ * dictionary (index 0 = R-3-7, index 1 = R-7-3) as public API even though
+ * each generated shape only uses one of them for its paired string set:
  *   - R-3-7: root, then 3rd (or flat 3rd), then 7th (simple interval)
  *   - R-7-3: root, then 7th, then 3rd voiced an octave up (compound interval)
  *
@@ -57,13 +63,26 @@ const OMITTED: Record<string, string[]> = {
 };
 
 // ============================================================
-// String sets
+// Root/string-set pairings (D-012: one string set per ordering)
 // ============================================================
 
-// String set indices (0-based, low E = 0)
-const STRING_SETS: number[][] = [
-  [0, 1, 2], // "654" strings: low-E, A, D
-  [1, 2, 3], // "543" strings: A, D, G
+// String set indices (0-based, low E = 0).
+type ShellRootLabel = "E-root" | "A-root";
+
+interface ShellPairing {
+  rootLabel: ShellRootLabel;
+  stringSet: number[];
+  // Index into a SHELL_DICTIONARY pattern array: 0 = R-3-7, 1 = R-7-3.
+  patternIndex: 0 | 1;
+}
+
+const SHELL_PAIRINGS: ShellPairing[] = [
+  // E-root: root on string 6 (low E), 7th on string 4 (D), 3rd on string 3
+  // (G) — skips the A string. Uses the R-7-3 (compound) ordering.
+  { rootLabel: "E-root", stringSet: [0, 2, 3], patternIndex: 1 },
+  // A-root: root on string 5 (A), 3rd on string 4 (D), 7th on string 3 (G)
+  // — adjacent strings. Uses the R-3-7 (simple) ordering.
+  { rootLabel: "A-root", stringSet: [1, 2, 3], patternIndex: 0 },
 ];
 
 // ============================================================
@@ -114,11 +133,10 @@ function buildShellShape(
   chordType: string,
   patternStr: string,
   stringSet: number[],
-  patternIndex: number,
+  rootLabel: ShellRootLabel,
 ): ChordShape {
   const pattern = patternStr.split(" ");
-  const ordering = patternIndex === 0 ? "R37" : "R73";
-  const name = `Shell ${chordType} ${ordering} ${stringSet.join("")}`;
+  const name = `Shell ${chordType} ${rootLabel}`;
 
   // Build the full 6-string array (null for strings not in the set)
   const strings: (string | null)[] = [null, null, null, null, null, null];
@@ -154,10 +172,10 @@ function buildShellShape(
 const shellShapes: ChordShape[] = [];
 
 for (const [chordType, patterns] of Object.entries(SHELL_DICTIONARY)) {
-  for (const stringSet of STRING_SETS) {
-    for (let pi = 0; pi < patterns.length; pi++) {
-      shellShapes.push(buildShellShape(chordType, patterns[pi], stringSet, pi));
-    }
+  for (const { rootLabel, stringSet, patternIndex } of SHELL_PAIRINGS) {
+    shellShapes.push(
+      buildShellShape(chordType, patterns[patternIndex], stringSet, rootLabel),
+    );
   }
 }
 

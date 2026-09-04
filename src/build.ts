@@ -22,6 +22,8 @@ import {
   NoFrettedScale,
   ScaleShape,
   ChordShape,
+  Barre,
+  gripBaseFret,
 } from "./shape";
 import { STANDARD } from "./tuning";
 
@@ -273,6 +275,18 @@ export interface Fingering {
   root: string;
   shapeName: string;
   startFret: number;
+  // Copy of shape.fingers, remapped onto tuning-string indices the same way
+  // `frets` is (via the shape→tuning string offset for tunings longer than
+  // the shape). Never the same array reference as shape.fingers, and never
+  // mutated. (shape-workbench spec §2.1)
+  fingers: (number | null)[];
+  // shape.barres, with each entry's fret resolved from the D-010 grip-base
+  // offset to an absolute fret for this build:
+  // `gripBaseFret(frets) + shape.barres[i].fret`. `fromString`/`toString` are
+  // remapped onto tuning-string indices the same way `fingers` is above
+  // (clamped to the tuning's last valid index). `finger` is passed through
+  // unchanged. (shape-workbench spec §2.1, CR-003)
+  barres: Barre[];
 }
 
 /**
@@ -303,11 +317,132 @@ export function applyChordShape(
   const fretValues = result.notes.map((n) => n.fret);
   const startFret = fretValues.length > 0 ? Math.min(...fretValues) : 0;
 
+  // shape-workbench §2.1: remap shape.fingers onto tuning-string indices the
+  // same way `frets` is (via the shape→tuning string offset), never mutating
+  // shape.fingers and never sharing its array reference. Reduces to a plain
+  // copy when tuning.length === shape.strings.length (the common case).
+  const strOffset = stringOffset(tuning, asScaleShape);
+  const fingers: (number | null)[] = tuning.map(() => null);
+  for (let s = 0; s < shape.fingers.length && s + strOffset < tuning.length; s++) {
+    fingers[s + strOffset] = shape.fingers[s];
+  }
+
+  // shape-workbench §2.1: resolve each barre's grip-base-relative offset
+  // (D-010) to an absolute fret for this build. `fromString`/`toString` are
+  // shape-indexed on `shape.barres` (like `shape.fingers`), so they're
+  // remapped onto tuning-string indices via `strOffset` the same way
+  // `fingers` is above — clamped to the last valid tuning index so a barre
+  // referencing a string beyond a truncated tuning never points out of
+  // bounds (CR-003). `finger` passes through unchanged.
+  const gripBase = gripBaseFret(frets);
+  const lastTuningIndex = tuning.length - 1;
+  const barres: Barre[] = shape.barres.map((b) => ({
+    ...b,
+    fret: gripBase + b.fret,
+    fromString: Math.min(b.fromString + strOffset, lastTuningIndex),
+    toString: Math.min(b.toString + strOffset, lastTuningIndex),
+  }));
+
   return {
     positions: result.notes,
     frets,
     root: toPitchClass(root) || root,
     shapeName: shape.name,
     startFret,
+    fingers,
+    barres,
   };
+}
+
+/**
+ * Deterministic starting-point fingering for a chord shape that hasn't been
+ * authored with `fingers`/`barres` yet (shape-workbench §2.2 — the editor
+ * seeds from this and the author may override).
+ *
+ * Rule, applied to the built (absolute) frets:
+ *   - muted string → `null`
+ *   - open string (fret 0) → finger `0`
+ *   - fretted strings: distinct fret values, sorted ascending, get fingers
+ *     1, 2, 3, ... capped at 4 (the lowest fretted fret gets finger 1)
+ *   - a run of ≥2 adjacent strings sharing the same fretted fret collapses
+ *     into a single `Barre` at that fret's shared finger, spanning
+ *     `fromString`..`toString` (each string in the run also gets that
+ *     finger in the returned `fingers` array)
+ *
+ * `Barre.fret` in the result follows the D-010 offset convention (relative
+ * to `gripBaseFret` of the built frets), matching how `ChordShape.barres`
+ * is authored.
+ *
+ * The returned `fingers`/`barres` are SHAPE-indexed (length
+ * `shape.strings.length`, matching `ChordShape.fingers`/`ChordShape.barres`)
+ * rather than tuning-indexed — they seed those shape-indexed fields (CR-003),
+ * so a 7/8-string `tuning` must not leak tuning-length arrays or
+ * `strOffset`-shifted string indices back into shape-relative output.
+ */
+export function autoFingering(
+  shape: Omit<ChordShape, "fingers" | "barres">,
+  root: string,
+  tuning: string[] = STANDARD,
+): { fingers: (number | null)[]; barres: Barre[] } {
+  const asScaleShape: ScaleShape = {
+    name: shape.name,
+    system: shape.system,
+    strings: shape.strings.map((s) => (s != null ? [s] : null)),
+    rootString: shape.rootString,
+  };
+
+  const result = buildFrettedScale(asScaleShape, root, tuning);
+  const strOffset = stringOffset(tuning, asScaleShape);
+  // Shape-indexed frets, inverse-mapped from the tuning-indexed build via
+  // strOffset (the mirror of the shift applyChordShape's `fingers`/`barres`
+  // apply going the other direction).
+  const frets: (number | null)[] = shape.strings.map(() => null);
+  for (const p of result.notes) {
+    const shapeString = p.string - strOffset;
+    if (shapeString >= 0 && shapeString < frets.length) {
+      frets[shapeString] = p.fret;
+    }
+  }
+
+  const gripBase = gripBaseFret(frets);
+
+  // Distinct fretted (non-null, non-zero) fret values, low to high.
+  const distinctFrets = Array.from(
+    new Set(frets.filter((f): f is number => f != null && f !== 0)),
+  ).sort((a, b) => a - b);
+  const fingerForFret = new Map<number, number>();
+  distinctFrets.forEach((fret, i) => {
+    fingerForFret.set(fret, Math.min(i + 1, 4));
+  });
+
+  const fingers: (number | null)[] = frets.map((f) => {
+    if (f == null) return null;
+    if (f === 0) return 0;
+    return fingerForFret.get(f) ?? 4;
+  });
+
+  const barres: Barre[] = [];
+  let i = 0;
+  while (i < frets.length) {
+    const f = frets[i];
+    if (f != null && f !== 0) {
+      let j = i;
+      while (j + 1 < frets.length && frets[j + 1] === f) {
+        j++;
+      }
+      if (j > i) {
+        barres.push({
+          fret: f - gripBase,
+          fromString: i,
+          toString: j,
+          finger: fingerForFret.get(f) ?? 4,
+        });
+      }
+      i = j + 1;
+    } else {
+      i++;
+    }
+  }
+
+  return { fingers, barres };
 }

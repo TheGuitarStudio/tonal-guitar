@@ -3,6 +3,7 @@ export type { FretboardProps, FretboardHandle } from "./Fretboard";
 export {
   FretboardEditor,
   cellsToScaleShapeStrings,
+  cellsToChordShape,
   frettedNotesToCells,
 } from "./FretboardEditor";
 export type {

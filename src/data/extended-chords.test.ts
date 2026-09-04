@@ -23,7 +23,7 @@ import {
   transpose as noteTranspose,
 } from "@tonaljs/note";
 
-import { chordShapes, ChordShape, ScaleShape } from "../shape";
+import { chordShapes, impliedStringSet, ChordShape, ScaleShape } from "../shape";
 import { applyChordShape } from "../build";
 import { analyzeInKey, arpeggioFromShape, identifyChord } from "../integration";
 import { STANDARD } from "../tuning";
@@ -78,14 +78,6 @@ function chromaSet(intervals: string[], root: string): Set<number> {
 /** Non-null (played) intervals for a shape, low→high string order preserved. */
 function playedIntervals(shape: ChordShape): string[] {
   return shape.strings.filter((s): s is string => s != null);
-}
-
-/** The played string indices implied by `strings`, used when `stringSet` is absent. */
-function impliedStringSet(shape: ChordShape): number[] {
-  if (shape.stringSet) return shape.stringSet;
-  return shape.strings
-    .map((s, i) => (s != null ? i : null))
-    .filter((i): i is number => i != null);
 }
 
 /** Convert a ChordShape to the single-interval-per-string ScaleShape applyChordShape uses. */
@@ -598,6 +590,6 @@ describe("extended-chords: name uniqueness across the whole chord-shape registry
     expect(names).toContain("E Shape Major"); // caged-chords
     expect(names).toContain("E Shape maj7"); // caged-chords-7th
     expect(names).toContain("C Major Open"); // open-chords
-    expect(names).toContain("Shell maj7 R37 012"); // jazz-shells
+    expect(names).toContain("Shell maj7 E-root"); // jazz-shells
   });
 });
