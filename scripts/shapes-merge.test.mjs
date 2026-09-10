@@ -68,7 +68,9 @@ describe("parseOwnedBlocks: src/data/caged-chords.ts (spec §6.3 write allow-lis
 
   it("every block's content contains its own export const declaration", () => {
     for (const block of blocks) {
-      expect(block.content).toContain(`export const ${block.name}: ChordShape`);
+      expect(block.content).toContain(
+        `export const ${block.name}: RegisteredChordShape`,
+      );
     }
   });
 
@@ -223,7 +225,7 @@ describe("fixture sanity", () => {
  * so the real checkout is never touched (verified explicitly below).
  */
 
-const LIBRARY_VERSION = "0.2.0"; // src/version.ts VERSION
+const LIBRARY_VERSION = "0.3.0"; // src/version.ts VERSION
 const STANDARD_TUNING = ["E2", "A2", "D3", "G3", "B3", "E4"]; // src/tuning.ts STANDARD
 
 function createFixtureRoot() {

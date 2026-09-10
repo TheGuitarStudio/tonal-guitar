@@ -1,6 +1,6 @@
 {
   "name": "tonal-guitar",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Guitar fretboard, shapes, patterns, and sequences — built on Tonal.js",
   "keywords": [
     "guitar",
@@ -24,14 +24,19 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.mjs",
       "require": "./dist/index.js"
+    },
+    "./chord-types": {
+      "types": "./dist/chord-types.d.ts",
+      "import": "./dist/chord-types.mjs",
+      "require": "./dist/chord-types.js"
     }
   },
   "files": [
     "dist"
   ],
   "scripts": {
-    "build": "tsup src/index.ts --sourcemap --format esm,cjs && tsup src/index.ts --dts-only --format esm,cjs && node scripts/check-dts.mjs",
-    "dev": "tsup src/index.ts --watch --sourcemap --dts --format esm,cjs",
+    "build": "tsup src/index.ts src/chord-types.ts --sourcemap --format esm,cjs && tsup src/index.ts src/chord-types.ts --dts-only --format esm,cjs && node scripts/check-dts.mjs",
+    "dev": "tsup src/index.ts src/chord-types.ts --watch --sourcemap --dts --format esm,cjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
@@ -69,6 +74,7 @@
     "@tonaljs/key": "^4.11.0",
     "@tonaljs/note": "^4.12.0",
     "@tonaljs/scale": "^4.13.0",
+    "@types/node": "^20.19.43",
     "@types/react": "^18.3.31",
     "@types/react-dom": "^18.3.7",
     "@typescript-eslint/eslint-plugin": "^8.18.1",

@@ -37,6 +37,17 @@
  */
 
 import { chordShapes, ChordShape } from "../shape";
+import type { ChordTypeKey } from "../chord-types";
+
+/**
+ * A `ChordShape` this repository ships, with `chordType` narrowed to a key the
+ * canonical chord-type table describes (TG-3). `ChordShape.chordType` itself
+ * stays `string | undefined` so external `chordShapes.add()` callers keep
+ * working; this alias constrains only the built-in data, so a typo or an
+ * unregistered quality here is a compile error instead of a shape nothing can
+ * query.
+ */
+type RegisteredChordShape = ChordShape & { chordType: ChordTypeKey };
 
 // ============================================================
 // C family — open position
@@ -46,7 +57,7 @@ import { chordShapes, ChordShape } from "../shape";
  * C major open (x32010)
  * Notes: C E G C E → intervals: 1P 3M 5P 1P 3M
  */
-export const OPEN_C_MAJOR: ChordShape = {
+export const OPEN_C_MAJOR: RegisteredChordShape = {
   name: "C Major Open",
   system: "open",
   strings: [null, "1P", "3M", "5P", "1P", "3M"],
@@ -71,7 +82,7 @@ export const OPEN_C_MAJOR: ChordShape = {
  * dim/m7b5 barre grips (see CR-003 precedent in git history).
  * Notes: C G C Eb G → intervals: 1P 5P 1P 3m 5P
  */
-export const OPEN_C_MINOR: ChordShape = {
+export const OPEN_C_MINOR: RegisteredChordShape = {
   name: "C Minor Open",
   system: "barre",
   strings: [null, "1P", "5P", "1P", "3m", "5P"],
@@ -89,7 +100,7 @@ export const OPEN_C_MINOR: ChordShape = {
  * C dominant 7 open (x32310)
  * Notes: C E Bb C E → intervals: 1P 3M 7m 1P 3M
  */
-export const OPEN_C_DOM7: ChordShape = {
+export const OPEN_C_DOM7: RegisteredChordShape = {
   name: "C Dominant 7 Open",
   system: "open",
   strings: [null, "1P", "3M", "7m", "1P", "3M"],
@@ -111,7 +122,7 @@ export const OPEN_C_DOM7: ChordShape = {
  * C major 7 open (x32000)
  * Notes: C E G B E → intervals: 1P 3M 5P 7M 3M
  */
-export const OPEN_C_MAJ7: ChordShape = {
+export const OPEN_C_MAJ7: RegisteredChordShape = {
   name: "C Major 7 Open",
   system: "open",
   strings: [null, "1P", "3M", "5P", "7M", "3M"],
@@ -134,7 +145,7 @@ export const OPEN_C_MAJ7: ChordShape = {
  * chord.
  * Notes: C G Bb Eb G → intervals: 1P 5P 7m 3m 5P
  */
-export const OPEN_C_M7: ChordShape = {
+export const OPEN_C_M7: RegisteredChordShape = {
   name: "C Minor 7 Open",
   system: "barre",
   strings: [null, "1P", "5P", "7m", "3m", "5P"],
@@ -152,7 +163,7 @@ export const OPEN_C_M7: ChordShape = {
  * C diminished (x3454x = x,3,4,5,4,x)
  * Notes: C Gb C Eb → intervals: 1P 5d 1P 3m
  */
-export const OPEN_C_DIM: ChordShape = {
+export const OPEN_C_DIM: RegisteredChordShape = {
   name: "C Diminished Open",
   system: "open",
   strings: [null, "1P", "5d", "1P", "3m", null],
@@ -174,7 +185,7 @@ export const OPEN_C_DIM: ChordShape = {
  * Notes: C E Ab C → intervals: 1P 3M 5A 1P
  * Note: 6m semitones = augmented 5th (5A = 8 semitones from root)
  */
-export const OPEN_C_AUG: ChordShape = {
+export const OPEN_C_AUG: RegisteredChordShape = {
   name: "C Augmented Open",
   system: "open",
   strings: [null, "1P", "3M", "5A", "1P", null],
@@ -195,7 +206,7 @@ export const OPEN_C_AUG: ChordShape = {
  * C sus2 (x30033 = x,3,0,0,3,3)
  * Notes: C D G D G → intervals: 1P 2M 5P 2M 5P
  */
-export const OPEN_C_SUS2: ChordShape = {
+export const OPEN_C_SUS2: RegisteredChordShape = {
   name: "C Sus2 Open",
   system: "open",
   strings: [null, "1P", "2M", "5P", "2M", "5P"],
@@ -219,7 +230,7 @@ export const OPEN_C_SUS2: ChordShape = {
  * C sus4 (x33011 = x,3,3,0,1,1)
  * Notes: C F G C F → intervals: 1P 4P 5P 1P 4P
  */
-export const OPEN_C_SUS4: ChordShape = {
+export const OPEN_C_SUS4: RegisteredChordShape = {
   name: "C Sus4 Open",
   system: "open",
   strings: [null, "1P", "4P", "5P", "1P", "4P"],
@@ -240,7 +251,7 @@ export const OPEN_C_SUS4: ChordShape = {
  * C half-diminished (m7b5) (x34343)
  * Notes: C Gb Bb Eb → intervals: 1P 5d 7m 3m
  */
-export const OPEN_C_M7B5: ChordShape = {
+export const OPEN_C_M7B5: RegisteredChordShape = {
   name: "C m7b5 Open",
   system: "open",
   strings: [null, "1P", "5d", "7m", "3m", null],
@@ -265,7 +276,7 @@ export const OPEN_C_M7B5: ChordShape = {
  * A major open (x02220)
  * Notes: A E A C# E → intervals: 1P 5P 1P 3M 5P
  */
-export const OPEN_A_MAJOR: ChordShape = {
+export const OPEN_A_MAJOR: RegisteredChordShape = {
   name: "A Major Open",
   system: "open",
   strings: [null, "1P", "5P", "1P", "3M", "5P"],
@@ -287,7 +298,7 @@ export const OPEN_A_MAJOR: ChordShape = {
  * A minor open (x02210)
  * Notes: A E A C E → intervals: 1P 5P 1P 3m 5P
  */
-export const OPEN_A_MINOR: ChordShape = {
+export const OPEN_A_MINOR: RegisteredChordShape = {
   name: "A Minor Open",
   system: "open",
   strings: [null, "1P", "5P", "1P", "3m", "5P"],
@@ -310,7 +321,7 @@ export const OPEN_A_MINOR: ChordShape = {
  * A dominant 7 open (x02020)
  * Notes: A E G C# E → intervals: 1P 5P 7m 3M 5P
  */
-export const OPEN_A_DOM7: ChordShape = {
+export const OPEN_A_DOM7: RegisteredChordShape = {
   name: "A Dominant 7 Open",
   system: "open",
   strings: [null, "1P", "5P", "7m", "3M", "5P"],
@@ -331,7 +342,7 @@ export const OPEN_A_DOM7: ChordShape = {
  * A major 7 open (x02120)
  * Notes: A E G# C# E → intervals: 1P 5P 7M 3M 5P
  */
-export const OPEN_A_MAJ7: ChordShape = {
+export const OPEN_A_MAJ7: RegisteredChordShape = {
   name: "A Major 7 Open",
   system: "open",
   strings: [null, "1P", "5P", "7M", "3M", "5P"],
@@ -352,7 +363,7 @@ export const OPEN_A_MAJ7: ChordShape = {
  * A minor 7 open (x02010)
  * Notes: A E G C E → intervals: 1P 5P 7m 3m 5P
  */
-export const OPEN_A_M7: ChordShape = {
+export const OPEN_A_M7: RegisteredChordShape = {
   name: "A Minor 7 Open",
   system: "open",
   strings: [null, "1P", "5P", "7m", "3m", "5P"],
@@ -371,7 +382,7 @@ export const OPEN_A_M7: ChordShape = {
  * A diminished (x0121x = x,0,1,2,1,x)
  * Notes: A Eb A C → intervals: 1P 5d 1P 3m
  */
-export const OPEN_A_DIM: ChordShape = {
+export const OPEN_A_DIM: RegisteredChordShape = {
   name: "A Diminished Open",
   system: "open",
   strings: [null, "1P", "5d", "1P", "3m", null],
@@ -391,7 +402,7 @@ export const OPEN_A_DIM: ChordShape = {
  * A E A C# F → 1P 5P 1P 3M 5A
  * Note: 5A of A = E# = F
  */
-export const OPEN_A_AUG: ChordShape = {
+export const OPEN_A_AUG: RegisteredChordShape = {
   name: "A Augmented Open",
   system: "open",
   strings: [null, "1P", "5P", "1P", "3M", "5A"],
@@ -410,7 +421,7 @@ export const OPEN_A_AUG: ChordShape = {
  * A sus2 (x02200)
  * Notes: A E A B E → intervals: 1P 5P 1P 2M 5P
  */
-export const OPEN_A_SUS2: ChordShape = {
+export const OPEN_A_SUS2: RegisteredChordShape = {
   name: "A Sus2 Open",
   system: "open",
   strings: [null, "1P", "5P", "1P", "2M", "5P"],
@@ -429,7 +440,7 @@ export const OPEN_A_SUS2: ChordShape = {
  * A sus4 (x02230)
  * Notes: A E A D E → intervals: 1P 5P 1P 4P 5P
  */
-export const OPEN_A_SUS4: ChordShape = {
+export const OPEN_A_SUS4: RegisteredChordShape = {
   name: "A Sus4 Open",
   system: "open",
   strings: [null, "1P", "5P", "1P", "4P", "5P"],
@@ -448,7 +459,7 @@ export const OPEN_A_SUS4: ChordShape = {
  * A half-diminished (m7b5) (x01213)
  * Notes: A Eb A C G → intervals: 1P 5d 1P 3m 7m
  */
-export const OPEN_A_M7B5: ChordShape = {
+export const OPEN_A_M7B5: RegisteredChordShape = {
   name: "A m7b5 Open",
   system: "open",
   strings: [null, "1P", "5d", "1P", "3m", "7m"],
@@ -471,7 +482,7 @@ export const OPEN_A_M7B5: ChordShape = {
  * G major open (320003)
  * Notes: G B D G B G → intervals: 1P 3M 5P 1P 3M 1P
  */
-export const OPEN_G_MAJOR: ChordShape = {
+export const OPEN_G_MAJOR: RegisteredChordShape = {
   name: "G Major Open",
   system: "open",
   strings: ["1P", "3M", "5P", "1P", "3M", "1P"],
@@ -493,7 +504,7 @@ export const OPEN_G_MAJOR: ChordShape = {
  * G minor (310033 = 3,1,0,0,3,3)
  * Notes: G Bb D G D G → intervals: 1P 3m 5P 1P 5P 1P
  */
-export const OPEN_G_MINOR: ChordShape = {
+export const OPEN_G_MINOR: RegisteredChordShape = {
   name: "G Minor Open",
   system: "open",
   strings: ["1P", "3m", "5P", "1P", "5P", "1P"],
@@ -518,7 +529,7 @@ export const OPEN_G_MINOR: ChordShape = {
  * G dominant 7 open (320001)
  * Notes: G B D G B F → intervals: 1P 3M 5P 1P 3M 7m
  */
-export const OPEN_G_DOM7: ChordShape = {
+export const OPEN_G_DOM7: RegisteredChordShape = {
   name: "G Dominant 7 Open",
   system: "open",
   strings: ["1P", "3M", "5P", "1P", "3M", "7m"],
@@ -537,7 +548,7 @@ export const OPEN_G_DOM7: ChordShape = {
  * G major 7 open (320002)
  * Notes: G B D G B F# → intervals: 1P 3M 5P 1P 3M 7M
  */
-export const OPEN_G_MAJ7: ChordShape = {
+export const OPEN_G_MAJ7: RegisteredChordShape = {
   name: "G Major 7 Open",
   system: "open",
   strings: ["1P", "3M", "5P", "1P", "3M", "7M"],
@@ -556,7 +567,7 @@ export const OPEN_G_MAJ7: ChordShape = {
  * G minor 7 (313033 = 3,1,3,0,3,3)
  * Notes: G Bb F G D G → intervals: 1P 3m 7m 1P 5P 1P
  */
-export const OPEN_G_M7: ChordShape = {
+export const OPEN_G_M7: RegisteredChordShape = {
   name: "G Minor 7 Open",
   system: "open",
   strings: ["1P", "3m", "7m", "1P", "5P", "1P"],
@@ -580,7 +591,7 @@ export const OPEN_G_M7: ChordShape = {
  * Notes: G Db G Bb → intervals: 1P 5d 1P 3m
  * baseFret=5 means frets[i]+4 for non-zero
  */
-export const OPEN_G_DIM: ChordShape = {
+export const OPEN_G_DIM: RegisteredChordShape = {
   name: "G Diminished Open",
   system: "barre",
   strings: [null, null, "1P", "5d", "1P", "3m"],
@@ -598,7 +609,7 @@ export const OPEN_G_DIM: ChordShape = {
  * G augmented (3x1003)
  * Notes: G D# G B G → intervals: 1P 5A 1P 3M 1P (strings 0,2,3,4,5)
  */
-export const OPEN_G_AUG: ChordShape = {
+export const OPEN_G_AUG: RegisteredChordShape = {
   name: "G Augmented Open",
   system: "open",
   strings: ["1P", null, "5A", "1P", "3M", "1P"],
@@ -617,7 +628,7 @@ export const OPEN_G_AUG: ChordShape = {
  * G sus2 (300033 = 3,0,0,0,3,3)
  * Notes: G A D G D G → intervals: 1P 2M 5P 1P 5P 1P
  */
-export const OPEN_G_SUS2: ChordShape = {
+export const OPEN_G_SUS2: RegisteredChordShape = {
   name: "G Sus2 Open",
   system: "open",
   strings: ["1P", "2M", "5P", "1P", "5P", "1P"],
@@ -636,7 +647,7 @@ export const OPEN_G_SUS2: ChordShape = {
  * G sus4 (330013 = 3,3,0,0,1,3)
  * Notes: G C D G C G → intervals: 1P 4P 5P 1P 4P 1P
  */
-export const OPEN_G_SUS4: ChordShape = {
+export const OPEN_G_SUS4: RegisteredChordShape = {
   name: "G Sus4 Open",
   system: "open",
   strings: ["1P", "4P", "5P", "1P", "4P", "1P"],
@@ -655,7 +666,7 @@ export const OPEN_G_SUS4: ChordShape = {
  * G half-diminished (m7b5) movable grip at fret 5 (xx5666)
  * Notes: G Db F Bb → intervals: 1P 5d 7m 3m
  */
-export const OPEN_G_M7B5: ChordShape = {
+export const OPEN_G_M7B5: RegisteredChordShape = {
   name: "G m7b5 Open",
   system: "barre",
   strings: [null, null, "1P", "5d", "7m", "3m"],
@@ -677,7 +688,7 @@ export const OPEN_G_M7B5: ChordShape = {
  * E major open (022100)
  * Notes: E B E G# B E → intervals: 1P 5P 1P 3M 5P 1P
  */
-export const OPEN_E_MAJOR: ChordShape = {
+export const OPEN_E_MAJOR: RegisteredChordShape = {
   name: "E Major Open",
   system: "open",
   strings: ["1P", "5P", "1P", "3M", "5P", "1P"],
@@ -699,7 +710,7 @@ export const OPEN_E_MAJOR: ChordShape = {
  * E minor open (022000)
  * Notes: E B E G B E → intervals: 1P 5P 1P 3m 5P 1P
  */
-export const OPEN_E_MINOR: ChordShape = {
+export const OPEN_E_MINOR: RegisteredChordShape = {
   name: "E Minor Open",
   system: "open",
   strings: ["1P", "5P", "1P", "3m", "5P", "1P"],
@@ -722,7 +733,7 @@ export const OPEN_E_MINOR: ChordShape = {
  * E dominant 7 open (020100)
  * Notes: E B D G# B E → intervals: 1P 5P 7m 3M 5P 1P
  */
-export const OPEN_E_DOM7: ChordShape = {
+export const OPEN_E_DOM7: RegisteredChordShape = {
   name: "E Dominant 7 Open",
   system: "open",
   strings: ["1P", "5P", "7m", "3M", "5P", "1P"],
@@ -741,7 +752,7 @@ export const OPEN_E_DOM7: ChordShape = {
  * E major 7 open (021100)
  * Notes: E B D# G# B E → intervals: 1P 5P 7M 3M 5P 1P
  */
-export const OPEN_E_MAJ7: ChordShape = {
+export const OPEN_E_MAJ7: RegisteredChordShape = {
   name: "E Major 7 Open",
   system: "open",
   strings: ["1P", "5P", "7M", "3M", "5P", "1P"],
@@ -760,7 +771,7 @@ export const OPEN_E_MAJ7: ChordShape = {
  * E minor 7 open (020000)
  * Notes: E B D G B E → intervals: 1P 5P 7m 3m 5P 1P
  */
-export const OPEN_E_M7: ChordShape = {
+export const OPEN_E_M7: RegisteredChordShape = {
   name: "E Minor 7 Open",
   system: "open",
   strings: ["1P", "5P", "7m", "3m", "5P", "1P"],
@@ -782,7 +793,7 @@ export const OPEN_E_M7: ChordShape = {
  * E diminished open (0120xx = 0,1,2,0,x,x)
  * Notes: E Bb E G → intervals: 1P 5d 1P 3m
  */
-export const OPEN_E_DIM: ChordShape = {
+export const OPEN_E_DIM: RegisteredChordShape = {
   name: "E Diminished Open",
   system: "open",
   strings: ["1P", "5d", "1P", "3m", null, null],
@@ -802,7 +813,7 @@ export const OPEN_E_DIM: ChordShape = {
  * Notes: E C E G# C E → intervals: 1P 5A 1P 3M 5A 1P
  * C is enharmonic to B# (aug 5th of E); stored as "5A" per Tonal convention.
  */
-export const OPEN_E_AUG: ChordShape = {
+export const OPEN_E_AUG: RegisteredChordShape = {
   name: "E Augmented Open",
   system: "open",
   strings: ["1P", "5A", "1P", "3M", "5A", "1P"],
@@ -821,7 +832,7 @@ export const OPEN_E_AUG: ChordShape = {
  * E sus2 open (024400)
  * Notes: E B F# B B E → intervals: 1P 5P 2M 5P 5P 1P
  */
-export const OPEN_E_SUS2: ChordShape = {
+export const OPEN_E_SUS2: RegisteredChordShape = {
   name: "E Sus2 Open",
   system: "open",
   strings: ["1P", "5P", "2M", "5P", "5P", "1P"],
@@ -840,7 +851,7 @@ export const OPEN_E_SUS2: ChordShape = {
  * E sus4 open (022200)
  * Notes: E B E A B E → intervals: 1P 5P 1P 4P 5P 1P
  */
-export const OPEN_E_SUS4: ChordShape = {
+export const OPEN_E_SUS4: RegisteredChordShape = {
   name: "E Sus4 Open",
   system: "open",
   strings: ["1P", "5P", "1P", "4P", "5P", "1P"],
@@ -863,7 +874,7 @@ export const OPEN_E_SUS4: ChordShape = {
  * to OPEN_E_DIM. Replaced with this grip, which includes the 7m (D) on both
  * the open-D and B strings.
  */
-export const OPEN_E_M7B5: ChordShape = {
+export const OPEN_E_M7B5: RegisteredChordShape = {
   name: "E m7b5 Open",
   system: "open",
   strings: ["1P", "5d", "7m", "3m", "7m", "1P"],
@@ -886,7 +897,7 @@ export const OPEN_E_M7B5: ChordShape = {
  * D major open (xx0232)
  * Notes: D A D F# → intervals: 1P 5P 1P 3M
  */
-export const OPEN_D_MAJOR: ChordShape = {
+export const OPEN_D_MAJOR: RegisteredChordShape = {
   name: "D Major Open",
   system: "open",
   strings: [null, null, "1P", "5P", "1P", "3M"],
@@ -908,7 +919,7 @@ export const OPEN_D_MAJOR: ChordShape = {
  * D minor open (xx0231)
  * Notes: D A D F → intervals: 1P 5P 1P 3m
  */
-export const OPEN_D_MINOR: ChordShape = {
+export const OPEN_D_MINOR: RegisteredChordShape = {
   name: "D Minor Open",
   system: "open",
   strings: [null, null, "1P", "5P", "1P", "3m"],
@@ -931,7 +942,7 @@ export const OPEN_D_MINOR: ChordShape = {
  * D dominant 7 open (xx0212)
  * Notes: D A C F# → intervals: 1P 5P 7m 3M
  */
-export const OPEN_D_DOM7: ChordShape = {
+export const OPEN_D_DOM7: RegisteredChordShape = {
   name: "D Dominant 7 Open",
   system: "open",
   strings: [null, null, "1P", "5P", "7m", "3M"],
@@ -952,7 +963,7 @@ export const OPEN_D_DOM7: ChordShape = {
  * D major 7 open (xx0222)
  * Notes: D A C# F# → intervals: 1P 5P 7M 3M
  */
-export const OPEN_D_MAJ7: ChordShape = {
+export const OPEN_D_MAJ7: RegisteredChordShape = {
   name: "D Major 7 Open",
   system: "open",
   strings: [null, null, "1P", "5P", "7M", "3M"],
@@ -973,7 +984,7 @@ export const OPEN_D_MAJ7: ChordShape = {
  * D minor 7 open (xx0211)
  * Notes: D A C F → intervals: 1P 5P 7m 3m
  */
-export const OPEN_D_M7: ChordShape = {
+export const OPEN_D_M7: RegisteredChordShape = {
   name: "D Minor 7 Open",
   system: "open",
   strings: [null, null, "1P", "5P", "7m", "3m"],
@@ -992,7 +1003,7 @@ export const OPEN_D_M7: ChordShape = {
  * D diminished (xx0131 = xx,0,1,3,1)
  * Notes: D Ab D F → intervals: 1P 5d 1P 3m
  */
-export const OPEN_D_DIM: ChordShape = {
+export const OPEN_D_DIM: RegisteredChordShape = {
   name: "D Diminished Open",
   system: "open",
   strings: [null, null, "1P", "5d", "1P", "3m"],
@@ -1012,7 +1023,7 @@ export const OPEN_D_DIM: ChordShape = {
  * Notes: D A# D F# → intervals: 1P 5A 1P 3M
  * A# = Bb = augmented 5th of D (D to A# = 8 semitones = 5A)
  */
-export const OPEN_D_AUG: ChordShape = {
+export const OPEN_D_AUG: RegisteredChordShape = {
   name: "D Augmented Open",
   system: "open",
   strings: [null, null, "1P", "5A", "1P", "3M"],
@@ -1031,7 +1042,7 @@ export const OPEN_D_AUG: ChordShape = {
  * D sus2 open (xx0230)
  * Notes: D A D E → intervals: 1P 5P 1P 2M
  */
-export const OPEN_D_SUS2: ChordShape = {
+export const OPEN_D_SUS2: RegisteredChordShape = {
   name: "D Sus2 Open",
   system: "open",
   strings: [null, null, "1P", "5P", "1P", "2M"],
@@ -1050,7 +1061,7 @@ export const OPEN_D_SUS2: ChordShape = {
  * D sus4 open (xx0233)
  * Notes: D A D G → intervals: 1P 5P 1P 4P
  */
-export const OPEN_D_SUS4: ChordShape = {
+export const OPEN_D_SUS4: RegisteredChordShape = {
   name: "D Sus4 Open",
   system: "open",
   strings: [null, null, "1P", "5P", "1P", "4P"],
@@ -1070,7 +1081,7 @@ export const OPEN_D_SUS4: ChordShape = {
  * Notes: D Ab C F → intervals: 1P 5d 7m 3m
  * xx,0,1,2,1: D str=D=1P, G str+1=Ab=5d, B str+2=C=7m, E str+1=F=3m
  */
-export const OPEN_D_M7B5: ChordShape = {
+export const OPEN_D_M7B5: RegisteredChordShape = {
   name: "D m7b5 Open",
   system: "open",
   strings: [null, null, "1P", "5d", "7m", "3m"],
@@ -1093,7 +1104,7 @@ export const OPEN_D_M7B5: ChordShape = {
 // ============================================================
 
 /** E-form major barre (mirrors E major open shape) */
-export const BARRE_E_MAJOR: ChordShape = {
+export const BARRE_E_MAJOR: RegisteredChordShape = {
   name: "E Form Major Barre",
   system: "barre",
   strings: ["1P", "5P", "1P", "3M", "5P", "1P"],
@@ -1108,7 +1119,7 @@ export const BARRE_E_MAJOR: ChordShape = {
 };
 
 /** E-form minor barre (mirrors E minor open shape) */
-export const BARRE_E_MINOR: ChordShape = {
+export const BARRE_E_MINOR: RegisteredChordShape = {
   name: "E Form Minor Barre",
   system: "barre",
   strings: ["1P", "5P", "1P", "3m", "5P", "1P"],
@@ -1123,7 +1134,7 @@ export const BARRE_E_MINOR: ChordShape = {
 };
 
 /** E-form dominant 7 barre (mirrors E7 open shape) */
-export const BARRE_E_DOM7: ChordShape = {
+export const BARRE_E_DOM7: RegisteredChordShape = {
   name: "E Form 7 Barre",
   system: "barre",
   strings: ["1P", "5P", "7m", "3M", "5P", "1P"],
@@ -1138,7 +1149,7 @@ export const BARRE_E_DOM7: ChordShape = {
 };
 
 /** E-form major 7 barre (mirrors Emaj7 open shape) */
-export const BARRE_E_MAJ7: ChordShape = {
+export const BARRE_E_MAJ7: RegisteredChordShape = {
   name: "E Form maj7 Barre",
   system: "barre",
   strings: ["1P", "5P", "7M", "3M", "5P", "1P"],
@@ -1153,7 +1164,7 @@ export const BARRE_E_MAJ7: ChordShape = {
 };
 
 /** E-form minor 7 barre (mirrors Em7 open shape) */
-export const BARRE_E_M7: ChordShape = {
+export const BARRE_E_M7: RegisteredChordShape = {
   name: "E Form m7 Barre",
   system: "barre",
   strings: ["1P", "5P", "7m", "3m", "5P", "1P"],
@@ -1168,7 +1179,7 @@ export const BARRE_E_M7: ChordShape = {
 };
 
 /** E-form diminished barre (mirrors Edim open 4-string shape — true dim triad: 1P 5d 1P 3m) */
-export const BARRE_E_DIM: ChordShape = {
+export const BARRE_E_DIM: RegisteredChordShape = {
   name: "E Form dim Barre",
   system: "barre",
   strings: ["1P", "5d", "1P", "3m", null, null],
@@ -1188,7 +1199,7 @@ export const BARRE_E_DIM: ChordShape = {
  * above on strings 3-4, ring two above, pinky three above — mirroring
  * OPEN_E_AUG's corrected 1P 5A 1P 3M 5A 1P interval layout.
  */
-export const BARRE_E_AUG: ChordShape = {
+export const BARRE_E_AUG: RegisteredChordShape = {
   name: "E Form aug Barre",
   system: "barre",
   strings: ["1P", "5A", "1P", "3M", "5A", "1P"],
@@ -1210,7 +1221,7 @@ export const BARRE_E_AUG: ChordShape = {
  * above the base — string 3 was incorrectly grouped into the base barre
  * (finger 1) instead of joining string 2 (fixed here with its own barre).
  */
-export const BARRE_E_SUS2: ChordShape = {
+export const BARRE_E_SUS2: RegisteredChordShape = {
   name: "E Form sus2 Barre",
   system: "barre",
   strings: ["1P", "5P", "2M", "5P", "5P", "1P"],
@@ -1228,7 +1239,7 @@ export const BARRE_E_SUS2: ChordShape = {
 };
 
 /** E-form sus4 barre */
-export const BARRE_E_SUS4: ChordShape = {
+export const BARRE_E_SUS4: RegisteredChordShape = {
   name: "E Form sus4 Barre",
   system: "barre",
   strings: ["1P", "5P", "1P", "4P", "5P", "1P"],
@@ -1243,7 +1254,7 @@ export const BARRE_E_SUS4: ChordShape = {
 };
 
 /** E-form m7b5 barre (mirrors Em7b5 open 4-string shape) */
-export const BARRE_E_M7B5: ChordShape = {
+export const BARRE_E_M7B5: RegisteredChordShape = {
   name: "E Form m7b5 Barre",
   system: "barre",
   strings: ["1P", "5d", "7m", "3m", null, null],
@@ -1262,7 +1273,7 @@ export const BARRE_E_M7B5: ChordShape = {
 // ============================================================
 
 /** A-form major barre (mirrors A major open shape) */
-export const BARRE_A_MAJOR: ChordShape = {
+export const BARRE_A_MAJOR: RegisteredChordShape = {
   name: "A Form Major Barre",
   system: "barre",
   strings: [null, "1P", "5P", "1P", "3M", "5P"],
@@ -1280,7 +1291,7 @@ export const BARRE_A_MAJOR: ChordShape = {
 };
 
 /** A-form minor barre (mirrors A minor open shape) */
-export const BARRE_A_MINOR: ChordShape = {
+export const BARRE_A_MINOR: RegisteredChordShape = {
   name: "A Form Minor Barre",
   system: "barre",
   strings: [null, "1P", "5P", "1P", "3m", "5P"],
@@ -1298,7 +1309,7 @@ export const BARRE_A_MINOR: ChordShape = {
 };
 
 /** A-form dominant 7 barre (mirrors A7 open shape) */
-export const BARRE_A_DOM7: ChordShape = {
+export const BARRE_A_DOM7: RegisteredChordShape = {
   name: "A Form 7 Barre",
   system: "barre",
   strings: [null, "1P", "5P", "7m", "3M", "5P"],
@@ -1313,7 +1324,7 @@ export const BARRE_A_DOM7: ChordShape = {
 };
 
 /** A-form major 7 barre (mirrors Amaj7 open shape) */
-export const BARRE_A_MAJ7: ChordShape = {
+export const BARRE_A_MAJ7: RegisteredChordShape = {
   name: "A Form maj7 Barre",
   system: "barre",
   strings: [null, "1P", "5P", "7M", "3M", "5P"],
@@ -1334,7 +1345,7 @@ export const BARRE_A_MAJ7: ChordShape = {
  * grouped them together under finger 2. String 3 joins the base barre
  * (finger 1) instead.
  */
-export const BARRE_A_M7: ChordShape = {
+export const BARRE_A_M7: RegisteredChordShape = {
   name: "A Form m7 Barre",
   system: "barre",
   strings: [null, "1P", "5P", "7m", "3m", "5P"],
@@ -1349,7 +1360,7 @@ export const BARRE_A_M7: ChordShape = {
 };
 
 /** A-form diminished barre (mirrors Adim 4-string shape) */
-export const BARRE_A_DIM: ChordShape = {
+export const BARRE_A_DIM: RegisteredChordShape = {
   name: "A Form dim Barre",
   system: "barre",
   strings: [null, "1P", "5d", "1P", "3m", null],
@@ -1364,7 +1375,7 @@ export const BARRE_A_DIM: ChordShape = {
 };
 
 /** A-form augmented barre (mirrors Aaug shape) */
-export const BARRE_A_AUG: ChordShape = {
+export const BARRE_A_AUG: RegisteredChordShape = {
   name: "A Form aug Barre",
   system: "barre",
   strings: [null, "1P", "5P", "1P", "3M", "5A"],
@@ -1379,7 +1390,7 @@ export const BARRE_A_AUG: ChordShape = {
 };
 
 /** A-form sus2 barre (mirrors Asus2 open shape) */
-export const BARRE_A_SUS2: ChordShape = {
+export const BARRE_A_SUS2: RegisteredChordShape = {
   name: "A Form sus2 Barre",
   system: "barre",
   strings: [null, "1P", "5P", "1P", "2M", "5P"],
@@ -1397,7 +1408,7 @@ export const BARRE_A_SUS2: ChordShape = {
 };
 
 /** A-form sus4 barre (mirrors Asus4 open shape) */
-export const BARRE_A_SUS4: ChordShape = {
+export const BARRE_A_SUS4: RegisteredChordShape = {
   name: "A Form sus4 Barre",
   system: "barre",
   strings: [null, "1P", "5P", "1P", "4P", "5P"],
@@ -1421,7 +1432,7 @@ export const BARRE_A_SUS4: ChordShape = {
  * under finger 1, though they are 3 frets apart. Strings 2 and 4 form a
  * genuine (non-adjacent but blocker-free) two-string barre instead.
  */
-export const BARRE_A_M7B5: ChordShape = {
+export const BARRE_A_M7B5: RegisteredChordShape = {
   name: "A Form m7b5 Barre",
   system: "barre",
   strings: [null, "1P", "5d", "1P", "3m", "7m"],

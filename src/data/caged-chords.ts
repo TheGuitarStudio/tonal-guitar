@@ -7,9 +7,20 @@
  */
 
 import { chordShapes, ChordShape } from "../shape";
+import type { ChordTypeKey } from "../chord-types";
+
+/**
+ * A `ChordShape` this repository ships, with `chordType` narrowed to a key the
+ * canonical chord-type table describes (TG-3). `ChordShape.chordType` itself
+ * stays `string | undefined` so external `chordShapes.add()` callers keep
+ * working; this alias constrains only the built-in data, so a typo or an
+ * unregistered quality here is a compile error instead of a shape nothing can
+ * query.
+ */
+type RegisteredChordShape = ChordShape & { chordType: ChordTypeKey };
 
 // shapes-merge:begin CAGED_CHORD_E
-export const CAGED_CHORD_E: ChordShape = {
+export const CAGED_CHORD_E: RegisteredChordShape = {
   name: "E Shape Major",
   system: "caged",
   strings: ["1P", "5P", "1P", "3M", "5P", "1P"],
@@ -27,7 +38,7 @@ export const CAGED_CHORD_E: ChordShape = {
 // flat-barres the top three strings (2-4) two frets higher. Both repeated
 // finger numbers are backed by an explicit barre entry (CR-005/CR-006 sweep).
 // shapes-merge:begin CAGED_CHORD_A
-export const CAGED_CHORD_A: ChordShape = {
+export const CAGED_CHORD_A: RegisteredChordShape = {
   name: "A Shape Major",
   system: "caged",
   strings: [null, "1P", "5P", "1P", "3M", "5P"],
@@ -44,7 +55,7 @@ export const CAGED_CHORD_A: ChordShape = {
 // shapes-merge:end CAGED_CHORD_A
 
 // shapes-merge:begin CAGED_CHORD_D
-export const CAGED_CHORD_D: ChordShape = {
+export const CAGED_CHORD_D: RegisteredChordShape = {
   name: "D Shape Major",
   system: "caged",
   strings: [null, null, "1P", "5P", "1P", "3M"],
@@ -61,7 +72,7 @@ export const CAGED_CHORD_D: ChordShape = {
 // and 5 of the open C-major grip become a two-string mini-barre at the base
 // fret when transposed; finger 0 is invalid once moved off the nut, CR-005).
 // shapes-merge:begin CAGED_CHORD_C
-export const CAGED_CHORD_C: ChordShape = {
+export const CAGED_CHORD_C: RegisteredChordShape = {
   name: "C Shape Major",
   system: "caged",
   strings: [null, "1P", "3M", "5P", "1P", "3M"],
@@ -78,7 +89,7 @@ export const CAGED_CHORD_C: ChordShape = {
 // G-major grip (D/G/B) become a three-string mini-barre at the base fret
 // when transposed; finger 0 is invalid once moved off the nut, CR-005).
 // shapes-merge:begin CAGED_CHORD_G
-export const CAGED_CHORD_G: ChordShape = {
+export const CAGED_CHORD_G: RegisteredChordShape = {
   name: "G Shape Major",
   system: "caged",
   strings: ["1P", "3M", "5P", "1P", "3M", "1P"],

@@ -48,6 +48,12 @@ export {
   visibleArpeggios,
 } from "./shape";
 
+// Canonical chord-type table
+// Also published as the side-effect-free `tonal-guitar/chord-types` subpath,
+// for consumers that want the vocabulary without registering 132 shapes.
+export { CHORD_TYPE_TABLE, CHORD_TYPE_KEYS } from "./chord-types";
+export type { ChordTypeEntry, ChordTypeRow, ChordTypeKey } from "./chord-types";
+
 // Chord-scale rule (v1)
 export {
   CHORD_SCALE_RULE,
