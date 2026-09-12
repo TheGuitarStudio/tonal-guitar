@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-09-10
+
+### Added
+
+- `CHORD_TYPE_TABLE` — a canonical, side-effect-free `as const` table (`src/chord-types.ts`) with one row per `chordType` key the chord-shape registry indexes (25 rows). Each row carries `id` (the registry key, verbatim), `tonalCanonical` (`ChordType.get(id).aliases[0]`), `label` (human label for pickers), `glyph` (lead-sheet suffix) and `intervals` (Tonal's compound-interval vocabulary). Exported from the root barrel alongside `CHORD_TYPE_KEYS` (the same keys as a literal tuple) and the `ChordTypeEntry` / `ChordTypeRow` / `ChordTypeKey` types.
+- `tonal-guitar/chord-types` — a new **pure** package subpath (`exports["./chord-types"]`, its own tsup entry) exposing only the table. Importing it registers **zero** shapes and pulls in neither Tonal nor `src/data/*`, so a consumer that wants the chord vocabulary does not pay for the 132-shape registry or drag it into its own module graph. `src/chord-types.test.ts` enforces the purity contract both statically (the module's source has no imports at all) and at runtime (importing it leaves `chordShapes.all()` empty). A `typesVersions` entry accompanies the `exports` entry so the subpath's types also resolve for consumers on TypeScript's node10 resolver (`"moduleResolution": "node"`), which ignores `exports`; `scripts/check-dts.mjs` runs TypeScript's own resolver against a throwaway consumer after every build and fails if the subpath stops resolving under node10, nodenext or bundler.
+  - `aug7` deliberately has no row: it is the same Tonal chord as `7#5` (`1P 3M 5A 7m`), and the registry — an exact-string index with no alias resolution — registers `7#5` only. Callers holding `aug7` should map it onto the `7#5` row.
+  - Three rows have a `tonalCanonical` that differs from their `id`, which is why a consumer that canonicalises through Tonal before querying the registry finds nothing for them without a bridge: `add9` → `Madd9`, `6/9` → `6add9`, `mMaj7` → `m/ma7`.
+
 ### Changed
 
 - **Jazz shell voicings — reduced and renamed (breaking).** `src/data/jazz-shells.ts` now registers 8 `chordShapes` entries (one **E-root** and one **A-root** shell per chord type — `maj7`, `m7`, `7`, `m7b5`) instead of the previous 16 (every combination of 2 string sets × 2 voice orderings per chord type). Shape names are public `chordShapes` lookup keys, so this is a breaking rename/removal for any consumer keying off the old names:
@@ -14,6 +23,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Old `"Shell <type> R37 012"`, `"Shell <type> R73 012"`, and `"Shell <type> R73 123"` are removed — no longer registered.
   - New `"Shell <type> E-root"` is a new voicing (string set `[0,2,3]`, R-7-3 ordering — skips the A string), not a rename of any previously-registered shell.
   - Applies to all four chord types, e.g. `"Shell maj7 R37 012"` → removed, `"Shell maj7 R37 123"` → `"Shell maj7 A-root"`, `"Shell maj7 R73 012"`/`"Shell maj7 R73 123"` → removed, `"Shell maj7 E-root"` → new.
+- **Built-in chord data is typed against the table.** Every `ChordShape` constant in `src/data/open-chords.ts`, `caged-chords.ts`, `caged-chords-minor.ts`, `caged-chords-7th.ts` and `extended-chords.ts` is now declared as a file-local `RegisteredChordShape = ChordShape & { chordType: ChordTypeKey }`, and `src/data/jazz-shells.ts` pins its shell dictionary to the same key union — so a typo or an unvoiceable quality in the shipped data is a compile error. `ChordShape.chordType` in `src/shape.ts` is unchanged (`string | undefined`), so external `chordShapes.add()` callers are unaffected.
+- `scripts/shapes-merge.mjs` accepts either the base `ChordShape`/`ScaleShape`/`ArpeggioShape` annotation or a `Registered*` narrowing alias when parsing `src/data/*.ts` declarations. Generated blocks are still emitted with the base annotation.
+- `scripts/check-dts.mjs` verifies the `chord-types` declaration output alongside the root barrel's, with the same stub-emit guard.
 
 ## [0.2.0] — 2026-08-02
 

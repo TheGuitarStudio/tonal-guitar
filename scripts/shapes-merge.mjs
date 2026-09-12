@@ -254,13 +254,16 @@ function locateShapeFile(dataDir, files, shapeName) {
   return undefined;
 }
 
-/** Declared type annotation (`ChordShape`/`ScaleShape`/`ArpeggioShape`) of
- * an owned block's `export const IDENT: <Type> = ...` line, mapped back to
- * its changeset `kind` — `undefined` when the content doesn't parse as one
- * of the three known declarations. */
+/** Declared type annotation (`ChordShape`/`ScaleShape`/`ArpeggioShape`, or a
+ * `Registered*` narrowing alias) of an owned block's
+ * `export const IDENT: <Type> = ...` line, mapped back to its changeset
+ * `kind` — `undefined` when the content doesn't parse as one of the known
+ * declarations. */
 function blockDeclaredKind(blockContent) {
-  const match = blockContent.match(/export const \w+\s*:\s*(ChordShape|ScaleShape|ArpeggioShape)\s*=/);
-  return match ? TYPE_TO_KIND[match[1]] : undefined;
+  const match = blockContent.match(
+    new RegExp(`export const \\w+\\s*:\\s*(${DECLARED_TYPE_PATTERN})\\s*=`),
+  );
+  return match ? kindOfDeclaredType(match[1]) : undefined;
 }
 
 /**
@@ -1355,6 +1358,22 @@ async function planMerge(changeset, ctx) {
 const TYPE_TO_KIND = { ChordShape: "chord", ScaleShape: "scale", ArpeggioShape: "arpeggio" };
 
 /**
+ * A shape declaration in `src/data/*.ts` is annotated either with the base
+ * interface from `src/shape.ts` — which is what `buildGeneratedFileText`
+ * emits — or with a file-local `Registered*` alias that narrows the base
+ * interface (e.g. `RegisteredChordShape = ChordShape & { chordType:
+ * ChordTypeKey }`, pinning hand-authored chord data to the canonical
+ * chord-type table in `src/chord-types.ts`). Both spellings declare the same
+ * changeset `kind`, so every parser here accepts either.
+ */
+const DECLARED_TYPE_PATTERN = "(?:Registered)?(?:ChordShape|ScaleShape|ArpeggioShape)";
+
+/** Changeset `kind` for a declared type annotation, alias prefix and all. */
+function kindOfDeclaredType(declaredType) {
+  return TYPE_TO_KIND[declaredType.replace(/^Registered/, "")];
+}
+
+/**
  * Shared scan core for `scanRegisteredShapes`/`scanInboundReferences`: walks
  * every `<dataDir>/*.ts` file (managed or not) and yields one
  * `{ identifier, kind, chunk }` per top-level
@@ -1364,14 +1383,21 @@ const TYPE_TO_KIND = { ChordShape: "chord", ScaleShape: "scale", ArpeggioShape: 
  * the last one), for callers to pull fields out of via their own regexes.
  */
 function* scanDeclarationChunks(dataDir, files) {
-  const declPattern = /export const ([A-Za-z_$][A-Za-z0-9_$]*)\s*:\s*(ChordShape|ScaleShape|ArpeggioShape)\s*=/g;
+  const declPattern = new RegExp(
+    `export const ([A-Za-z_$][A-Za-z0-9_$]*)\\s*:\\s*(${DECLARED_TYPE_PATTERN})\\s*=`,
+    "g",
+  );
   for (const file of files) {
     const source = readFileSync(path.join(dataDir, file), "utf8");
     const matches = [...source.matchAll(declPattern)];
     for (const [i, m] of matches.entries()) {
       const start = m.index;
       const end = i + 1 < matches.length ? matches[i + 1].index : source.length;
-      yield { identifier: m[1], kind: TYPE_TO_KIND[m[2]], chunk: source.slice(start, end) };
+      yield {
+        identifier: m[1],
+        kind: kindOfDeclaredType(m[2]),
+        chunk: source.slice(start, end),
+      };
     }
   }
 }

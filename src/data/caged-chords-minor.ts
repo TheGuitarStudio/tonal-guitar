@@ -1,9 +1,20 @@
 // GENERATED FILE — managed by `npm run shapes:merge`. Edit via the Shape Workbench.
 
 import { chordShapes, ChordShape } from "../shape";
+import type { ChordTypeKey } from "../chord-types";
+
+/**
+ * A `ChordShape` this repository ships, with `chordType` narrowed to a key the
+ * canonical chord-type table describes (TG-3). `ChordShape.chordType` itself
+ * stays `string | undefined` so external `chordShapes.add()` callers keep
+ * working; this alias constrains only the built-in data, so a typo or an
+ * unregistered quality here is a compile error instead of a shape nothing can
+ * query.
+ */
+type RegisteredChordShape = ChordShape & { chordType: ChordTypeKey };
 
 // shapes-merge:begin CAGED_CHORD_EM
-export const CAGED_CHORD_EM: ChordShape = {
+export const CAGED_CHORD_EM: RegisteredChordShape = {
   name: "E Shape Minor",
   system: "caged",
   strings: ["1P", "5P", "1P", "3m", "5P", "1P"],
@@ -21,7 +32,7 @@ export const CAGED_CHORD_EM: ChordShape = {
 // shapes-merge:end CAGED_CHORD_EM
 
 // shapes-merge:begin CAGED_CHORD_AM
-export const CAGED_CHORD_AM: ChordShape = {
+export const CAGED_CHORD_AM: RegisteredChordShape = {
   name: "A Shape Minor",
   system: "caged",
   strings: [null, "1P", "5P", "1P", "3m", "5P"],
@@ -39,7 +50,7 @@ export const CAGED_CHORD_AM: ChordShape = {
 // shapes-merge:end CAGED_CHORD_AM
 
 // shapes-merge:begin CAGED_CHORD_GM
-export const CAGED_CHORD_GM: ChordShape = {
+export const CAGED_CHORD_GM: RegisteredChordShape = {
   name: "G Shape Minor",
   system: "caged",
   strings: ["1P", "3m", "5P", "1P", "5P", "1P"],
@@ -60,7 +71,7 @@ export const CAGED_CHORD_GM: ChordShape = {
 // shapes-merge:end CAGED_CHORD_GM
 
 // shapes-merge:begin CAGED_CHORD_DM
-export const CAGED_CHORD_DM: ChordShape = {
+export const CAGED_CHORD_DM: RegisteredChordShape = {
   name: "D Shape Minor",
   system: "caged",
   strings: [null, null, "1P", "5P", "1P", "3m"],
@@ -78,7 +89,7 @@ export const CAGED_CHORD_DM: ChordShape = {
 // shapes-merge:end CAGED_CHORD_DM
 
 // shapes-merge:begin CAGED_CHORD_CM
-export const CAGED_CHORD_CM: ChordShape = {
+export const CAGED_CHORD_CM: RegisteredChordShape = {
   name: "C Shape Minor",
   system: "caged",
   strings: [null, "1P", "3m", "5P", "1P", null],

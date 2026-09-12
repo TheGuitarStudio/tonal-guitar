@@ -68,6 +68,17 @@
  */
 
 import { chordShapes, ChordShape } from "../shape";
+import type { ChordTypeKey } from "../chord-types";
+
+/**
+ * A `ChordShape` this repository ships, with `chordType` narrowed to a key the
+ * canonical chord-type table describes (TG-3). `ChordShape.chordType` itself
+ * stays `string | undefined` so external `chordShapes.add()` callers keep
+ * working; this alias constrains only the built-in data, so a typo or an
+ * unregistered quality here is a compile error instead of a shape nothing can
+ * query.
+ */
+type RegisteredChordShape = ChordShape & { chordType: ChordTypeKey };
 
 // ============================================================
 // Shape definitions
@@ -142,7 +153,7 @@ import { chordShapes, ChordShape } from "../shape";
  * Applied to F (avoids the open-string edge case): 1 3 3 2 3 x (span 2).
  * Complete 4-tone chord (1P 3M 5P 6M) — no omission.
  */
-export const EXT_CHORD_E_6: ChordShape = {
+export const EXT_CHORD_E_6: RegisteredChordShape = {
   name: "E Shape 6",
   system: "caged",
   strings: ["1P", "5P", "1P", "3M", "6M", null],
@@ -168,7 +179,7 @@ export const EXT_CHORD_E_6: ChordShape = {
  * Intervals:              x 1P 5P 1P 3M 6M
  * Applied to C: x 3 5 5 5 5 (span 2). Complete — no omission.
  */
-export const EXT_CHORD_A_6: ChordShape = {
+export const EXT_CHORD_A_6: RegisteredChordShape = {
   name: "A Shape 6",
   system: "caged",
   strings: [null, "1P", "5P", "1P", "3M", "6M"],
@@ -193,7 +204,7 @@ export const EXT_CHORD_A_6: ChordShape = {
  * Intervals:             1P 5P 1P 3m 6M 1P
  * Applied to F: 1 3 3 1 3 1 (span 2). Complete (1P 3m 5P 6M) — no omission.
  */
-export const EXT_CHORD_E_M6: ChordShape = {
+export const EXT_CHORD_E_M6: RegisteredChordShape = {
   name: "E Shape m6",
   system: "caged",
   strings: ["1P", "5P", "1P", "3m", "6M", "1P"],
@@ -223,7 +234,7 @@ export const EXT_CHORD_E_M6: ChordShape = {
  * Intervals:              x 1P 5P 1P 3m 6M
  * Applied to C: x 3 5 5 4 5 (span 2). Complete — no omission.
  */
-export const EXT_CHORD_A_M6: ChordShape = {
+export const EXT_CHORD_A_M6: RegisteredChordShape = {
   name: "A Shape m6",
   system: "caged",
   strings: [null, "1P", "5P", "1P", "3m", "6M"],
@@ -248,7 +259,7 @@ export const EXT_CHORD_A_M6: ChordShape = {
  * Intervals:            1P 5P 7m 3M 5P 9M
  * Applied to F: 1 3 1 2 1 3 (span 2). Complete 5-tone chord — no omission.
  */
-export const EXT_CHORD_E_9: ChordShape = {
+export const EXT_CHORD_E_9: RegisteredChordShape = {
   name: "E Shape 9",
   system: "caged",
   strings: ["1P", "5P", "7m", "3M", "5P", "9M"],
@@ -274,7 +285,7 @@ export const EXT_CHORD_E_9: ChordShape = {
  * `detect` on this shell returns `C9no5`, not `C9` (expected for a partial
  * voicing, D-007).
  */
-export const EXT_CHORD_A_9: ChordShape = {
+export const EXT_CHORD_A_9: RegisteredChordShape = {
   name: "A Shape 9",
   system: "caged",
   strings: [null, "1P", "3M", "7m", "9M", null],
@@ -298,7 +309,7 @@ export const EXT_CHORD_A_9: ChordShape = {
  * Intervals:               1P 5P 7M 3M 5P 9M
  * Applied to F: 1 3 2 2 1 3 (span 2). Complete 5-tone chord — no omission.
  */
-export const EXT_CHORD_E_MAJ9: ChordShape = {
+export const EXT_CHORD_E_MAJ9: RegisteredChordShape = {
   name: "E Shape maj9",
   system: "caged",
   strings: ["1P", "5P", "7M", "3M", "5P", "9M"],
@@ -326,7 +337,7 @@ export const EXT_CHORD_E_MAJ9: ChordShape = {
  * `detect` on this shell returns `[]` (expected for a partial voicing,
  * D-007 — no full-chord label for the incomplete grip).
  */
-export const EXT_CHORD_A_MAJ9: ChordShape = {
+export const EXT_CHORD_A_MAJ9: RegisteredChordShape = {
   name: "A Shape maj9",
   system: "caged",
   strings: [null, "1P", "3M", "7M", "9M", null],
@@ -350,7 +361,7 @@ export const EXT_CHORD_A_MAJ9: ChordShape = {
  * Intervals:             1P 5P 7m 3m 5P 9M
  * Applied to F: 1 3 1 1 1 3 (span 2). Complete 5-tone chord — no omission.
  */
-export const EXT_CHORD_E_M9: ChordShape = {
+export const EXT_CHORD_E_M9: RegisteredChordShape = {
   name: "E Shape m9",
   system: "caged",
   strings: ["1P", "5P", "7m", "3m", "5P", "9M"],
@@ -375,7 +386,7 @@ export const EXT_CHORD_E_M9: ChordShape = {
  * `detect` on this shell returns `[]` (expected for a partial voicing,
  * D-007).
  */
-export const EXT_CHORD_A_M9: ChordShape = {
+export const EXT_CHORD_A_M9: RegisteredChordShape = {
   name: "A Shape m9",
   system: "caged",
   strings: [null, "1P", "3m", "7m", "9M", null],
@@ -402,7 +413,7 @@ export const EXT_CHORD_A_M9: ChordShape = {
  * Identification note: full voicing detects as `${root}Madd9` (e.g.
  * `FMadd9`), the documented `add9` alias — see the divergence catalog.
  */
-export const EXT_CHORD_E_ADD9: ChordShape = {
+export const EXT_CHORD_E_ADD9: RegisteredChordShape = {
   name: "E Shape add9",
   system: "caged",
   strings: ["1P", "5P", "1P", "3M", "5P", "9M"],
@@ -430,7 +441,7 @@ export const EXT_CHORD_E_ADD9: ChordShape = {
  * omission. Identification note: full voicing detects as `${root}Madd9`
  * (e.g. `CMadd9`), the documented `add9` alias.
  */
-export const EXT_CHORD_A_ADD9: ChordShape = {
+export const EXT_CHORD_A_ADD9: RegisteredChordShape = {
   name: "A Shape add9",
   system: "caged",
   strings: [null, "1P", "3M", "5P", "9M", null],
@@ -457,7 +468,7 @@ export const EXT_CHORD_A_ADD9: ChordShape = {
  * Applied to F: 1 3 1 2 3 3 (span 2). Complete 6-tone chord (1P 3M 5P 7m
  * 9M 13M) — no omission; `detect` returns the exact name (`F13`).
  */
-export const EXT_CHORD_E_13: ChordShape = {
+export const EXT_CHORD_E_13: RegisteredChordShape = {
   name: "E Shape 13",
   system: "caged",
   strings: ["1P", "5P", "7m", "3M", "13M", "9M"],
@@ -487,7 +498,7 @@ export const EXT_CHORD_E_13: ChordShape = {
  * grip returns `C13no5`, not `C13` (expected for a partial voicing,
  * D-007).
  */
-export const EXT_CHORD_A_13: ChordShape = {
+export const EXT_CHORD_A_13: RegisteredChordShape = {
   name: "A Shape 13",
   system: "caged",
   strings: [null, "1P", "3M", "7m", "9M", "13M"],
@@ -515,7 +526,7 @@ export const EXT_CHORD_A_13: ChordShape = {
  * returns the root-position name first (`Fdim7`) with the three
  * enharmonic-root inversions as secondary entries.
  */
-export const EXT_CHORD_E_DIM7: ChordShape = {
+export const EXT_CHORD_E_DIM7: RegisteredChordShape = {
   name: "E Shape dim7",
   system: "caged",
   strings: ["1P", null, "7d", "3m", "5d", null],
@@ -540,7 +551,7 @@ export const EXT_CHORD_E_DIM7: ChordShape = {
  * no omission; `detect` returns `Cdim7` first (symmetric-chord inversions
  * follow).
  */
-export const EXT_CHORD_A_DIM7: ChordShape = {
+export const EXT_CHORD_A_DIM7: RegisteredChordShape = {
   name: "A Shape dim7",
   system: "caged",
   strings: [null, "1P", null, "7d", "3m", "5d"],
@@ -566,7 +577,7 @@ export const EXT_CHORD_A_DIM7: ChordShape = {
  * Identification note: full voicing detects as `${root}m/ma7` (e.g.
  * `Fm/ma7`), the documented `mMaj7` alias — see the divergence catalog.
  */
-export const EXT_CHORD_E_MMAJ7: ChordShape = {
+export const EXT_CHORD_E_MMAJ7: RegisteredChordShape = {
   name: "E Shape mMaj7",
   system: "caged",
   strings: ["1P", "5P", "7M", "3m", "5P", "1P"],
@@ -590,7 +601,7 @@ export const EXT_CHORD_E_MMAJ7: ChordShape = {
  * omission. Identification note: full voicing detects as `${root}m/ma7`
  * (e.g. `Cm/ma7`), the documented `mMaj7` alias.
  */
-export const EXT_CHORD_A_MMAJ7: ChordShape = {
+export const EXT_CHORD_A_MMAJ7: RegisteredChordShape = {
   name: "A Shape mMaj7",
   system: "caged",
   strings: [null, "1P", "5P", "7M", "3m", "5P"],
@@ -622,7 +633,7 @@ export const EXT_CHORD_A_MMAJ7: ChordShape = {
  * — the 4th replaces the 3rd, no 3rd anywhere in the grip) — no omission;
  * `detect` returns the exact name (`F7sus4`).
  */
-export const EXT_CHORD_E_7SUS4: ChordShape = {
+export const EXT_CHORD_E_7SUS4: RegisteredChordShape = {
   name: "E Shape 7sus4",
   system: "caged",
   strings: ["1P", "5P", "7m", "4P", "5P", "1P"],
@@ -646,7 +657,7 @@ export const EXT_CHORD_E_7SUS4: ChordShape = {
  * Applied to C: x 3 5 3 6 3 (span 3). Complete 4-tone chord (no 3rd —
  * suspended) — no omission; `detect` returns the exact name (`C7sus4`).
  */
-export const EXT_CHORD_A_7SUS4: ChordShape = {
+export const EXT_CHORD_A_7SUS4: RegisteredChordShape = {
   name: "A Shape 7sus4",
   system: "caged",
   strings: [null, "1P", "5P", "7m", "4P", "5P"],
@@ -677,7 +688,7 @@ export const EXT_CHORD_A_7SUS4: ChordShape = {
  * `chordType` key stays `6/9` (the `Chord.get` symbol; see the divergence
  * catalog).
  */
-export const EXT_CHORD_E_69: ChordShape = {
+export const EXT_CHORD_E_69: RegisteredChordShape = {
   name: "E Shape 6/9",
   system: "caged",
   strings: ["1P", "3M", "6M", "9M", "5P", null],
@@ -702,7 +713,7 @@ export const EXT_CHORD_E_69: ChordShape = {
  * no omission. Identification note: full voicing detects as
  * `${root}6add9` (e.g. `C6add9`), the documented `6/9` alias.
  */
-export const EXT_CHORD_A_69: ChordShape = {
+export const EXT_CHORD_A_69: RegisteredChordShape = {
   name: "A Shape 6/9",
   system: "caged",
   strings: [null, "1P", "3M", "6M", "9M", "5P"],
@@ -728,7 +739,7 @@ export const EXT_CHORD_A_69: ChordShape = {
  * 9m, root/5th doubled) — no omission; `detect` returns the exact name
  * first (`F7b9`).
  */
-export const EXT_CHORD_E_7B9: ChordShape = {
+export const EXT_CHORD_E_7B9: RegisteredChordShape = {
   name: "E Shape 7b9",
   system: "caged",
   strings: ["1P", "5P", "7m", "3M", "5P", "9m"],
@@ -761,7 +772,7 @@ export const EXT_CHORD_E_7B9: ChordShape = {
  * `C7b9`) — expected for a partial voicing (D-007), asserted only as a
  * chroma subset.
  */
-export const EXT_CHORD_A_7B9: ChordShape = {
+export const EXT_CHORD_A_7B9: RegisteredChordShape = {
   name: "A Shape 7b9",
   system: "caged",
   strings: [null, "1P", "3M", "7m", "9m", null],
@@ -789,7 +800,7 @@ export const EXT_CHORD_A_7B9: ChordShape = {
  * 9A, root/5th doubled) — no omission; `detect` returns the exact name
  * first (`F7#9`).
  */
-export const EXT_CHORD_E_7SHARP9: ChordShape = {
+export const EXT_CHORD_E_7SHARP9: RegisteredChordShape = {
   name: "E Shape 7#9",
   system: "caged",
   strings: ["1P", "5P", "7m", "3M", "5P", "9A"],
@@ -816,7 +827,7 @@ export const EXT_CHORD_E_7SHARP9: ChordShape = {
  * this shell returns `[]` (expected for a partial voicing, D-007 — no
  * full-chord label for the incomplete grip).
  */
-export const EXT_CHORD_A_7SHARP9: ChordShape = {
+export const EXT_CHORD_A_7SHARP9: RegisteredChordShape = {
   name: "A Shape 7#9",
   system: "caged",
   strings: [null, "1P", "3M", "7m", "9A", null],
@@ -850,7 +861,7 @@ export const EXT_CHORD_A_7SHARP9: ChordShape = {
  * root doubled) — no omission; `detect` returns the exact name first
  * (`F7#5`, with `F7b13` as a secondary, non-divergent alias).
  */
-export const EXT_CHORD_E_7SHARP5: ChordShape = {
+export const EXT_CHORD_E_7SHARP5: RegisteredChordShape = {
   name: "E Shape 7#5",
   system: "caged",
   strings: ["1P", null, "7m", "3M", "5A", "1P"],
@@ -882,7 +893,7 @@ export const EXT_CHORD_E_7SHARP5: ChordShape = {
  * exact name first (`C7#5`, with `C7b13` as a secondary, non-divergent
  * alias).
  */
-export const EXT_CHORD_A_7SHARP5: ChordShape = {
+export const EXT_CHORD_A_7SHARP5: RegisteredChordShape = {
   name: "A Shape 7#5",
   system: "caged",
   strings: [null, "1P", null, "7m", "3M", "5A"],
@@ -910,7 +921,7 @@ export const EXT_CHORD_A_7SHARP5: ChordShape = {
  * Applied to F: 1 2 1 2 x x (span 1). Complete 4-tone chord — no
  * omission; `detect` returns the exact name first (`F7b5`).
  */
-export const EXT_CHORD_E_7B5: ChordShape = {
+export const EXT_CHORD_E_7B5: RegisteredChordShape = {
   name: "E Shape 7b5",
   system: "caged",
   strings: ["1P", "5d", "7m", "3M", null, null],
@@ -939,7 +950,7 @@ export const EXT_CHORD_E_7B5: ChordShape = {
  * (span 1). Complete 4-tone chord — no omission; `detect` returns the
  * exact name first (`C7b5`).
  */
-export const EXT_CHORD_A_7B5: ChordShape = {
+export const EXT_CHORD_A_7B5: RegisteredChordShape = {
   name: "A Shape 7b5",
   system: "caged",
   strings: [null, "1P", "3M", "7m", null, "5d"],

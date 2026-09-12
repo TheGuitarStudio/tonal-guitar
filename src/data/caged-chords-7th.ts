@@ -35,6 +35,17 @@
  */
 
 import { chordShapes, ChordShape } from "../shape";
+import type { ChordTypeKey } from "../chord-types";
+
+/**
+ * A `ChordShape` this repository ships, with `chordType` narrowed to a key the
+ * canonical chord-type table describes (TG-3). `ChordShape.chordType` itself
+ * stays `string | undefined` so external `chordShapes.add()` callers keep
+ * working; this alias constrains only the built-in data, so a typo or an
+ * unregistered quality here is a compile error instead of a shape nothing can
+ * query.
+ */
+type RegisteredChordShape = ChordShape & { chordType: ChordTypeKey };
 
 // ============================================================
 // maj7 shapes
@@ -45,7 +56,7 @@ import { chordShapes, ChordShape } from "../shape";
  * Prototype: Emaj7 open 0,2,1,1,0,0 → E B D# G# B E
  * Intervals:  1P  5P  7M  3M  5P  1P
  */
-export const CAGED_CHORD_E_MAJ7: ChordShape = {
+export const CAGED_CHORD_E_MAJ7: RegisteredChordShape = {
   name: "E Shape maj7",
   system: "caged",
   strings: ["1P", "5P", "7M", "3M", "5P", "1P"],
@@ -63,7 +74,7 @@ export const CAGED_CHORD_E_MAJ7: ChordShape = {
  * Prototype: Amaj7 open x,0,2,1,2,0 → A E G# C# E
  * Intervals:  x  1P  5P  7M  3M  5P
  */
-export const CAGED_CHORD_A_MAJ7: ChordShape = {
+export const CAGED_CHORD_A_MAJ7: RegisteredChordShape = {
   name: "A Shape maj7",
   system: "caged",
   strings: [null, "1P", "5P", "7M", "3M", "5P"],
@@ -84,7 +95,7 @@ export const CAGED_CHORD_A_MAJ7: ChordShape = {
  * Prototype: Dmaj7 open x,x,0,2,2,2 → D A C# F#
  * Intervals:  x  x  1P  5P  7M  3M
  */
-export const CAGED_CHORD_D_MAJ7: ChordShape = {
+export const CAGED_CHORD_D_MAJ7: RegisteredChordShape = {
   name: "D Shape maj7",
   system: "caged",
   strings: [null, null, "1P", "5P", "7M", "3M"],
@@ -109,7 +120,7 @@ export const CAGED_CHORD_D_MAJ7: ChordShape = {
  * Prototype: Em7 open 0,2,0,0,0,0 → E B D G B E
  * Intervals:   1P  5P  7m  3m  5P  1P
  */
-export const CAGED_CHORD_E_M7: ChordShape = {
+export const CAGED_CHORD_E_M7: RegisteredChordShape = {
   name: "E Shape m7",
   system: "caged",
   strings: ["1P", "5P", "7m", "3m", "5P", "1P"],
@@ -127,7 +138,7 @@ export const CAGED_CHORD_E_M7: ChordShape = {
  * Prototype: Am7 open x,0,2,0,1,0 → A E G C E
  * Intervals:   x  1P  5P  7m  3m  5P
  */
-export const CAGED_CHORD_A_M7: ChordShape = {
+export const CAGED_CHORD_A_M7: RegisteredChordShape = {
   name: "A Shape m7",
   system: "caged",
   strings: [null, "1P", "5P", "7m", "3m", "5P"],
@@ -148,7 +159,7 @@ export const CAGED_CHORD_A_M7: ChordShape = {
  * Prototype: Dm7 open x,x,0,2,1,1 → D A C F
  * Intervals:  x  x  1P  5P  7m  3m
  */
-export const CAGED_CHORD_D_M7: ChordShape = {
+export const CAGED_CHORD_D_M7: RegisteredChordShape = {
   name: "D Shape m7",
   system: "caged",
   strings: [null, null, "1P", "5P", "7m", "3m"],
@@ -172,7 +183,7 @@ export const CAGED_CHORD_D_M7: ChordShape = {
  * Prototype: E7 open 0,2,0,1,0,0 → E B D G# B E
  * Intervals:        1P  5P  7m  3M  5P  1P
  */
-export const CAGED_CHORD_E_DOM7: ChordShape = {
+export const CAGED_CHORD_E_DOM7: RegisteredChordShape = {
   name: "E Shape 7",
   system: "caged",
   strings: ["1P", "5P", "7m", "3M", "5P", "1P"],
@@ -190,7 +201,7 @@ export const CAGED_CHORD_E_DOM7: ChordShape = {
  * Prototype: A7 open x,0,2,0,2,0 → A E G C# E
  * Intervals:        x  1P  5P  7m  3M  5P
  */
-export const CAGED_CHORD_A_DOM7: ChordShape = {
+export const CAGED_CHORD_A_DOM7: RegisteredChordShape = {
   name: "A Shape 7",
   system: "caged",
   strings: [null, "1P", "5P", "7m", "3M", "5P"],
@@ -212,7 +223,7 @@ export const CAGED_CHORD_A_DOM7: ChordShape = {
  * Prototype: D7 open x,x,0,2,1,2 → D A C F#
  * Intervals:         x  x  1P  5P  7m  3M
  */
-export const CAGED_CHORD_D_DOM7: ChordShape = {
+export const CAGED_CHORD_D_DOM7: RegisteredChordShape = {
   name: "D Shape 7",
   system: "caged",
   strings: [null, null, "1P", "5P", "7m", "3M"],
@@ -239,7 +250,7 @@ export const CAGED_CHORD_D_DOM7: ChordShape = {
  * Intervals: 1P 5d 7m 3m x x
  * (Played strings 0-3 only)
  */
-export const CAGED_CHORD_E_M7B5: ChordShape = {
+export const CAGED_CHORD_E_M7B5: RegisteredChordShape = {
   name: "E Shape m7b5",
   system: "caged",
   strings: ["1P", "5d", "7m", "3m", null, null],
@@ -260,7 +271,7 @@ export const CAGED_CHORD_E_M7B5: ChordShape = {
  * Prototype: Am7b5 x,0,1,1,1,x → A Eb G C
  * Intervals:       x  1P  5d  7m  3m  x
  */
-export const CAGED_CHORD_A_M7B5: ChordShape = {
+export const CAGED_CHORD_A_M7B5: RegisteredChordShape = {
   name: "A Shape m7b5",
   system: "caged",
   strings: [null, "1P", "5d", "7m", "3m", null],

@@ -31,6 +31,26 @@
  */
 
 import { chordShapes, ChordShape, VoicingPatternDictionary } from "../shape";
+import type { ChordTypeKey } from "../chord-types";
+
+/**
+ * The chord types shell grips are registered for, checked against the
+ * canonical chord-type table (TG-3). `SHELL_DICTIONARY` and `OMITTED` are
+ * pinned to exactly these keys below, so adding an entry to either without
+ * adding it here (or naming a quality the shape registry cannot voice) is a
+ * compile error rather than a silently unregistered shape.
+ */
+const SHELL_CHORD_TYPES = [
+  "maj7",
+  "m7",
+  "7",
+  "m7b5",
+] as const satisfies readonly ChordTypeKey[];
+
+type ShellChordType = (typeof SHELL_CHORD_TYPES)[number];
+
+/** A shell `ChordShape`, with `chordType` narrowed to a registered key. */
+type RegisteredChordShape = ChordShape & { chordType: ShellChordType };
 
 // ============================================================
 // Shell dictionary (adopted @tonaljs/voicing-dictionary format)
@@ -49,13 +69,13 @@ export const SHELL_DICTIONARY: VoicingPatternDictionary = {
   "7": ["1P 3M 7m", "1P 7m 10M"],
   // m7b5 shares the same 3rd/7th voicing as m7 (shells omit the 5th, so only the omitted interval differs — 5d vs 5P)
   m7b5: ["1P 3m 7m", "1P 7m 10m"],
-};
+} satisfies Record<ShellChordType, string[]>;
 
 // ============================================================
 // omittedIntervals per chord type
 // ============================================================
 
-const OMITTED: Record<string, string[]> = {
+const OMITTED: Record<ShellChordType, string[]> = {
   maj7: ["5P"],
   m7: ["5P"],
   "7": ["5P"],
@@ -130,11 +150,11 @@ function findRootString(pattern: string[], stringSet: number[]): number {
  * Build a ChordShape from a pattern and string set.
  */
 function buildShellShape(
-  chordType: string,
+  chordType: ShellChordType,
   patternStr: string,
   stringSet: number[],
   rootLabel: ShellRootLabel,
-): ChordShape {
+): RegisteredChordShape {
   const pattern = patternStr.split(" ");
   const name = `Shell ${chordType} ${rootLabel}`;
 
@@ -160,7 +180,7 @@ function buildShellShape(
     chordType,
     voicingFamily: "shell",
     stringSet: [...stringSet],
-    omittedIntervals: OMITTED[chordType] ?? [],
+    omittedIntervals: OMITTED[chordType],
     inversion: 0,
   };
 }
@@ -171,7 +191,8 @@ function buildShellShape(
 
 const shellShapes: ChordShape[] = [];
 
-for (const [chordType, patterns] of Object.entries(SHELL_DICTIONARY)) {
+for (const chordType of SHELL_CHORD_TYPES) {
+  const patterns = SHELL_DICTIONARY[chordType];
   for (const { rootLabel, stringSet, patternIndex } of SHELL_PAIRINGS) {
     shellShapes.push(
       buildShellShape(chordType, patterns[patternIndex], stringSet, rootLabel),
