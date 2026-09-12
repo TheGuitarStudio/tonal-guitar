@@ -31,6 +31,13 @@
       "require": "./dist/chord-types.js"
     }
   },
+  "typesVersions": {
+    "*": {
+      "chord-types": [
+        "./dist/chord-types.d.ts"
+      ]
+    }
+  },
   "files": [
     "dist"
   ],
