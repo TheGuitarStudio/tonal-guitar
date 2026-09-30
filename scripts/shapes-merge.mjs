@@ -64,7 +64,7 @@ export const GENERATED_HEADER =
   "// GENERATED FILE — managed by `npm run shapes:merge`. Edit via the Shape Workbench.";
 
 // spec §6.2 rule 5 — computed-file deny list, refused even with --force.
-const COMPUTED_FILE_DENY_LIST = new Set(["caged-scales-minor", "pentatonic-minor"]);
+const COMPUTED_FILE_DENY_LIST = new Set(["caged-scales-minor", "pentatonic-minor", "blues"]);
 
 // spec §6.3 — hand-written files on the write allow-list (prepped with
 // per-constant markers as a one-time step). Every other hand-written file

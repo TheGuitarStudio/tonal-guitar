@@ -137,7 +137,7 @@ fretboard(STANDARD, [0, 4]); // every note on strings 0-5, frets 0-4
 
 ### Shape Registry
 
-Built-in shapes are registered at import time: CAGED scale shapes (5), CAGED chord shapes (5), 3NPS patterns (7), pentatonic boxes (5) -- plus (v0.2.0) 5 minor CAGED scale shapes and 5 minor pentatonic boxes, derived from the major-frame shapes via `relabelShape`. See [Minor-Quality Entries](#minor-quality-entries) below.
+Built-in shapes are registered at import time: CAGED scale shapes (5), CAGED chord shapes (5), 3NPS patterns (7), pentatonic boxes (5) -- plus (v0.2.0) 5 minor CAGED scale shapes and 5 minor pentatonic boxes, derived from the major-frame shapes via `relabelShape`, and 5 minor + 5 major blues boxes, derived via `addPassingTone`. See [Minor-Quality Entries](#minor-quality-entries) and [Blues Boxes](#blues-boxes) below.
 
 #### `get(name: string) => ScaleShape | undefined`
 
@@ -291,6 +291,40 @@ get("Em Shape");
 buildFrettedScale(get("G Shape"), "C").notes;
 buildFrettedScale(get("Em Shape"), "A").notes; // same {string, fret} pairs, A=1P, C=3m
 ```
+
+### Blues Boxes
+
+#### `addPassingTone(shape: ScaleShape, tone: string, options?: PassingToneOptions) => ScaleShape | undefined`
+
+Adds a chromatic passing tone to any scale shape -- e.g. the b5 (`"5d"`) that turns a minor pentatonic box into a minor blues box, the b3 (`"3m"`) that turns a major pentatonic box into a major blues box, or a `"7M"` on a mixolydian shape for bebop dominant.
+
+Placement rule: the tone goes on the same string, one fret above every note a semitone below it (the b5 sits right above each 4P). Tones inside the shape's existing pitch range are always kept, even if they need a one-fret stretch; a tone that would become the shape's new highest note is kept only if it fits within the existing fret span. Fret geometry is evaluated in `options.tuning` (default `STANDARD`). Returns `undefined` for an invalid tone, a shape that doesn't build, or when nothing can be placed (no semitone-below neighbor, or the pitch is already present).
+
+```js
+import { addPassingTone, get } from "tonal-guitar";
+
+const blues = addPassingTone(get("Em Shape"), "5d", { name: "Em Blues", quality: "minor-blues" });
+
+interface PassingToneOptions {
+  name?: string;         // override the result name (default: shape.name)
+  quality?: string;      // value written to result.quality
+  parentShape?: string;  // value written to result.parentShape (default: shape.name)
+  tuning?: string[];     // tuning for the stretch rule (default: STANDARD)
+}
+```
+
+Registered blues boxes (all `system: "pentatonic"`, box numbers shared with the pentatonic boxes):
+
+| Registered name | Derived from | `quality` | b5 frets in A minor blues |
+| --- | --- | --- | --- |
+| `"Blues Box 1 Minor"` | `"Pentatonic Box 1 Minor"` + `5d` | `"minor-blues"` | A:6, G:8 |
+| `"Blues Box 2 Minor"` | `"Pentatonic Box 2 Minor"` + `5d` | `"minor-blues"` | low E:11, G:8 |
+| `"Blues Box 3 Minor"` | `"Pentatonic Box 3 Minor"` + `5d` | `"minor-blues"` | low E:11, D:13, high E:11 |
+| `"Blues Box 4 Minor"` | `"Pentatonic Box 4 Minor"` + `5d` | `"minor-blues"` | D:13, B:16 |
+| `"Blues Box 5 Minor"` | `"Pentatonic Box 5 Minor"` + `5d` | `"minor-blues"` | A:6, B:4 |
+| `"Blues Box N Major"` | `"Blues Box N Minor"` relabeled | `"major-blues"` | same frets (C major blues = A minor blues) |
+
+They work with Tonal's scale names: `buildFromScale(get("Blues Box 1 Minor"), "E blues")` (`"blues"` is Tonal's alias for `"minor blues"`), `modeShapes("A blues")`, `isShapeCompatible(shape, "C major blues")`, and `relatedScales` (minor blues ↔ relative major blues).
 
 ### Pattern Generators
 

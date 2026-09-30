@@ -15,11 +15,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Where a matching grip exists, `chordShape` links the seed to it, and `arpeggioFor`/`resolveArpeggioForSlot` resolve it at tier `"core"` instead of `"derived"`. The C/G 7th seeds have no `chordShape` because no C/G 7th grips are registered.
   - Every seed passes `auditArpeggioShape` and `auditArpeggioShapeIntegration` cleanly.
 - `scripts/shapes-merge.mjs` count marker `arpeggio-shape-total`, which tracks the registered arpeggio total in `src/data/data.test.ts`.
+- **Blues scale boxes (#56).** 10 new registered `ScaleShape`s in `src/data/blues.ts`, all `system: "pentatonic"`: `"Blues Box 1 Minor"` … `"Blues Box 5 Minor"` (`quality: "minor-blues"`, the minor pentatonic boxes plus the b5) and `"Blues Box 1 Major"` … `"Blues Box 5 Major"` (`quality: "major-blues"`, the same geometry relabeled via `relabelShape` so the passing tone reads as the b3). Box 1 of each quality is `featured`. They work with Tonal's `"blues"` / `"minor blues"` / `"major blues"` scale names in `buildFromScale`, `modeShapes`, `isShapeCompatible` and `relatedScales`, and pass `auditScaleShape` at every root. The scale-shape registry grows from 27 to 37 entries.
+- `addPassingTone(shape, tone, options?)` (`src/transform.ts`) — adds a chromatic passing tone to any scale shape. The tone goes on the same string one fret above every note a semitone below it; tones inside the shape's pitch range are always kept (even with a one-fret stretch), while a tone that would become a new edge note is kept only if it fits in the existing fret span. `PassingToneOptions` extends `RelabelOptions` with `tuning` (default `STANDARD`). The registered blues boxes are derived with it, so registered and generated blues boxes always agree.
+- `packages/shape-catalog`: `relatedScaleNameFor` maps the `minor-blues` / `major-blues` qualities to Tonal scale names.
 
 ### Changed
 
 - The 7th-chord CAGED grips in `src/data/caged-chords-7th.ts` (E/A/D × `maj7`/`m7`/`7`, E/A × `m7b5`) now set `cagedPosition`, taken from the letter in the shape name. As a result, `chordShapes.query({ cagedPosition })` now also returns these 11 grips, where before it returned only the triad grips.
 - `arpeggioShapes` is no longer empty after importing the root barrel. Code that assumed an empty registry, such as tests that add fixtures to a slot, should call `arpeggioShapes.removeAll()` first or use a slot the seeds don't occupy.
+- `src/transform.ts` now imports `./build` (for `addPassingTone`'s fret geometry), so it — and `src/data/blues.ts` / the other data files that call it at import time — depend on the required `@tonaljs/note` peer as well as `@tonaljs/interval`. Still no optional-peer imports.
+- `scripts/shapes-merge.mjs`: `blues` is on the computed-file deny list (its shapes are derived, not authored).
 
 ## [0.3.0] — 2026-09-10
 

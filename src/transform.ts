@@ -1,16 +1,21 @@
 /**
  * Shape relabeling: rewrite a ScaleShape's per-string interval labels into
  * a different (rotation-compatible) interval frame, e.g. turning a
- * major-frame CAGED shape into its natural-minor labeling.
+ * major-frame CAGED shape into its natural-minor labeling — and
+ * passing-tone augmentation (`addPassingTone`), e.g. adding the b5 that
+ * turns a minor pentatonic box into a blues box.
  *
- * Pure tier — MAY import `@tonaljs/interval` (required peer, already used
- * by build.ts) and `./shape` (types only). MUST NOT import
+ * Required-peer tier — MAY import `@tonaljs/interval`, `./build` (for
+ * `addPassingTone`'s fret geometry), `./tuning`, and `./shape` (types
+ * only). MUST NOT import
  * `@tonaljs/scale`/`@tonaljs/chord`/`@tonaljs/key` or `./integration`, so
  * `src/data/*` can call this at import time with zero optional peers.
  */
 
 import { semitones } from "@tonaljs/interval";
+import { buildFrettedScale } from "./build";
 import { ScaleShape } from "./shape";
+import { STANDARD } from "./tuning";
 
 export interface RelabelOptions {
   name?: string; // override the derived name
@@ -120,6 +125,90 @@ export function relabelShape(
     system: shape.system,
     strings: newStrings,
     rootString: newRootString,
+    span: shape.span,
+    quality: options?.quality,
+    parentShape: options?.parentShape ?? shape.name,
+  };
+}
+
+// ============================================================
+// addPassingTone
+// ============================================================
+
+export interface PassingToneOptions extends RelabelOptions {
+  tuning?: string[]; // tuning the stretch rule is evaluated against (defaults to STANDARD)
+}
+
+/**
+ * Add a chromatic passing tone to a shape, e.g. the b5 (`"5d"`) that turns
+ * a minor pentatonic box into a minor blues box, or the b3 (`"3m"`) that
+ * turns a major pentatonic box into a major blues box.
+ *
+ * Placement rule: `tone` is inserted on the same string, one fret above
+ * every note whose chroma is a semitone below `tone` (the b5 sits right
+ * above each 4P). Every inserted tone that lands inside the shape's
+ * existing pitch range is kept, even when it needs a one-fret stretch past
+ * the shape's fret span. A tone that would become the shape's new highest
+ * note is kept only when it fits inside the existing fret span — edge
+ * tones are never added at the cost of a stretch.
+ *
+ * Fret geometry comes from building the shape (at root C) in
+ * `options.tuning`. Interval labels, `rootString`, and `span` are otherwise
+ * unchanged; `name`/`quality`/`parentShape` follow `relabelShape`'s option
+ * semantics (`parentShape` defaults to the input shape's name).
+ *
+ * Returns `undefined` for an invalid `tone`, a shape that does not build,
+ * or when no passing tone can be placed.
+ */
+export function addPassingTone(
+  shape: ScaleShape,
+  tone: string,
+  options?: PassingToneOptions,
+): ScaleShape | undefined {
+  const toneSemitones = semitones(tone);
+  if (Number.isNaN(toneSemitones)) return undefined;
+  const neighborChroma = mod12(toneSemitones - 1);
+
+  const tuning = options?.tuning ?? STANDARD;
+  const built = buildFrettedScale(shape, "C", tuning);
+  if (built.empty || built.notes.length === 0) return undefined;
+
+  const frets = built.notes.map((n) => n.fret);
+  const maxFret = Math.max(...frets);
+  const maxMidi = Math.max(...built.notes.map((n) => n.midi));
+  const builtMidis = new Set(built.notes.map((n) => n.midi));
+  // Mirrors build.ts: a shorter shape maps onto the high-side strings.
+  const strOffset = Math.max(0, tuning.length - shape.strings.length);
+
+  let inserted = 0;
+  const newStrings = shape.strings.map((stringIntervals, s) => {
+    if (!stringIntervals) return null;
+    const onString = built.notes.filter((n) => n.string === s + strOffset);
+    const result: string[] = [];
+    for (const ivl of stringIntervals) {
+      result.push(ivl);
+      if (chromaOf(ivl) !== neighborChroma) continue;
+
+      const neighbor = onString.find((n) => n.interval === ivl);
+      if (!neighbor) continue;
+      const midi = neighbor.midi + 1;
+      if (builtMidis.has(midi)) continue;
+      const isNewEdge = midi > maxMidi;
+      const isStretch = neighbor.fret + 1 > maxFret;
+      if (isNewEdge && isStretch) continue;
+
+      result.push(tone);
+      inserted++;
+    }
+    return result;
+  });
+  if (inserted === 0) return undefined;
+
+  return {
+    name: options?.name ?? shape.name,
+    system: shape.system,
+    strings: newStrings,
+    rootString: shape.rootString,
     span: shape.span,
     quality: options?.quality,
     parentShape: options?.parentShape ?? shape.name,
