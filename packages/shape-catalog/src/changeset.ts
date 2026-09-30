@@ -170,12 +170,14 @@ function isIdentifierCollisionMessage(message: string): boolean {
 }
 
 /**
- * Collision detection for every `add` change in `changes` (spec §6.2.6):
- * each is checked against the live registry (`checkNameUnique`'s default,
- * no-`options` mode) AND against every other `add` change earlier in the
- * list, so two new shapes in the same batch that would collide with each
- * other are caught too, not just collisions against already-registered
- * shapes. `update`/`remove` changes are exempt — they target an existing
+ * Collision detection (spec §6.2.6) for every `add` change and every
+ * renaming `update` (`patch.name` differs from `name`) in `changes`: each is
+ * checked against the live registry (`checkNameUnique`'s default,
+ * no-`options` mode) AND against every earlier add/rename in the list, so
+ * two changes in the same batch that would collide with each other are
+ * caught too, not just collisions against already-registered shapes. A
+ * renaming `update` is checked for name collisions only (see CR-019 below).
+ * Non-renaming `update`s and `remove`s are exempt — they target an existing
  * name by design.
  */
 function detectCollisions(
