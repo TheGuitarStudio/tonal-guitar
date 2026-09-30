@@ -162,7 +162,7 @@ export function ShapeLibrary() {
   const [selectedEntry, setSelectedEntry] = useState<ShapeCatalogEntry | undefined>(undefined);
 
   // Bumped whenever the panel should pull keyboard focus into itself
-  // (CR-026): grid card clicks (`handleGridSelectEntry`, below) and the
+  // (CR-026): card clicks (`handleCardSelectEntry`, below) and the
   // deep-link mount-time open both originate OUTSIDE the panel, so the
   // standard non-modal-disclosure pattern says focus should move in rather
   // than leaving keyboard users to tab through the whole grid to reach it.
@@ -341,13 +341,13 @@ export function ShapeLibrary() {
     setSelectedEntry(entry);
   }, []);
 
-  // Grid-originated selection (CR-026): identical to `handleSelectEntry`,
+  // Card-originated selection (CR-026): identical to `handleSelectEntry`,
   // plus bumping `focusPanelKey` so the panel pulls focus in — this is the
   // callback wired to every card's `onSelectEntry` (grid and board alike), never
   // to `ShapeDetailPanel`'s internal `onSelectEntry` (which stays
   // `handleSelectEntry` unmodified so in-panel navigation never steals
   // focus back to the panel root it's already inside).
-  const handleGridSelectEntry = useCallback(
+  const handleCardSelectEntry = useCallback(
     (entry: ShapeCatalogEntry) => {
       handleSelectEntry(entry);
       setFocusPanelKey((k) => k + 1);
@@ -629,7 +629,7 @@ export function ShapeLibrary() {
                 catalog={catalog}
                 kind={kind}
                 nameQuery={nameQuery}
-                onSelectEntry={handleGridSelectEntry}
+                onSelectEntry={handleCardSelectEntry}
                 collapseToSingleColumn={isMobile}
               />
             </div>
@@ -650,7 +650,7 @@ export function ShapeLibrary() {
                         entry={entry}
                         lazy
                         eager
-                        onSelectEntry={handleGridSelectEntry}
+                        onSelectEntry={handleCardSelectEntry}
                         isSelected={selectedEntry?.kind === entry.kind && selectedEntry.name === entry.name}
                       />
                     ))}
@@ -670,7 +670,7 @@ export function ShapeLibrary() {
                       group={group}
                       selectedEntry={selectedEntry}
                       eagerNames={eagerNames}
-                      onSelectEntry={handleGridSelectEntry}
+                      onSelectEntry={handleCardSelectEntry}
                       onToggleExpanded={() => handleToggleGroupExpanded(group.key)}
                     />
                   ))}
