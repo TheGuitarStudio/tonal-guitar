@@ -20,7 +20,6 @@ import {
   isMovable,
   playedStringSet,
   gripBaseFret,
-  sourceGripBaseFret,
   exportIdentifierFor,
   registryMutationVersion,
 } from "./shape";
@@ -619,7 +618,7 @@ export function checkBarreFretOrigin(
 
     if (geometry != null) {
       const absoluteSourceFret = geometry.sourceFrets[barre.fromString];
-      const sourceGripBase = sourceGripBaseFret(shape, geometry.sourceFrets);
+      const sourceGripBase = gripBaseFret(geometry.sourceFrets);
       const suggestedOffset =
         absoluteSourceFret == null ? undefined : absoluteSourceFret - sourceGripBase;
       if (

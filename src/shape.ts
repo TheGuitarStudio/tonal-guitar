@@ -111,9 +111,9 @@ export interface Barre {
   // transposition interval, so a stored offset resolves to the same finger
   // position at every root. Resolve to an absolute fret with
   // `absoluteBarreFret(barre, gripBaseFret(frets))` for a built grip, or
-  // `absoluteBarreFret(barre, sourceGripBaseFret(shape,
-  // chordShapeGeometry(shape).sourceFrets))` for an authored source
-  // diagram. A resolved fret of `0` means the barre lies on the nut at that
+  // `absoluteBarreFret(barre,
+  // gripBaseFret(chordShapeGeometry(shape).sourceFrets))` for an authored
+  // source diagram. A resolved fret of `0` means the barre lies on the nut at that
   // root (no finger actually presses it).
   fret: number;
   fromString: number;
@@ -237,11 +237,15 @@ export function absoluteBarreFret(barre: Barre, gripBase: number): number {
 
 /**
  * The source-diagram analog of `gripBaseFret`: the grip base implied by a
- * shape's authored source diagram rather than a built fingering. `shape` is
- * accepted (unused directly) to mirror `gripBaseFret`'s call shape and keep
- * the two symmetric at call sites; `sourceFrets` is the per-string fret
- * array to reduce — typically `chordShapeGeometry(shape).sourceFrets` from
- * `audit.ts`.
+ * shape's authored source diagram rather than a built fingering.
+ * `sourceFrets` is the per-string fret array to reduce — typically
+ * `chordShapeGeometry(shape).sourceFrets` from `audit.ts`. The result is
+ * exactly `gripBaseFret(sourceFrets)`.
+ *
+ * @param _shape Unused. Kept only so existing callers don't break.
+ * @deprecated Call `gripBaseFret(sourceFrets)` directly. This wrapper (and
+ * its unused `_shape` parameter) will be removed in a future breaking
+ * release.
  */
 export function sourceGripBaseFret(
   _shape: ChordShape,

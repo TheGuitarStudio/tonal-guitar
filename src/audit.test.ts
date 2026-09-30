@@ -60,7 +60,6 @@ import {
   chordShapes,
   get as getScaleShape,
   gripBaseFret,
-  sourceGripBaseFret,
   ArpeggioShape,
   ChordShape,
   ScaleShape,
@@ -953,7 +952,7 @@ describe("checkBarreFretOrigin", () => {
   it("D-010 worked example — 'C Sus2 Open' (x30033, baseFret 1, barre fret 3, strings 4-5): offset (3 - grip base 0) === 3, not flagged", () => {
     expect(checkBarreFretOrigin(OPEN_C_SUS2, "C", STANDARD)).toEqual([]);
     const geometry = chordShapeGeometry(OPEN_C_SUS2, STANDARD)!;
-    const gripBase = sourceGripBaseFret(OPEN_C_SUS2, geometry.sourceFrets);
+    const gripBase = gripBaseFret(geometry.sourceFrets);
     expect(OPEN_C_SUS2.barres[0].fret).toBe(3 - gripBase);
   });
 

@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `auditScaleShape` and `auditArpeggioShape` now run `checkNameUnique` (`name-unique`) against the live scale/arpeggio registry, as `auditChordShape` already did for chords. A shape that is not the registered object but reuses a registered name, or derives the same export identifier, now gets an error. No registered shape is affected. To audit an edited copy of a registered shape, filter out `CHECK_NAME_UNIQUE` issues, as the workbench and `shapes:merge` do for updates, or call `checkNameUnique` yourself with `selfName`.
 
+### Deprecated
+
+- `sourceGripBaseFret(shape, sourceFrets)`: its `shape` parameter was never used and the result is exactly `gripBaseFret(sourceFrets)`, so call `gripBaseFret` directly. The function still works and will be removed in a future breaking release.
+
 ### Fixed
 
 - `scaleTypeForChordType` no longer returns `Object.prototype` members for chord types like `"toString"`, `"constructor"` or `"__proto__"`; it only matches `CHORD_SCALE_RULE`'s own keys and returns `undefined` otherwise. `CHORD_SCALE_RULE` itself is unchanged and still mutable.
