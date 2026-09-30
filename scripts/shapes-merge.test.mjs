@@ -226,7 +226,7 @@ describe("fixture sanity", () => {
  * so the real checkout is never touched (verified explicitly below).
  */
 
-const LIBRARY_VERSION = "0.3.0"; // src/version.ts VERSION
+const LIBRARY_VERSION = "0.4.0"; // src/version.ts VERSION
 const STANDARD_TUNING = ["E2", "A2", "D3", "G3", "B3", "E4"]; // src/tuning.ts STANDARD
 
 function createFixtureRoot() {

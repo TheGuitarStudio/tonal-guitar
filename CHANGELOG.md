@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-09-30
+
 ### Added
 
 - **Built-in CAGED arpeggio seeds** (#58). `src/data/caged-arpeggios.ts` (generator-managed: `shapes-merge` owned blocks, so later edits go through `npm run shapes:merge` changesets) registers the first 20 `arpeggioShapes` entries: one arpeggio per (quality, CAGED letter) pair, for Major, Minor, maj7 and m7 across all five positions (C, A, G, E, D). They are named `"<Letter> Shape <Quality> Arpeggio"`, e.g. `"E Shape Minor Arpeggio"` or `"C Shape maj7 Arpeggio"`.
