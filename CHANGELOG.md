@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `auditAllShapes` now also returns `arpeggio: Map<string, ShapeAuditIssue[]>`, the `auditArpeggioShape` result for every registered arpeggio shape, alongside `chord` and `scale`.
 - The `NameUniqueKind` type (`"chord" | "scale" | "arpeggio"`, the `kind` parameter of `checkNameUnique`) is exported from the root barrel.
+- `checkNameCollision` and `checkIdentifierCollision`, the name and export-identifier halves of `checkNameUnique`, are exported so callers can tell the two collisions apart without parsing `message`. They take the same options as `checkNameUnique` (now also exported as the `NameUniqueOptions` type). `checkIdentifierCollision` also accepts `options.identifier` to check an explicit identifier override instead of the one derived from `shape.name`. `checkNameUnique` is unchanged: it returns the two results concatenated.
 
 ### Changed
 

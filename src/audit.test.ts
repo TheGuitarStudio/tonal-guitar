@@ -12,6 +12,8 @@ import {
   checkFretSpan,
   checkGeometryMismatch,
   checkNameUnique,
+  checkNameCollision,
+  checkIdentifierCollision,
   checkOverridesTarget,
   checkPositionSpan,
   checkRepeatedFingerNoBarre,
@@ -1275,6 +1277,69 @@ describe("checkNameUnique", () => {
     } finally {
       chordShapes.remove(oldShape.name);
     }
+  });
+});
+
+// CR-086: checkNameUnique's two halves, exported so a caller can tell a
+// name collision from an identifier collision without parsing `message`.
+describe("checkNameCollision / checkIdentifierCollision", () => {
+  it("checkNameUnique is exactly the name half followed by the identifier half", () => {
+    const shape = { name: OPEN_C_MAJOR.name };
+    expect(checkNameUnique(shape, "chord")).toEqual([
+      ...checkNameCollision(shape, "chord"),
+      ...checkIdentifierCollision(shape, "chord"),
+    ]);
+  });
+
+  it("checkNameCollision reports only the name collision", () => {
+    expect(checkNameCollision({ name: OPEN_C_MAJOR.name }, "chord")).toEqual([
+      {
+        id: CHECK_NAME_UNIQUE,
+        severity: "error",
+        message: `Shape name "${OPEN_C_MAJOR.name}" is already registered in the chord registry`,
+        details: { name: OPEN_C_MAJOR.name, kind: "chord" },
+      },
+    ]);
+    // Colliding identifier, different name: not a name collision.
+    expect(checkNameCollision({ name: "C Major Open!!!" }, "chord")).toEqual(
+      [],
+    );
+  });
+
+  it("checkIdentifierCollision reports only the identifier collision", () => {
+    const issues = checkIdentifierCollision(
+      { name: "C Major Open!!!" },
+      "chord",
+    );
+    expect(issues).toHaveLength(1);
+    expect(issues[0].details).toEqual({
+      identifier: "CHORD_C_MAJOR_OPEN",
+      name: "C Major Open!!!",
+      kind: "chord",
+    });
+  });
+
+  it("options.identifier checks an explicit identifier override instead of the derived one", () => {
+    const fresh = { name: "Synthetic Definitely Not Registered Fixture" };
+    expect(checkIdentifierCollision(fresh, "chord")).toEqual([]);
+    const issues = checkIdentifierCollision(fresh, "chord", {
+      identifier: "CHORD_C_MAJOR_OPEN",
+    });
+    expect(issues).toHaveLength(1);
+    expect(issues[0].details).toMatchObject({
+      identifier: "CHORD_C_MAJOR_OPEN",
+    });
+
+    const known = new Set(["CAGED_CHORD_EM"]);
+    expect(
+      checkIdentifierCollision(fresh, "chord", {
+        identifier: "CAGED_CHORD_EM",
+        knownIdentifiers: known,
+      }),
+    ).toHaveLength(1);
+    expect(
+      checkIdentifierCollision(fresh, "chord", { knownIdentifiers: known }),
+    ).toEqual([]);
   });
 });
 

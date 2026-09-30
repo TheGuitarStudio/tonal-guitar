@@ -814,55 +814,87 @@ function identifierIndexFor(kind: NameUniqueKind): Map<string, string[]> {
 export function checkNameUnique(
   shape: NamedShape,
   kind: NameUniqueKind,
-  options?: { knownNames?: Set<string>; knownIdentifiers?: Set<string>; selfName?: string },
+  options?: NameUniqueOptions,
 ): ShapeAuditIssue[] {
-  const issues: ShapeAuditIssue[] = [];
-  const identifier = exportIdentifierFor(kind, shape);
-  const selfIdentifier =
-    options?.selfName !== undefined
-      ? exportIdentifierFor(kind, { name: options.selfName })
-      : undefined;
+  return [
+    ...checkNameCollision(shape, kind, options),
+    ...checkIdentifierCollision(shape, kind, options),
+  ];
+}
 
-  const nameCollides =
+/** Options shared by `checkNameUnique`, `checkNameCollision` and
+ * `checkIdentifierCollision` — see `checkNameUnique`. */
+export interface NameUniqueOptions {
+  knownNames?: Set<string>;
+  knownIdentifiers?: Set<string>;
+  selfName?: string;
+}
+
+/**
+ * The name half of `checkNameUnique`: errors when `shape.name` is already
+ * registered in the `kind` registry (or is in `options.knownNames`). Same
+ * `options` semantics as `checkNameUnique`. Lets a caller tell a name
+ * collision from an identifier collision without parsing `message`.
+ */
+export function checkNameCollision(
+  shape: NamedShape,
+  kind: NameUniqueKind,
+  options?: NameUniqueOptions,
+): ShapeAuditIssue[] {
+  if (shape.name === options?.selfName) return [];
+  const collides =
     options?.knownNames !== undefined
-      ? options.knownNames.has(shape.name) && shape.name !== options.selfName
+      ? options.knownNames.has(shape.name)
       : (() => {
           const existing = registryGetFor(kind, shape.name);
-          return (
-            existing !== undefined && existing !== shape && shape.name !== options?.selfName
-          );
+          return existing !== undefined && existing !== shape;
         })();
-
-  if (nameCollides) {
-    issues.push({
+  if (!collides) return [];
+  return [
+    {
       id: CHECK_NAME_UNIQUE,
       severity: "error",
       message: `Shape name "${shape.name}" is already registered in the ${kind} registry`,
       details: { name: shape.name, kind },
-    });
-  }
+    },
+  ];
+}
 
-  const identifierCollides =
+/**
+ * The identifier half of `checkNameUnique`: errors when the shape's export
+ * identifier collides with another registered entry's derived identifier
+ * (or is in `options.knownIdentifiers`). Same `options` semantics as
+ * `checkNameUnique`. The identifier checked is `options.identifier` when
+ * given (an explicit export-identifier override, like a changeset's
+ * `AddChange.ident`), else `exportIdentifierFor(kind, shape)`.
+ */
+export function checkIdentifierCollision(
+  shape: NamedShape,
+  kind: NameUniqueKind,
+  options?: NameUniqueOptions & { identifier?: string },
+): ShapeAuditIssue[] {
+  const identifier = options?.identifier ?? exportIdentifierFor(kind, shape);
+  const collides =
     options?.knownIdentifiers !== undefined
-      ? options.knownIdentifiers.has(identifier) && identifier !== selfIdentifier
+      ? options.knownIdentifiers.has(identifier) &&
+        (options.selfName === undefined ||
+          identifier !== exportIdentifierFor(kind, { name: options.selfName }))
       : (identifierIndexFor(kind).get(identifier) ?? []).some(
           (name) =>
             name !== options?.selfName &&
             !(name === shape.name && registryGetFor(kind, name) === shape),
         );
-
-  if (identifierCollides) {
-    issues.push({
+  if (!collides) return [];
+  return [
+    {
       id: CHECK_NAME_UNIQUE,
       severity: "error",
       message:
         `Export identifier "${identifier}" for shape "${shape.name}" collides with an ` +
         `existing src/data identifier`,
       details: { identifier, name: shape.name, kind },
-    });
-  }
-
-  return issues;
+    },
+  ];
 }
 
 // ============================================================
