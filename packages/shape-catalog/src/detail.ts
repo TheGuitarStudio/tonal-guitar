@@ -237,6 +237,8 @@ const QUALITY_SCALE_NAME: Readonly<Record<string, string>> = {
   major: "major",
   minor: "minor",
   "minor-pentatonic": "minor pentatonic",
+  "minor-blues": "minor blues",
+  "major-blues": "major blues",
 };
 
 /**

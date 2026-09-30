@@ -836,9 +836,9 @@ describe("checkScaleMetadataCompleteness", () => {
     expect(details.parentShape).toBeDefined();
   });
 
-  it("registry-wide: all 10 relabelShape-derived scale entries (caged-scales-minor.ts + pentatonic-minor.ts) pass checkScaleMetadataCompleteness cleanly", () => {
+  it("registry-wide: all 20 derived scale entries (caged-scales-minor.ts + pentatonic-minor.ts + blues.ts) pass checkScaleMetadataCompleteness cleanly", () => {
     const derived = allScaleShapes().filter((s) => s.parentShape !== undefined);
-    expect(derived.length).toBe(10);
+    expect(derived.length).toBe(20);
     expectRegistryClean(
       derived,
       checkScaleMetadataCompleteness,

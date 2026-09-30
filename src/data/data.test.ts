@@ -1149,18 +1149,18 @@ describe("pentatonic-minor: build-equivalence and registry tests (R4.2)", () => 
 //
 // caged-scales-minor.ts (5) + pentatonic-minor.ts (5) = 10 new entries on top
 // of the pre-feature 17 (5 CAGED + 7 3NPS + 5 pentatonic). src/index.test.ts
-// asserts the absolute total (all() === 27); this asserts the same fact from
+// asserts the absolute total (all() === 37, including blues.ts's 10); this asserts the same fact from
 // the data-layer's point of view, scoped to the two derived-entry files this
 // suite exercises.
 
 describe("R5.3 — minor-derived scale-shape registrations: +10 total", () => {
-  it("quality 'minor' + 'minor-pentatonic' entries together equal exactly 10, and total registered scale shapes equal 27 (17 pre-feature + 10 derived)", () => {
+  it("quality 'minor' + 'minor-pentatonic' entries together equal exactly 10, and total registered scale shapes equal 37 (17 pre-feature + 10 minor-derived + 10 blues)", () => {
     const allShapes = all();
     const derivedMinorShapes = allShapes.filter(
       (s) => s.quality === "minor" || s.quality === "minor-pentatonic",
     );
     expect(derivedMinorShapes.length).toBe(10);
-    expect(names().length).toBe(27); // shapes-merge:count scale-shape-total
+    expect(names().length).toBe(37); // shapes-merge:count scale-shape-total
   });
 });
 
@@ -1363,9 +1363,10 @@ describe("TG5 — featured scale shape curation", () => {
       list.push(shape);
       byGroup.set(key, list);
     }
-    // 5 groups: caged/(major), caged/minor, pentatonic/(major),
-    // pentatonic/minor-pentatonic, 3nps/(major).
-    expect(byGroup.size).toBe(5);
+    // 7 groups: caged/(major), caged/minor, pentatonic/(major),
+    // pentatonic/minor-pentatonic, pentatonic/minor-blues,
+    // pentatonic/major-blues, 3nps/(major).
+    expect(byGroup.size).toBe(7);
 
     for (const [key, shapes] of byGroup) {
       const featuredCount = shapes.filter((s) => s.featured).length;
@@ -1403,8 +1404,13 @@ describe("TG5 — featured scale shape curation", () => {
     expect(shape!.featured).toBe(true);
   });
 
-  it("exactly 5 scale shapes are flagged featured across the registry", () => {
-    expect(all().filter((s) => s.featured).length).toBe(5); // shapes-merge:count featured-scale-total
+  it('blues minor/major representative is "Blues Box 1 Minor" / "Blues Box 1 Major"', () => {
+    expect(get("Blues Box 1 Minor")?.featured).toBe(true);
+    expect(get("Blues Box 1 Major")?.featured).toBe(true);
+  });
+
+  it("exactly 7 scale shapes are flagged featured across the registry", () => {
+    expect(all().filter((s) => s.featured).length).toBe(7); // shapes-merge:count featured-scale-total
   });
 });
 

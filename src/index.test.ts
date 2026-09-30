@@ -106,6 +106,18 @@ import {
   CAGED_EM,
 } from "./data/caged-scales-minor";
 import {
+  BLUES_BOX_1_MINOR,
+  BLUES_BOX_2_MINOR,
+  BLUES_BOX_3_MINOR,
+  BLUES_BOX_4_MINOR,
+  BLUES_BOX_5_MINOR,
+  BLUES_BOX_1_MAJOR,
+  BLUES_BOX_2_MAJOR,
+  BLUES_BOX_3_MAJOR,
+  BLUES_BOX_4_MAJOR,
+  BLUES_BOX_5_MAJOR,
+} from "./data/blues";
+import {
   PENTA_BOX_1_MINOR,
   PENTA_BOX_2_MINOR,
   PENTA_BOX_3_MINOR,
@@ -393,13 +405,13 @@ describe("Shape registry", () => {
     expect(npsShapes).toHaveLength(7); // shapes-merge:count three-nps-scale-total
   });
 
-  test("built-in pentatonic boxes are registered (5 major + 5 minor)", () => {
+  test("built-in pentatonic boxes are registered (5 major + 5 minor + 10 blues)", () => {
     const pentShapes = all().filter((s) => s.system === "pentatonic");
-    expect(pentShapes).toHaveLength(10); // shapes-merge:count pentatonic-scale-total
+    expect(pentShapes).toHaveLength(20); // shapes-merge:count pentatonic-scale-total
   });
 
-  test("total registered shapes = 27 (10 CAGED + 7 3NPS + 10 pentatonic)", () => {
-    expect(all()).toHaveLength(27); // shapes-merge:count scale-shape-total
+  test("total registered shapes = 37 (10 CAGED + 7 3NPS + 20 pentatonic)", () => {
+    expect(all()).toHaveLength(37); // shapes-merge:count scale-shape-total
   });
 
   test("removeAll() clears registry, add() re-registers", () => {
@@ -435,6 +447,18 @@ describe("Shape registry", () => {
       PENTA_BOX_3_MINOR,
       PENTA_BOX_4_MINOR,
       PENTA_BOX_5_MINOR,
+    ].forEach(add);
+    [
+      BLUES_BOX_1_MINOR,
+      BLUES_BOX_2_MINOR,
+      BLUES_BOX_3_MINOR,
+      BLUES_BOX_4_MINOR,
+      BLUES_BOX_5_MINOR,
+      BLUES_BOX_1_MAJOR,
+      BLUES_BOX_2_MAJOR,
+      BLUES_BOX_3_MAJOR,
+      BLUES_BOX_4_MAJOR,
+      BLUES_BOX_5_MAJOR,
     ].forEach(add);
     expect(all()).toHaveLength(originalCount);
   });

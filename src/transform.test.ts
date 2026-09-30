@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { relabelShape } from "./index";
-import type { RelabelOptions, ScaleShape } from "./index";
+import { addPassingTone, get, relabelShape, STANDARD } from "./index";
+import type { PassingToneOptions, RelabelOptions, ScaleShape } from "./index";
+import { PENTA_BOX_1 } from "./data/pentatonic";
 import { CAGED_G, CAGED_E } from "./data/caged-scales";
 
 const NATURAL_MINOR = ["1P", "2M", "3m", "4P", "5P", "6m", "7m"];
@@ -83,7 +84,10 @@ describe("relabelShape (R2.3-R2.9)", () => {
   });
 
   it("does not mutate the input shape", () => {
-    const before = JSON.parse(JSON.stringify(CAGED_G.strings)) as (string[] | null)[];
+    const before = JSON.parse(JSON.stringify(CAGED_G.strings)) as (
+      | string[]
+      | null
+    )[];
     relabelShape(CAGED_G, NATURAL_MINOR, {
       name: "Em Shape",
       quality: "minor",
@@ -173,7 +177,9 @@ describe("relabelShape (R2.3-R2.9)", () => {
   });
 
   it("uses options.name when provided, otherwise the input shape's name (R2.8)", () => {
-    const withOverride = relabelShape(CAGED_G, NATURAL_MINOR, { name: "Em Shape" });
+    const withOverride = relabelShape(CAGED_G, NATURAL_MINOR, {
+      name: "Em Shape",
+    });
     expect(withOverride?.name).toBe("Em Shape");
 
     const withoutOverride = relabelShape(CAGED_G, NATURAL_MINOR);
@@ -221,5 +227,103 @@ describe("relabelShape (R2.3-R2.9)", () => {
     // null), so rootString must follow the tonic, not the stale input value.
     expect(result.rootString).toBe(1);
     expect(result.strings[0]).toBeNull();
+  });
+});
+
+describe("addPassingTone", () => {
+  const minorBox = (n: number) => get(`Pentatonic Box ${n} Minor`)!;
+
+  it("is exported from the public index", () => {
+    expect(typeof addPassingTone).toBe("function");
+    const options: PassingToneOptions = { name: "x", tuning: STANDARD };
+    expect(options.tuning).toBe(STANDARD);
+  });
+
+  it("inserts the tone right after each semitone-below neighbor on the same string", () => {
+    const result = addPassingTone(minorBox(1), "5d");
+    expect(result?.strings).toEqual([
+      ["1P", "3m"],
+      ["4P", "5d", "5P"],
+      ["7m", "1P"],
+      ["3m", "4P", "5d"],
+      ["5P", "7m"],
+      ["1P", "3m"],
+    ]);
+  });
+
+  it("drops a tone that would be a new edge note AND need a stretch", () => {
+    // Box 2 Minor: high E [3m,4P] is the top string at the box's max fret,
+    // so its b5 is dropped; low E's b5 is a stretch but inside the range.
+    const result = addPassingTone(minorBox(2), "5d");
+    expect(result?.strings[0]).toEqual(["3m", "4P", "5d"]);
+    expect(result?.strings[5]).toEqual(["3m", "4P"]);
+  });
+
+  it("defaults name to the input and parentShape to the input name; applies options", () => {
+    const source = minorBox(1);
+    const plain = addPassingTone(source, "5d")!;
+    expect(plain.name).toBe(source.name);
+    expect(plain.parentShape).toBe(source.name);
+    expect(plain.quality).toBeUndefined();
+    expect(plain.rootString).toBe(source.rootString);
+    expect(plain.system).toBe(source.system);
+
+    const named = addPassingTone(source, "5d", {
+      name: "Custom",
+      quality: "minor-blues",
+      parentShape: "Other",
+    })!;
+    expect(named).toMatchObject({
+      name: "Custom",
+      quality: "minor-blues",
+      parentShape: "Other",
+    });
+  });
+
+  it("does not mutate the input shape", () => {
+    const source = minorBox(3);
+    const before = JSON.stringify(source);
+    addPassingTone(source, "5d");
+    expect(JSON.stringify(source)).toBe(before);
+  });
+
+  it("works on non-pentatonic shapes (e.g. a b5 on a CAGED shape)", () => {
+    const result = addPassingTone(CAGED_E, "4A");
+    expect(result).toBeDefined();
+    const added = result!.strings
+      .flatMap((s) => s ?? [])
+      .filter((i) => i === "4A");
+    expect(added.length).toBeGreaterThan(0);
+  });
+
+  it("returns undefined for an invalid tone", () => {
+    expect(addPassingTone(minorBox(1), "nope")).toBeUndefined();
+  });
+
+  it("returns undefined when the shape has no semitone-below neighbor", () => {
+    // Major pentatonic has no 4P, so there is nowhere to hang a 5d.
+    expect(addPassingTone(PENTA_BOX_1, "5d")).toBeUndefined();
+  });
+
+  it("returns undefined when the tone's pitch is already present", () => {
+    const blues = addPassingTone(minorBox(1), "5d")!;
+    expect(addPassingTone(blues, "5d")).toBeUndefined();
+  });
+
+  it("returns undefined for a shape that does not build", () => {
+    const empty: ScaleShape = {
+      name: "Empty",
+      system: "custom",
+      strings: [null, null, null, null, null, null],
+      rootString: 0,
+    };
+    expect(addPassingTone(empty, "5d")).toBeUndefined();
+  });
+
+  it("evaluates geometry against options.tuning (7-string maps onto the high side)", () => {
+    const seven = ["B1", ...STANDARD];
+    expect(
+      addPassingTone(minorBox(1), "5d", { tuning: seven })?.strings,
+    ).toEqual(addPassingTone(minorBox(1), "5d")?.strings);
   });
 });
