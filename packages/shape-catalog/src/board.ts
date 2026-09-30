@@ -75,6 +75,12 @@ export interface BoardCell {
   rowKey: string;
   columnKey: string;
   state: BoardCellState;
+  /** Every catalog entry that lands on this (row, column) pair, ordered by
+   * `compareCellEntries` (featured first, then name). Empty for gap/draft
+   * cells. A cell can hold several — e.g. five `M` voicings on the same
+   * string set — and none of them is dropped (CR-030). */
+  entries: ShapeCatalogEntry[];
+  /** `entries[0]`, kept for callers that only show one match per cell. */
   entry?: ShapeCatalogEntry;
   slot: BoardSlot;
 }
@@ -278,6 +284,15 @@ function arpeggioSlotFor(options: BoardModelOptions, row: BoardRow, column: Boar
   return slot;
 }
 
+/** Deterministic in-cell order: `featured` entries first (same tier rule as
+ * `groupEntries`), then by name. */
+function compareCellEntries(a: ShapeCatalogEntry, b: ShapeCatalogEntry): number {
+  const featuredA = a.shape.featured ? 0 : 1;
+  const featuredB = b.shape.featured ? 0 : 1;
+  if (featuredA !== featuredB) return featuredA - featuredB;
+  return a.name.localeCompare(b.name);
+}
+
 // ============================================================
 // Public API
 // ============================================================
@@ -298,6 +313,20 @@ export function boardModel(
       ? kindEntries.filter((entry) => matchesAliasAwareSearch(entry, searchTerm))
       : kindEntries;
 
+  // Bucket every matching entry by its cell key in one pass; an entry whose
+  // row or column value is missing (or outside the derived rows/columns)
+  // simply never gets looked up below.
+  const byCell = new Map<string, ShapeCatalogEntry[]>();
+  for (const candidate of matching) {
+    const rowValue = rowValueOf(candidate, options.rowGrouping);
+    const columnValue = columnValueOf(candidate, options.axis);
+    if (rowValue === undefined || columnValue === undefined) continue;
+    const key = cellKey(rowValue, columnValue);
+    const bucket = byCell.get(key);
+    if (bucket) bucket.push(candidate);
+    else byCell.set(key, [candidate]);
+  }
+
   const cells = new Map<string, BoardCell>();
   let shown = 0;
   let gaps = 0;
@@ -305,11 +334,8 @@ export function boardModel(
   for (const row of rows) {
     for (const column of columns) {
       const key = cellKey(row.key, column.key);
-      const entry = matching.find(
-        (candidate) =>
-          rowValueOf(candidate, options.rowGrouping) === row.key &&
-          columnValueOf(candidate, options.axis) === column.key,
-      );
+      const entries = byCell.get(key)?.sort(compareCellEntries) ?? [];
+      const entry = entries[0];
 
       const slot: BoardSlot =
         kind === "arpeggio" ? arpeggioSlotFor(options, row, column) : chordSlotFor(kind, options, row, column);
@@ -325,7 +351,7 @@ export function boardModel(
         gaps += 1;
       }
 
-      cells.set(key, { key, rowKey: row.key, columnKey: column.key, state, entry, slot });
+      cells.set(key, { key, rowKey: row.key, columnKey: column.key, state, entries, entry, slot });
     }
   }
 

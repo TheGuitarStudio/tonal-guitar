@@ -1,15 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { renderToString } from "react-dom/server";
 import type { BoardCell } from "shape-catalog";
-import { BoardCellCard } from "./BoardCellCard";
+import { BoardCellCard, shownEntryIndex } from "./BoardCellCard";
 import { ShapeLibraryProvider } from "./capabilities";
-import { chordBoardModel, chordEntry, stripReactComments } from "./testFixtures";
+import { catalog, chordBoardModel, chordEntry, stripReactComments } from "./testFixtures";
 
 const gapCell: BoardCell = {
   key: "gap::A",
   rowKey: "gap-row",
   columnKey: "A",
   state: "gap",
+  entries: [],
   slot: { kind: "chord", rowGrouping: "chordType", rowKey: "gap-row", axis: "cagedPosition", columnKey: "A", chordType: "m", cagedPosition: "A" },
 };
 
@@ -18,8 +19,17 @@ const filledCell: BoardCell = {
   rowKey: "filled-row",
   columnKey: "A",
   state: "filled",
+  entries: [chordEntry],
   entry: chordEntry,
   slot: { kind: "chord", rowGrouping: "chordType", rowKey: "filled-row", axis: "cagedPosition", columnKey: "A" },
+};
+
+const stackedEntries = catalog.filter((entry) => entry.kind === "chord").slice(0, 3);
+const stackedCell: BoardCell = {
+  ...filledCell,
+  key: "stacked::A",
+  entries: stackedEntries,
+  entry: stackedEntries[0],
 };
 
 const draftCell: BoardCell = {
@@ -27,6 +37,7 @@ const draftCell: BoardCell = {
   rowKey: "draft-row",
   columnKey: "A",
   state: "draft",
+  entries: [],
   slot: { kind: "chord", rowGrouping: "chordType", rowKey: "draft-row", axis: "cagedPosition", columnKey: "A" },
 };
 
@@ -85,6 +96,41 @@ describe("BoardCellCard", () => {
       </ShapeLibraryProvider>,
     );
     expect(html).toContain("data-tg-edit");
+  });
+});
+
+describe("BoardCellCard — cells holding several matches (CR-030)", () => {
+  it("shows the first match plus a +N badge with an accessible label", () => {
+    const html = stripReactComments(renderToString(<BoardCellCard cell={stackedCell} />));
+    expect(html).toContain(stackedEntries[0].name);
+    expect(html).not.toContain(`>${stackedEntries[1].name}<`);
+    expect(html).toContain("tg-board-cell-more");
+    expect(html).toContain(">+2</button>");
+    expect(html).toContain('aria-label="2 more shapes in this cell, show next"');
+    expect(html).toContain(`aria-label="${stackedEntries[0].name} (1 of 3 in this cell)"`);
+    // Read-only: the badge is not an edit affordance.
+    expect(html).not.toContain("data-tg-edit");
+  });
+
+  it("uses the singular for one extra match", () => {
+    const pair: BoardCell = { ...stackedCell, entries: stackedEntries.slice(0, 2) };
+    const html = stripReactComments(renderToString(<BoardCellCard cell={pair} />));
+    expect(html).toContain('aria-label="1 more shape in this cell, show next"');
+  });
+
+  it("renders no badge for a single-match cell", () => {
+    const html = renderToString(<BoardCellCard cell={filledCell} />);
+    expect(html).not.toContain("tg-board-cell-more");
+    expect(html).toContain(`aria-label="${chordEntry.name}"`);
+  });
+
+  it("shownEntryIndex follows the shown name and falls back to the first match", () => {
+    const [a, b, c] = stackedEntries;
+    expect(shownEntryIndex(stackedEntries, undefined)).toBe(0);
+    expect(shownEntryIndex(stackedEntries, b.name)).toBe(1);
+    expect(shownEntryIndex(stackedEntries, c.name)).toBe(2);
+    // A filter dropped the shown match: back to the first one still there.
+    expect(shownEntryIndex([a, c], b.name)).toBe(0);
   });
 });
 

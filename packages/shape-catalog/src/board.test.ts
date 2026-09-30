@@ -4,9 +4,9 @@
  * numbers below are hand-computed and independent of registry churn).
  */
 import { describe, expect, it } from "vitest";
-import type { ChordShape, ScaleShape } from "tonal-guitar";
-import { boardModel } from "./board";
-import type { ChordCatalogEntry, ScaleCatalogEntry, ShapeCatalogEntry } from "./catalog";
+import { auditAllShapes, impliedStringSet, type ChordShape, type ScaleShape } from "tonal-guitar";
+import { boardModel, type BoardAxis, type BoardRowGrouping } from "./board";
+import { buildCatalog, type ChordCatalogEntry, type ScaleCatalogEntry, type ShapeCatalogEntry } from "./catalog";
 
 // ============================================================
 // Fixture builders
@@ -121,9 +121,51 @@ describe("boardModel — chord kind, cagedPosition axis, chordType rowGrouping",
     expect(filled?.state).toBe("filled");
     expect(filled?.entry?.name).toBe("E Shape Major");
 
+    expect(filled?.entries.map((e) => e.name)).toEqual(["E Shape Major"]);
+
     const gap = board.cells.get("M::D");
     expect(gap?.state).toBe("gap");
     expect(gap?.entry).toBeUndefined();
+    expect(gap?.entries).toEqual([]);
+  });
+
+  it("keeps every match in a shared cell — featured first, then by name (CR-030)", () => {
+    const catalog = [
+      chordEntry({ name: "Zeta E Shape Major", chordType: "M", cagedPosition: "E" }),
+      chordEntry({ name: "Beta E Shape Major", chordType: "M", cagedPosition: "E" }),
+      chordEntry({ name: "Omega E Shape Major", chordType: "M", cagedPosition: "E", featured: true }),
+      chordEntry({ name: "Alpha E Shape Major", chordType: "M", cagedPosition: "E" }),
+    ];
+    const board = boardModel(catalog, {
+      kind: "chord",
+      axis: "cagedPosition",
+      rowGrouping: "chordType",
+    });
+    const cell = board.cells.get("M::E");
+    expect(cell?.state).toBe("filled");
+    expect(cell?.entries.map((e) => e.name)).toEqual([
+      "Omega E Shape Major",
+      "Alpha E Shape Major",
+      "Beta E Shape Major",
+      "Zeta E Shape Major",
+    ]);
+    expect(cell?.entry).toBe(cell?.entries[0]);
+    // Counts are per cell: one filled cell, however many matches it holds.
+    expect(board.counts).toEqual({ shown: 1, total: 5, gaps: 4 });
+  });
+
+  it("narrows a shared cell's matches with search without dropping the cell", () => {
+    const catalog = [
+      chordEntry({ name: "Alpha E Shape Major", chordType: "M", cagedPosition: "E" }),
+      chordEntry({ name: "Beta E Shape Major", chordType: "M", cagedPosition: "E" }),
+    ];
+    const board = boardModel(catalog, {
+      kind: "chord",
+      axis: "cagedPosition",
+      rowGrouping: "chordType",
+      search: "Beta",
+    });
+    expect(board.cells.get("M::E")?.entries.map((e) => e.name)).toEqual(["Beta E Shape Major"]);
   });
 
   it("cell slots carry the row/column semantics as a ChordSlot", () => {
@@ -290,5 +332,54 @@ describe("boardModel — arpeggio kind (no seeded catalog data)", () => {
       drafts,
     });
     expect(board.cells.get("m7::E")?.state).toBe("draft");
+  });
+});
+
+// ============================================================
+// Live catalog: no shape is silently dropped (CR-030)
+// ============================================================
+
+describe("boardModel — live catalog places every shape exactly once", () => {
+  const liveCatalog = buildCatalog(auditAllShapes());
+  const ROW_GROUPINGS: BoardRowGrouping[] = ["chordType", "stringSet"];
+  const AXES: BoardAxis[] = ["cagedPosition", "stringSet", "inversion"];
+
+  // Independent of `board.ts`'s own extraction: an entry is placeable when
+  // it carries both the row and the column facet, and the column value is
+  // one the axis actually renders (inversion columns are fixed 0–3).
+  function facet(entry: ShapeCatalogEntry, field: BoardRowGrouping | BoardAxis): string | undefined {
+    if (field === "chordType") return entry.shape.chordType;
+    if (field === "cagedPosition") return entry.shape.cagedPosition;
+    if (entry.kind !== "chord") return undefined;
+    if (field === "inversion") return entry.shape.inversion === undefined ? undefined : String(entry.shape.inversion);
+    const stringSet = impliedStringSet(entry.shape);
+    return stringSet ? JSON.stringify(stringSet) : undefined;
+  }
+
+  // Chord only: no live scale shape carries `chordType`, so every scale
+  // board is empty and the check would pass vacuously.
+  const kind = "chord";
+  for (const rowGrouping of ROW_GROUPINGS) {
+    for (const axis of AXES) {
+      it(`${rowGrouping} × ${axis}`, () => {
+        const board = boardModel(liveCatalog, { kind, axis, rowGrouping });
+        const columnKeys = new Set(board.columns.map((c) => c.key));
+        const placed = liveCatalog.filter((entry) => {
+          if (entry.kind !== kind) return false;
+          const column = facet(entry, axis);
+          return facet(entry, rowGrouping) !== undefined && column !== undefined && columnKeys.has(column);
+        });
+
+        const inCells = [...board.cells.values()].flatMap((cell) => cell.entries);
+        expect(inCells.length).toBe(placed.length);
+        expect(new Set(inCells.map((e) => e.name))).toEqual(new Set(placed.map((e) => e.name)));
+      });
+    }
+  }
+
+  it("the chordType × stringSet board really does stack several shapes per cell", () => {
+    const board = boardModel(liveCatalog, { kind: "chord", axis: "stringSet", rowGrouping: "chordType" });
+    const stacked = [...board.cells.values()].filter((cell) => cell.entries.length > 1);
+    expect(stacked.length).toBeGreaterThan(0);
   });
 });
