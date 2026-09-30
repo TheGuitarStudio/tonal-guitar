@@ -73,8 +73,7 @@ export type WorkbenchAction =
   | { type: "ADD_CHANGE"; change: ChangesetChange; sourceKey: string }
   | { type: "REMOVE_CHANGE"; index: number }
   | { type: "CLEAR_CHANGES" }
-  | { type: "SET_LAST_WRITTEN_AT"; timestamp: string }
-  | { type: "REPLACE_STATE"; state: WorkbenchState };
+  | { type: "SET_LAST_WRITTEN_AT"; timestamp: string };
 
 /** The dedup key for a `ChangesetChange`, given the `sourceKey` of the
  * draft that produced it (see `ADD_CHANGE`'s doc comment above and
@@ -138,8 +137,6 @@ export function workbenchReducer(state: WorkbenchState, action: WorkbenchAction)
       return state.changes.length === 0 ? state : { ...state, changes: [], changeKeys: [] };
     case "SET_LAST_WRITTEN_AT":
       return { ...state, lastWrittenAt: action.timestamp };
-    case "REPLACE_STATE":
-      return action.state;
     default:
       return state;
   }
