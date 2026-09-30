@@ -384,6 +384,27 @@ export function autoFingering(
   root: string,
   tuning: string[] = STANDARD,
 ): { fingers: (number | null)[]; barres: Barre[] } {
+  const frets = shapeIndexedFrets(shape, root, tuning);
+  const fingerForFret = fingerForEachFret(frets);
+
+  const fingers: (number | null)[] = frets.map((f) => {
+    if (f == null) return null;
+    if (f === 0) return 0;
+    return fingerForFret.get(f) ?? 4;
+  });
+
+  return { fingers, barres: adjacentRunBarres(frets, fingerForFret) };
+}
+
+// autoFingering pass 1: builds `shape` at `root` and returns its frets
+// SHAPE-indexed, inverse-mapped from the tuning-indexed build via
+// `strOffset` (the mirror of the shift applyChordShape's
+// `fingers`/`barres` apply going the other direction).
+function shapeIndexedFrets(
+  shape: Omit<ChordShape, "fingers" | "barres">,
+  root: string,
+  tuning: string[],
+): (number | null)[] {
   const asScaleShape: ScaleShape = {
     name: shape.name,
     system: shape.system,
@@ -393,9 +414,6 @@ export function autoFingering(
 
   const result = buildFrettedScale(asScaleShape, root, tuning);
   const strOffset = stringOffset(tuning, asScaleShape);
-  // Shape-indexed frets, inverse-mapped from the tuning-indexed build via
-  // strOffset (the mirror of the shift applyChordShape's `fingers`/`barres`
-  // apply going the other direction).
   const frets: (number | null)[] = shape.strings.map(() => null);
   for (const p of result.notes) {
     const shapeString = p.string - strOffset;
@@ -403,10 +421,12 @@ export function autoFingering(
       frets[shapeString] = p.fret;
     }
   }
+  return frets;
+}
 
-  const gripBase = gripBaseFret(frets);
-
-  // Distinct fretted (non-null, non-zero) fret values, low to high.
+// autoFingering pass 2: distinct fretted (non-null, non-zero) fret values,
+// low to high, get fingers 1, 2, 3, ... capped at 4.
+function fingerForEachFret(frets: (number | null)[]): Map<number, number> {
   const distinctFrets = Array.from(
     new Set(frets.filter((f): f is number => f != null && f !== 0)),
   ).sort((a, b) => a - b);
@@ -414,35 +434,38 @@ export function autoFingering(
   distinctFrets.forEach((fret, i) => {
     fingerForFret.set(fret, Math.min(i + 1, 4));
   });
+  return fingerForFret;
+}
 
-  const fingers: (number | null)[] = frets.map((f) => {
-    if (f == null) return null;
-    if (f === 0) return 0;
-    return fingerForFret.get(f) ?? 4;
-  });
-
+// autoFingering pass 3: each run of ≥2 adjacent strings sharing a fretted
+// fret becomes one `Barre`, its `fret` an offset from `gripBaseFret(frets)`
+// (D-010).
+function adjacentRunBarres(
+  frets: (number | null)[],
+  fingerForFret: Map<number, number>,
+): Barre[] {
+  const gripBase = gripBaseFret(frets);
   const barres: Barre[] = [];
   let i = 0;
   while (i < frets.length) {
     const f = frets[i];
-    if (f != null && f !== 0) {
-      let j = i;
-      while (j + 1 < frets.length && frets[j + 1] === f) {
-        j++;
-      }
-      if (j > i) {
-        barres.push({
-          fret: f - gripBase,
-          fromString: i,
-          toString: j,
-          finger: fingerForFret.get(f) ?? 4,
-        });
-      }
-      i = j + 1;
-    } else {
+    if (f == null || f === 0) {
       i++;
+      continue;
     }
+    let j = i;
+    while (j + 1 < frets.length && frets[j + 1] === f) {
+      j++;
+    }
+    if (j > i) {
+      barres.push({
+        fret: f - gripBase,
+        fromString: i,
+        toString: j,
+        finger: fingerForFret.get(f) ?? 4,
+      });
+    }
+    i = j + 1;
   }
-
-  return { fingers, barres };
+  return barres;
 }
