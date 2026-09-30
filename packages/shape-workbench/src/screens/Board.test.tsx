@@ -195,8 +195,28 @@ describe("BoardScreen", () => {
       expect(narrowed.counts.shown).toBeLessThan(raw.counts.shown);
       for (const cell of narrowed.cells.values()) {
         if (cell.state !== "filled") continue;
-        expect((cell.entry as ChordCatalogEntry).shape.voicingFamily).toBe(family);
+        expect(cell.entries.length).toBeGreaterThan(0);
+        expect(cell.entry).toBe(cell.entries[0]);
+        for (const entry of cell.entries) {
+          expect((entry as ChordCatalogEntry).shape.voicingFamily).toBe(family);
+        }
       }
+    });
+
+    it("keeps a stacked cell filled when only a later match passes the filter (CR-030)", () => {
+      // The pre-CR-030 pass checked only `cell.entry` (the first match), so a
+      // cell whose first match failed was blanked even if another passed.
+      const raw = boardModel(catalog, { kind: "chord", axis: "stringSet", rowGrouping: "chordType" });
+      const stacked = [...raw.cells.values()].find((cell) => cell.entries.length > 1);
+      if (!stacked) throw new Error("expected a cell holding several matches in the live registry");
+      const [first, ...rest] = stacked.entries;
+      const keep = new Set(rest.map((entry) => entry.name));
+
+      const narrowed = restrictCellsByEntry(raw, undefined, (entry) => keep.has(entry.name));
+      const cell = narrowed.cells.get(stacked.key);
+      expect(cell?.state).toBe("filled");
+      expect(cell?.entries.map((entry) => entry.name)).toEqual(rest.map((entry) => entry.name));
+      expect(cell?.entry?.name).not.toBe(first.name);
     });
 
     it('narrows filled scale cells (kind: "scale") to a single system and quality', () => {
@@ -230,6 +250,7 @@ describe("BoardScreen", () => {
         rowKey: "row",
         columnKey,
         state: "filled",
+        entries: [entry],
         entry,
         slot: { kind: "scale", rowGrouping: "chordType", rowKey: "row", axis: "cagedPosition", columnKey, chordType: "row" },
       });

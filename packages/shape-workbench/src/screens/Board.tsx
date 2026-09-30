@@ -82,8 +82,9 @@ function restrictToRowKeys(model: BoardModelResult, rowKeys: readonly string[] |
 }
 
 /**
- * Downgrades "filled" cells whose `entry` fails a facet predicate to "gap"
- * (or "draft" if a draft badge exists for that slot) — the Voicing Family /
+ * Narrows each "filled" cell's `entries` to those passing a facet predicate,
+ * downgrading a cell to "gap" (or "draft" if a draft badge exists for that
+ * slot) only when none are left (CR-030) — the Voicing Family /
  * Root strip (chord) and System / Quality (scale) `FilterBar` chips (spec
  * §5.4, task 25.2's "wire family/type filters ... from shape-catalog"). None
  * of these facets correspond to a board row or column the way `typeFilter`/
@@ -101,15 +102,20 @@ export function restrictCellsByEntry(
   let shown = 0;
   let gaps = 0;
   for (const cell of model.cells.values()) {
-    if (cell.state === "filled" && cell.entry && !matches(cell.entry)) {
-      const hasDraft = drafts?.has(cell.key) ?? false;
-      cells.set(cell.key, { ...cell, state: hasDraft ? "draft" : "gap", entry: undefined });
-      if (!hasDraft) gaps += 1;
+    if (cell.state === "filled") {
+      const entries = cell.entries.filter(matches);
+      if (entries.length === 0) {
+        const hasDraft = drafts?.has(cell.key) ?? false;
+        cells.set(cell.key, { ...cell, state: hasDraft ? "draft" : "gap", entries, entry: undefined });
+        if (!hasDraft) gaps += 1;
+        continue;
+      }
+      cells.set(cell.key, entries.length === cell.entries.length ? cell : { ...cell, entries, entry: entries[0] });
+      shown += 1;
       continue;
     }
     cells.set(cell.key, cell);
-    if (cell.state === "filled") shown += 1;
-    else if (cell.state === "gap") gaps += 1;
+    if (cell.state === "gap") gaps += 1;
   }
   return { columns: model.columns, rows: model.rows, cells, counts: { shown, total: model.counts.total, gaps } };
 }
