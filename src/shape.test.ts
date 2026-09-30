@@ -2,7 +2,7 @@
  * Tests for Task Group 1: VoicingFamily, VoicingPatternDictionary, and chordShapes.query
  * Also covers CR-038: registry hostile-key safety (Map-backed indices).
  */
-import { describe, it, expect, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 // @ts-expect-error -- untyped Vite `?raw` raw-source import (same pattern as audit-integration.test.ts)
 import shapeSource from "./shape.ts?raw";
 import {
@@ -26,6 +26,24 @@ import {
   type CagedPosition,
   type ArpeggioShape,
 } from "./shape";
+
+/**
+ * Runs each test in the enclosing describe against an empty `arpeggioShapes`
+ * registry — the built-in seeds (data/caged-arpeggios, registered via
+ * ./index) would otherwise occupy the slots these fixtures use — and
+ * restores the seeds afterwards.
+ */
+function isolateArpeggioRegistry(): void {
+  let seeded: ArpeggioShape[] = [];
+  beforeEach(() => {
+    seeded = arpeggioShapes.all();
+    arpeggioShapes.removeAll();
+  });
+  afterEach(() => {
+    arpeggioShapes.removeAll();
+    seeded.forEach((shape) => arpeggioShapes.add(shape));
+  });
+}
 
 describe("VoicingFamily and VoicingPatternDictionary — import smoke", () => {
   it("VoicingFamily resolves as a type from src/index (compile-time check)", () => {
@@ -606,9 +624,7 @@ describe("Chord shape registry — replace-on-add and remove (Task Group 3)", ()
 });
 
 describe("arpeggioShapes registry — CRUD and query (Task Group 3)", () => {
-  afterEach(() => {
-    arpeggioShapes.removeAll();
-  });
+  isolateArpeggioRegistry();
 
   const makeArpeggio = (name: string, overrides: Partial<ArpeggioShape> = {}): ArpeggioShape => ({
     name,
@@ -1052,9 +1068,7 @@ describe("slotForChordShape (Task Group 4)", () => {
 });
 
 describe("resolveArpeggioForSlot (Task Group 4)", () => {
-  afterEach(() => {
-    arpeggioShapes.removeAll();
-  });
+  isolateArpeggioRegistry();
 
   const makeArpeggio = (name: string, overrides: Partial<ArpeggioShape> = {}): ArpeggioShape => ({
     name,
@@ -1171,9 +1185,7 @@ describe("resolveArpeggioForSlot (Task Group 4)", () => {
 });
 
 describe("visibleArpeggios (Task Group 4)", () => {
-  afterEach(() => {
-    arpeggioShapes.removeAll();
-  });
+  isolateArpeggioRegistry();
 
   const makeArpeggio = (name: string, overrides: Partial<ArpeggioShape> = {}): ArpeggioShape => ({
     name,

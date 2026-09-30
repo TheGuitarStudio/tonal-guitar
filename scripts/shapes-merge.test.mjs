@@ -105,7 +105,7 @@ describe("parseOwnedBlocks: src/index.ts data-imports block (spec §6.3 registra
 });
 
 describe("parseCountMarkers: registry-total assertions (spec §6.4)", () => {
-  it("finds the 6 annotated registry-count assertions in src/data/data.test.ts", () => {
+  it("finds the 7 annotated registry-count assertions in src/data/data.test.ts", () => {
     const markers = parseCountMarkers(read(DATA_TEST_PATH));
     expect(markers.map((m) => m.name)).toEqual([
       "shell-shape-total",
@@ -114,6 +114,7 @@ describe("parseCountMarkers: registry-total assertions (spec §6.4)", () => {
       "scale-shape-total",
       "featured-chord-total",
       "featured-scale-total",
+      "arpeggio-shape-total",
     ]);
   });
 

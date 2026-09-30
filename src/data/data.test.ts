@@ -14,9 +14,17 @@
 import { describe, it, expect } from "vitest";
 import {
   chordShapes,
+  arpeggioShapes,
+  auditArpeggioShape,
+  auditArpeggioShapeIntegration,
+  resolveArpeggioForSlot,
+  slotForChordShape,
+  type CagedPosition,
   type ChordShape,
   type VoicingPatternDictionary,
 } from "../index";
+import { chroma } from "@tonaljs/note";
+import { get as getChord } from "@tonaljs/chord";
 import { applyChordShape, buildFrettedScale } from "../build";
 import { STANDARD } from "../tuning";
 import { get, all, names } from "../shape";
@@ -920,12 +928,11 @@ describe("TG10 — Data integrity: chordShapes.all() count after all curated imp
     // Extended shapes now carry voicingFamily "extended" (not "caged"), so a
     // clean query suffices. The 5 base majors + 5 minors also carry
     // voicingFamily "caged" and a defined chordType now (R-1.1 backfill),
-    // but they're the only "caged" shapes with a `cagedPosition` — the 7th
-    // shapes are movable forms with no canonicalRoot/cagedPosition — so
-    // excluding those isolates exactly the 11 7th-chord shapes.
+    // so excluding the triad chord types ("M"/"m") isolates exactly the 11
+    // 7th-chord shapes. (The 7th shapes carry a `cagedPosition` too since #58.)
     const cagedSeventh = chordShapes
       .query({ voicingFamily: "caged" })
-      .filter((s) => s.chordType !== undefined && s.cagedPosition === undefined);
+      .filter((s) => s.chordType !== undefined && s.chordType !== "M" && s.chordType !== "m");
     expect(cagedSeventh.length).toBe(11);
   });
 
@@ -1398,5 +1405,93 @@ describe("TG5 — featured scale shape curation", () => {
 
   it("exactly 5 scale shapes are flagged featured across the registry", () => {
     expect(all().filter((s) => s.featured).length).toBe(5); // shapes-merge:count featured-scale-total
+  });
+});
+
+// ─── #58 — CAGED arpeggio seeds (data/caged-arpeggios) ──────────────────────
+
+describe("caged-arpeggios: triad + 7th arpeggio seeds for all 5 CAGED positions (#58)", () => {
+  const LETTERS: CagedPosition[] = ["C", "A", "G", "E", "D"];
+  const QUALITIES = [
+    { label: "Major", chordType: "M", chord: "" },
+    { label: "Minor", chordType: "m", chord: "m" },
+    { label: "maj7", chordType: "maj7", chord: "maj7" },
+    { label: "m7", chordType: "m7", chord: "m7" },
+  ];
+  const seeds = arpeggioShapes.query({ system: "caged" });
+
+  it("registers one seed per (quality, CAGED letter) pair — 20 total", () => {
+    expect(arpeggioShapes.all()).toHaveLength(20); // shapes-merge:count arpeggio-shape-total
+    for (const { label, chordType } of QUALITIES) {
+      for (const letter of LETTERS) {
+        const matches = arpeggioShapes.query({ chordType, cagedPosition: letter });
+        expect(matches.map((s) => s.name)).toEqual([`${letter} Shape ${label} Arpeggio`]);
+      }
+    }
+  });
+
+  it("query({ cagedPosition }) returns that position's Major, Minor, maj7 and m7 arpeggios", () => {
+    for (const letter of LETTERS) {
+      const chordTypes = arpeggioShapes
+        .query({ cagedPosition: letter })
+        .map((s) => s.chordType)
+        .sort();
+      expect(chordTypes).toEqual(["M", "m", "m7", "maj7"]);
+    }
+  });
+
+  it("tags triads and sevenths for filtering", () => {
+    expect(arpeggioShapes.query({ tags: ["caged", "triad"] })).toHaveLength(10);
+    expect(arpeggioShapes.query({ tags: ["caged", "seventh"] })).toHaveLength(10);
+  });
+
+  it("every chordShape / parentShape link resolves to a registered shape", () => {
+    for (const seed of seeds) {
+      expect(get(seed.parentShape ?? "")).toBeDefined();
+      if (seed.chordShape !== undefined) {
+        expect(chordShapes.get(seed.chordShape)).toBeDefined();
+      }
+    }
+  });
+
+  it("each seed's rootString matches its parent box and its grip", () => {
+    for (const seed of seeds) {
+      expect(seed.rootString).toBe(get(seed.parentShape ?? "")?.rootString);
+      const grip = seed.chordShape !== undefined ? chordShapes.get(seed.chordShape) : undefined;
+      if (grip !== undefined) expect(seed.rootString).toBe(grip.rootString);
+    }
+  });
+
+  it.each(["C", "F#", "Bb", "E"])(
+    "builds exactly the chord's pitch classes at root %s, with no build loss",
+    (root) => {
+      for (const seed of seeds) {
+        const quality = QUALITIES.find((q) => q.chordType === seed.chordType)!;
+        const built = buildFrettedScale(seed, root, STANDARD);
+        expect(built.empty).toBe(false);
+        const builtChromas = new Set(built.notes.map((n) => chroma(n.note)));
+        const chordChromas = new Set(getChord(`${root}${quality.chord}`).notes.map(chroma));
+        expect(builtChromas).toEqual(chordChromas);
+      }
+    },
+  );
+
+  it("passes the full arpeggio audit (pure + integration tiers) with zero issues", () => {
+    for (const seed of seeds) {
+      for (const root of ["C", "G", "Eb"]) {
+        expect(auditArpeggioShape(seed, { root })).toEqual([]);
+        expect(auditArpeggioShapeIntegration(seed, { root })).toEqual([]);
+      }
+    }
+  });
+
+  it("resolves as the core arpeggio for each linked grip's slot", () => {
+    for (const seed of seeds) {
+      if (seed.chordShape === undefined) continue;
+      const grip = chordShapes.get(seed.chordShape)!;
+      const resolution = resolveArpeggioForSlot(slotForChordShape(grip));
+      expect(resolution.tier).toBe("core");
+      expect(resolution.shape).toBe(seed);
+    }
   });
 });

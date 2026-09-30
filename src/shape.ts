@@ -124,9 +124,8 @@ export interface Barre {
  * IS a `ScaleShape` (it only narrows `chordType` to required and adds a few
  * arpeggio-specific fields), so `buildFrettedScale`, `walkShape`,
  * `inferShapeContext` and `checkScaleBuildLoss` all work unchanged on it
- * with no code changes in this feature. No seed data ships for this
- * interface yet — see the `arpeggioShapes` registry (later group) for where
- * it starts getting populated.
+ * with no code changes in this feature. Built-in seeds live in
+ * `data/caged-arpeggios.ts` (registered into `arpeggioShapes`).
  */
 export interface ArpeggioShape extends ScaleShape {
   // REQUIRED here (unlike the optional ScaleShape.chordType) — an arpeggio
@@ -442,7 +441,7 @@ export const chordShapes = {
 // Arpeggio shape registry
 // ============================================================
 // Mirrors chordShapes exactly (get/all/names/add/remove/removeAll/query).
-// Ships with zero seeded data — see `data/*` for a later phase.
+// Seeded at import time by `data/caged-arpeggios.ts` (via index.ts).
 
 let arpeggioDictionary: ArpeggioShape[] = [];
 let arpeggioIndex: Map<string, ArpeggioShape> = new Map();

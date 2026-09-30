@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Built-in CAGED arpeggio seeds** (#58). `src/data/caged-arpeggios.ts` (generator-managed: `shapes-merge` owned blocks, so later edits go through `npm run shapes:merge` changesets) registers the first 20 `arpeggioShapes` entries: one arpeggio per (quality, CAGED letter) pair, for Major, Minor, maj7 and m7 across all five positions (C, A, G, E, D). They are named `"<Letter> Shape <Quality> Arpeggio"`, e.g. `"E Shape Minor Arpeggio"` or `"C Shape maj7 Arpeggio"`.
+  - Each seed is the chord tones of its parent CAGED box: the major box for Major and maj7, the minor box for Minor and m7. The seed records that box in `parentShape`.
+  - Each seed carries `cagedPosition`, `chordType` and `tags` (`["caged", "triad"]` or `["caged", "seventh"]`), so `arpeggioShapes.query({ cagedPosition: "E" })` returns that position's Major, Minor, maj7 and m7 arpeggios.
+  - Where a matching grip exists, `chordShape` links the seed to it, and `arpeggioFor`/`resolveArpeggioForSlot` resolve it at tier `"core"` instead of `"derived"`. The C/G 7th seeds have no `chordShape` because no C/G 7th grips are registered.
+  - Every seed passes `auditArpeggioShape` and `auditArpeggioShapeIntegration` cleanly.
+- `scripts/shapes-merge.mjs` count marker `arpeggio-shape-total`, which tracks the registered arpeggio total in `src/data/data.test.ts`.
+
+### Changed
+
+- The 7th-chord CAGED grips in `src/data/caged-chords-7th.ts` (E/A/D × `maj7`/`m7`/`7`, E/A × `m7b5`) now set `cagedPosition`, taken from the letter in the shape name. As a result, `chordShapes.query({ cagedPosition })` now also returns these 11 grips, where before it returned only the triad grips.
+- `arpeggioShapes` is no longer empty after importing the root barrel. Code that assumed an empty registry, such as tests that add fixtures to a slot, should call `arpeggioShapes.removeAll()` first or use a slot the seeds don't occupy.
+
 ## [0.3.0] — 2026-09-10
 
 ### Added

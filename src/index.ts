@@ -235,6 +235,7 @@ export {
 // Built-in shape data (import to register shapes)
 // shapes-merge:begin data-imports
 import "./data/caged-scales";
+import "./data/caged-arpeggios";
 import "./data/caged-scales-minor";
 import "./data/caged-chords";
 import "./data/caged-chords-minor";
