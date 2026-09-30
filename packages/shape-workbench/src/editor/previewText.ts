@@ -10,7 +10,8 @@
  *
  * No React/DOM imports.
  */
-import { renderShapeTs, draftToChange, type RenderShapeOptions, type ShapeLike } from "shape-catalog";
+import { draftToChange } from "shape-catalog";
+import { renderShapeTs, type RenderShapeOptions, type ShapeLike } from "shape-catalog/render";
 import type { DraftShape } from "shape-catalog";
 import type { ChangesetChange } from "tonal-guitar";
 

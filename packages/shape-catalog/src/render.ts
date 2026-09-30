@@ -7,6 +7,12 @@
  *
  * Zero React/DOM imports; imports only the printer module (a relative
  * import, not a package dependency — `scripts/lib` is not published).
+ *
+ * Exposed only as the `shape-catalog/render` subpath, never from the
+ * `./index.ts` barrel: the printer reaches outside this package and
+ * lazily `import()`s `prettier`, so it must stay out of browser module
+ * graphs (the site's static export) that only need the catalog helpers.
+ * Its consumers are Node tooling and the Shape Workbench.
  */
 import { renderShape } from "../../../scripts/lib/render-shape.mjs";
 

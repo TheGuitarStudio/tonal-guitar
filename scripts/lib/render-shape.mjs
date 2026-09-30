@@ -8,7 +8,7 @@
  *   - overall statement formatting (indentation, line-wrapping, trailing
  *     commas)
  *
- * `packages/shape-catalog` re-exports `renderShape` (as `renderShapeTs`) so
+ * `shape-catalog/render` re-exports `renderShape` (as `renderShapeTs`) so
  * the Shape Workbench's "Copy TS" output and `scripts/shapes-merge.mjs`'s
  * generated `src/data/*.ts` source are byte-identical — never reimplement
  * this printer elsewhere.

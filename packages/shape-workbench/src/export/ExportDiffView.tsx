@@ -11,8 +11,7 @@
  */
 import { useEffect, useState } from "react";
 import type { ChangesetChange } from "tonal-guitar";
-import { renderShapeTs } from "shape-catalog";
-import type { ShapeLike } from "shape-catalog";
+import { renderShapeTs, type ShapeLike } from "shape-catalog/render";
 import type { WorkbenchState } from "../store";
 import { changeAfterShape, changeBeforeShape, changeShapeDiff } from "./changeInfo";
 
