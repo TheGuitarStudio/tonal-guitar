@@ -438,6 +438,25 @@ describe("shapes-merge: update — surgical owned-block replace (17.2)", () => {
   );
 });
 
+describe("shapes-merge: CR-027 — an unparseable owned block is a structural refusal", () => {
+  it(
+    "update against a hand-corrupted block refuses with MergeRefusal naming the ident",
+    withFixtureRoot(async (dir) => {
+      const dataPath = realDataFile(dir, "caged-chords");
+      const source = readFileSync(dataPath, "utf8");
+      const block = findOwnedBlock(source, "CAGED_CHORD_A");
+      writeFileSync(dataPath, source.replace(block.content, block.content.replace("{", "{ ???")));
+      const changesetPath = writeChangeset(
+        dir,
+        baseChangeset([{ op: "update", kind: "chord", name: "A Shape Major", patch: { notes: "x" } }]),
+      );
+      const err = await expectRefusalWithNoWrites(dir, changesetPath);
+      expect(err.rule).toBe("structure");
+      expect(err.message).toContain("CAGED_CHORD_A");
+    }),
+  );
+});
+
 describe("shapes-merge: remove — drops the owned block, deletes an emptied generated file (17.2)", () => {
   it(
     "removes one constant from a 2-constant generated file, then deletes the file + import once empty",

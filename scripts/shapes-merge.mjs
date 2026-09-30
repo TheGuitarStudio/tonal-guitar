@@ -387,7 +387,7 @@ function resolveRenamedUpdateRegion(dataDir, files, change) {
     if (byName === undefined || !byName.insideBlock) return undefined;
     const absPath = path.join(dataDir, `${byName.file}.ts`);
     const block = findOwnedBlock(readFileSync(absPath, "utf8"), byName.ident);
-    const current = parseShapeLiteral(block.content);
+    const current = parseShapeLiteral(block.content, byName.ident);
     const reapplied = { ...current, ...change.patch };
     for (const field of change.unset ?? []) delete reapplied[field];
     if (!deepEqual(reapplied, current)) return undefined;
@@ -927,7 +927,7 @@ async function planMerge(changeset, ctx) {
     const region = regionByChange.get(change);
     const absPath = path.join(dataDir, `${region.file}.ts`);
     const block = findOwnedBlock(readFileSync(absPath, "utf8"), region.ident);
-    baseByUpdate.set(change, parseShapeLiteral(block.content));
+    baseByUpdate.set(change, parseShapeLiteral(block.content, region.ident));
   }
 
   // Same recovery, for `remove` — computeCountsTouched (oversight fix B)
@@ -940,7 +940,7 @@ async function planMerge(changeset, ctx) {
     const region = regionByChange.get(change);
     const absPath = path.join(dataDir, `${region.file}.ts`);
     const block = findOwnedBlock(readFileSync(absPath, "utf8"), region.ident);
-    baseByRemove.set(change, parseShapeLiteral(block.content));
+    baseByRemove.set(change, parseShapeLiteral(block.content, region.ident));
   }
 
   // ---- rule 5: file naming + computed-file deny list (add only) -----------
@@ -1463,14 +1463,23 @@ function scanInboundReferences(dataDir, files) {
  * because `renderShape` only ever prints JSON-safe literals — strings,
  * numbers, booleans, null, arrays, plain objects — never functions or
  * computed expressions (mirrors the `evalPrintedShape` helper this test
- * suite already relies on in scripts/lib/render-shape.test.mjs).
+ * suite already relies on in scripts/lib/render-shape.test.mjs). A block
+ * that was hand-edited into something unparseable is refused as
+ * `MergeRefusal("structure", …)` naming `ident`, not thrown as a bare error.
  */
-function parseShapeLiteral(blockContent) {
+function parseShapeLiteral(blockContent, ident) {
   const match = blockContent.match(/=\s*([\s\S]*);\s*$/);
   if (!match) {
-    throw new Error("parseShapeLiteral: could not locate an object literal in owned block content");
+    throw new MergeRefusal(
+      "structure",
+      `owned block "${ident}": could not locate an object literal in its content`,
+    );
   }
-  return (0, eval)(`(${match[1]})`);
+  try {
+    return (0, eval)(`(${match[1]})`);
+  } catch (err) {
+    throw new MergeRefusal("structure", `owned block "${ident}": could not parse its shape literal: ${err.message}`);
+  }
 }
 
 function computeCountsTouched({
