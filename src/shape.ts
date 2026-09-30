@@ -111,9 +111,9 @@ export interface Barre {
   // transposition interval, so a stored offset resolves to the same finger
   // position at every root. Resolve to an absolute fret with
   // `absoluteBarreFret(barre, gripBaseFret(frets))` for a built grip, or
-  // `absoluteBarreFret(barre, sourceGripBaseFret(shape,
-  // chordShapeGeometry(shape).sourceFrets))` for an authored source
-  // diagram. A resolved fret of `0` means the barre lies on the nut at that
+  // `absoluteBarreFret(barre,
+  // gripBaseFret(chordShapeGeometry(shape).sourceFrets))` for an authored
+  // source diagram. A resolved fret of `0` means the barre lies on the nut at that
   // root (no finger actually presses it).
   fret: number;
   fromString: number;
@@ -237,11 +237,15 @@ export function absoluteBarreFret(barre: Barre, gripBase: number): number {
 
 /**
  * The source-diagram analog of `gripBaseFret`: the grip base implied by a
- * shape's authored source diagram rather than a built fingering. `shape` is
- * accepted (unused directly) to mirror `gripBaseFret`'s call shape and keep
- * the two symmetric at call sites; `sourceFrets` is the per-string fret
- * array to reduce — typically `chordShapeGeometry(shape).sourceFrets` from
- * `audit.ts`.
+ * shape's authored source diagram rather than a built fingering.
+ * `sourceFrets` is the per-string fret array to reduce — typically
+ * `chordShapeGeometry(shape).sourceFrets` from `audit.ts`. The result is
+ * exactly `gripBaseFret(sourceFrets)`.
+ *
+ * @param _shape Unused. Kept only so existing callers don't break.
+ * @deprecated Call `gripBaseFret(sourceFrets)` directly. This wrapper (and
+ * its unused `_shape` parameter) will be removed in a future breaking
+ * release.
  */
 export function sourceGripBaseFret(
   _shape: ChordShape,
@@ -380,6 +384,42 @@ export function removeAll(): void {
 }
 
 // ============================================================
+// Registry query helpers
+// ============================================================
+
+// Filter fields shared by `chordShapes.query` and `arpeggioShapes.query`.
+interface SharedShapeFilter {
+  chordType?: string;
+  system?: string;
+  cagedPosition?: CagedPosition;
+  tags?: string[];
+}
+
+// True when `shape` passes every shared filter clause that is set; `tags`
+// requires all of the listed tags.
+function matchesSharedFilter(
+  shape: SharedShapeFilter & { system: string },
+  filter: SharedShapeFilter,
+): boolean {
+  if (filter.chordType !== undefined && shape.chordType !== filter.chordType) {
+    return false;
+  }
+  if (filter.system !== undefined && shape.system !== filter.system) {
+    return false;
+  }
+  if (filter.cagedPosition !== undefined && shape.cagedPosition !== filter.cagedPosition) {
+    return false;
+  }
+  if (filter.tags !== undefined) {
+    const shapeTags = shape.tags ?? [];
+    if (!filter.tags.every((tag) => shapeTags.includes(tag))) {
+      return false;
+    }
+  }
+  return true;
+}
+
+// ============================================================
 // Chord shape registry
 // ============================================================
 
@@ -416,10 +456,7 @@ export const chordShapes = {
     tags?: string[];
   }): ChordShape[] {
     return chordDictionary.filter((shape) => {
-      if (filter.chordType !== undefined && shape.chordType !== filter.chordType) {
-        return false;
-      }
-      if (filter.system !== undefined && shape.system !== filter.system) {
+      if (!matchesSharedFilter(shape, filter)) {
         return false;
       }
       if (filter.voicingFamily !== undefined && shape.voicingFamily !== filter.voicingFamily) {
@@ -427,15 +464,6 @@ export const chordShapes = {
       }
       if (filter.stringSet !== undefined) {
         if (JSON.stringify(shape.stringSet) !== JSON.stringify(filter.stringSet)) {
-          return false;
-        }
-      }
-      if (filter.cagedPosition !== undefined && shape.cagedPosition !== filter.cagedPosition) {
-        return false;
-      }
-      if (filter.tags !== undefined) {
-        const shapeTags = shape.tags ?? [];
-        if (!filter.tags.every((tag) => shapeTags.includes(tag))) {
           return false;
         }
       }
@@ -483,20 +511,8 @@ export const arpeggioShapes = {
     overrides?: string;
   }): ArpeggioShape[] {
     return arpeggioDictionary.filter((shape) => {
-      if (filter.chordType !== undefined && shape.chordType !== filter.chordType) {
+      if (!matchesSharedFilter(shape, filter)) {
         return false;
-      }
-      if (filter.system !== undefined && shape.system !== filter.system) {
-        return false;
-      }
-      if (filter.cagedPosition !== undefined && shape.cagedPosition !== filter.cagedPosition) {
-        return false;
-      }
-      if (filter.tags !== undefined) {
-        const shapeTags = shape.tags ?? [];
-        if (!filter.tags.every((tag) => shapeTags.includes(tag))) {
-          return false;
-        }
       }
       if (filter.chordShape !== undefined && shape.chordShape !== filter.chordShape) {
         return false;

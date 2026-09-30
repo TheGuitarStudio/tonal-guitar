@@ -28,7 +28,7 @@
  * `barres[].fret` below follows the D-010 offset convention (as amended by
  * CR-002 / #192): it stores an offset in frets from the shape's grip base —
  * the lowest *played* fret of the source diagram, open strings included
- * (`sourceGripBaseFret` in `../shape`, fed by
+ * (`gripBaseFret` in `../shape`, fed by
  * `chordShapeGeometry(shape).sourceFrets` from `../audit`) — not an absolute
  * fret. For an open shape with at least one open string that base is the nut
  * (0), so the offset equals the barre's fret at `canonicalRoot`; because the

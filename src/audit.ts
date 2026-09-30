@@ -20,7 +20,6 @@ import {
   isMovable,
   playedStringSet,
   gripBaseFret,
-  sourceGripBaseFret,
   exportIdentifierFor,
   registryMutationVersion,
 } from "./shape";
@@ -101,6 +100,20 @@ export function displayRootFor(shape: { canonicalRoot?: string }): string {
 }
 
 // ============================================================
+// Span helper
+// ============================================================
+
+// `max - min` over the fretted frets only: muted (`null`) and open (`0`)
+// strings are excluded, so an open-string drone never inflates the span.
+// `0` when nothing is fretted. Shared by `checkFretSpan` and
+// `checkPositionSpan`; `checkBarreFretOrigin` measures from `gripBaseFret`
+// (open strings included) instead, so it doesn't use this.
+function frettedSpan(frets: readonly (number | null)[]): number {
+  const fretted = frets.filter((f): f is number => f !== null && f > 0);
+  return fretted.length ? Math.max(...fretted) - Math.min(...fretted) : 0;
+}
+
+// ============================================================
 // Individual checks
 // ============================================================
 
@@ -125,8 +138,7 @@ export function checkFretSpan(
   prebuilt?: Fingering,
 ): ShapeAuditIssue[] {
   const { frets } = prebuilt ?? applyChordShape(shape, root, tuning);
-  const fretted = frets.filter((f): f is number => f !== null && f > 0);
-  const span = fretted.length ? Math.max(...fretted) - Math.min(...fretted) : 0;
+  const span = frettedSpan(frets);
 
   if (span <= maxSpan) return [];
 
@@ -619,7 +631,7 @@ export function checkBarreFretOrigin(
 
     if (geometry != null) {
       const absoluteSourceFret = geometry.sourceFrets[barre.fromString];
-      const sourceGripBase = sourceGripBaseFret(shape, geometry.sourceFrets);
+      const sourceGripBase = gripBaseFret(geometry.sourceFrets);
       const suggestedOffset =
         absoluteSourceFret == null ? undefined : absoluteSourceFret - sourceGripBase;
       if (
@@ -899,8 +911,9 @@ export function auditChordShape(
 }
 
 /**
- * Runs the two checks that apply to scale shapes — build-loss and
- * metadata-completeness — never fret-span/finger/geometry, which are
+ * Runs the checks that apply to scale shapes — build-loss,
+ * metadata-completeness and name-unique (`checkNameUnique(shape, "scale")`,
+ * against the live registry) — never fret-span/finger/geometry, which are
  * chord-only. `root` defaults to `"C"` (`ScaleShape` has no `canonicalRoot`
  * field, so `displayRootFor` isn't applicable here — its default resolves to
  * "C" too, mirroring `checkScaleBuildLoss`'s registry-wide test convention);
@@ -916,6 +929,7 @@ export function auditScaleShape(
   return [
     ...checkScaleBuildLoss(shape, root, tuning),
     ...checkScaleMetadataCompleteness(shape),
+    ...checkNameUnique(shape, "scale"),
   ];
 }
 
@@ -947,8 +961,7 @@ export function checkPositionSpan(
   const result = prebuilt ?? buildFrettedScale(shape, root, tuning);
   if (result.empty) return [];
 
-  const fretted = result.notes.map((n) => n.fret).filter((f) => f > 0);
-  const span = fretted.length ? Math.max(...fretted) - Math.min(...fretted) : 0;
+  const span = frettedSpan(result.notes.map((n) => n.fret));
 
   if (span <= maxSpan) return [];
 
@@ -1040,7 +1053,9 @@ export function checkOverridesTarget(shape: ArpeggioShape): ShapeAuditIssue[] {
 
 /**
  * Runs only the tier-safe arpeggio checks (shape-workbench spec §3.1):
- * build-loss, position-span, fingering-complete, overrides-target. Chord-tone
+ * build-loss, position-span, fingering-complete, overrides-target, and
+ * name-unique (`checkNameUnique(shape, "arpeggio")`, against the live
+ * registry). Chord-tone
  * verification (does the run actually outline `chordType`?) needs
  * `@tonaljs/chord` and lives in the optional tier
  * (`auditArpeggioShapeIntegration`, `src/audit-integration.ts`, not this
@@ -1065,12 +1080,13 @@ export function auditArpeggioShape(
     ...checkPositionSpan(shape, root, tuning, options.maxFretSpan, built),
     ...checkFingeringComplete(shape),
     ...checkOverridesTarget(shape),
+    ...checkNameUnique(shape, "arpeggio"),
   ];
 }
 
 /**
- * Audits every currently-registered chord and scale shape, keyed by
- * `shape.name`. Note: the registries are populated by side-effect imports in
+ * Audits every currently-registered chord, scale and arpeggio shape, keyed
+ * by `shape.name`. Note: the registries are populated by side-effect imports in
  * index.ts, so this only returns full results once the data modules have
  * been imported — in tests, import `./index` or the relevant data modules
  * first to populate them.
@@ -1079,13 +1095,16 @@ export function auditArpeggioShape(
  * always-populated `geometry` (via `chordShapeGeometry`), not just on the
  * shapes `checkGeometryMismatch` flags — so a consumer rendering every card
  * (e.g. the Guitar Lab site's shape library) can show source-diagram frets
- * without re-deriving `gripRootFor`/`sourceFrets` itself. Scale shapes have
- * no comparable geometry concept, so their results remain a plain issue
- * list.
+ * without re-deriving `gripRootFor`/`sourceFrets` itself. Scale and
+ * arpeggio shapes have no comparable geometry concept, so their results
+ * remain plain issue lists (arpeggios via the tier-safe
+ * `auditArpeggioShape`; `auditAllShapesIntegration` covers their chord-tone
+ * checks).
  */
 export function auditAllShapes(options?: ShapeAuditOptions): {
   chord: Map<string, ChordShapeAuditResult>;
   scale: Map<string, ShapeAuditIssue[]>;
+  arpeggio: Map<string, ShapeAuditIssue[]>;
 } {
   const tuning = options?.tuning ?? STANDARD;
 
@@ -1102,5 +1121,10 @@ export function auditAllShapes(options?: ShapeAuditOptions): {
     scale.set(shape.name, auditScaleShape(shape, options));
   }
 
-  return { chord, scale };
+  const arpeggio = new Map<string, ShapeAuditIssue[]>();
+  for (const shape of arpeggioShapes.all()) {
+    arpeggio.set(shape.name, auditArpeggioShape(shape, options));
+  }
+
+  return { chord, scale, arpeggio };
 }

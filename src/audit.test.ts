@@ -60,7 +60,6 @@ import {
   chordShapes,
   get as getScaleShape,
   gripBaseFret,
-  sourceGripBaseFret,
   ArpeggioShape,
   ChordShape,
   ScaleShape,
@@ -953,7 +952,7 @@ describe("checkBarreFretOrigin", () => {
   it("D-010 worked example — 'C Sus2 Open' (x30033, baseFret 1, barre fret 3, strings 4-5): offset (3 - grip base 0) === 3, not flagged", () => {
     expect(checkBarreFretOrigin(OPEN_C_SUS2, "C", STANDARD)).toEqual([]);
     const geometry = chordShapeGeometry(OPEN_C_SUS2, STANDARD)!;
-    const gripBase = sourceGripBaseFret(OPEN_C_SUS2, geometry.sourceFrets);
+    const gripBase = gripBaseFret(geometry.sourceFrets);
     expect(OPEN_C_SUS2.barres[0].fret).toBe(3 - gripBase);
   });
 
@@ -1510,7 +1509,7 @@ describe("auditChordShape", () => {
 });
 
 describe("auditScaleShape", () => {
-  it("runs only checkScaleBuildLoss + checkScaleMetadataCompleteness — never fret-span/finger/geometry", () => {
+  it("runs only checkScaleBuildLoss + checkScaleMetadataCompleteness + checkNameUnique — never fret-span/finger/geometry", () => {
     const gShape = getScaleShape("G Shape");
     expect(gShape).toBeDefined();
 
@@ -1518,6 +1517,7 @@ describe("auditScaleShape", () => {
     const expected = [
       ...checkScaleBuildLoss(gShape as ScaleShape, "C"),
       ...checkScaleMetadataCompleteness(gShape as ScaleShape),
+      ...checkNameUnique(gShape as ScaleShape, "scale"),
     ];
     expect(issues).toEqual(expected);
 
@@ -1563,6 +1563,21 @@ describe("auditScaleShape", () => {
     expect(auditScaleShape(CAGED_E, { root: "E", tuning: STANDARD })).toEqual(
       auditScaleShape(CAGED_E, { root: "E" }),
     );
+  });
+
+  it("flags a different shape reusing a registered scale shape's name (checkNameUnique, kind 'scale')", () => {
+    const clone: ScaleShape = { ...CAGED_E };
+    const issues = auditScaleShape(clone);
+    expect(issues.filter((i) => i.id === CHECK_NAME_UNIQUE)).toEqual(
+      checkNameUnique(clone, "scale"),
+    );
+    expect(issues.some((i) => i.id === CHECK_NAME_UNIQUE && i.severity === "error")).toBe(true);
+  });
+
+  it("registry-wide: no registered scale shape collides on name or export identifier", () => {
+    for (const shape of allScaleShapes()) {
+      expect(auditScaleShape(shape).filter((i) => i.id === CHECK_NAME_UNIQUE)).toEqual([]);
+    }
   });
 });
 
@@ -1753,7 +1768,7 @@ describe("auditArpeggioShape", () => {
     expect(auditArpeggioShape(cleanFixture)).toEqual([]);
   });
 
-  it("runs only build-loss/position-span/fingering-complete/overrides-target — never a chord-only check id", () => {
+  it("runs only build-loss/position-span/fingering-complete/overrides-target/name-unique — never a chord-only check id", () => {
     const chordOnlyIds = new Set([
       CHECK_FRET_SPAN,
       CHECK_FINGER_ZERO_ON_MOVABLE,
@@ -1762,7 +1777,6 @@ describe("auditArpeggioShape", () => {
       CHECK_STRINGSET_MISMATCH,
       CHECK_TUNING_MISMATCH,
       CHECK_BARRE_FRET_ORIGIN,
-      CHECK_NAME_UNIQUE,
     ]);
     for (const issue of auditArpeggioShape(cleanFixture)) {
       expect(chordOnlyIds.has(issue.id)).toBe(false);
@@ -1795,6 +1809,7 @@ describe("auditArpeggioShape", () => {
       ...checkPositionSpan(brokenFixture, "H", STANDARD, undefined),
       ...checkFingeringComplete(brokenFixture),
       ...checkOverridesTarget(brokenFixture),
+      ...checkNameUnique(brokenFixture, "arpeggio"),
     ]);
   });
 
@@ -1805,6 +1820,7 @@ describe("auditArpeggioShape", () => {
       ...checkPositionSpan(cleanFixture, "C", STANDARD, 0),
       ...checkFingeringComplete(cleanFixture),
       ...checkOverridesTarget(cleanFixture),
+      ...checkNameUnique(cleanFixture, "arpeggio"),
     ]);
   });
 
@@ -1815,18 +1831,48 @@ describe("auditArpeggioShape", () => {
       ...checkPositionSpan(cleanFixture, "C", dropD, undefined),
       ...checkFingeringComplete(cleanFixture),
       ...checkOverridesTarget(cleanFixture),
+      ...checkNameUnique(cleanFixture, "arpeggio"),
     ]);
+  });
+
+  it("flags a different shape reusing a registered arpeggio's name (checkNameUnique, kind 'arpeggio')", () => {
+    arpeggioShapes.add(cleanFixture);
+    try {
+      const clone: ArpeggioShape = { ...cleanFixture };
+      const issues = auditArpeggioShape(clone).filter((i) => i.id === CHECK_NAME_UNIQUE);
+      expect(issues).toEqual(checkNameUnique(clone, "arpeggio"));
+      expect(issues.some((i) => i.severity === "error")).toBe(true);
+      // The registered object itself never self-collides.
+      expect(
+        auditArpeggioShape(cleanFixture).filter((i) => i.id === CHECK_NAME_UNIQUE),
+      ).toEqual([]);
+    } finally {
+      arpeggioShapes.remove(cleanFixture.name);
+    }
+  });
+
+  it("registry-wide: no registered arpeggio collides on name or export identifier", () => {
+    for (const shape of arpeggioShapes.all()) {
+      expect(auditArpeggioShape(shape).filter((i) => i.id === CHECK_NAME_UNIQUE)).toEqual([]);
+    }
   });
 });
 
 describe("auditAllShapes", () => {
-  it("returns { chord: Map, scale: Map } keyed by shape.name, sized to the registries", () => {
-    const { chord, scale } = auditAllShapes();
+  it("returns { chord: Map, scale: Map, arpeggio: Map } keyed by shape.name, sized to the registries", () => {
+    const { chord, scale, arpeggio } = auditAllShapes();
 
     expect(chord).toBeInstanceOf(Map);
     expect(scale).toBeInstanceOf(Map);
+    expect(arpeggio).toBeInstanceOf(Map);
     expect(chord.size).toBe(chordShapes.all().length);
     expect(scale.size).toBe(allScaleShapes().length);
+    expect(arpeggio.size).toBe(arpeggioShapes.all().length);
+    expect(arpeggio.size).toBeGreaterThan(0);
+
+    for (const shape of arpeggioShapes.all()) {
+      expect(arpeggio.get(shape.name)).toEqual(auditArpeggioShape(shape));
+    }
 
     for (const shape of chordShapes.all()) {
       expect(chord.has(shape.name)).toBe(true);

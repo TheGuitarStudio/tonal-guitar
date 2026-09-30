@@ -239,6 +239,7 @@ export function relabelShapeToScale(
  * Returns `undefined` when:
  * - `shape.chordType` has no `CHORD_SCALE_RULE` entry (e.g. `dim`, `dim7`,
  *   `aug` — spec §1.10).
+ * - `"${root} ${scaleType}"` does not resolve to a Tonal scale.
  * - No registered box is rotation-compatible with the requested scale frame
  *   at a `rootString` matching the grip's (spec §9 edge case 10 — mode boxes
  *   not yet registered, e.g. mixolydian/dorian/locrian, are still reachable
@@ -257,15 +258,20 @@ export function parentBoxForChordShape(
     return undefined;
   }
 
-  const rawScaleName = `${root} ${rule.scaleType}`;
-  const resolvedScale = getScale(rawScaleName);
-  const scaleName = resolvedScale.empty ? rawScaleName : resolvedScale.name;
+  // Resolve the scale once, then relabel each candidate with the pure
+  // `relabelShape` (equivalent to `relabelShapeToScale`, minus the per-call
+  // name resolution). An unresolvable scale matches no candidate.
+  const scale = getScale(`${root} ${rule.scaleType}`);
+  if (scale.empty) {
+    return undefined;
+  }
+  const scaleName = scale.name;
 
   for (const candidate of all()) {
     if (candidate.strings.length !== tuning.length) {
       continue;
     }
-    const relabeled = relabelShapeToScale(candidate, rawScaleName);
+    const relabeled = relabelShape(candidate, scale.intervals);
     if (relabeled && relabeled.rootString === shape.rootString) {
       return { box: relabeled, scaleName, ruleVersion: CHORD_SCALE_RULE_VERSION };
     }
