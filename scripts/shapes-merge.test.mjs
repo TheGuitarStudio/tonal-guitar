@@ -515,6 +515,19 @@ async function expectRefusalWithNoWrites(dir, changesetPath, argsExtra = []) {
 
 describe("shapes-merge: refusal scenarios (spec §6.2, in order) — every one writes nothing", () => {
   it(
+    "CR-028: a missing tuning is a structural refusal, even with --force",
+    withFixtureRoot(async (dir) => {
+      const changeset = baseChangeset([
+        { op: "add", kind: "chord", file: "caged-chords-fixture", shape: C_SHAPE_MINOR },
+      ]);
+      delete changeset.tuning;
+      const changesetPath = writeChangeset(dir, changeset);
+      const err = await expectRefusalWithNoWrites(dir, changesetPath, ["--force"]);
+      expect(err.rule).toBe("structure");
+    }),
+  );
+
+  it(
     "rule 1: invalid $schema is refused",
     withFixtureRoot(async (dir) => {
       const changesetPath = writeChangeset(dir, {

@@ -690,6 +690,11 @@ async function planMerge(changeset, ctx) {
   if (!Array.isArray(changeset.changes) || changeset.changes.length === 0) {
     throw new MergeRefusal("structure", "changeset.changes must be a non-empty array");
   }
+  // CR-028: rule 3 below can be overridden with --force, but rule 4 still
+  // needs `tuning.length` — a missing/non-array tuning is structural.
+  if (!Array.isArray(changeset.tuning)) {
+    throw new MergeRefusal("structure", "changeset.tuning must be an array of note names");
+  }
 
   // ---- rule 1: $schema ----------------------------------------------------
   if (changeset.$schema !== "tonal-guitar/changeset@1") {
