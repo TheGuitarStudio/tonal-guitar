@@ -689,7 +689,12 @@ function validateRequiredFields(kind, shape, tuningLength) {
 // any write. Returns a plan the caller can print (--dry-run/--check) or
 // flush to disk (default / real merge). Throws MergeRefusal on the first
 // failing validation category.
+//
+// `planMerge` only sequences the steps below; each "rule N" section of spec
+// §6.2 is its own helper, called in the order the refusals must fire.
 // ============================================================
+
+const emptySetsByKind = () => ({ chord: new Set(), scale: new Set(), arpeggio: new Set() });
 
 async function planMerge(changeset, ctx) {
   const { library, root, force } = ctx;
@@ -702,6 +707,102 @@ async function planMerge(changeset, ctx) {
   const warnings = [];
   const outputs = new Map(); // ident -> full rendered "export const ..." text
 
+  // ---- validation (nothing is written until every rule has passed) -------
+  validateEnvelope(changeset, library, force, warnings);
+
+  const addChanges = changeset.changes.filter((c) => c.op === "add");
+  const updateChanges = changeset.changes.filter((c) => c.op === "update");
+  const removeChanges = changeset.changes.filter((c) => c.op === "remove");
+
+  validateIdents(changeset.changes);
+  validateKnownFields(addChanges, updateChanges);
+  validateAddRequiredFields(addChanges, changeset.tuning.length);
+  validateUnsets(updateChanges);
+
+  const dataFileList = listDataFiles(dataDir);
+  const { regionByChange, alreadySatisfiedRemoves } = resolveTargetRegions(
+    dataDir,
+    dataFileList,
+    updateChanges,
+    removeChanges,
+    warnings,
+  );
+  const { baseByUpdate, baseByRemove } = parseBaseShapes(
+    dataDir,
+    updateChanges,
+    removeChanges,
+    regionByChange,
+    alreadySatisfiedRemoves,
+  );
+
+  validateAddFileNames(addChanges);
+  const identByChange = resolveAddIdentifiers(library, dataDir, dataFileList, addChanges);
+  validateRenames(dataDir, dataFileList, updateChanges, baseByUpdate);
+  validateOverridesTargets(dataDir, dataFileList, addChanges, updateChanges);
+  validateInboundReferences(dataDir, dataFileList, updateChanges, removeChanges, alreadySatisfiedRemoves);
+  const { mergedShapeByUpdate, alreadyAppliedByAdd } = auditChanges(library, changeset, {
+    dataDir,
+    dataFileList,
+    addChanges,
+    updateChanges,
+    baseByUpdate,
+    identByChange,
+    warnings,
+  });
+
+  // ===========================================================================
+  // All validations passed. Build the write plan (still nothing on disk yet).
+  // ===========================================================================
+  const importInsertions = await planAdds({
+    root,
+    dataDir,
+    dataFileList,
+    addChanges,
+    identByChange,
+    files,
+    outputs,
+  });
+  const updated = await planUpdates({ root, dataDir, updateChanges, regionByChange, mergedShapeByUpdate, files, outputs });
+  const { removed, removedFilesNowEmpty } = planRemoves({
+    root,
+    dataDir,
+    removeChanges,
+    regionByChange,
+    alreadySatisfiedRemoves,
+    files,
+  });
+  planIndexImports({ root, indexPath, importInsertions, removedFilesNowEmpty, files });
+
+  // -- test-count reporting / --update-counts (spec §6.4, task 17.5) --------
+  const countsTouched = computeCountsTouched({
+    changeset,
+    addChanges,
+    removeChanges,
+    baseByRemove,
+    alreadyAppliedByAdd,
+    dataTestPath,
+    indexTestPath,
+    files,
+    root,
+    applyEdits: ctx.updateCounts,
+  });
+
+  return {
+    files,
+    outputs,
+    warnings,
+    added: addChanges.length,
+    updated: updated.length,
+    removed: removed.length,
+    countsTouched,
+    identByChange,
+  };
+}
+
+/** Structural sanity (JSON shape), rules 1–3 ($schema, version drift,
+ * tuning), and every change's `op`/`kind`. Pushes a warning for each rule
+ * `--force` overrides. */
+function validateEnvelope(changeset, library, force, warnings) {
   // ---- structural sanity (JSON shape) ------------------------------------
   if (!Array.isArray(changeset.changes) || changeset.changes.length === 0) {
     throw new MergeRefusal("structure", "changeset.changes must be a non-empty array");
@@ -746,9 +847,6 @@ async function planMerge(changeset, ctx) {
     warnings.push("--force: proceeding despite a non-STANDARD changeset.tuning");
   }
 
-  const addChanges = changeset.changes.filter((c) => c.op === "add");
-  const updateChanges = changeset.changes.filter((c) => c.op === "update");
-  const removeChanges = changeset.changes.filter((c) => c.op === "remove");
   for (const c of changeset.changes) {
     if (c.op !== "add" && c.op !== "update" && c.op !== "remove") {
       throw new MergeRefusal("structure", `unknown change op: ${JSON.stringify(c.op)}`);
@@ -757,19 +855,22 @@ async function planMerge(changeset, ctx) {
       throw new MergeRefusal("structure", `unknown change kind: ${JSON.stringify(c.kind)}`);
     }
   }
+}
 
-  // ---- ident validation (CR-017) -------------------------------------------
-  // An explicit `ident` (`AddChange.ident`, or the undocumented
-  // `UpdateChange.ident` the rename fallback above honors) must round-trip
-  // through BOTH `scripts/lib/owned-blocks.mjs`'s marker grammar
-  // (`[A-Za-z0-9_-]+`) AND JS identifier syntax — their intersection
-  // excludes `$` (valid JS, not a valid marker character), hyphens, and a
-  // leading digit (valid marker characters, not valid JS). An ident outside
-  // that intersection would either never parse as a marker (so its block
-  // becomes invisible to every future merge and gets silently destroyed by
-  // the next `add` to the same file) or produce invalid TypeScript.
-  const IDENT_GRAMMAR = /^[A-Za-z_][A-Za-z0-9_]*$/;
-  for (const change of changeset.changes) {
+// ---- ident validation (CR-017) -------------------------------------------
+// An explicit `ident` (`AddChange.ident`, or the undocumented
+// `UpdateChange.ident` the rename fallback honors) must round-trip
+// through BOTH `scripts/lib/owned-blocks.mjs`'s marker grammar
+// (`[A-Za-z0-9_-]+`) AND JS identifier syntax — their intersection
+// excludes `$` (valid JS, not a valid marker character), hyphens, and a
+// leading digit (valid marker characters, not valid JS). An ident outside
+// that intersection would either never parse as a marker (so its block
+// becomes invisible to every future merge and gets silently destroyed by
+// the next `add` to the same file) or produce invalid TypeScript.
+const IDENT_GRAMMAR = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
+function validateIdents(changes) {
+  for (const change of changes) {
     if (typeof change.ident === "string" && !IDENT_GRAMMAR.test(change.ident)) {
       throw new MergeRefusal(
         "invalid-ident",
@@ -779,48 +880,50 @@ async function planMerge(changeset, ctx) {
       );
     }
   }
+}
 
-  // ---- CR-101: unknown-field allowlist (add.shape / update.patch, + barres
-  // entries) --------------------------------------------------------------
-  // A hostile key (e.g. `x": 1 }; injected(); const y = { z`) interpolated
-  // unescaped into generated TypeScript by `renderShape` would otherwise let
-  // a changeset inject arbitrary source into `src/data/*.ts`.
-  // `render-shape.mjs`'s printer now refuses any key that isn't a valid JS
-  // identifier as a last line of defense, but this allowlist is the primary,
-  // earlier check: refused before any audit/write happens, with a clearer
-  // MergeRefusal (not a raw TypeError), and it also refuses a
-  // syntactically-valid-but-unrecognized field name, not just a
-  // syntax-breaking one. Allowlists are derived from `FIELD_ORDER`/
-  // `BARRE_KEYS` in `scripts/lib/render-shape.mjs` — the single source of
-  // truth for which fields each kind prints — so the two checks can never
-  // drift apart.
-  function assertKnownShapeFields(kind, obj, label) {
-    if (obj === null || typeof obj !== "object" || Array.isArray(obj)) return; // caught elsewhere
-    const allowed = new Set(FIELD_ORDER[kind] ?? []);
-    for (const key of Object.keys(obj)) {
-      if (!allowed.has(key)) {
-        throw new MergeRefusal(
-          "unknown-field",
-          `${label}: field ${JSON.stringify(key)} is not a recognized ${kind} field`,
-        );
-      }
-    }
-    if (Array.isArray(obj.barres)) {
-      const allowedBarreKeys = new Set(BARRE_KEYS);
-      obj.barres.forEach((barre, index) => {
-        if (barre === null || typeof barre !== "object" || Array.isArray(barre)) return; // caught elsewhere
-        for (const key of Object.keys(barre)) {
-          if (!allowedBarreKeys.has(key)) {
-            throw new MergeRefusal(
-              "unknown-field",
-              `${label}: barres[${index}] field ${JSON.stringify(key)} is not a recognized Barre field`,
-            );
-          }
-        }
-      });
+// ---- CR-101: unknown-field allowlist (add.shape / update.patch, + barres
+// entries) --------------------------------------------------------------
+// A hostile key (e.g. `x": 1 }; injected(); const y = { z`) interpolated
+// unescaped into generated TypeScript by `renderShape` would otherwise let
+// a changeset inject arbitrary source into `src/data/*.ts`.
+// `render-shape.mjs`'s printer now refuses any key that isn't a valid JS
+// identifier as a last line of defense, but this allowlist is the primary,
+// earlier check: refused before any audit/write happens, with a clearer
+// MergeRefusal (not a raw TypeError), and it also refuses a
+// syntactically-valid-but-unrecognized field name, not just a
+// syntax-breaking one. Allowlists are derived from `FIELD_ORDER`/
+// `BARRE_KEYS` in `scripts/lib/render-shape.mjs` — the single source of
+// truth for which fields each kind prints — so the two checks can never
+// drift apart.
+function assertKnownShapeFields(kind, obj, label) {
+  if (obj === null || typeof obj !== "object" || Array.isArray(obj)) return; // caught elsewhere
+  const allowed = new Set(FIELD_ORDER[kind] ?? []);
+  for (const key of Object.keys(obj)) {
+    if (!allowed.has(key)) {
+      throw new MergeRefusal(
+        "unknown-field",
+        `${label}: field ${JSON.stringify(key)} is not a recognized ${kind} field`,
+      );
     }
   }
+  if (Array.isArray(obj.barres)) {
+    const allowedBarreKeys = new Set(BARRE_KEYS);
+    obj.barres.forEach((barre, index) => {
+      if (barre === null || typeof barre !== "object" || Array.isArray(barre)) return; // caught elsewhere
+      for (const key of Object.keys(barre)) {
+        if (!allowedBarreKeys.has(key)) {
+          throw new MergeRefusal(
+            "unknown-field",
+            `${label}: barres[${index}] field ${JSON.stringify(key)} is not a recognized Barre field`,
+          );
+        }
+      }
+    });
+  }
+}
 
+function validateKnownFields(addChanges, updateChanges) {
   for (const change of addChanges) {
     assertKnownShapeFields(
       change.kind,
@@ -831,10 +934,12 @@ async function planMerge(changeset, ctx) {
   for (const change of updateChanges) {
     assertKnownShapeFields(change.kind, change.patch ?? {}, `update ${change.kind} "${change.name}"`);
   }
+}
 
-  // ---- rule 4: per-kind required fields (add only) -------------------------
+// ---- rule 4: per-kind required fields (add only) -------------------------
+function validateAddRequiredFields(addChanges, tuningLength) {
   for (const change of addChanges) {
-    const errors = validateRequiredFields(change.kind, change.shape ?? {}, changeset.tuning.length);
+    const errors = validateRequiredFields(change.kind, change.shape ?? {}, tuningLength);
     if (errors.length > 0) {
       throw new MergeRefusal(
         "required-fields",
@@ -842,13 +947,15 @@ async function planMerge(changeset, ctx) {
       );
     }
   }
+}
 
-  // ---- unset validation (update only, changeset@1's additive `unset` field) -
-  // Refused BEFORE any write: an `unset` entry may never name a per-kind
-  // required field (unsetting `rootString`/`name`/... would produce a shape
-  // no audit can rescue) nor a field also present in the SAME change's
-  // `patch` (setting and clearing the same field in one update is
-  // contradictory — which one would "win" is undefined).
+// ---- unset validation (update only, changeset@1's additive `unset` field) -
+// Refused BEFORE any write: an `unset` entry may never name a per-kind
+// required field (unsetting `rootString`/`name`/... would produce a shape
+// no audit can rescue) nor a field also present in the SAME change's
+// `patch` (setting and clearing the same field in one update is
+// contradictory — which one would "win" is undefined).
+function validateUnsets(updateChanges) {
   for (const change of updateChanges) {
     const unset = change.unset ?? [];
     if (!Array.isArray(unset) || unset.some((field) => typeof field !== "string")) {
@@ -874,16 +981,17 @@ async function planMerge(changeset, ctx) {
       }
     }
   }
+}
 
-  // ---- rule 9: update/remove targets must live in a generator-owned region -
-  // (moved ahead of rules 5-8 in this implementation, out of numeric order:
-  // locating the owned region is also how this script determines whether an
-  // update/remove target exists at all — spec §6.1's "name must resolve to
-  // exactly one registered shape" doc contract on UpdateChange/RemoveChange —
-  // and rule 8's audit needs the resolved base object below. Rule 9's own
-  // refusal (not-owned / not-found) fires first as a structural
-  // prerequisite; every other numbered rule keeps its documented order.)
-  const dataFileList = listDataFiles(dataDir);
+// ---- rule 9: update/remove targets must live in a generator-owned region -
+// (run ahead of rules 5-8 in this implementation, out of numeric order:
+// locating the owned region is also how this script determines whether an
+// update/remove target exists at all — spec §6.1's "name must resolve to
+// exactly one registered shape" doc contract on UpdateChange/RemoveChange —
+// and rule 8's audit needs the resolved base object. Rule 9's own
+// refusal (not-owned / not-found) fires first as a structural
+// prerequisite; every other numbered rule keeps its documented order.)
+function resolveTargetRegions(dataDir, dataFileList, updateChanges, removeChanges, warnings) {
   const regionByChange = new Map();
   // CR-022: a `remove` whose target is already absent is satisfied (a
   // no-op), not a refusal — the same idempotence contract every other op
@@ -936,36 +1044,44 @@ async function planMerge(changeset, ctx) {
     }
     regionByChange.set(change, region);
   }
+  return { regionByChange, alreadySatisfiedRemoves };
+}
 
-  // Base object for each `update`: parsed back from the *current* owned
-  // block's printed object literal (safe: renderShape only ever prints
-  // JSON-safe values — strings/numbers/booleans/null/arrays/plain objects —
-  // never functions or computed expressions), not the live dist import.
-  // This keeps `update` correct against whatever `--root` actually holds on
-  // disk right now, rather than requiring the target repo's `dist` to be
-  // rebuilt after every merge (fixture tests never touch the real dist).
-  const baseByUpdate = new Map();
-  for (const change of updateChanges) {
+/**
+ * Base object for each `update`: parsed back from the *current* owned
+ * block's printed object literal (safe: renderShape only ever prints
+ * JSON-safe values — strings/numbers/booleans/null/arrays/plain objects —
+ * never functions or computed expressions), not the live dist import.
+ * This keeps `update` correct against whatever `--root` actually holds on
+ * disk right now, rather than requiring the target repo's `dist` to be
+ * rebuilt after every merge (fixture tests never touch the real dist).
+ *
+ * Same recovery, for `remove` — computeCountsTouched (oversight fix B)
+ * needs the removed shape's full field set (voicingFamily/system/
+ * featured/…) to know which family/system/featured-scoped count markers
+ * it invalidates, not just its `kind`.
+ */
+function parseBaseShapes(dataDir, updateChanges, removeChanges, regionByChange, alreadySatisfiedRemoves) {
+  const parseBase = (change) => {
     const region = regionByChange.get(change);
     const absPath = path.join(dataDir, `${region.file}.ts`);
     const block = findOwnedBlock(readFileSync(absPath, "utf8"), region.ident);
-    baseByUpdate.set(change, parseShapeLiteral(block.content, region.ident));
-  }
+    return parseShapeLiteral(block.content, region.ident);
+  };
 
-  // Same recovery, for `remove` — computeCountsTouched (oversight fix B)
-  // needs the removed shape's full field set (voicingFamily/system/
-  // featured/…) to know which family/system/featured-scoped count markers
-  // it invalidates, not just its `kind`.
+  const baseByUpdate = new Map();
+  for (const change of updateChanges) baseByUpdate.set(change, parseBase(change));
+
   const baseByRemove = new Map();
   for (const change of removeChanges) {
     if (alreadySatisfiedRemoves.has(change)) continue; // CR-022: nothing to recover — already absent
-    const region = regionByChange.get(change);
-    const absPath = path.join(dataDir, `${region.file}.ts`);
-    const block = findOwnedBlock(readFileSync(absPath, "utf8"), region.ident);
-    baseByRemove.set(change, parseShapeLiteral(block.content, region.ident));
+    baseByRemove.set(change, parseBase(change));
   }
+  return { baseByUpdate, baseByRemove };
+}
 
-  // ---- rule 5: file naming + computed-file deny list (add only) -----------
+// ---- rule 5: file naming + computed-file deny list (add only) -----------
+function validateAddFileNames(addChanges) {
   for (const change of addChanges) {
     if (!/^[a-z0-9-]+$/.test(change.file ?? "")) {
       throw new MergeRefusal(
@@ -982,20 +1098,25 @@ async function planMerge(changeset, ctx) {
       );
     }
   }
+}
 
-  // ---- rule 6: name / identifier uniqueness (registry + within changeset) --
-  // "The registry" here means the target tree's own src/data files (scanned
-  // by kind + export identifier), not the live dist import — see the module
-  // doc comment at the top of this file. This is exactly the merge-time
-  // snapshot `checkNameUnique`'s `knownNames`/`knownIdentifiers` options
-  // exist for.
-  //
-  // Each add's own target file is excluded from its own scan: re-running an
-  // already-merged `add` targets the same file/identifier it wrote last
-  // time, which must be idempotent (spec §6.6 "re-running the same
-  // changeset produces zero diff"), not a self-collision. A name/identifier
-  // that exists in a DIFFERENT file is still a real collision.
-  const changesetNames = { chord: new Set(), scale: new Set(), arpeggio: new Set() };
+// ---- rule 6: name / identifier uniqueness (registry + within changeset) --
+// "The registry" here means the target tree's own src/data files (scanned
+// by kind + export identifier), not the live dist import — see the module
+// doc comment at the top of this file. This is exactly the merge-time
+// snapshot `checkNameUnique`'s `knownNames`/`knownIdentifiers` options
+// exist for.
+//
+// Each add's own target file is excluded from its own scan: re-running an
+// already-merged `add` targets the same file/identifier it wrote last
+// time, which must be idempotent (spec §6.6 "re-running the same
+// changeset produces zero diff"), not a self-collision. A name/identifier
+// that exists in a DIFFERENT file is still a real collision.
+//
+// Returns each add's resolved export identifier (its `ident` override, or
+// the derived one).
+function resolveAddIdentifiers(library, dataDir, dataFileList, addChanges) {
+  const changesetNames = emptySetsByKind();
   const changesetIdentifiers = new Set();
   const identByChange = new Map();
 
@@ -1030,16 +1151,19 @@ async function planMerge(changeset, ctx) {
     changesetNames[change.kind].add(change.shape.name);
     changesetIdentifiers.add(ident);
   }
+  return identByChange;
+}
 
-  // ---- rule 6b (CR-019): a renaming `update` must not collide -------------
-  // Rule 6 above only scans `add` changes — `patch.name` renames (supported
-  // since `packages/shape-catalog/src/changeset.ts`'s `draftToChange`) were
-  // never checked for uniqueness on the merge side, so a rename onto an
-  // already-registered name merged cleanly into a duplicate registration.
-  // Scans the same src/data snapshot rule 6 uses (not the live registry —
-  // see the module doc comment), excluding the shape's own current entry
-  // (identified via `baseByUpdate`, whose `name` is already the target on
-  // an idempotent re-run) so this never self-collides.
+// ---- rule 6b (CR-019): a renaming `update` must not collide -------------
+// Rule 6 only scans `add` changes — `patch.name` renames (supported
+// since `packages/shape-catalog/src/changeset.ts`'s `draftToChange`) were
+// never checked for uniqueness on the merge side, so a rename onto an
+// already-registered name merged cleanly into a duplicate registration.
+// Scans the same src/data snapshot rule 6 uses (not the live registry —
+// see the module doc comment), excluding the shape's own current entry
+// (identified via `baseByUpdate`, whose `name` is already the target on
+// an idempotent re-run) so this never self-collides.
+function validateRenames(dataDir, dataFileList, updateChanges, baseByUpdate) {
   for (const change of updateChanges) {
     const newName = change.patch?.name;
     if (typeof newName !== "string" || newName === change.name) continue;
@@ -1054,10 +1178,12 @@ async function planMerge(changeset, ctx) {
       );
     }
   }
+}
 
-  // ---- rule 7: overrides targets must exist (registry or same changeset) --
+// ---- rule 7: overrides targets must exist (registry or same changeset) --
+function validateOverridesTargets(dataDir, dataFileList, addChanges, updateChanges) {
   const { byKind: allRegisteredByKind } = scanRegisteredShapes(dataDir, dataFileList);
-  const addedNamesByKind = { chord: new Set(), scale: new Set(), arpeggio: new Set() };
+  const addedNamesByKind = emptySetsByKind();
   for (const change of addChanges) addedNamesByKind[change.kind].add(change.shape.name);
 
   for (const change of addChanges) {
@@ -1084,21 +1210,23 @@ async function planMerge(changeset, ctx) {
       );
     }
   }
+}
 
-  // ---- CR-023: inbound-reference validation (mirrors rule 7's style) ------
-  // Rule 7 above refuses an OUTBOUND `overrides`/`parentShape` reference to a
-  // missing target; this refuses removing a shape (or renaming it away from
-  // its current name) while some OTHER shape's `overrides`/`parentShape`
-  // still points at that name, which would otherwise leave a dangling
-  // reference behind. Two exemptions, both "this same changeset already
-  // handles it": a referrer that's ALSO being removed here won't be around
-  // to dangle, and a referrer whose OWN `update` in this changeset touches
-  // that exact field (patches it to something else, or unsets it) is
-  // trusted to be a coordinated fix-up rather than an oversight.
+// ---- CR-023: inbound-reference validation (mirrors rule 7's style) ------
+// Rule 7 refuses an OUTBOUND `overrides`/`parentShape` reference to a
+// missing target; this refuses removing a shape (or renaming it away from
+// its current name) while some OTHER shape's `overrides`/`parentShape`
+// still points at that name, which would otherwise leave a dangling
+// reference behind. Two exemptions, both "this same changeset already
+// handles it": a referrer that's ALSO being removed here won't be around
+// to dangle, and a referrer whose OWN `update` in this changeset touches
+// that exact field (patches it to something else, or unsets it) is
+// trusted to be a coordinated fix-up rather than an oversight.
+function validateInboundReferences(dataDir, dataFileList, updateChanges, removeChanges, alreadySatisfiedRemoves) {
   const inboundByKind = scanInboundReferences(dataDir, dataFileList);
-  const removedNamesByKind = { chord: new Set(), scale: new Set(), arpeggio: new Set() };
+  const removedNamesByKind = emptySetsByKind();
   for (const change of removeChanges) removedNamesByKind[change.kind].add(change.name);
-  const referenceManagedByKind = { chord: new Set(), scale: new Set(), arpeggio: new Set() };
+  const referenceManagedByKind = emptySetsByKind();
   for (const change of updateChanges) {
     const touchesRefField =
       Object.prototype.hasOwnProperty.call(change.patch ?? {}, "overrides") ||
@@ -1136,8 +1264,14 @@ async function planMerge(changeset, ctx) {
       );
     }
   }
+}
 
-  // ---- rule 8: audit every added/updated shape -----------------------------
+// ---- rule 8: audit every added/updated shape -----------------------------
+// Refuses on any audit error; pushes audit warnings onto `warnings`. Returns
+// each update's merged shape (base + patch − unset) and, per add, whether
+// it has already been applied.
+function auditChanges(library, changeset, ctx) {
+  const { dataDir, dataFileList, addChanges, updateChanges, baseByUpdate, identByChange, warnings } = ctx;
   const auditOptions = { tuning: changeset.tuning };
   function auditFor(kind, shape) {
     if (kind === "chord") return library.auditChordShapeFull(shape, auditOptions);
@@ -1149,7 +1283,7 @@ async function planMerge(changeset, ctx) {
   const auditErrors = [];
   const auditWarnings = [];
   // CR-018: exposed alongside the audit's own already-applied detection so
-  // `computeCountsTouched` below can skip re-accumulating a count delta for
+  // `computeCountsTouched` can skip re-accumulating a count delta for
   // an add that's already landed — without this, re-running an applied
   // changeset with `--update-counts` would bump an annotated count a
   // second time even though no file actually changes (spec §6.6
@@ -1164,7 +1298,7 @@ async function planMerge(changeset, ctx) {
     // name-unique check would refuse every idempotent re-run/--check (spec
     // §6.6 "re-running the same changeset produces zero diff"). A genuinely
     // NEW colliding add is unaffected — its ident/name are not yet in its
-    // target file, and rule 6 above still owns merge-time uniqueness.
+    // target file, and rule 6 still owns merge-time uniqueness.
     const ownFile = dataFileList.filter((f) => basenameOf(f) === change.file);
     const ownScan = scanRegisteredShapes(dataDir, ownFile);
     const alreadyApplied =
@@ -1191,7 +1325,7 @@ async function planMerge(changeset, ctx) {
     // knownNames/knownIdentifiers override, and `merged` is always a fresh
     // object (never `===` the registry's stored entry) — so it would flag a
     // false "already registered" collision against the very shape being
-    // updated on every single run. Rule 6 above already owns name/identifier
+    // updated on every single run. Rule 6 already owns name/identifier
     // uniqueness for `add`; `update` never introduces a new name/identifier.
     const issues = auditFor(change.kind, merged).filter((issue) => issue.id !== library.CHECK_NAME_UNIQUE);
     for (const issue of issues) {
@@ -1204,19 +1338,19 @@ async function planMerge(changeset, ctx) {
     throw new MergeRefusal("audit-error", auditErrors.join("\n"));
   }
   warnings.push(...auditWarnings);
+  return { mergedShapeByUpdate, alreadyAppliedByAdd };
+}
 
-  // ===========================================================================
-  // All validations passed. Build the write plan (still nothing on disk yet).
-  // ===========================================================================
-
-  // -- add: group by target file --------------------------------------------
+// -- add: group by target file --------------------------------------------
+// Returns the `src/index.ts` import insertions (`{ file, after }`) the adds
+// need.
+async function planAdds({ root, dataDir, dataFileList, addChanges, identByChange, files, outputs }) {
   const addsByFile = new Map();
   for (const change of addChanges) {
     if (!addsByFile.has(change.file)) addsByFile.set(change.file, []);
     addsByFile.get(change.file).push(change);
   }
 
-  const newlyCreatedFiles = new Set();
   const importInsertions = []; // { file, after }
 
   for (const [fileBasename, changes] of addsByFile) {
@@ -1265,25 +1399,25 @@ async function planMerge(changeset, ctx) {
     const newText = buildGeneratedFileText(kind, existingBlocks);
     files.setText(absPath, relPath, newText);
 
-    if (isNewOnDisk) {
-      newlyCreatedFiles.add(fileBasename);
-    }
     // CR-015: pushed unconditionally, not gated on `isNewOnDisk` — after a
     // partial failure (CR-014's rollback aside, an out-of-process
     // interruption is still possible), the data file may already exist on
     // disk while src/index.ts's import was never written, which made a
     // re-run skip this insertion entirely and left `--check` reporting a
-    // false no-op. The `order.includes(file)` dedupe below keeps re-running
-    // idempotent either way. Anchor for registration order (Task 17.3):
-    // explicit `after`, else the file declaring the shape's parentShape,
-    // else undefined (end of block).
+    // false no-op. The `order.includes(file)` dedupe in planIndexImports
+    // keeps re-running idempotent either way. Anchor for registration order
+    // (Task 17.3): explicit `after`, else the file declaring the shape's
+    // parentShape, else undefined (end of block).
     const change = changes[0];
     const anchor =
       change.after ?? (change.shape.parentShape ? locateShapeFile(dataDir, dataFileList, change.shape.parentShape) : undefined);
     importInsertions.push({ file: fileBasename, after: anchor });
   }
+  return importInsertions;
+}
 
-  // -- update: surgical in-place replace of the owned block ------------------
+// -- update: surgical in-place replace of the owned block ------------------
+async function planUpdates({ root, dataDir, updateChanges, regionByChange, mergedShapeByUpdate, files, outputs }) {
   const updated = [];
   for (const change of updateChanges) {
     const region = regionByChange.get(change);
@@ -1297,9 +1431,12 @@ async function planMerge(changeset, ctx) {
     files.setText(absPath, relPath, newText);
     updated.push(change);
   }
+  return updated;
+}
 
-  // -- remove: drop the owned block; delete the file (and its import) if it
-  // was the last constant in a generator-created file. --------------------
+// -- remove: drop the owned block; delete the file (and its import) if it
+// was the last constant in a generator-created file. --------------------
+function planRemoves({ root, dataDir, removeChanges, regionByChange, alreadySatisfiedRemoves, files }) {
   const removedFilesNowEmpty = new Set();
   const removed = [];
   for (const change of removeChanges) {
@@ -1332,59 +1469,36 @@ async function planMerge(changeset, ctx) {
     }
     removed.push(change);
   }
+  return { removed, removedFilesNowEmpty };
+}
 
-  // -- src/index.ts data-imports block (Task 17.3) ---------------------------
-  if (importInsertions.length > 0 || removedFilesNowEmpty.size > 0) {
-    const indexSource = files.currentText(indexPath, path.relative(root, indexPath));
-    if (indexSource === undefined) {
-      throw new MergeRefusal("structure", `${path.relative(root, indexPath)} does not exist`);
-    }
-    const block = findOwnedBlock(indexSource, "data-imports");
-    if (!block) {
-      throw new MergeRefusal("structure", `${path.relative(root, indexPath)}: no "data-imports" owned block found`);
-    }
-    let order = [...block.content.matchAll(/import\s+"\.\/data\/([a-z0-9-]+)";/g)].map((m) => m[1]);
-    for (const file of removedFilesNowEmpty) {
-      order = order.filter((f) => f !== file);
-    }
-    for (const { file, after } of importInsertions) {
-      if (order.includes(file)) continue;
-      const anchorIndex = after !== undefined ? order.indexOf(after) : -1;
-      if (anchorIndex !== -1) {
-        order.splice(anchorIndex + 1, 0, file);
-      } else {
-        order.push(file);
-      }
-    }
-    const newContent = order.map((f) => `import "./data/${f}";`).join("\n");
-    const newIndexText = replaceOwnedBlockContent(indexSource, "data-imports", newContent);
-    files.setText(indexPath, path.relative(root, indexPath), newIndexText);
+// -- src/index.ts data-imports block (Task 17.3) ---------------------------
+function planIndexImports({ root, indexPath, importInsertions, removedFilesNowEmpty, files }) {
+  if (importInsertions.length === 0 && removedFilesNowEmpty.size === 0) return;
+  const indexSource = files.currentText(indexPath, path.relative(root, indexPath));
+  if (indexSource === undefined) {
+    throw new MergeRefusal("structure", `${path.relative(root, indexPath)} does not exist`);
   }
-
-  // -- test-count reporting / --update-counts (spec §6.4, task 17.5) --------
-  const countsTouched = computeCountsTouched({
-    changeset,
-    addChanges,
-    removeChanges,
-    baseByRemove,
-    alreadyAppliedByAdd,
-    dataTestPath,
-    indexTestPath,
-    files,
-    root,
-    applyEdits: ctx.updateCounts,
-  });
-
-  return {
-    files,
-    outputs,
-    warnings,
-    added: addChanges.length,
-    updated: updated.length,
-    removed: removed.length,
-    countsTouched,
-    identByChange,
-  };
+  const block = findOwnedBlock(indexSource, "data-imports");
+  if (!block) {
+    throw new MergeRefusal("structure", `${path.relative(root, indexPath)}: no "data-imports" owned block found`);
+  }
+  let order = [...block.content.matchAll(/import\s+"\.\/data\/([a-z0-9-]+)";/g)].map((m) => m[1]);
+  for (const file of removedFilesNowEmpty) {
+    order = order.filter((f) => f !== file);
+  }
+  for (const { file, after } of importInsertions) {
+    if (order.includes(file)) continue;
+    const anchorIndex = after !== undefined ? order.indexOf(after) : -1;
+    if (anchorIndex !== -1) {
+      order.splice(anchorIndex + 1, 0, file);
+    } else {
+      order.push(file);
+    }
+  }
+  const newContent = order.map((f) => `import "./data/${f}";`).join("\n");
+  const newIndexText = replaceOwnedBlockContent(indexSource, "data-imports", newContent);
+  files.setText(indexPath, path.relative(root, indexPath), newIndexText);
 }
 
 const TYPE_TO_KIND = { ChordShape: "chord", ScaleShape: "scale", ArpeggioShape: "arpeggio" };
