@@ -4,7 +4,7 @@
 
 tonal-guitar is a standalone TypeScript library for guitar fretboard math, shapes, patterns, and sequences. It uses [Tonal.js](https://github.com/tonaljs/tonal) primitives as peer dependencies for note/interval operations, with optional deeper integration for scale/chord/key analysis.
 
-**Status:** v0.3.0 published to npm ([tonal-guitar](https://www.npmjs.com/package/tonal-guitar)) — see `CHANGELOG.md`. Two entry points: the root barrel and the pure `tonal-guitar/chord-types` subpath.
+**Status:** v0.4.0 published to npm ([tonal-guitar](https://www.npmjs.com/package/tonal-guitar)) — see `CHANGELOG.md`. Two entry points: the root barrel and the pure `tonal-guitar/chord-types` subpath.
 
 ## Commands
 

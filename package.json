@@ -1,6 +1,6 @@
 {
   "name": "tonal-guitar",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Guitar fretboard, shapes, patterns, and sequences — built on Tonal.js",
   "keywords": [
     "guitar",
