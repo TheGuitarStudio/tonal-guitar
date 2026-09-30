@@ -17,6 +17,8 @@ import {
   statSync,
   rmSync,
 } from "node:fs";
+import fs from "node:fs";
+import { syncBuiltinESMExports } from "node:module";
 import { fileURLToPath } from "node:url";
 import { tmpdir } from "node:os";
 import { createHash } from "node:crypto";
@@ -503,6 +505,36 @@ describe("shapes-merge: remove — drops the owned block, deletes an emptied gen
       );
       await expect(runMerge([changesetPath, "--root", dir])).rejects.toThrow(MergeRefusal);
       expect(readFileSync(realDataFile(dir, "caged-chords"), "utf8")).toContain("A Shape Major");
+    }),
+  );
+});
+
+describe("shapes-merge: CR-108 — a failed rename removes its temp file and rolls back", () => {
+  it(
+    "leaves no .shapes-merge-tmp-* file behind and the tree untouched",
+    withFixtureRoot(async (dir) => {
+      const dataDir = path.join(dir, "src", "data");
+      const beforeFiles = readdirSync(dataDir).sort();
+      const beforeIndex = readFileSync(realIndexFile(dir), "utf8");
+      const changesetPath = writeChangeset(
+        dir,
+        baseChangeset([{ op: "add", kind: "chord", file: "caged-chords-fixture", shape: C_SHAPE_MINOR }]),
+      );
+      // shapes-merge.mjs holds ESM named bindings to node:fs; patch the CJS
+      // object and sync so its `renameSync` import sees the failure.
+      const realRename = fs.renameSync;
+      fs.renameSync = () => {
+        throw new Error("simulated rename failure");
+      };
+      syncBuiltinESMExports();
+      try {
+        await expect(runMerge([changesetPath, "--root", dir])).rejects.toThrow("simulated rename failure");
+      } finally {
+        fs.renameSync = realRename;
+        syncBuiltinESMExports();
+      }
+      expect(readdirSync(dataDir).sort()).toEqual(beforeFiles);
+      expect(readFileSync(realIndexFile(dir), "utf8")).toBe(beforeIndex);
     }),
   );
 });

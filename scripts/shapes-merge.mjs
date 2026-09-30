@@ -46,6 +46,7 @@ import {
   mkdirSync,
   unlinkSync,
   renameSync,
+  rmSync,
 } from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -513,8 +514,18 @@ class FileStates {
         } else {
           mkdirSync(path.dirname(absPath), { recursive: true });
           const tmpPath = `${absPath}.shapes-merge-tmp-${process.pid}-${Math.random().toString(36).slice(2)}`;
-          writeFileSync(tmpPath, after, "utf8");
-          renameSync(tmpPath, absPath);
+          try {
+            writeFileSync(tmpPath, after, "utf8");
+            renameSync(tmpPath, absPath);
+          } catch (err) {
+            // CR-108: don't leave an orphan temp file next to the target.
+            try {
+              rmSync(tmpPath, { force: true });
+            } catch {
+              // Best-effort — the original failure is what matters.
+            }
+            throw err;
+          }
         }
         applied.push({ absPath, before });
       }
