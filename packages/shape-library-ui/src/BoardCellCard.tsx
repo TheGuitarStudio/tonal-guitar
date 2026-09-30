@@ -9,9 +9,24 @@
  * when it is. A `"filled"` cell is always a plain read-only button; an
  * "Edit" affordance (`data-tg-edit`) is added as a sibling only when
  * `capabilities.edit.onEditShape` is present.
+ *
+ * A filled cell can hold several matches (`cell.entries`, CR-030). It shows
+ * one at a time plus a `+N` badge button that cycles to the next match;
+ * the cell button, and "Edit", act on whichever match is shown. Cycling
+ * (rather than a popover picker) keeps the cell a pair of native buttons —
+ * no focus trap, outside-click or Escape handling, and nothing overflowing
+ * a 4rem grid track.
  */
+import { useState } from "react";
 import type { BoardCell, ShapeCatalogEntry } from "shape-catalog";
 import { useLibraryCapabilities } from "./capabilities";
+
+/** Index of the match a cell shows: the one named `shownName`, or the first
+ * if that name is gone (e.g. a filter narrowed `entries`). */
+export function shownEntryIndex(entries: readonly ShapeCatalogEntry[], shownName: string | undefined): number {
+  const index = shownName === undefined ? -1 : entries.findIndex((entry) => entry.name === shownName);
+  return index === -1 ? 0 : index;
+}
 
 export interface BoardCellCardProps {
   cell: BoardCell;
@@ -25,14 +40,42 @@ export interface BoardCellCardProps {
 export function BoardCellCard({ cell, onSelectEntry, columnLabel }: BoardCellCardProps) {
   const capabilities = useLibraryCapabilities();
   const edit = capabilities.edit;
+  // Tracked by name, not index, so the shown match survives `entries`
+  // being re-derived (new array identity, or narrowed by a filter).
+  const [shownName, setShownName] = useState<string | undefined>(undefined);
 
-  if (cell.state === "filled" && cell.entry) {
-    const entry = cell.entry;
+  if (cell.state === "filled" && cell.entries.length > 0) {
+    const { entries } = cell;
+    const shownIndex = shownEntryIndex(entries, shownName);
+    const entry = entries[shownIndex];
+    const total = entries.length;
+    const more = total - 1;
     return (
       <div className="tg-board-cell-wrapper">
-        <button type="button" className="tg-board-cell" onClick={() => onSelectEntry?.(entry)} aria-label={entry.name}>
+        <button
+          type="button"
+          className={more > 0 ? "tg-board-cell tg-board-cell-stacked" : "tg-board-cell"}
+          onClick={() => onSelectEntry?.(entry)}
+          aria-label={total > 1 ? `${entry.name} (${shownIndex + 1} of ${total} in this cell)` : entry.name}
+        >
           {columnLabel ? `${columnLabel}: ${entry.name}` : entry.name}
         </button>
+        {more > 0 && (
+          <button
+            type="button"
+            className="tg-board-cell-more"
+            onClick={() => setShownName(entries[(shownIndex + 1) % total].name)}
+            aria-label={`${more} more ${more === 1 ? "shape" : "shapes"} in this cell, show next`}
+            title={`Showing ${shownIndex + 1} of ${total}`}
+          >
+            +{more}
+          </button>
+        )}
+        {more > 0 && (
+          <span aria-live="polite" className="tg-sr-only">
+            {shownName === undefined ? "" : `Showing ${entry.name}, ${shownIndex + 1} of ${total}`}
+          </span>
+        )}
         {edit?.onEditShape && (
           <button
             type="button"

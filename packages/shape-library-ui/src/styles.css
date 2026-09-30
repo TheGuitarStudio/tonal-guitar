@@ -366,6 +366,12 @@ button.tg-board-cell-gap {
 .tg-board-cell-wrapper {
   position: relative;
   width: 100%;
+  display: flex;
+}
+
+/* Keep the cell's label clear of the `+N` badge sitting in its corner. */
+.tg-board-cell-stacked {
+  padding-bottom: 1rem;
 }
 
 .tg-board-cell-edit {
@@ -380,6 +386,28 @@ button.tg-board-cell-gap {
   padding: 0 0.25rem;
   font-size: 0.625rem;
   cursor: pointer;
+}
+
+/* `+N` badge on a cell holding several matches (CR-030); cycles the shown one. */
+.tg-board-cell-more {
+  position: absolute;
+  bottom: 0.125rem;
+  right: 0.125rem;
+  z-index: 1;
+  border-radius: 999px;
+  border: 1px solid var(--tg-border);
+  background: var(--tg-gap);
+  color: var(--tg-muted);
+  padding: 0 0.3125rem;
+  font-size: 0.625rem;
+  line-height: 1.4;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.tg-board-cell-more:hover {
+  border-color: var(--tg-accent);
+  color: var(--tg-accent);
 }
 
 .tg-board-header-bar {
