@@ -80,12 +80,15 @@ export type ScaleCatalogEntry = Extract<ShapeCatalogEntry, { kind: "scale" }>;
 // Chord fingering → FrettedScale adapter
 // ============================================================
 
+/** `applyChordShape` at `root`, wrapped as a `FrettedScale` for diagram
+ * rendering. `options` passes through (e.g. `allowOpenStrings: false`). */
 export function chordFingeringToFrettedScale(
   shape: ChordShape,
   root: string,
   tuning: string[] = STANDARD,
+  options: { allowOpenStrings?: boolean } = {},
 ): FrettedScale {
-  const { positions } = applyChordShape(shape, root, tuning);
+  const { positions } = applyChordShape(shape, root, tuning, options);
   return {
     empty: positions.length === 0,
     root,

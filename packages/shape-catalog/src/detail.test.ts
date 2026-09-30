@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { auditAllShapes } from "tonal-guitar";
-import { buildCatalog } from "./catalog";
+import { buildCatalog, chordFingeringToFrettedScale } from "./catalog";
 import { buildDetail, buildEntryNameMap, chordTypeSiblings, scaleSiblings } from "./detail";
 
 const catalog = buildCatalog(auditAllShapes());
@@ -34,5 +34,18 @@ describe("buildEntryNameMap", () => {
       expect(entry.kind).toBe("chord");
       expect(entry.name).toBe(name);
     }
+  });
+});
+
+describe("chordFingeringToFrettedScale", () => {
+  it("passes allowOpenStrings through to applyChordShape", () => {
+    const withOpen = catalog
+      .flatMap((e) => (e.kind === "chord" ? [e.shape] : []))
+      .find((shape) => chordFingeringToFrettedScale(shape, "E").notes.some((n) => n.fret === 0));
+    if (!withOpen) throw new Error("registry has no chord shape with an open string at E");
+
+    const closed = chordFingeringToFrettedScale(withOpen, "E", undefined, { allowOpenStrings: false });
+    expect(closed.empty).toBe(false);
+    expect(closed.notes.every((n) => n.fret > 0)).toBe(true);
   });
 });
