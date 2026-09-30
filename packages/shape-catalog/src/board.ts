@@ -114,7 +114,9 @@ export interface BoardModelResult {
   counts: BoardCounts;
 }
 
-const CAGED_COLUMN_ORDER: readonly CagedPosition[] = ["C", "A", "G", "E", "D"];
+/** The five CAGED positions in C·A·G·E·D order — board columns, the detail
+ * panel's position strip, and the workbench's position picker all use it. */
+export const CAGED_ORDER: readonly CagedPosition[] = ["C", "A", "G", "E", "D"];
 const INVERSION_COLUMN_ORDER: readonly string[] = ["0", "1", "2", "3"];
 const INVERSION_LABELS: Readonly<Record<string, string>> = {
   "0": "Root position",
@@ -201,7 +203,7 @@ function deriveRows(entries: readonly ShapeCatalogEntry[], options: BoardModelOp
 
 function deriveColumns(entries: readonly ShapeCatalogEntry[], options: BoardModelOptions): BoardColumn[] {
   if (options.axis === "cagedPosition") {
-    return CAGED_COLUMN_ORDER.map((position) => ({ key: position, label: position }));
+    return CAGED_ORDER.map((position) => ({ key: position, label: position }));
   }
   if (options.axis === "inversion") {
     return INVERSION_COLUMN_ORDER.map((key) => ({

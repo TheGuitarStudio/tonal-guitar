@@ -18,10 +18,10 @@
  * `EditCapabilities` callback is provided (spec §5.3 D-002 invariant).
  */
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import type { CagedPosition } from "tonal-guitar";
 import type { ShapeCatalogEntry } from "shape-catalog";
 import {
   alternateFingerings,
+  CAGED_ORDER,
   chordDetailFor,
   chordTypeSiblings,
   compatibleShapesForEntry,
@@ -225,8 +225,6 @@ export function ShapeDetailPanel({
   );
 }
 
-const CAGED_POSITIONS: CagedPosition[] = ["C", "A", "G", "E", "D"];
-
 /**
  * Edit / Duplicate-to-position / Add-tag affordances — a single block so
  * every `data-tg-edit` element in the panel lives in one place. Renders
@@ -264,7 +262,7 @@ function EditControls({
       {edit.onDuplicateToPosition && (
         <div data-tg-edit className="tg-edit-controls-row">
           <span className="tg-muted">Duplicate to:</span>
-          {CAGED_POSITIONS.map((position) => (
+          {CAGED_ORDER.map((position) => (
             <button
               key={position}
               type="button"

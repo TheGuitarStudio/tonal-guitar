@@ -10,7 +10,7 @@
  */
 import type { ChangeEvent } from "react";
 import type { CagedPosition, ChordShape, VoicingFamily } from "tonal-guitar";
-import type { DraftShape } from "shape-catalog";
+import { CAGED_ORDER, type DraftShape } from "shape-catalog";
 import { movableReason } from "./deriveShape";
 
 export interface PropertiesFormProps {
@@ -21,7 +21,6 @@ export interface PropertiesFormProps {
   onIdentChange: (ident: string) => void;
 }
 
-const CAGED_POSITIONS: CagedPosition[] = ["C", "A", "G", "E", "D"];
 const VOICING_FAMILIES: VoicingFamily[] = [
   "caged",
   "extended",
@@ -101,7 +100,7 @@ export function PropertiesForm({ draft, shape, onShapeChange, onFileChange, onId
           }
         >
           <option value="">(none)</option>
-          {CAGED_POSITIONS.map((p) => (
+          {CAGED_ORDER.map((p) => (
             <option key={p} value={p}>
               {p}
             </option>
