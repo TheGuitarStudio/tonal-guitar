@@ -547,9 +547,9 @@ export function checkTuningMismatch(
  * Flags a `Barre.fret` that cannot be a valid grip-base offset (D-010):
  *
  * 1. `fret < 0` — an offset is never negative.
- * 2. `fret > span` — `span` is the shape's own fretted span (same
- *    `checkFretSpan` computation: max − min over non-null, non-open built
- *    frets), and an offset can never exceed the span it's measured within.
+ * 2. `fret > span` — `span` is the range the offset is measured within:
+ *    the highest played built fret minus the grip base (`gripBaseFret`,
+ *    open strings included), so an offset can never exceed it.
  * 3. For `baseFret`-carrying shapes with a resolvable grip root (see
  *    `chordShapeGeometry`): `fret` equals the ABSOLUTE fret the source
  *    diagram implies for the barre's strings (`sourceFrets[barre.fromString]`)
@@ -562,6 +562,14 @@ export function checkTuningMismatch(
  *    `extended-chords.ts`, `caged-chords*.ts`) have since had their own
  *    pre-D-010 absolute barre frets migrated to grip-base offsets too
  *    (CR-001).
+ * 4. The offset resolves (`absoluteBarreFret(barre, gripBase)`) to a fret
+ *    that doesn't match the grip: a string under the barre carrying the
+ *    barre's finger sits at a different fret, or a played string under the
+ *    barre sits below it. This is the root-invariance gate (CR-002 / #192):
+ *    because built grips transpose rigidly and the grip base includes open
+ *    strings, an offset that passes here at one root passes at every root —
+ *    so it also catches offsets still measured from the old open-string-
+ *    excluding base.
  *
  * `root`/`tuning`/`prebuilt` mirror `checkFretSpan`'s signature so
  * `auditChordShape` can thread its single hoisted `applyChordShape` build in
@@ -575,10 +583,11 @@ export function checkBarreFretOrigin(
 ): ShapeAuditIssue[] {
   if (shape.barres.length === 0) return [];
 
-  const { frets } = prebuilt ?? applyChordShape(shape, root, tuning);
-  const fretted = frets.filter((f): f is number => f != null && f > 0);
-  const span = fretted.length ? Math.max(...fretted) - Math.min(...fretted) : 0;
+  const built = prebuilt ?? applyChordShape(shape, root, tuning);
+  const { frets } = built;
+  const played = frets.filter((f): f is number => f != null);
   const gripBase = gripBaseFret(frets);
+  const span = played.length ? Math.max(...played) - gripBase : 0;
   const geometry = chordShapeGeometry(shape, tuning);
 
   const issues: ShapeAuditIssue[] = [];
@@ -601,37 +610,101 @@ export function checkBarreFretOrigin(
         id: CHECK_BARRE_FRET_ORIGIN,
         severity: "warning",
         message:
-          `Barre ${barreIndex}'s fret (${barre.fret}) exceeds the shape's fretted span ` +
+          `Barre ${barreIndex}'s fret (${barre.fret}) exceeds the shape's played span ` +
           `(${span}) — an offset cannot exceed the span it's measured within`,
         details: { barreIndex, fret: barre.fret, span, gripBase, suggestedOffset: clampedOffset },
       });
       return;
     }
 
-    if (geometry == null) return;
+    if (geometry != null) {
+      const absoluteSourceFret = geometry.sourceFrets[barre.fromString];
+      const sourceGripBase = sourceGripBaseFret(shape, geometry.sourceFrets);
+      const suggestedOffset =
+        absoluteSourceFret == null ? undefined : absoluteSourceFret - sourceGripBase;
+      if (
+        suggestedOffset != null &&
+        barre.fret === absoluteSourceFret &&
+        suggestedOffset >= 0 &&
+        suggestedOffset !== barre.fret
+      ) {
+        issues.push({
+          id: CHECK_BARRE_FRET_ORIGIN,
+          severity: "warning",
+          message:
+            `Barre ${barreIndex}'s fret (${barre.fret}) equals the absolute source-diagram fret ` +
+            `rather than a grip-base offset — did you mean offset ${suggestedOffset}?`,
+          details: { barreIndex, fret: barre.fret, span, gripBase, suggestedOffset },
+        });
+        return;
+      }
+    }
 
-    const absoluteSourceFret = geometry.sourceFrets[barre.fromString];
-    if (absoluteSourceFret == null) return;
-
-    const sourceGripBase = sourceGripBaseFret(shape, geometry.sourceFrets);
-    const suggestedOffset = absoluteSourceFret - sourceGripBase;
-    if (
-      barre.fret === absoluteSourceFret &&
-      suggestedOffset >= 0 &&
-      suggestedOffset !== barre.fret
-    ) {
+    const mismatch = barreGripMismatch(built, barreIndex, gripBase);
+    if (mismatch != null) {
       issues.push({
         id: CHECK_BARRE_FRET_ORIGIN,
         severity: "warning",
         message:
-          `Barre ${barreIndex}'s fret (${barre.fret}) equals the absolute source-diagram fret ` +
-          `rather than a grip-base offset — did you mean offset ${suggestedOffset}?`,
-        details: { barreIndex, fret: barre.fret, span, gripBase, suggestedOffset },
+          `Barre ${barreIndex}'s offset (${barre.fret}) resolves to fret ${mismatch.resolvedFret} ` +
+          `at ${root}, but the grip puts string ${mismatch.string} at fret ${mismatch.stringFret} — ` +
+          `did you mean offset ${mismatch.suggestedOffset}?`,
+        details: {
+          barreIndex,
+          fret: barre.fret,
+          span,
+          gripBase,
+          suggestedOffset: mismatch.suggestedOffset,
+          resolvedFret: mismatch.resolvedFret,
+          string: mismatch.string,
+          stringFret: mismatch.stringFret,
+        },
       });
     }
   });
 
   return issues;
+}
+
+/**
+ * Rule 4 of `checkBarreFretOrigin`: compares a built barre's resolved fret
+ * (`built.barres[barreIndex].fret`, already `gripBase + offset`) against the
+ * built frets of the strings it spans (both tuning-indexed). The barre's
+ * anchor strings are those in range fingered with the barre's own finger
+ * (falling back to `fromString` when none are); each must sit exactly at the
+ * resolved fret, and no played string in range may sit below it (a barre
+ * can't let a lower fret or an open string ring beneath it). Returns the
+ * first offending string, or `undefined` when the barre fits the grip.
+ */
+function barreGripMismatch(
+  built: Fingering,
+  barreIndex: number,
+  gripBase: number,
+):
+  | { resolvedFret: number; string: number; stringFret: number; suggestedOffset: number }
+  | undefined {
+  const { frets, fingers } = built;
+  const barre = built.barres[barreIndex];
+  const resolvedFret = barre.fret;
+  const range: number[] = [];
+  for (let s = barre.fromString; s <= barre.toString; s++) range.push(s);
+
+  const fingered = range.filter((s) => fingers[s] === barre.finger && frets[s] != null);
+  const anchors = fingered.length > 0 ? fingered : [barre.fromString];
+  const anchorFret = frets[anchors[0]];
+  if (anchorFret == null) return undefined;
+
+  const offending =
+    anchors.find((s) => frets[s] !== resolvedFret) ??
+    range.find((s) => frets[s] != null && (frets[s] as number) < resolvedFret);
+  if (offending == null) return undefined;
+
+  return {
+    resolvedFret,
+    string: offending,
+    stringFret: frets[offending] as number,
+    suggestedOffset: anchorFret - gripBase,
+  };
 }
 
 type NamedShape = { name: string };

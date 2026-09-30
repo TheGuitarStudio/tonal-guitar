@@ -197,6 +197,20 @@ before/after fixtures for open, fixed-barre, and movable-barre shapes; add an
 regression gates; update `ShapeCardChordTable.tsx` label and affected tests
 deliberately.
 
+**Amendment (CR-002 / #192, 2026-09-30):** the grip base is the lowest *played* fret,
+open strings included (`gripBaseFret` = min over non-null frets). The original
+"lowest fretted, open strings excluded" base was not root-invariant: a movable shape
+whose grip touches the nut at one root (E Shape at E, G Shape Minor at G, A Shape m6
+at A) got a different base there than at every other root, so every registered shape
+with barres resolved wrong somewhere. Built grips transpose rigidly, so the
+open-inclusive base shifts by exactly the transposition interval. Movable-shape data
+was unchanged; the 20 open shapes in `open-chords.ts` with barres were re-expressed
+against the nut (offset = barre fret at `canonicalRoot`). Alternatives rejected:
+anchoring offsets at a documented reference root (needs a per-shape reference rule and
+transposition-delta resolution everywhere) and measuring from the root-string fret
+(signed offsets, rewrites all data). `checkBarreFretOrigin` gained a rule asserting the
+resolved barre fret lands on the grip, which — by rigidity — is root-invariant.
+
 ---
 
 ## D-011: Arpeggio overrides resolve through an explicit resolver layer

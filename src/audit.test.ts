@@ -59,6 +59,7 @@ import {
   arpeggioShapes,
   chordShapes,
   get as getScaleShape,
+  gripBaseFret,
   sourceGripBaseFret,
   ArpeggioShape,
   ChordShape,
@@ -76,7 +77,8 @@ import {
   OPEN_G_SUS2,
 } from "./data/open-chords";
 import { SHELL_SHAPES } from "./data/jazz-shells";
-import { EXT_CHORD_E_6, EXT_CHORD_A_6 } from "./data/extended-chords";
+import { EXT_CHORD_E_6, EXT_CHORD_A_6, EXT_CHORD_A_M6 } from "./data/extended-chords";
+import { CAGED_CHORD_GM } from "./data/caged-chords-minor";
 import { CAGED_CHORD_C, CAGED_CHORD_E, CAGED_CHORD_G } from "./data/caged-chords";
 import { CAGED_E } from "./data/caged-scales";
 import { CAGED_DM } from "./data/caged-scales-minor";
@@ -938,9 +940,9 @@ describe("checkBarreFretOrigin", () => {
     expect(checkBarreFretOrigin(OPEN_C_MAJOR, "C")).toEqual([]);
   });
 
-  it("D-010 worked example — 'A Major Open' (x02220, baseFret 1, barre fret 2, strings 2-4): grip base 2, migrated offset 0, not flagged", () => {
+  it("D-010 worked example — 'A Major Open' (x02220, baseFret 1, barre fret 2, strings 2-4): grip base 0 (open strings count, CR-002), offset 2, not flagged", () => {
     expect(checkBarreFretOrigin(OPEN_A_MAJOR, "A", STANDARD)).toEqual([]);
-    expect(OPEN_A_MAJOR.barres[0].fret).toBe(0);
+    expect(OPEN_A_MAJOR.barres[0].fret).toBe(2);
   });
 
   it("D-010 worked example — 'C Minor Open' (x35543, baseFret 3, barre fret 3, full barre): grip base 3, migrated offset 0, not flagged", () => {
@@ -948,7 +950,7 @@ describe("checkBarreFretOrigin", () => {
     expect(OPEN_C_MINOR.barres[0].fret).toBe(0);
   });
 
-  it("D-010 worked example — 'C Sus2 Open' (x30033, baseFret 1, barre fret 3, strings 4-5): migrated offset (3 - grip base) === 0, not flagged", () => {
+  it("D-010 worked example — 'C Sus2 Open' (x30033, baseFret 1, barre fret 3, strings 4-5): offset (3 - grip base 0) === 3, not flagged", () => {
     expect(checkBarreFretOrigin(OPEN_C_SUS2, "C", STANDARD)).toEqual([]);
     const geometry = chordShapeGeometry(OPEN_C_SUS2, STANDARD)!;
     const gripBase = sourceGripBaseFret(OPEN_C_SUS2, geometry.sourceFrets);
@@ -1002,8 +1004,8 @@ describe("checkBarreFretOrigin", () => {
       rootString: 0,
     };
     const built = applyChordShape(shape, "C", STANDARD);
-    const fretted = built.frets.filter((f): f is number => f != null && f > 0);
-    const span = Math.max(...fretted) - Math.min(...fretted);
+    const played = built.frets.filter((f): f is number => f != null);
+    const span = Math.max(...played) - gripBaseFret(built.frets);
     const issues = checkBarreFretOrigin(shape, "C", STANDARD);
     expect(issues.length).toBe(1);
     expect(issues[0].details).toMatchObject({ barreIndex: 0, fret: 99, span });
@@ -1020,13 +1022,89 @@ describe("checkBarreFretOrigin", () => {
     const shape: ChordShape = {
       name: "Synthetic No-BaseFret Barre Fixture",
       system: "shell",
-      strings: ["1P", "3M", null, null, null, null],
+      // G on the low E and C on the A string: both at fret 3 at root C.
+      strings: ["5P", "1P", null, null, null, null],
       fingers: [1, 1, null, null, null, null],
       barres: [{ fret: 0, fromString: 0, toString: 1, finger: 1 }],
-      rootString: 0,
+      rootString: 1,
     };
     // fret 0 is within [0, span] and there's no baseFret/geometry — clean.
     expect(checkBarreFretOrigin(shape, "C", STANDARD)).toEqual([]);
+  });
+
+  it("rule 4: an offset still measured from the pre-CR-002 open-string-excluding base is flagged with the corrected offset", () => {
+    // "A Major Open" at A: x02220. Old base 2 → offset 0; new base 0 → offset 2.
+    const stale: ChordShape = {
+      ...OPEN_A_MAJOR,
+      name: "Synthetic Stale Barre Offset Fixture",
+      barres: [{ ...OPEN_A_MAJOR.barres[0], fret: 0 }],
+    };
+    const issues = checkBarreFretOrigin(stale, "A", STANDARD);
+    expect(issues.length).toBe(1);
+    expect(issues[0].details).toMatchObject({
+      barreIndex: 0,
+      fret: 0,
+      gripBase: 0,
+      resolvedFret: 0,
+      suggestedOffset: 2,
+    });
+  });
+
+  it("rule 4: a played string under the barre sitting below the resolved fret is flagged", () => {
+    // E Shape 6 at C: 8 10 10 9 10 x. Barre 1 (finger 3, strings 1-2) moved
+    // to cover string 3 too, which sits a fret lower (9) under the barre.
+    const shape: ChordShape = {
+      ...EXT_CHORD_E_6,
+      name: "Synthetic Barre Over Lower Fret Fixture",
+      barres: [EXT_CHORD_E_6.barres[0], { ...EXT_CHORD_E_6.barres[1], toString: 3 }],
+    };
+    const issues = checkBarreFretOrigin(shape, "C", STANDARD);
+    expect(issues.length).toBe(1);
+    expect(issues[0].details).toMatchObject({ barreIndex: 1, string: 3, stringFret: 9, resolvedFret: 10 });
+  });
+});
+
+describe("Barre offsets are root-invariant (CR-002 / #192)", () => {
+  const ROOTS = ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"];
+  const shapesWithBarres = chordShapes.all().filter((shape) => shape.barres.length > 0);
+
+  it("covers every registered chord shape with barres", () => {
+    expect(shapesWithBarres.length).toBeGreaterThan(0);
+    expect(shapesWithBarres).toContain(CAGED_CHORD_GM);
+    expect(shapesWithBarres).toContain(EXT_CHORD_A_M6);
+    expect(shapesWithBarres).toContain(OPEN_A_MAJOR);
+  });
+
+  it.each(shapesWithBarres.map((shape) => [shape.name, shape] as const))(
+    "%s: every barre resolves onto its own strings at all 12 roots, and checkBarreFretOrigin is clean",
+    (_name, shape) => {
+      for (const root of ROOTS) {
+        const built = applyChordShape(shape, root, STANDARD);
+        const gripBase = gripBaseFret(built.frets);
+        built.barres.forEach((barre, i) => {
+          const where = `${shape.name} @ ${root}, barre ${i}`;
+          // Resolved fret is the stored offset from this root's grip base...
+          expect(barre.fret, where).toBe(gripBase + shape.barres[i].fret);
+          // ...and lands on the string that anchors the barre.
+          expect(built.frets[barre.fromString], where).toBe(barre.fret);
+        });
+        expect(checkBarreFretOrigin(shape, root, STANDARD, built), `${shape.name} @ ${root}`).toEqual([]);
+      }
+    },
+  );
+
+  it("CAGED_CHORD_GM (the issue's example) resolves identically at C and at G, where strings 2-3 are open", () => {
+    const atC = applyChordShape(CAGED_CHORD_GM, "C", STANDARD);
+    const atG = applyChordShape(CAGED_CHORD_GM, "G", STANDARD);
+    expect(atG.frets).toEqual([3, 1, 0, 0, 3, 3]);
+    expect(atG.barres.map((b) => b.fret)).toEqual([0, 3]);
+    expect(atC.barres.map((b) => b.fret)).toEqual([5, 8]);
+  });
+
+  it("EXT_CHORD_A_M6 (the issue's example) resolves onto strings 2-3 at A, where the root string is open", () => {
+    const atA = applyChordShape(EXT_CHORD_A_M6, "A", STANDARD);
+    expect(atA.frets).toEqual([null, 0, 2, 2, 1, 2]);
+    expect(atA.barres[0].fret).toBe(2);
   });
 });
 
@@ -1306,7 +1384,10 @@ describe("auditChordShape", () => {
     system: "open",
     strings: ["1P", null, "5A", "1P", "3M", "5A"],
     fingers: [2, null, 3, 1, 1, 4],
-    barres: [{ fret: 1, fromString: 3, toString: 4, finger: 1 }],
+    // Offset re-expressed against the CR-002 (#192) grip base, which counts
+    // the open strings 3-4 of this built grip (3 x 1 0 0 11) — keeps the
+    // fixture to exactly the fret-span + geometry-mismatch pair.
+    barres: [{ fret: 0, fromString: 3, toString: 4, finger: 1 }],
     rootString: 0,
     chordType: "aug",
     voicingFamily: "open",
@@ -1377,17 +1458,18 @@ describe("auditChordShape", () => {
   });
 
   it("composes the four new required-tier checks alongside the original six", () => {
-    // A shape combining a stringSet mismatch, a tuning mismatch, and an
-    // absolute (pre-D-010) barre fret all at once — one issue per new check.
-    // OPEN_A_MAJOR itself is now migrated (offset 0), so the barre is
-    // overridden back to its pre-migration absolute value (2) here to keep
-    // exercising checkBarreFretOrigin's rule 3.
+    // A shape combining a stringSet mismatch, a tuning mismatch, and a
+    // stale barre offset all at once — one issue per new check. OPEN_A_MAJOR
+    // itself stores offset 2 (grip base 0, open strings included — CR-002),
+    // so the barre is overridden back to its pre-CR-002 offset (0, measured
+    // from the old open-string-excluding base) to exercise
+    // checkBarreFretOrigin's rule 4.
     const shape: ChordShape = {
       ...OPEN_A_MAJOR,
       name: "Synthetic Multi-New-Check Fixture",
       stringSet: [1, 2, 3], // diverges from playedStringSet
       tuning: ["D2", "A2", "D3", "G3", "B3", "E4"], // diverges from STANDARD
-      barres: [{ fret: 2, fromString: 2, toString: 4, finger: 2 }], // pre-D-010 absolute value
+      barres: [{ fret: 0, fromString: 2, toString: 4, finger: 2 }], // pre-CR-002 offset
     };
     const issues = auditChordShape(shape);
 
