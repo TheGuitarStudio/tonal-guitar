@@ -1031,6 +1031,11 @@ describe("shapes-merge: CLI arg parsing", () => {
   it("throws UsageError on an unknown flag", () => {
     expect(() => parseArgs(["changeset.json", "--nope"])).toThrow(UsageError);
   });
+
+  it("CR-029: --out/--root refuse a following flag as their value", () => {
+    expect(() => parseArgs(["changeset.json", "--out", "--dry-run"])).toThrow(UsageError);
+    expect(() => parseArgs(["changeset.json", "--root", "--check"])).toThrow(UsageError);
+  });
 });
 
 /**

@@ -159,11 +159,15 @@ export function parseArgs(argv) {
         break;
       case "--out":
         args.out = rest.shift();
-        if (args.out === undefined) throw new UsageError("--out requires an <ident> argument");
+        if (args.out === undefined || args.out.startsWith("--")) {
+          throw new UsageError("--out requires an <ident> argument");
+        }
         break;
       case "--root":
         args.root = rest.shift();
-        if (args.root === undefined) throw new UsageError("--root requires a <dir> argument");
+        if (args.root === undefined || args.root.startsWith("--")) {
+          throw new UsageError("--root requires a <dir> argument");
+        }
         break;
       default:
         if (token.startsWith("--")) {
