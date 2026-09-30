@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `scaleTypeForChordType` no longer returns `Object.prototype` members for chord types like `"toString"`, `"constructor"` or `"__proto__"`; it only matches `CHORD_SCALE_RULE`'s own keys and returns `undefined` otherwise. `CHORD_SCALE_RULE` itself is unchanged and still mutable.
+
 ## [0.4.0] — 2026-09-30
 
 ### Added

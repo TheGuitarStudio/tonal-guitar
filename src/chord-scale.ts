@@ -34,5 +34,9 @@ export const CHORD_SCALE_RULE: Record<string, ChordScaleEntry> = {
  * callers should derive the parent box from the grip only in that case.
  */
 export function scaleTypeForChordType(chordType: string): ChordScaleEntry | undefined {
-  return CHORD_SCALE_RULE[chordType];
+  // Own-key guard: a bare index would leak `Object.prototype` members
+  // (e.g. "toString", "constructor") as bogus entries.
+  return Object.prototype.hasOwnProperty.call(CHORD_SCALE_RULE, chordType)
+    ? CHORD_SCALE_RULE[chordType]
+    : undefined;
 }

@@ -54,6 +54,13 @@ describe("scaleTypeForChordType", () => {
   it("returns undefined for an unknown chord type", () => {
     expect(scaleTypeForChordType("sus4")).toBeUndefined();
   });
+
+  it.each(["toString", "constructor", "hasOwnProperty", "__proto__"])(
+    "returns undefined for the Object.prototype member %s",
+    (chordType) => {
+      expect(scaleTypeForChordType(chordType)).toBeUndefined();
+    },
+  );
 });
 
 describe("CHORD_SCALE_RULE", () => {
@@ -74,5 +81,9 @@ describe("CHORD_SCALE_RULE", () => {
 describe("dependency tier boundary: src/chord-scale.ts stays zero-Tonal", () => {
   it("has no @tonaljs/* import", () => {
     expect(chordScaleSource).not.toMatch(/["']@tonaljs\//);
+  });
+
+  it("has no imports at all", () => {
+    expect(chordScaleSource).not.toMatch(/^\s*import\b/m);
   });
 });
