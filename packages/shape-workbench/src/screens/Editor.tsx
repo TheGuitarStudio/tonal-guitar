@@ -9,7 +9,7 @@
  * conversion, the save refusal, the checks roster, the TS/JSON preview text
  * — lives in pure, independently-tested modules under `../editor/*`; this
  * file is wiring: local UI state (tool/labels/fret window/orientation),
- * effects (auto-fingering seed, async TS preview), and the three actions
+ * the one-time auto-fingering seed, draft persistence, and the three actions
  * (Discard / Run checks / Save to changeset) against `WorkbenchStore`.
  *
  * `<EditorInner key={slotKey} .../>` remounts (and so resets every local
@@ -17,10 +17,9 @@
  * editor slot straight to another (e.g. via "Duplicate to position") never
  * leaks the previous draft's in-progress cell/tool state into the next.
  */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Fretboard, type EditorCell, type Orientation } from "fretboard-ui";
 import type { Barre, ChordShape } from "tonal-guitar";
-import { autoFingering } from "tonal-guitar";
 import { FretboardEditor } from "fretboard-ui";
 import { useWorkbenchDispatch, useWorkbenchState } from "../StoreProvider";
 import { navigateToRoute } from "../useRoute";
@@ -32,7 +31,13 @@ import { ChecksCard } from "../editor/ChecksCard";
 import { OutputPreview } from "../editor/OutputPreview";
 import { PropertiesForm } from "../editor/PropertiesForm";
 import { IdentifyRow, AtOtherRoots } from "../editor/IdentifyAndRoots";
-import { buildShapeFromCells, seedForDraft, shapeIsBlank, withGeometry } from "../editor/deriveShape";
+import {
+  autoFingerCells,
+  buildShapeFromCells,
+  seedForDraft,
+  shapeIsBlank,
+  withGeometry,
+} from "../editor/deriveShape";
 import { applyCellsChange, type ActiveFinger, type EditorTool } from "../editor/toolInteractions";
 import { computeSaveDraft } from "../editor/saveDraft";
 import "../editor/editor.css";
@@ -60,17 +65,16 @@ function EditorInner({ slotKey, draft }: { slotKey: string; draft: WorkbenchDraf
   const shape = draft.shape as ChordShape;
   const tuning = state.tuning;
 
-  const seed = useMemo(
-    () => seedForDraft({ shape, rawGeometry: draft.rawGeometry }, tuning, state.authorRoot),
-    // Computed once at mount (EditorInner is remounted per slotKey via the
-    // `key` prop in EditorScreen below) — intentionally keyed on `slotKey`
-    // alone, NOT re-run when authorRoot changes later, so switching
-    // "Author at root" re-anchors the SAME grip's interval frame rather
-    // than re-seeding from scratch. `seedForDraft` prefers `draft.rawGeometry`
-    // (the exact editor state as last left, CR-115) over re-deriving from
-    // `draft.shape` — this is what makes a resumed draft rehydrate a
-    // cleared grip as cleared rather than resurrecting the last valid shape.
-    [slotKey],
+  // Computed once at mount via a lazy initializer (CR-063; EditorInner is
+  // remounted per slotKey via the `key` prop in EditorScreen below) — NOT
+  // re-run when authorRoot changes later, so switching "Author at root"
+  // re-anchors the SAME grip's interval frame rather than re-seeding from
+  // scratch. `seedForDraft` prefers `draft.rawGeometry` (the exact editor
+  // state as last left, CR-115) over re-deriving from `draft.shape` — this
+  // is what makes a resumed draft rehydrate a cleared grip as cleared
+  // rather than resurrecting the last valid shape.
+  const [seed] = useState(() =>
+    seedForDraft({ shape, rawGeometry: draft.rawGeometry }, tuning, state.authorRoot),
   );
 
   const [cells, setCells] = useState<EditorCell[]>(seed.cells);
@@ -79,11 +83,26 @@ function EditorInner({ slotKey, draft }: { slotKey: string; draft: WorkbenchDraf
   const [activeFinger, setActiveFinger] = useState<ActiveFinger>(1);
   const [labelMode, setLabelMode] = useState<LabelDisplayMode>("intervals");
   const [fretRange, setFretRange] = useState<[number, number]>([0, 12]);
-  const [autoSeeded, setAutoSeeded] = useState(false);
+  // Auto-fingering seeds fingers/barres once, for a brand-new blank draft
+  // only (tasks.md 26.6) — eligibility is decided at mount, and the seed
+  // runs in `handleCellsChange` on the first edit that yields a valid
+  // (rooted) geometry. The author may freely override afterwards.
+  const [autoSeedPending, setAutoSeedPending] = useState(() => draft.origin === "gap" && shapeIsBlank(shape));
   const [saveMessage, setSaveMessage] = useState<string | undefined>(undefined);
 
   function handleCellsChange(next: EditorCell[]) {
-    setCells((prev) => applyCellsChange(prev, next, tool, activeFinger));
+    const nextCells = applyCellsChange(cells, next, tool, activeFinger);
+    if (autoSeedPending) {
+      const nextShape = buildShapeFromCells(shape, nextCells, barres, tuning, state.authorRoot);
+      if (nextShape !== undefined) {
+        const seeded = autoFingerCells(nextCells, nextShape, state.authorRoot, tuning);
+        setCells(seeded.cells);
+        setBarres(seeded.barres);
+        setAutoSeedPending(false);
+        return;
+      }
+    }
+    setCells(nextCells);
   }
 
   function handleShapeFieldChange(patch: Partial<ChordShape>) {
@@ -108,31 +127,6 @@ function EditorInner({ slotKey, draft }: { slotKey: string; draft: WorkbenchDraf
   // marked yet — never used for save, which always refuses on `undefined`.
   const displayShape = derivedShape ?? shape;
 
-  // Seed fingers/barres from `autoFingering` the first time the draft has a
-  // valid (rooted) geometry, for a brand-new blank draft only (tasks.md
-  // 26.6). Runs once; the author may freely override afterwards.
-  useEffect(() => {
-    if (autoSeeded) return;
-    if (draft.origin !== "gap" || !shapeIsBlank(shape)) {
-      setAutoSeeded(true);
-      return;
-    }
-    if (derivedShape === undefined) return;
-
-    const auto = autoFingering(
-      { ...shape, strings: derivedShape.strings, rootString: derivedShape.rootString },
-      state.authorRoot,
-      tuning,
-    );
-    setBarres(auto.barres);
-    setCells((prev) => prev.map((c) => (c.muted ? c : { ...c, finger: auto.fingers[c.string] ?? c.finger })));
-    setAutoSeeded(true);
-    // Intentionally keyed on `derivedShape`/`autoSeeded` alone — `shape`,
-    // `draft.origin`, `state.authorRoot`, and `tuning` are read once to
-    // decide/compute the one-time seed and must not retrigger this effect
-    // on every subsequent edit (that would re-run auto-fingering forever).
-  }, [derivedShape, autoSeeded]);
-
   function persistDraft(nextShape: ChordShape) {
     const nextDraft: WorkbenchDraft = { ...draft, shape: nextShape };
     dispatch({ type: "SET_DRAFT", key: slotKey, draft: nextDraft });
@@ -153,14 +147,15 @@ function EditorInner({ slotKey, draft }: { slotKey: string; draft: WorkbenchDraf
   // would reopen the stale last-valid shape and resurrect notes the author
   // had just cleared. `derivedShape` (computed above via
   // `buildShapeFromCells`) is read from render scope rather than re-derived
-  // here; the effect is intentionally keyed on `cells`/`barres` alone (not
-  // `derivedShape`'s own identity, which is a fresh object every render) so
-  // this can't loop — dispatching SET_DRAFT changes `draft`, which changes
-  // `derivedShape`'s *value* next render, but never re-fires this effect
-  // since `cells`/`barres` themselves didn't change.
+  // here; the effect is keyed on its actual inputs `cells`/`barres`/
+  // `state.authorRoot` (CR-116: changing "Author at root" re-derives the
+  // intervals, so it must persist too) — not `derivedShape`'s own identity,
+  // which is a fresh object every render — so this can't loop: dispatching
+  // SET_DRAFT changes `draft`, which changes `derivedShape`'s *value* next
+  // render, but never re-fires this effect since none of its keys changed.
   useEffect(() => {
     dispatch({ type: "SET_DRAFT", key: slotKey, draft: withGeometry(draft, cells, barres, derivedShape) });
-  }, [cells, barres]);
+  }, [cells, barres, state.authorRoot]);
 
   function handleRunChecks() {
     if (derivedShape === undefined) {

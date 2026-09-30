@@ -20,7 +20,7 @@
  * No React/DOM imports — testable without rendering anything.
  */
 import { cellsToChordShape, frettedNotesToCells, type EditorCell } from "fretboard-ui";
-import { applyChordShape, isMovable } from "tonal-guitar";
+import { applyChordShape, autoFingering, isMovable } from "tonal-guitar";
 import type { Barre, ChordShape } from "tonal-guitar";
 import { semitones } from "@tonaljs/interval";
 import type { RawGeometry, WorkbenchDraft } from "../store";
@@ -159,6 +159,26 @@ export function shapeIsBlank(shape: ChordShape): boolean {
   return (
     shape.strings.every((s) => s === null) && shape.fingers.every((f) => f === null) && shape.barres.length === 0
   );
+}
+
+/**
+ * The Editor's one-time auto-fingering seed (tasks.md 26.6): runs
+ * `autoFingering` on the first valid (rooted) `derivedShape` of a brand-new
+ * blank draft and folds its fingers into every unmuted cell (keeping a
+ * cell's own finger where `autoFingering` has none), returning its barres
+ * alongside.
+ */
+export function autoFingerCells(
+  cells: EditorCell[],
+  derivedShape: ChordShape,
+  root: string,
+  tuning: string[],
+): { cells: EditorCell[]; barres: Barre[] } {
+  const auto = autoFingering(derivedShape, root, tuning);
+  return {
+    cells: cells.map((c) => (c.muted ? c : { ...c, finger: auto.fingers[c.string] ?? c.finger })),
+    barres: auto.barres,
+  };
 }
 
 /**
