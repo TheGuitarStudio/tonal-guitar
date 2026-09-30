@@ -35,6 +35,7 @@ import {
 import { FilterBar, type ChordSortOption } from "shape-library-ui/src/FilterBar";
 import { ShapeCard } from "shape-library-ui/src/ShapeCard";
 import { ShapeLibraryProvider } from "shape-library-ui/src/capabilities";
+import { ToggleGroup } from "shape-library-ui/src/ToggleGroup";
 import { REPO_SLUG } from "@/lib/repo";
 import { ShapeBoardView } from "./ShapeBoardView";
 
@@ -554,37 +555,29 @@ export function ShapeLibrary() {
       <div className="flex items-start gap-4">
         <div className="min-w-0 flex-1">
           <div className="mb-2 flex items-center justify-end">
-            <div className="tg-toggle-group" role="group" aria-label="Library view">
-              <button
-                type="button"
-                aria-pressed={view === "grid"}
-                onClick={() => setView("grid")}
-              >
-                Grid
-              </button>
-              <button
-                type="button"
-                aria-pressed={view === "board"}
+            <ToggleGroup
+              label="Library view"
+              value={view}
+              onChange={setView}
+              options={[
+                { value: "grid", label: "Grid" },
                 // Board view groups by chord type (`ShapeBoardView`'s
                 // `boardModel` call is hardcoded to `rowGrouping:
                 // "chordType"`) — scale shapes carry no such facet, so the
                 // board would always render "Showing 0 of 0" for them
-                // (CR-067). Disabling the toggle here is the primary guard;
+                // (CR-067). Disabling the option here is the primary guard;
                 // `ShapeBoardView` also renders its own explicit chord-only
                 // empty state in case `kind` flips to "scale" while board
                 // is already open (the FilterBar's kind toggle stays live
                 // in board mode — see CR-070).
-                disabled={kind === "scale"}
-                aria-disabled={kind === "scale"}
-                title={kind === "scale" ? "Board view is chord-only" : undefined}
-                onClick={() => {
-                  if (kind === "scale") return;
-                  setView("board");
-                }}
-              >
-                Board
-              </button>
-            </div>
+                {
+                  value: "board",
+                  label: "Board",
+                  disabled: kind === "scale",
+                  title: kind === "scale" ? "Board view is chord-only" : undefined,
+                },
+              ]}
+            />
           </div>
 
           {/* Board view only ever forwards `kind`/`nameQuery` into

@@ -25,11 +25,12 @@ import {
   toggleInAllOnSet,
   voicingFamilyCounts,
 } from "shape-catalog";
+import { ToggleGroup, type ToggleGroupOption } from "./ToggleGroup";
 
 /** Chord grid sort options: base-fret ascending (default) or name/type order. */
 export type ChordSortOption = "baseFret" | "name";
 
-const KIND_TOGGLE_OPTIONS: { value: ShapeKind; label: string }[] = [
+const KIND_TOGGLE_OPTIONS: ToggleGroupOption<ShapeKind>[] = [
   { value: "scale", label: "Scale" },
   { value: "chord", label: "Chord" },
 ];
@@ -106,7 +107,7 @@ export function FilterBar({
   return (
     <div className="tg-filterbar">
       <div className="tg-filterbar-row">
-        <ToggleGroup options={KIND_TOGGLE_OPTIONS} value={kind} onChange={onKindChange} />
+        <ToggleGroup options={KIND_TOGGLE_OPTIONS} value={kind} onChange={onKindChange} label="Shape kind" />
 
         <input
           type="text"
@@ -391,23 +392,5 @@ function Chip({ active, isZero, onClick, title, ariaLabel, children }: ChipProps
     >
       {children}
     </button>
-  );
-}
-
-interface ToggleGroupProps<V extends string> {
-  options: { value: V; label: string }[];
-  value: V;
-  onChange: (v: V) => void;
-}
-
-function ToggleGroup<V extends string>({ options, value, onChange }: ToggleGroupProps<V>) {
-  return (
-    <div className="tg-toggle-group">
-      {options.map((opt) => (
-        <button key={opt.value} type="button" aria-pressed={value === opt.value} onClick={() => onChange(opt.value)}>
-          {opt.label}
-        </button>
-      ))}
-    </div>
   );
 }

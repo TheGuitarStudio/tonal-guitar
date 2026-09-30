@@ -45,6 +45,7 @@ export {
 export { ChordDetailView } from "./ChordDetailView";
 export { ScaleDetailView } from "./ScaleDetailView";
 
+export { ToggleGroup, type ToggleGroupOption, type ToggleGroupProps } from "./ToggleGroup";
 export { DiagramOrientationToggle, type DiagramOrientationToggleProps } from "./DiagramOrientationToggle";
 export { ColumnsToggle, type ColumnsToggleProps } from "./ColumnsToggle";
 
