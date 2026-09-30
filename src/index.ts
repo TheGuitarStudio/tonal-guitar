@@ -133,6 +133,7 @@ export type {
   ShapeAuditOptions,
   ChordGeometryDetails,
   ChordShapeAuditResult,
+  NameUniqueKind,
 } from "./audit";
 
 // Pattern generators

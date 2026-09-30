@@ -189,18 +189,18 @@ auditChordShape(chordShapes.get("G Augmented Open"));
 
 `auditScaleShape(shape: ScaleShape, options?: ShapeAuditOptions) => ShapeAuditIssue[]`
 
-Runs only the two checks that apply to scale shapes -- build-loss and metadata-completeness -- never fret-span/finger/geometry, which are chord-only. `root` defaults to `"C"` (`ScaleShape` has no `canonicalRoot` field, so `displayRootFor` doesn't apply here); `tuning` defaults to `STANDARD`.
+Runs only the checks that apply to scale shapes -- build-loss, metadata-completeness and name-unique (`checkNameUnique(shape, "scale")` against the live registry) -- never fret-span/finger/geometry, which are chord-only. `root` defaults to `"C"` (`ScaleShape` has no `canonicalRoot` field, so `displayRootFor` doesn't apply here); `tuning` defaults to `STANDARD`.
 
 ### auditAllShapes
 
-`auditAllShapes(options?: ShapeAuditOptions) => { chord: Map<string, ChordShapeAuditResult>, scale: Map<string, ShapeAuditIssue[]> }`
+`auditAllShapes(options?: ShapeAuditOptions) => { chord: Map<string, ChordShapeAuditResult>, scale: Map<string, ShapeAuditIssue[]>, arpeggio: Map<string, ShapeAuditIssue[]> }`
 
-Audits every currently-registered chord and scale shape, keyed by `shape.name`:
+Audits every currently-registered chord, scale and arpeggio shape, keyed by `shape.name`. Arpeggio results come from the tier-safe `auditArpeggioShape` (build-loss, position-span, fingering-complete, overrides-target, name-unique); the chord-tone checks live in `auditAllShapesIntegration`:
 
 ```js
 import * as Guitar from "tonal-guitar"; // side-effect imports populate the registries
 
-const { chord, scale } = Guitar.auditAllShapes();
+const { chord, scale, arpeggio } = Guitar.auditAllShapes();
 chord.get("G Augmented Open");
 // => {
 //   issues: [fret-span error, geometry-mismatch warning],
