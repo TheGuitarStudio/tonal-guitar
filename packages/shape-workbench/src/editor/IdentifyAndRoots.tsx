@@ -12,7 +12,8 @@
  */
 import { applyChordShape } from "tonal-guitar";
 import { identifyChord } from "tonal-guitar";
-import type { ChordShape, FrettedScale } from "tonal-guitar";
+import type { ChordShape } from "tonal-guitar";
+import { chordFingeringToFrettedScale } from "shape-catalog";
 import { ShapeDiagram } from "shape-library-ui";
 
 export interface IdentifyRowProps {
@@ -47,33 +48,20 @@ export function IdentifyRow({ shape, root, tuning }: IdentifyRowProps) {
 
 const OTHER_ROOTS = ["C", "D", "E", "G", "A"] as const;
 
-function frettedScaleFor(shape: ChordShape, root: string, tuning: string[]): FrettedScale {
-  const built = applyChordShape(shape, root, tuning, { allowOpenStrings: false });
-  return {
-    empty: built.positions.length === 0,
-    root,
-    scaleType: "",
-    scaleName: "",
-    shapeName: shape.name,
-    tuning,
-    notes: built.positions,
-  };
-}
-
 export interface AtOtherRootsProps {
   shape: ChordShape;
   tuning: string[];
 }
 
-/** Skips whichever of the five roots equals the current Author-at-root
- * selection — that grip is already the main editing diagram. */
+/** Renders the grip at each of C/D/E/G/A with open strings disabled —
+ * including the current Author-at-root, if it is one of the five. */
 export function AtOtherRoots({ shape, tuning }: AtOtherRootsProps) {
   return (
     <div className="tg-section" data-testid="at-other-roots">
       <h3 className="tg-section-title">At other roots</h3>
       <div className="tg-thumbnail-row">
         {OTHER_ROOTS.map((root) => {
-          const frettedScale = frettedScaleFor(shape, root, tuning);
+          const frettedScale = chordFingeringToFrettedScale(shape, root, tuning, { allowOpenStrings: false });
           const startFret = frettedScale.notes.length > 0 ? Math.min(...frettedScale.notes.map((n) => n.fret)) : 0;
           return (
             <div key={root} className="tg-thumbnail" data-testid={`at-other-root-${root}`}>

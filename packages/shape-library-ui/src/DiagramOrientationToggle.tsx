@@ -1,10 +1,11 @@
 /**
  * Toggle between `fretboard-ui`'s `Orientation` values ("horizontal" |
- * "vertical") — drives `ShapeDiagram`'s `orientation` prop from the Board
- * view / detail panel (spec §5.3, §7 "columns toggle + diagram orientation
- * toggle"). Read-only, capability-independent: never emits `data-tg-edit`.
+ * "vertical") — used by the workbench's Board screen and Editor tool palette
+ * to set the Editor's diagram orientation (spec §5.3, §5.4). Read-only,
+ * capability-independent: never emits `data-tg-edit`.
  */
 import type { Orientation } from "fretboard-ui";
+import { ToggleGroup, type ToggleGroupOption } from "./ToggleGroup";
 
 export interface DiagramOrientationToggleProps {
   value: Orientation;
@@ -12,24 +13,13 @@ export interface DiagramOrientationToggleProps {
   className?: string;
 }
 
-const OPTIONS: { value: Orientation; label: string }[] = [
+const OPTIONS: ToggleGroupOption<Orientation>[] = [
   { value: "horizontal", label: "Horizontal" },
   { value: "vertical", label: "Vertical" },
 ];
 
 export function DiagramOrientationToggle({ value, onChange, className }: DiagramOrientationToggleProps) {
   return (
-    <div className={["tg-toggle-group", className].filter(Boolean).join(" ")} role="group" aria-label="Diagram orientation">
-      {OPTIONS.map((opt) => (
-        <button
-          key={opt.value}
-          type="button"
-          aria-pressed={value === opt.value}
-          onClick={() => onChange(opt.value)}
-        >
-          {opt.label}
-        </button>
-      ))}
-    </div>
+    <ToggleGroup options={OPTIONS} value={value} onChange={onChange} label="Diagram orientation" className={className} />
   );
 }

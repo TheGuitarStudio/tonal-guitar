@@ -80,12 +80,15 @@ export type ScaleCatalogEntry = Extract<ShapeCatalogEntry, { kind: "scale" }>;
 // Chord fingering → FrettedScale adapter
 // ============================================================
 
+/** `applyChordShape` at `root`, wrapped as a `FrettedScale` for diagram
+ * rendering. `options` passes through (e.g. `allowOpenStrings: false`). */
 export function chordFingeringToFrettedScale(
   shape: ChordShape,
   root: string,
   tuning: string[] = STANDARD,
+  options: { allowOpenStrings?: boolean } = {},
 ): FrettedScale {
-  const { positions } = applyChordShape(shape, root, tuning);
+  const { positions } = applyChordShape(shape, root, tuning, options);
   return {
     empty: positions.length === 0,
     root,
@@ -803,6 +806,10 @@ export function groupScaleEntriesBySystem(
 // URL state (deep-linkable filters)
 // ============================================================
 
+/** `/shapes` results layout. The board is chord-only (it groups rows by
+ * `chordType`, which scale shapes lack — CR-067). */
+export type ShapesView = "grid" | "board";
+
 /**
  * Filter state as it round-trips through the URL query string. Every field
  * is optional: absent means "default" (chord kind, no filter). Values are
@@ -832,6 +839,9 @@ export interface ShapesUrlState {
   sort?: "baseFret" | "name";
   /** Group headings expanded past the "Show all N" collapse threshold. */
   expandedGroups?: string[];
+  /** Results layout. Absent: grid. `board` is dropped for `kind: "scale"`
+   * in both directions, so a scale link always opens the grid. */
+  view?: ShapesView;
 }
 
 /** Type guard validating a raw URL param against the fixed
@@ -857,7 +867,7 @@ function splitMulti(value: string | null): string[] | undefined {
 /**
  * Query params: `kind`, `system`, `family`, `q`, `failing=1`, `shape`,
  * `qualityGroup`, `types` (comma-joined), `families` (comma-joined), `root`,
- * `sort`, `expanded` (comma-joined).
+ * `sort`, `expanded` (comma-joined), `view=board`.
  */
 export function parseShapesUrlState(search: string): ShapesUrlState {
   const params = new URLSearchParams(search);
@@ -898,6 +908,8 @@ export function parseShapesUrlState(search: string): ShapesUrlState {
   const expandedGroups = splitMulti(params.get("expanded"));
   if (expandedGroups) state.expandedGroups = expandedGroups;
 
+  if (params.get("view") === "board" && state.kind !== "scale") state.view = "board";
+
   return state;
 }
 
@@ -927,6 +939,8 @@ export function serializeShapesUrlState(state: ShapesUrlState): string {
 
   const expanded = joinMulti(state.expandedGroups);
   if (expanded) params.set("expanded", expanded);
+
+  if (state.view === "board" && state.kind !== "scale") params.set("view", "board");
 
   const qs = params.toString();
   return qs ? `?${qs}` : "";

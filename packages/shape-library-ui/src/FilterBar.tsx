@@ -1,3 +1,5 @@
+"use client";
+
 /**
  * Ported from `site/app/shapes/components/FilterBar.tsx`. Tailwind/Fumadocs
  * classes replaced with `tg-`-prefixed classes from `./styles.css`; all
@@ -25,14 +27,12 @@ import {
   toggleInAllOnSet,
   voicingFamilyCounts,
 } from "shape-catalog";
-
-/** Sentinel used for the "no filter applied" scale system/quality chips. */
-export const FILTER_ALL = "all";
+import { ToggleGroup, type ToggleGroupOption } from "./ToggleGroup";
 
 /** Chord grid sort options: base-fret ascending (default) or name/type order. */
 export type ChordSortOption = "baseFret" | "name";
 
-const KIND_TOGGLE_OPTIONS: { value: ShapeKind; label: string }[] = [
+const KIND_TOGGLE_OPTIONS: ToggleGroupOption<ShapeKind>[] = [
   { value: "scale", label: "Scale" },
   { value: "chord", label: "Chord" },
 ];
@@ -56,11 +56,13 @@ export interface FilterBarProps {
   chordSort: ChordSortOption;
   onChordSortChange: (sort: ChordSortOption) => void;
 
+  /**
+   * Scale chips are single-select: clicking a chip emits `[value]`, clicking
+   * "All" emits `[]` (empty = all-on, same convention as the chord side).
+   */
   scaleSelection: ScaleFacetSelection;
-  system: string;
-  onSystemChange: (system: string) => void;
-  quality: string;
-  onQualityChange: (quality: string) => void;
+  onActiveSystemsChange: (systems: string[]) => void;
+  onActiveQualitiesChange: (qualities: string[]) => void;
 
   nameQuery: string;
   onNameQueryChange: (nameQuery: string) => void;
@@ -85,10 +87,8 @@ export function FilterBar({
   chordSort,
   onChordSortChange,
   scaleSelection,
-  system,
-  onSystemChange,
-  quality,
-  onQualityChange,
+  onActiveSystemsChange,
+  onActiveQualitiesChange,
   nameQuery,
   onNameQueryChange,
   failingOnly,
@@ -109,7 +109,7 @@ export function FilterBar({
   return (
     <div className="tg-filterbar">
       <div className="tg-filterbar-row">
-        <ToggleGroup options={KIND_TOGGLE_OPTIONS} value={kind} onChange={onKindChange} />
+        <ToggleGroup options={KIND_TOGGLE_OPTIONS} value={kind} onChange={onKindChange} label="Shape kind" />
 
         <input
           type="text"
@@ -158,10 +158,8 @@ export function FilterBar({
         <ScaleFacets
           entries={entries}
           selection={scaleSelection}
-          system={system}
-          onSystemChange={onSystemChange}
-          quality={quality}
-          onQualityChange={onQualityChange}
+          onActiveSystemsChange={onActiveSystemsChange}
+          onActiveQualitiesChange={onActiveQualitiesChange}
         />
       )}
     </div>
@@ -299,52 +297,59 @@ function rootChipTitle(root: string, count: number): string {
 interface ScaleFacetsProps {
   entries: ShapeCatalogEntry[];
   selection: ScaleFacetSelection;
-  system: string;
-  onSystemChange: (system: string) => void;
-  quality: string;
-  onQualityChange: (quality: string) => void;
+  onActiveSystemsChange: (systems: string[]) => void;
+  onActiveQualitiesChange: (qualities: string[]) => void;
 }
 
-function ScaleFacets({ entries, selection, system, onSystemChange, quality, onQualityChange }: ScaleFacetsProps) {
+function ScaleFacets({ entries, selection, onActiveSystemsChange, onActiveQualitiesChange }: ScaleFacetsProps) {
   const systemCounts = useMemo(() => scaleSystemCounts(entries, selection), [entries, selection]);
   const qualityCounts = useMemo(() => scaleQualityCounts(entries, selection), [entries, selection]);
 
   return (
     <div className="tg-filterbar">
-      <FacetRow label="System">
-        <Chip active={system === FILTER_ALL} onClick={() => onSystemChange(FILTER_ALL)}>
-          All
-        </Chip>
-        {systemCounts.map(({ value, count, isZero }: FacetCount) => (
-          <Chip
-            key={value}
-            active={system === value}
-            isZero={isZero}
-            onClick={() => onSystemChange(value)}
-            title={`${value} — ${count} matching shape${count === 1 ? "" : "s"}`}
-          >
-            {value} <span className="tg-muted">{count}</span>
-          </Chip>
-        ))}
-      </FacetRow>
-
-      <FacetRow label="Quality">
-        <Chip active={quality === FILTER_ALL} onClick={() => onQualityChange(FILTER_ALL)}>
-          All
-        </Chip>
-        {qualityCounts.map(({ value, count, isZero }: FacetCount) => (
-          <Chip
-            key={value}
-            active={quality === value}
-            isZero={isZero}
-            onClick={() => onQualityChange(value)}
-            title={`${value} — ${count} matching shape${count === 1 ? "" : "s"}`}
-          >
-            {value} <span className="tg-muted">{count}</span>
-          </Chip>
-        ))}
-      </FacetRow>
+      <SingleSelectFacetRow
+        label="System"
+        counts={systemCounts}
+        active={selection.activeSystems}
+        onChange={onActiveSystemsChange}
+      />
+      <SingleSelectFacetRow
+        label="Quality"
+        counts={qualityCounts}
+        active={selection.activeQualities}
+        onChange={onActiveQualitiesChange}
+      />
     </div>
+  );
+}
+
+interface SingleSelectFacetRowProps {
+  label: string;
+  counts: FacetCount[];
+  /** Empty/undefined = "All". Single-select, so at most one value is expected. */
+  active: readonly string[] | undefined;
+  onChange: (values: string[]) => void;
+}
+
+function SingleSelectFacetRow({ label, counts, active, onChange }: SingleSelectFacetRowProps) {
+  const isAll = (active?.length ?? 0) === 0;
+  return (
+    <FacetRow label={label}>
+      <Chip active={isAll} onClick={() => onChange([])}>
+        All
+      </Chip>
+      {counts.map(({ value, count, isZero }: FacetCount) => (
+        <Chip
+          key={value}
+          active={!isAll && (active ?? []).includes(value)}
+          isZero={isZero}
+          onClick={() => onChange([value])}
+          title={`${value} — ${count} matching shape${count === 1 ? "" : "s"}`}
+        >
+          {value} <span className="tg-muted">{count}</span>
+        </Chip>
+      ))}
+    </FacetRow>
   );
 }
 
@@ -389,23 +394,5 @@ function Chip({ active, isZero, onClick, title, ariaLabel, children }: ChipProps
     >
       {children}
     </button>
-  );
-}
-
-interface ToggleGroupProps<V extends string> {
-  options: { value: V; label: string }[];
-  value: V;
-  onChange: (v: V) => void;
-}
-
-function ToggleGroup<V extends string>({ options, value, onChange }: ToggleGroupProps<V>) {
-  return (
-    <div className="tg-toggle-group">
-      {options.map((opt) => (
-        <button key={opt.value} type="button" aria-pressed={value === opt.value} onClick={() => onChange(opt.value)}>
-          {opt.label}
-        </button>
-      ))}
-    </div>
   );
 }

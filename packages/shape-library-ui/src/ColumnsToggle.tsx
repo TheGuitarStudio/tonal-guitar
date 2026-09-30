@@ -5,6 +5,7 @@
  * `data-tg-edit`.
  */
 import type { BoardAxis } from "shape-catalog";
+import { ToggleGroup } from "./ToggleGroup";
 
 export interface ColumnsToggleProps {
   value: BoardAxis;
@@ -24,12 +25,12 @@ const DEFAULT_OPTIONS: BoardAxis[] = ["cagedPosition", "stringSet", "inversion"]
 
 export function ColumnsToggle({ value, onChange, options = DEFAULT_OPTIONS, className }: ColumnsToggleProps) {
   return (
-    <div className={["tg-toggle-group", className].filter(Boolean).join(" ")} role="group" aria-label="Board columns">
-      {options.map((axis) => (
-        <button key={axis} type="button" aria-pressed={value === axis} onClick={() => onChange(axis)}>
-          {AXIS_LABELS[axis]}
-        </button>
-      ))}
-    </div>
+    <ToggleGroup
+      options={options.map((axis) => ({ value: axis, label: AXIS_LABELS[axis] }))}
+      value={value}
+      onChange={onChange}
+      label="Board columns"
+      className={className}
+    />
   );
 }

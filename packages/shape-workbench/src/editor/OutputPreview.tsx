@@ -10,23 +10,13 @@
 import { useEffect, useState } from "react";
 import type { DraftShape } from "shape-catalog";
 import { canPreviewChange, renderDraftJson, renderDraftTs, targetFileFor } from "./previewText";
+import { copyToClipboard } from "../clipboard";
 
 export interface OutputPreviewProps {
   draft: DraftShape;
 }
 
 type PreviewTab = "ts" | "json";
-
-/** Best-effort clipboard write — the Clipboard API is unavailable in some
- * embeddings (insecure context, permissions denied, non-browser test
- * environments); a failed copy must never throw or crash the editor. */
-function copyToClipboard(text: string): void {
-  try {
-    void navigator.clipboard?.writeText(text);
-  } catch {
-    // best-effort only
-  }
-}
 
 export function OutputPreview({ draft }: OutputPreviewProps) {
   const [tab, setTab] = useState<PreviewTab>("ts");

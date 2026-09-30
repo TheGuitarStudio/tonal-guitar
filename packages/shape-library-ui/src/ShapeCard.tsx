@@ -1,3 +1,5 @@
+"use client";
+
 /**
  * Ported from `site/app/shapes/components/ShapeCard.tsx`. Compact,
  * monochrome, clickable shape card — chord symbol/display name,

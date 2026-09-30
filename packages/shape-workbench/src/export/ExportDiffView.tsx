@@ -14,6 +14,7 @@ import type { ChangesetChange } from "tonal-guitar";
 import { renderShapeTs, type ShapeLike } from "shape-catalog/render";
 import type { WorkbenchState } from "../store";
 import { changeAfterShape, changeBeforeShape, changeShapeDiff } from "./changeInfo";
+import { copyToClipboard } from "../clipboard";
 
 export interface ExportDiffViewProps {
   state: WorkbenchState;
@@ -21,17 +22,6 @@ export interface ExportDiffViewProps {
 }
 
 type DiffTab = "ts" | "json" | "before-after";
-
-/** Best-effort clipboard write, mirroring `../editor/OutputPreview.tsx`'s
- * helper — the Clipboard API is unavailable in some embeddings, and a
- * failed copy must never throw or crash the screen. */
-function copyToClipboard(text: string): void {
-  try {
-    void navigator.clipboard?.writeText(text);
-  } catch {
-    // best-effort only
-  }
-}
 
 function formatCell(value: unknown): string {
   return value === undefined ? "—" : JSON.stringify(value);
@@ -55,30 +45,24 @@ export function ExportDiffView({ state, change }: ExportDiffViewProps) {
     setBeforeError(undefined);
     setAfterError(undefined);
 
-    function errorMessage(error: unknown): string {
-      return error instanceof Error ? error.message : "Failed to render TS preview.";
+    function renderInto(
+      shape: unknown,
+      setText: (text: string) => void,
+      setError: (message: string) => void,
+    ): void {
+      if (shape === undefined) return;
+      renderShapeTs(change.kind, shape as ShapeLike).then(
+        (text) => {
+          if (!cancelled) setText(text);
+        },
+        (error: unknown) => {
+          if (!cancelled) setError(error instanceof Error ? error.message : "Failed to render TS preview.");
+        },
+      );
     }
 
-    if (after !== undefined) {
-      renderShapeTs(change.kind, after as unknown as ShapeLike).then(
-        (text) => {
-          if (!cancelled) setAfterTs(text);
-        },
-        (error: unknown) => {
-          if (!cancelled) setAfterError(errorMessage(error));
-        },
-      );
-    }
-    if (before !== undefined) {
-      renderShapeTs(change.kind, before as unknown as ShapeLike).then(
-        (text) => {
-          if (!cancelled) setBeforeTs(text);
-        },
-        (error: unknown) => {
-          if (!cancelled) setBeforeError(errorMessage(error));
-        },
-      );
-    }
+    renderInto(after, setAfterTs, setAfterError);
+    renderInto(before, setBeforeTs, setBeforeError);
     return () => {
       cancelled = true;
     };

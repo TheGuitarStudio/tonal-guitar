@@ -338,7 +338,7 @@ export function scaleSiblings(
  * Same-`(system, quality)` sibling stepper for scale entries, mirroring
  * `siblingStepper`'s chord counterpart. `siblings` is conventionally
  * `scaleSiblings(entry, catalog)` — callers that already have that list
- * (e.g. `ShapeDetailPanel.tsx`'s `buildDetail`, which also needs it for
+ * (e.g. `buildDetail`, below, which also needs it for
  * Prev/Next navigation) pass it straight through rather than having it
  * recomputed here.
  */
@@ -348,4 +348,87 @@ export function siblingScaleStepper(
 ): SiblingStepperInfo {
   const index = siblings.findIndex((candidate) => candidate.name === entry.name);
   return { index, total: siblings.length };
+}
+
+// ============================================================
+// Panel detail payload — everything the detail panel renders for one entry
+// ============================================================
+
+export interface ChordDetail {
+  kind: "chord";
+  entry: ChordCatalogEntry;
+  identified: string[];
+  chordName: string | undefined;
+  scales: ScalesContainingChordResult | undefined;
+  siblings: ChordShape[];
+  stepper: SiblingStepperInfo;
+  alternates: ChordShape[];
+  inversions: InversionGroupsResult;
+}
+
+export interface ScaleDetail {
+  kind: "scale";
+  entry: ScaleCatalogEntry;
+  siblings: ScaleCatalogEntry[];
+  stepper: SiblingStepperInfo;
+  related: Array<{ root: string; scale: string }>;
+  compatible: CompatibleShapesResult;
+}
+
+export type PanelDetail = ChordDetail | ScaleDetail;
+
+/**
+ * Every Tonal-derived value the detail panel shows for `entry` (identified
+ * chord, scales over a chord, alternate fingerings, inversions, sibling
+ * steppers, related scales, compatible shapes), computed in one pass —
+ * callers run it once per selected entry, never for the full catalog.
+ * `catalog` is only read for scale siblings.
+ */
+export function buildDetail(entry: ShapeCatalogEntry, catalog: readonly ShapeCatalogEntry[]): PanelDetail {
+  return entry.kind === "chord" ? buildChordDetail(entry) : buildScaleDetail(entry, catalog);
+}
+
+/** Chord half of `buildDetail`. */
+export function buildChordDetail(entry: ChordCatalogEntry): ChordDetail {
+  const siblings = chordTypeSiblings(entry);
+  const { identified, chordName, scales } = chordDetailFor(entry);
+  return {
+    kind: "chord",
+    entry,
+    identified,
+    chordName,
+    scales,
+    siblings,
+    stepper: siblingStepper(entry, siblings),
+    alternates: alternateFingerings(entry),
+    inversions: inversionGroups(entry, siblings),
+  };
+}
+
+/** Scale half of `buildDetail`; `catalog` supplies the same-system/quality siblings. */
+export function buildScaleDetail(entry: ScaleCatalogEntry, catalog: readonly ShapeCatalogEntry[]): ScaleDetail {
+  const siblings = scaleSiblings(entry, catalog);
+  return {
+    kind: "scale",
+    entry,
+    siblings,
+    stepper: siblingScaleStepper(entry, siblings),
+    related: relatedScalesForEntry(entry),
+    compatible: compatibleShapesForEntry(entry),
+  };
+}
+
+/** Name -> entry lookup over the `kind` entries of `catalog`, for resolving
+ * sibling/parent/compatible-shape names back to selectable entries. */
+export function buildEntryNameMap<K extends ShapeCatalogEntry["kind"]>(
+  catalog: readonly ShapeCatalogEntry[],
+  kind: K,
+): Map<string, Extract<ShapeCatalogEntry, { kind: K }>> {
+  const map = new Map<string, Extract<ShapeCatalogEntry, { kind: K }>>();
+  for (const candidate of catalog) {
+    if (candidate.kind === kind) {
+      map.set(candidate.name, candidate as Extract<ShapeCatalogEntry, { kind: K }>);
+    }
+  }
+  return map;
 }

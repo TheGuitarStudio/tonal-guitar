@@ -8,7 +8,6 @@ import {
   buildCatalog,
   buildReportUrl,
   chordEntryMatchesSelection,
-  GROUP_COLLAPSE_THRESHOLD,
   groupChordEntriesByType,
   groupScaleEntriesBySystem,
   parseShapesUrlState,
@@ -23,6 +22,7 @@ import {
   type ShapeCatalogEntry,
   type ShapeGroup,
   type ShapeKind,
+  type ShapesView,
 } from "shape-catalog";
 // Deep-imported from their own files rather than the `shape-library-ui`
 // barrel (`./index.ts`) — see the `ShapeDetailPanel` comment below.
@@ -32,10 +32,11 @@ import {
 // `ShapeLibraryProvider` from their own files means this static import
 // never reaches `index.ts` at all, so it can't drag the detail-panel code
 // (`ShapeDetailPanel`/`ChordDetailView`/`ScaleDetailView`) into this chunk.
-import { FilterBar, FILTER_ALL, type ChordSortOption } from "shape-library-ui/src/FilterBar";
-import { ShapeCard } from "shape-library-ui/src/ShapeCard";
+import { FilterBar, type ChordSortOption } from "shape-library-ui/src/FilterBar";
 import { ShapeLibraryProvider } from "shape-library-ui/src/capabilities";
+import { ToggleGroup } from "shape-library-ui/src/ToggleGroup";
 import { REPO_SLUG } from "@/lib/repo";
+import { GridView } from "./GridView";
 import { ShapeBoardView } from "./ShapeBoardView";
 
 // The panel's own Tonal-derivation logic and its `scalesContainingChord`
@@ -71,16 +72,6 @@ const ShapeDetailPanel = dynamic(
   { ssr: false },
 );
 
-// Cards at this index or earlier mount immediately rather than waiting on
-// the IntersectionObserver `ShapeCard`'s `lazy` prop drives internally —
-// roughly the first screenful of the 3-column (`xl:grid-cols-3`) layout, so
-// there's real content on screen (and in the statically-exported HTML)
-// before any scrolling or hydration-dependent observer work happens.
-// Applied within the grouped grid's flattened visible-entry order; the
-// pinned "Needs attention" section (below) always mounts eagerly since it's
-// the audit's primary above-the-fold signal.
-const EAGER_CARD_COUNT = 9;
-
 /** Below this viewport width the detail panel renders as a full-height
  * bottom sheet instead of a docked sidebar (spec's mobile variant) — mirrors
  * Tailwind's default `md` breakpoint (768px), which the shared
@@ -94,10 +85,6 @@ const MOBILE_BREAKPOINT_QUERY = "(max-width: 767px)";
 function isMobileViewport(): boolean {
   return typeof window !== "undefined" && window.matchMedia(MOBILE_BREAKPOINT_QUERY).matches;
 }
-
-/** Grid vs. Board (spec §7's read-only Board view, columns toggle +
- * diagram orientation toggle). */
-type LibraryView = "grid" | "board";
 
 /**
  * Thin Next adapter (spec §7 step 5) over `shape-library-ui`'s shared
@@ -135,13 +122,15 @@ export function ShapeLibrary() {
   const [kind, setKind] = useState<ShapeKind>("chord");
   const [nameQuery, setNameQuery] = useState("");
   const [failingOnly, setFailingOnly] = useState(false);
-  const [view, setView] = useState<LibraryView>("grid");
+  // Grid vs. Board (spec §7's read-only Board view). Deep-linkable via
+  // `view=board`; `parseShapesUrlState` drops it for scale links (CR-067).
+  const [view, setView] = useState<ShapesView>("grid");
 
-  // Scale-mode facets: single-select system/quality chips, replacing the old
-  // dropdowns' semantics 1:1 (still `FILTER_ALL` = no narrowing) but
-  // rendered as the same live-count chip treatment chord facets use.
-  const [system, setSystem] = useState(FILTER_ALL);
-  const [quality, setQuality] = useState(FILTER_ALL);
+  // Scale-mode facets: single-select system/quality chips (`FilterBar` emits
+  // `[value]` or `[]` = no narrowing), rendered with the same live-count
+  // chip treatment chord facets use.
+  const [activeSystems, setActiveSystems] = useState<string[]>([]);
+  const [activeQualities, setActiveQualities] = useState<string[]>([]);
 
   // Chord-mode facets (spec 9.1-9.5).
   const [qualityGroup, setQualityGroup] = useState<ChordQualityGroup | undefined>(undefined);
@@ -161,7 +150,7 @@ export function ShapeLibrary() {
   const [selectedEntry, setSelectedEntry] = useState<ShapeCatalogEntry | undefined>(undefined);
 
   // Bumped whenever the panel should pull keyboard focus into itself
-  // (CR-026): grid card clicks (`handleGridSelectEntry`, below) and the
+  // (CR-026): card clicks (`handleCardSelectEntry`, below) and the
   // deep-link mount-time open both originate OUTSIDE the panel, so the
   // standard non-modal-disclosure pattern says focus should move in rather
   // than leaving keyboard users to tab through the whole grid to reach it.
@@ -183,8 +172,8 @@ export function ShapeLibrary() {
   useEffect(() => {
     const parsed = parseShapesUrlState(window.location.search);
     if (parsed.kind) setKind(parsed.kind);
-    if (parsed.system) setSystem(parsed.system);
-    if (parsed.familyOrQuality) setQuality(parsed.familyOrQuality);
+    if (parsed.system) setActiveSystems([parsed.system]);
+    if (parsed.familyOrQuality) setActiveQualities([parsed.familyOrQuality]);
     if (parsed.nameQuery) setNameQuery(parsed.nameQuery);
     if (parsed.failingOnly) setFailingOnly(true);
     if (parsed.qualityGroup) setQualityGroup(parsed.qualityGroup);
@@ -193,6 +182,7 @@ export function ShapeLibrary() {
     if (parsed.root) setRoot(parsed.root);
     if (parsed.sort) setChordSort(parsed.sort);
     if (parsed.expandedGroups) setExpandedGroups(parsed.expandedGroups);
+    if (parsed.view) setView(parsed.view);
     // Resolve `shape` against the catalog built above (stable for this
     // component instance) — an unknown name leaves `selectedEntry` unset
     // (honest stale link) rather than erroring.
@@ -213,8 +203,8 @@ export function ShapeLibrary() {
     if (!urlStateLoaded) return;
     const qs = serializeShapesUrlState({
       kind,
-      system: kind === "scale" && system !== FILTER_ALL ? system : undefined,
-      familyOrQuality: kind === "scale" && quality !== FILTER_ALL ? quality : undefined,
+      system: kind === "scale" ? activeSystems[0] : undefined,
+      familyOrQuality: kind === "scale" ? activeQualities[0] : undefined,
       nameQuery: nameQuery || undefined,
       failingOnly,
       shape: selectedEntry?.name,
@@ -225,6 +215,7 @@ export function ShapeLibrary() {
       root: kind === "chord" && root !== ANY_ROOT ? root : undefined,
       sort: kind === "chord" && chordSort !== "baseFret" ? chordSort : undefined,
       expandedGroups: expandedGroups.length > 0 ? expandedGroups : undefined,
+      view,
     });
     window.history.replaceState(
       null,
@@ -234,8 +225,8 @@ export function ShapeLibrary() {
   }, [
     urlStateLoaded,
     kind,
-    system,
-    quality,
+    activeSystems,
+    activeQualities,
     nameQuery,
     failingOnly,
     selectedEntry,
@@ -245,6 +236,7 @@ export function ShapeLibrary() {
     root,
     chordSort,
     expandedGroups,
+    view,
   ]);
 
   // Mobile-breakpoint media query (spec §7 step 5) — the one piece of
@@ -340,13 +332,13 @@ export function ShapeLibrary() {
     setSelectedEntry(entry);
   }, []);
 
-  // Grid-originated selection (CR-026): identical to `handleSelectEntry`,
+  // Card-originated selection (CR-026): identical to `handleSelectEntry`,
   // plus bumping `focusPanelKey` so the panel pulls focus in — this is the
   // callback wired to every card's `onSelectEntry` (grid and board alike), never
   // to `ShapeDetailPanel`'s internal `onSelectEntry` (which stays
   // `handleSelectEntry` unmodified so in-panel navigation never steals
   // focus back to the panel root it's already inside).
-  const handleGridSelectEntry = useCallback(
+  const handleCardSelectEntry = useCallback(
     (entry: ShapeCatalogEntry) => {
       handleSelectEntry(entry);
       setFocusPanelKey((k) => k + 1);
@@ -423,8 +415,8 @@ export function ShapeLibrary() {
     // switch — reset every facet back to "no filter". Expanded-group state
     // is keyed by the active grouping dimension (chordType vs. system), so
     // it resets too.
-    setSystem(FILTER_ALL);
-    setQuality(FILTER_ALL);
+    setActiveSystems([]);
+    setActiveQualities([]);
     setQualityGroup(undefined);
     setActiveTypes([]);
     setActiveVoicingFamilies([]);
@@ -453,11 +445,11 @@ export function ShapeLibrary() {
 
   const scaleSelection: ScaleFacetSelection = useMemo(
     () => ({
-      activeSystems: system !== FILTER_ALL ? [system] : undefined,
-      activeQualities: quality !== FILTER_ALL ? [quality] : undefined,
+      activeSystems: activeSystems.length > 0 ? activeSystems : undefined,
+      activeQualities: activeQualities.length > 0 ? activeQualities : undefined,
       nameQuery: nameQuery || undefined,
     }),
-    [system, quality, nameQuery],
+    [activeSystems, activeQualities, nameQuery],
   );
 
   // Faceted filtering (Task Group 8's selection-matching helpers). Grouping
@@ -528,23 +520,6 @@ export function ShapeLibrary() {
 
   const groups: ShapeGroup<ShapeCatalogEntry>[] = kind === "chord" ? chordGroups : scaleGroups;
 
-  // Global eager-mount budget for the grouped grid, in the same top-to-
-  // bottom / left-to-right order the sections render in (pinned-section
-  // cards are always eager — see the `ShapeCard eager` usage below — so this
-  // budget only covers the grouped grid).
-  const eagerNames = useMemo(() => {
-    const names = new Set<string>();
-    let i = 0;
-    for (const group of groups) {
-      for (const entry of group.visibleEntries) {
-        if (i >= EAGER_CARD_COUNT) return names;
-        names.add(`${entry.kind}-${entry.name}`);
-        i += 1;
-      }
-    }
-    return names;
-  }, [groups]);
-
   return (
     // Capabilities omitted `edit` (D-002 read-only default): `/shapes` never
     // passes `capabilities.edit`, so every shared component it renders below
@@ -554,37 +529,29 @@ export function ShapeLibrary() {
       <div className="flex items-start gap-4">
         <div className="min-w-0 flex-1">
           <div className="mb-2 flex items-center justify-end">
-            <div className="tg-toggle-group" role="group" aria-label="Library view">
-              <button
-                type="button"
-                aria-pressed={view === "grid"}
-                onClick={() => setView("grid")}
-              >
-                Grid
-              </button>
-              <button
-                type="button"
-                aria-pressed={view === "board"}
+            <ToggleGroup
+              label="Library view"
+              value={view}
+              onChange={setView}
+              options={[
+                { value: "grid", label: "Grid" },
                 // Board view groups by chord type (`ShapeBoardView`'s
                 // `boardModel` call is hardcoded to `rowGrouping:
                 // "chordType"`) — scale shapes carry no such facet, so the
                 // board would always render "Showing 0 of 0" for them
-                // (CR-067). Disabling the toggle here is the primary guard;
+                // (CR-067). Disabling the option here is the primary guard;
                 // `ShapeBoardView` also renders its own explicit chord-only
                 // empty state in case `kind` flips to "scale" while board
                 // is already open (the FilterBar's kind toggle stays live
                 // in board mode — see CR-070).
-                disabled={kind === "scale"}
-                aria-disabled={kind === "scale"}
-                title={kind === "scale" ? "Board view is chord-only" : undefined}
-                onClick={() => {
-                  if (kind === "scale") return;
-                  setView("board");
-                }}
-              >
-                Board
-              </button>
-            </div>
+                {
+                  value: "board",
+                  label: "Board",
+                  disabled: kind === "scale",
+                  title: kind === "scale" ? "Board view is chord-only" : undefined,
+                },
+              ]}
+            />
           </div>
 
           {/* Board view only ever forwards `kind`/`nameQuery` into
@@ -611,10 +578,8 @@ export function ShapeLibrary() {
               chordSort={chordSort}
               onChordSortChange={setChordSort}
               scaleSelection={scaleSelection}
-              system={system}
-              onSystemChange={setSystem}
-              quality={quality}
-              onQualityChange={setQuality}
+              onActiveSystemsChange={setActiveSystems}
+              onActiveQualitiesChange={setActiveQualities}
               nameQuery={nameQuery}
               onNameQueryChange={setNameQuery}
               failingOnly={failingOnly}
@@ -638,53 +603,20 @@ export function ShapeLibrary() {
                 catalog={catalog}
                 kind={kind}
                 nameQuery={nameQuery}
-                onSelectEntry={handleGridSelectEntry}
+                onSelectEntry={handleCardSelectEntry}
                 collapseToSingleColumn={isMobile}
               />
             </div>
           ) : (
             <div onClickCapture={handleResultsClickCapture}>
-              {failingEntries.length > 0 && (
-                <section className="mb-6">
-                  <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-fd-foreground">
-                    <span aria-hidden="true">⚠</span> Needs attention
-                    <span className="rounded-full bg-fd-muted px-2 py-0.5 text-xs font-normal text-fd-muted-foreground">
-                      {failingEntries.length}
-                    </span>
-                  </h3>
-                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-                    {failingEntries.map((entry) => (
-                      <ShapeCard
-                        key={`pinned-${entry.kind}-${entry.name}`}
-                        entry={entry}
-                        lazy
-                        eager
-                        onSelectEntry={handleGridSelectEntry}
-                        isSelected={selectedEntry?.kind === entry.kind && selectedEntry.name === entry.name}
-                      />
-                    ))}
-                  </div>
-                </section>
-              )}
-
-              {matchedEntries.length === 0 ? (
-                <p className="text-sm text-fd-muted-foreground">
-                  No shapes match the current filters.
-                </p>
-              ) : (
-                <div className="flex flex-col gap-6">
-                  {groups.map((group) => (
-                    <GroupSection
-                      key={group.key}
-                      group={group}
-                      selectedEntry={selectedEntry}
-                      eagerNames={eagerNames}
-                      onSelectEntry={handleGridSelectEntry}
-                      onToggleExpanded={() => handleToggleGroupExpanded(group.key)}
-                    />
-                  ))}
-                </div>
-              )}
+              <GridView
+                failingEntries={failingEntries}
+                groups={groups}
+                hasMatches={matchedEntries.length > 0}
+                selectedEntry={selectedEntry}
+                onSelectEntry={handleCardSelectEntry}
+                onToggleGroupExpanded={handleToggleGroupExpanded}
+              />
             </div>
           )}
         </div>
@@ -699,57 +631,5 @@ export function ShapeLibrary() {
         />
       </div>
     </ShapeLibraryProvider>
-  );
-}
-
-// ============================================================
-// Grouped section rendering (spec 8.6 / D-004's grid reorganization)
-// ============================================================
-
-interface GroupSectionProps {
-  group: ShapeGroup<ShapeCatalogEntry>;
-  selectedEntry: ShapeCatalogEntry | undefined;
-  eagerNames: ReadonlySet<string>;
-  onSelectEntry: (entry: ShapeCatalogEntry) => void;
-  onToggleExpanded: () => void;
-}
-
-function GroupSection({
-  group,
-  selectedEntry,
-  eagerNames,
-  onSelectEntry,
-  onToggleExpanded,
-}: GroupSectionProps) {
-  return (
-    <section>
-      <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-fd-foreground">
-        {group.label}
-        <span className="rounded-full bg-fd-muted px-2 py-0.5 text-xs font-normal text-fd-muted-foreground">
-          {group.totalCount}
-        </span>
-      </h3>
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {group.visibleEntries.map((entry) => (
-          <ShapeCard
-            key={`${entry.kind}-${entry.name}`}
-            entry={entry}
-            lazy
-            eager={eagerNames.has(`${entry.kind}-${entry.name}`)}
-            onSelectEntry={onSelectEntry}
-            isSelected={selectedEntry?.kind === entry.kind && selectedEntry.name === entry.name}
-          />
-        ))}
-      </div>
-      {group.totalCount > GROUP_COLLAPSE_THRESHOLD && (
-        <button
-          type="button"
-          onClick={onToggleExpanded}
-          className="mt-2 text-xs text-fd-muted-foreground underline decoration-dotted hover:text-fd-primary"
-        >
-          {group.isExpanded ? "Show less ▴" : `Show all ${group.totalCount} ▾`}
-        </button>
-      )}
-    </section>
   );
 }

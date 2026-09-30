@@ -7,6 +7,7 @@
  */
 import type { ChordShape } from "tonal-guitar";
 import { chordCheckRows, runChordChecks } from "./checks";
+import { STATUS_BADGE_CLASS } from "../statusBadge";
 
 export interface ChecksCardProps {
   shape: ChordShape;
@@ -17,12 +18,6 @@ export interface ChecksCardProps {
    * `name-unique` error (see `runChordChecks`). */
   existingEdit?: boolean;
 }
-
-const STATUS_CLASS: Record<string, string> = {
-  pass: "tg-badge",
-  warning: "tg-badge tg-badge-warning",
-  error: "tg-badge tg-badge-error",
-};
 
 export function ChecksCard({ shape, root, tuning, existingEdit }: ChecksCardProps) {
   const issues = runChordChecks(shape, root, tuning, { existingEdit });
@@ -41,7 +36,7 @@ export function ChecksCard({ shape, root, tuning, existingEdit }: ChecksCardProp
       <ul className="tg-scale-list" data-testid="checks-list">
         {rows.map((row) => (
           <li key={row.id} data-check-id={row.id} data-check-status={row.status}>
-            <span className={STATUS_CLASS[row.status]}>{row.id}</span>{" "}
+            <span className={STATUS_BADGE_CLASS[row.status]}>{row.id}</span>{" "}
             {row.status === "pass" ? (
               <span className="tg-muted">pass</span>
             ) : (

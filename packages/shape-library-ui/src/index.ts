@@ -30,7 +30,7 @@ export {
 export { ShapeCardDiagram, type ShapeCardDiagramProps } from "./ShapeCardDiagram";
 export { ShapeCardChordTable, type ShapeCardChordTableProps } from "./ShapeCardChordTable";
 export { ShapeCard, type ShapeCardProps } from "./ShapeCard";
-export { FilterBar, FILTER_ALL, type FilterBarProps, type ChordSortOption } from "./FilterBar";
+export { FilterBar, type FilterBarProps, type ChordSortOption } from "./FilterBar";
 
 export {
   ShapeDetailPanel,
@@ -45,6 +45,7 @@ export {
 export { ChordDetailView } from "./ChordDetailView";
 export { ScaleDetailView } from "./ScaleDetailView";
 
+export { ToggleGroup, type ToggleGroupOption, type ToggleGroupProps } from "./ToggleGroup";
 export { DiagramOrientationToggle, type DiagramOrientationToggleProps } from "./DiagramOrientationToggle";
 export { ColumnsToggle, type ColumnsToggleProps } from "./ColumnsToggle";
 

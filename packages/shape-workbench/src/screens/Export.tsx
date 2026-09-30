@@ -45,6 +45,12 @@ export interface ExportScreenProps {
 
 const OP_LABEL: Record<string, string> = { add: "added", update: "updated", remove: "removed" };
 
+/** The injected `fetchImpl`, else the browser's `fetch`. The fallback only
+ * reads `window` when called, so resolving it stays render-safe. */
+function resolveFetch(fetchImpl: FetchLike | undefined): FetchLike {
+  return fetchImpl ?? ((url, init) => window.fetch(url, init));
+}
+
 type WriteUiState = { status: "idle" | "writing" } | ({ status: "done" } & WriteOutcome);
 
 export function ExportScreen({ fetchImpl }: ExportScreenProps = {}) {
@@ -64,8 +70,7 @@ export function ExportScreen({ fetchImpl }: ExportScreenProps = {}) {
   // uses below.
   useEffect(() => {
     let cancelled = false;
-    const resolvedFetch: FetchLike = fetchImpl ?? ((url, init) => window.fetch(url, init));
-    fetchWorkbenchStatus(resolvedFetch).then((result) => {
+    fetchWorkbenchStatus(resolveFetch(fetchImpl)).then((result) => {
       if (!cancelled) setWorkbenchStatus(result);
     });
     return () => {
@@ -97,8 +102,7 @@ export function ExportScreen({ fetchImpl }: ExportScreenProps = {}) {
 
   async function handleWrite(): Promise<void> {
     setWriteState({ status: "writing" });
-    const resolvedFetch: FetchLike = fetchImpl ?? ((url, init) => window.fetch(url, init));
-    const outcome = await writeChangesetAndDispatch(state, dispatch, resolvedFetch);
+    const outcome = await writeChangesetAndDispatch(state, dispatch, resolveFetch(fetchImpl));
     setWriteState({ status: "done", ...outcome });
   }
 
