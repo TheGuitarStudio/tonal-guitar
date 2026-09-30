@@ -173,6 +173,11 @@ function onDuplicateToPosition(
   deps.navigate({ type: "editor", id: key });
 }
 
+/** Appends `tag` unless already present (returns `tags` unchanged then). */
+function withTag(tags: string[] | undefined, tag: string): string[] {
+  return tags?.includes(tag) ? tags : [...(tags ?? []), tag];
+}
+
 function onAddTag(deps: HandlerDeps, entry: ShapeCatalogEntry, tag: string): void {
   const key = entry.shape.name;
   const existing = deps.state.drafts[key];
@@ -180,11 +185,10 @@ function onAddTag(deps: HandlerDeps, entry: ShapeCatalogEntry, tag: string): voi
 
   if (entry.kind === "chord") {
     const base = (existing?.shape as ChordShape | undefined) ?? entry.shape;
-    const tags = base.tags?.includes(tag) ? base.tags : [...(base.tags ?? []), tag];
     const draft: DraftShape = {
       kind: "chord",
       origin: "existing",
-      shape: { ...base, tags },
+      shape: { ...base, tags: withTag(base.tags, tag) },
       original: original as ChordShape,
     };
     deps.dispatch({ type: "SET_DRAFT", key, draft });
@@ -192,11 +196,10 @@ function onAddTag(deps: HandlerDeps, entry: ShapeCatalogEntry, tag: string): voi
   }
 
   const base = (existing?.shape as ScaleShape | undefined) ?? entry.shape;
-  const tags = base.tags?.includes(tag) ? base.tags : [...(base.tags ?? []), tag];
   const draft: DraftShape = {
     kind: "scale",
     origin: "existing",
-    shape: { ...base, tags },
+    shape: { ...base, tags: withTag(base.tags, tag) },
     original: original as ScaleShape,
   };
   deps.dispatch({ type: "SET_DRAFT", key, draft });
