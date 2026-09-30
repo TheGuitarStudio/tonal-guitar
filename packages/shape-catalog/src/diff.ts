@@ -47,13 +47,29 @@ const GEOMETRY_FIELDS: ReadonlySet<string> = new Set([
   "span",
 ]);
 
-function fieldsEqual(a: unknown, b: unknown): boolean {
-  if (a === b) return true;
-  return JSON.stringify(a) === JSON.stringify(b);
-}
-
 function definedKeys(record: Record<string, unknown>): Set<string> {
   return new Set(Object.keys(record).filter((key) => record[key] !== undefined));
+}
+
+/** Structural deep-equal, insensitive to object key order. Like the
+ * `JSON.stringify` comparison it replaces, an `undefined`-valued key counts
+ * as absent. */
+function fieldsEqual(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (Array.isArray(a) || Array.isArray(b)) {
+    if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
+    return a.every((item, i) => fieldsEqual(item, b[i]));
+  }
+  if (typeof a !== "object" || typeof b !== "object" || a === null || b === null) return false;
+  const aRecord = a as Record<string, unknown>;
+  const bRecord = b as Record<string, unknown>;
+  const aKeys = definedKeys(aRecord);
+  const bKeys = definedKeys(bRecord);
+  if (aKeys.size !== bKeys.size) return false;
+  for (const key of aKeys) {
+    if (!bKeys.has(key) || !fieldsEqual(aRecord[key], bRecord[key])) return false;
+  }
+  return true;
 }
 
 /**

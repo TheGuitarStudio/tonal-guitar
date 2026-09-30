@@ -66,6 +66,26 @@ describe("diffShape", () => {
     expect(diff.geometryChanged).toBe(true);
   });
 
+  it("CR-031: object equality ignores key order (a reordered barre is not a change)", () => {
+    const after: ChordShape = {
+      ...A_SHAPE_MAJOR,
+      barres: A_SHAPE_MAJOR.barres!.map(({ fret, fromString, toString, finger }) => ({
+        finger,
+        toString,
+        fromString,
+        fret,
+      })),
+    };
+    const diff = diffShape(A_SHAPE_MAJOR, after);
+    expect(diff).toEqual({ added: [], removed: [], changed: [], geometryChanged: false });
+
+    const moved: ChordShape = {
+      ...A_SHAPE_MAJOR,
+      barres: [{ finger: 1, toString: 5, fromString: 1, fret: 1 }, A_SHAPE_MAJOR.barres![1]],
+    };
+    expect(diffShape(A_SHAPE_MAJOR, moved).changed.map((c) => c.field)).toEqual(["barres"]);
+  });
+
   it("reports a field present on `before` but dropped from `after` as removed", () => {
     const before: ChordShape = { ...A_SHAPE_MAJOR, tags: ["core"] };
     const after: ChordShape = { ...A_SHAPE_MAJOR };
