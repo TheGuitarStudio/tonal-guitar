@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { renderShapeTs } from "shape-catalog";
-import type { DraftShape, ShapeLike } from "shape-catalog";
+import type { DraftShape } from "shape-catalog";
+import { renderShapeTs, type ShapeLike } from "shape-catalog/render";
 import type { ChordShape } from "tonal-guitar";
 import {
   canPreviewChange,

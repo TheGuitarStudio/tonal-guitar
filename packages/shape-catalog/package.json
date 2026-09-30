@@ -5,7 +5,12 @@
   "private": true,
   "main": "src/index.ts",
   "types": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./render": "./src/render.ts"
+  },
   "files": ["src"],
+  "sideEffects": false,
   "peerDependencies": {
     "tonal-guitar": "*",
     "@tonaljs/note": "^4.12.0",

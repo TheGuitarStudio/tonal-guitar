@@ -25,17 +25,13 @@ import {
   type ShapeKind,
 } from "shape-catalog";
 // Deep-imported from their own files rather than the `shape-library-ui`
-// barrel (`./index.ts`) — see the `ShapeDetailPanel` comment below. Without
-// a `"sideEffects": false` in `shape-library-ui`'s `package.json` (not this
-// site's to add — it'd be a change to that package, not this one),
-// webpack must conservatively assume every module the barrel re-exports
-// might have import-time side effects, so importing *anything* through the
-// unqualified `"shape-library-ui"` specifier pulls `index.ts`'s entire
-// re-export graph — `ShapeDetailPanel`/`ChordDetailView`/`ScaleDetailView`
-// included — into whatever chunk this static import lands in. Importing
-// `FilterBar`/`ShapeCard`/`ShapeLibraryProvider` from their own files
-// instead means this static import never reaches `index.ts` at all, so it
-// no longer drags the detail-panel code along with it.
+// barrel (`./index.ts`) — see the `ShapeDetailPanel` comment below.
+// `shape-library-ui` now declares `"sideEffects": ["*.css"]`, so webpack
+// may prune unused barrel re-exports, but that pruning is an optimization
+// webpack is free to skip. Importing `FilterBar`/`ShapeCard`/
+// `ShapeLibraryProvider` from their own files means this static import
+// never reaches `index.ts` at all, so it can't drag the detail-panel code
+// (`ShapeDetailPanel`/`ChordDetailView`/`ScaleDetailView`) into this chunk.
 import { FilterBar, FILTER_ALL, type ChordSortOption } from "shape-library-ui/src/FilterBar";
 import { ShapeCard } from "shape-library-ui/src/ShapeCard";
 import { ShapeLibraryProvider } from "shape-library-ui/src/capabilities";
