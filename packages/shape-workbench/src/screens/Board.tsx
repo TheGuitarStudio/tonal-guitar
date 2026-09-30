@@ -38,7 +38,6 @@ import {
 import {
   ColumnsToggle,
   DiagramOrientationToggle,
-  FILTER_ALL,
   FilterBar,
   ShapeBoard,
   useLibraryCapabilities,
@@ -125,8 +124,6 @@ export function BoardScreen() {
   const [chordSelection, setChordSelection] = useState<ChordFacetSelection>({});
   const [chordSort, setChordSort] = useState<ChordSortOption>("baseFret");
   const [scaleSelection, setScaleSelection] = useState<ScaleFacetSelection>({});
-  const [system, setSystem] = useState(FILTER_ALL);
-  const [quality, setQuality] = useState(FILTER_ALL);
   const [nameQuery, setNameQuery] = useState("");
   const [failingOnly, setFailingOnly] = useState(false);
 
@@ -145,19 +142,16 @@ export function BoardScreen() {
     return map;
   }, [state.drafts, state.changes, edit]);
 
-  // `system`/`quality` drive the chip's `aria-pressed` state; `scaleSelection`
-  // is the parallel `ScaleFacetSelection` `FilterBar`'s live-count helpers
-  // (`scaleSystemCounts`/`scaleQualityCounts`) need — both must move
-  // together or the chip counts drift from what's actually toggled active.
-  function handleSystemChange(value: string): void {
-    setSystem(value);
-    setScaleSelection((prev) => ({ ...prev, activeSystems: value === FILTER_ALL ? undefined : [value] }));
-  }
-
-  function handleQualityChange(value: string): void {
-    setQuality(value);
-    setScaleSelection((prev) => ({ ...prev, activeQualities: value === FILTER_ALL ? undefined : [value] }));
-  }
+  // The search box feeds the facet selections too, so `FilterBar`'s live
+  // chip counts (and the cell-level pass below) narrow with it.
+  const chordFacets = useMemo<ChordFacetSelection>(
+    () => ({ ...chordSelection, nameQuery: nameQuery || undefined }),
+    [chordSelection, nameQuery],
+  );
+  const scaleFacets = useMemo<ScaleFacetSelection>(
+    () => ({ ...scaleSelection, nameQuery: nameQuery || undefined }),
+    [scaleSelection, nameQuery],
+  );
 
   const model = useMemo(() => {
     const typeFilter: ChordQualityGroup[] | undefined = chordSelection.qualityGroup
@@ -183,18 +177,18 @@ export function BoardScreen() {
       return restrictCellsByEntry(
         rowRestricted,
         drafts,
-        (entry) => entry.kind === "chord" && chordEntryMatchesSelection(entry, chordSelection, "type"),
+        (entry) => entry.kind === "chord" && chordEntryMatchesSelection(entry, chordFacets, "type"),
       );
     }
     if (kind === "scale") {
       return restrictCellsByEntry(
         rowRestricted,
         drafts,
-        (entry) => entry.kind === "scale" && scaleEntryMatchesSelection(entry, scaleSelection),
+        (entry) => entry.kind === "scale" && scaleEntryMatchesSelection(entry, scaleFacets),
       );
     }
     return rowRestricted;
-  }, [kind, state.columnAxis, chordSelection, nameQuery, drafts, scaleSelection]);
+  }, [kind, state.columnAxis, chordSelection, chordFacets, nameQuery, drafts, scaleFacets]);
 
   return (
     <section data-testid="board-screen">
@@ -214,7 +208,7 @@ export function BoardScreen() {
         entries={catalog}
         kind={kind}
         onKindChange={setKind}
-        chordSelection={chordSelection}
+        chordSelection={chordFacets}
         onQualityGroupChange={(group) => setChordSelection((prev) => ({ ...prev, qualityGroup: group }))}
         onActiveTypesChange={(types) => setChordSelection((prev) => ({ ...prev, activeTypes: types }))}
         onActiveVoicingFamiliesChange={(families) =>
@@ -223,11 +217,9 @@ export function BoardScreen() {
         onRootChange={(root) => setChordSelection((prev) => ({ ...prev, root }))}
         chordSort={chordSort}
         onChordSortChange={setChordSort}
-        scaleSelection={scaleSelection}
-        system={system}
-        onSystemChange={handleSystemChange}
-        quality={quality}
-        onQualityChange={handleQualityChange}
+        scaleSelection={scaleFacets}
+        onActiveSystemsChange={(systems) => setScaleSelection((prev) => ({ ...prev, activeSystems: systems }))}
+        onActiveQualitiesChange={(qualities) => setScaleSelection((prev) => ({ ...prev, activeQualities: qualities }))}
         nameQuery={nameQuery}
         onNameQueryChange={setNameQuery}
         failingOnly={failingOnly}

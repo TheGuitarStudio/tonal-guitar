@@ -32,7 +32,7 @@ import {
 // `ShapeLibraryProvider` from their own files means this static import
 // never reaches `index.ts` at all, so it can't drag the detail-panel code
 // (`ShapeDetailPanel`/`ChordDetailView`/`ScaleDetailView`) into this chunk.
-import { FilterBar, FILTER_ALL, type ChordSortOption } from "shape-library-ui/src/FilterBar";
+import { FilterBar, type ChordSortOption } from "shape-library-ui/src/FilterBar";
 import { ShapeCard } from "shape-library-ui/src/ShapeCard";
 import { ShapeLibraryProvider } from "shape-library-ui/src/capabilities";
 import { REPO_SLUG } from "@/lib/repo";
@@ -137,11 +137,11 @@ export function ShapeLibrary() {
   const [failingOnly, setFailingOnly] = useState(false);
   const [view, setView] = useState<LibraryView>("grid");
 
-  // Scale-mode facets: single-select system/quality chips, replacing the old
-  // dropdowns' semantics 1:1 (still `FILTER_ALL` = no narrowing) but
-  // rendered as the same live-count chip treatment chord facets use.
-  const [system, setSystem] = useState(FILTER_ALL);
-  const [quality, setQuality] = useState(FILTER_ALL);
+  // Scale-mode facets: single-select system/quality chips (`FilterBar` emits
+  // `[value]` or `[]` = no narrowing), rendered with the same live-count
+  // chip treatment chord facets use.
+  const [activeSystems, setActiveSystems] = useState<string[]>([]);
+  const [activeQualities, setActiveQualities] = useState<string[]>([]);
 
   // Chord-mode facets (spec 9.1-9.5).
   const [qualityGroup, setQualityGroup] = useState<ChordQualityGroup | undefined>(undefined);
@@ -183,8 +183,8 @@ export function ShapeLibrary() {
   useEffect(() => {
     const parsed = parseShapesUrlState(window.location.search);
     if (parsed.kind) setKind(parsed.kind);
-    if (parsed.system) setSystem(parsed.system);
-    if (parsed.familyOrQuality) setQuality(parsed.familyOrQuality);
+    if (parsed.system) setActiveSystems([parsed.system]);
+    if (parsed.familyOrQuality) setActiveQualities([parsed.familyOrQuality]);
     if (parsed.nameQuery) setNameQuery(parsed.nameQuery);
     if (parsed.failingOnly) setFailingOnly(true);
     if (parsed.qualityGroup) setQualityGroup(parsed.qualityGroup);
@@ -213,8 +213,8 @@ export function ShapeLibrary() {
     if (!urlStateLoaded) return;
     const qs = serializeShapesUrlState({
       kind,
-      system: kind === "scale" && system !== FILTER_ALL ? system : undefined,
-      familyOrQuality: kind === "scale" && quality !== FILTER_ALL ? quality : undefined,
+      system: kind === "scale" ? activeSystems[0] : undefined,
+      familyOrQuality: kind === "scale" ? activeQualities[0] : undefined,
       nameQuery: nameQuery || undefined,
       failingOnly,
       shape: selectedEntry?.name,
@@ -234,8 +234,8 @@ export function ShapeLibrary() {
   }, [
     urlStateLoaded,
     kind,
-    system,
-    quality,
+    activeSystems,
+    activeQualities,
     nameQuery,
     failingOnly,
     selectedEntry,
@@ -423,8 +423,8 @@ export function ShapeLibrary() {
     // switch — reset every facet back to "no filter". Expanded-group state
     // is keyed by the active grouping dimension (chordType vs. system), so
     // it resets too.
-    setSystem(FILTER_ALL);
-    setQuality(FILTER_ALL);
+    setActiveSystems([]);
+    setActiveQualities([]);
     setQualityGroup(undefined);
     setActiveTypes([]);
     setActiveVoicingFamilies([]);
@@ -453,11 +453,11 @@ export function ShapeLibrary() {
 
   const scaleSelection: ScaleFacetSelection = useMemo(
     () => ({
-      activeSystems: system !== FILTER_ALL ? [system] : undefined,
-      activeQualities: quality !== FILTER_ALL ? [quality] : undefined,
+      activeSystems: activeSystems.length > 0 ? activeSystems : undefined,
+      activeQualities: activeQualities.length > 0 ? activeQualities : undefined,
       nameQuery: nameQuery || undefined,
     }),
-    [system, quality, nameQuery],
+    [activeSystems, activeQualities, nameQuery],
   );
 
   // Faceted filtering (Task Group 8's selection-matching helpers). Grouping
@@ -611,10 +611,8 @@ export function ShapeLibrary() {
               chordSort={chordSort}
               onChordSortChange={setChordSort}
               scaleSelection={scaleSelection}
-              system={system}
-              onSystemChange={setSystem}
-              quality={quality}
-              onQualityChange={setQuality}
+              onActiveSystemsChange={setActiveSystems}
+              onActiveQualitiesChange={setActiveQualities}
               nameQuery={nameQuery}
               onNameQueryChange={setNameQuery}
               failingOnly={failingOnly}
