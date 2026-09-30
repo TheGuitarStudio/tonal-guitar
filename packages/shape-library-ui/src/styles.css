@@ -5,11 +5,16 @@
  * can map their own theme onto it. The docs site maps Fumadocs' `--fd-*`
  * tokens onto these; the Shape Workbench ships the defaults below.
  *
+ * The defaults are wrapped in `:where(:root)` (zero specificity), so a
+ * consumer's plain `:root`/`.dark` mapping wins regardless of stylesheet
+ * order — including the dark-mode block below, which would otherwise
+ * override a class-based light theme whenever the OS is in dark mode.
+ *
  * Fretboard rendering itself is untouched — `fretboard-ui`'s `<Fretboard>`
  * keeps its existing theme-object approach; nothing here styles the SVG.
  */
 
-:root {
+:where(:root) {
   --tg-surface: #ffffff;
   --tg-border: #e2e2e2;
   --tg-fg: #18181b;
@@ -21,7 +26,7 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
+  :where(:root) {
     --tg-surface: #18181b;
     --tg-border: #3f3f46;
     --tg-fg: #f4f4f5;

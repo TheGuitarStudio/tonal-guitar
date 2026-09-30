@@ -11,7 +11,11 @@
  * shared card/board components visually consistent with the rest of the
  * docs site, including its light/dark toggle (class-based, not just
  * `prefers-color-scheme`). `--tg-warn`/`--tg-error` have no Fumadocs
- * equivalent, so the package's own defaults apply unchanged.
+ * equivalent, so they're pinned per theme class here (the package's values)
+ * — left unmapped they'd follow the OS color scheme instead of the site's.
+ * The package declares its defaults under `:where(:root)`, so these win
+ * regardless of stylesheet order (the tg stylesheet is only loaded by the
+ * `/shapes` layout, after this file).
  */
 :root {
   --tg-surface: hsl(var(--card));
@@ -20,6 +24,13 @@
   --tg-muted: hsl(var(--muted-foreground));
   --tg-accent: hsl(var(--primary));
   --tg-gap: hsl(var(--muted));
+  --tg-warn: #b45309;
+  --tg-error: #b91c1c;
+}
+
+.dark {
+  --tg-warn: #fbbf24;
+  --tg-error: #f87171;
 }
 
 /*
