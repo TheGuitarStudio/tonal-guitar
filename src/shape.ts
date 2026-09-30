@@ -384,6 +384,42 @@ export function removeAll(): void {
 }
 
 // ============================================================
+// Registry query helpers
+// ============================================================
+
+// Filter fields shared by `chordShapes.query` and `arpeggioShapes.query`.
+interface SharedShapeFilter {
+  chordType?: string;
+  system?: string;
+  cagedPosition?: CagedPosition;
+  tags?: string[];
+}
+
+// True when `shape` passes every shared filter clause that is set; `tags`
+// requires all of the listed tags.
+function matchesSharedFilter(
+  shape: SharedShapeFilter & { system: string },
+  filter: SharedShapeFilter,
+): boolean {
+  if (filter.chordType !== undefined && shape.chordType !== filter.chordType) {
+    return false;
+  }
+  if (filter.system !== undefined && shape.system !== filter.system) {
+    return false;
+  }
+  if (filter.cagedPosition !== undefined && shape.cagedPosition !== filter.cagedPosition) {
+    return false;
+  }
+  if (filter.tags !== undefined) {
+    const shapeTags = shape.tags ?? [];
+    if (!filter.tags.every((tag) => shapeTags.includes(tag))) {
+      return false;
+    }
+  }
+  return true;
+}
+
+// ============================================================
 // Chord shape registry
 // ============================================================
 
@@ -420,10 +456,7 @@ export const chordShapes = {
     tags?: string[];
   }): ChordShape[] {
     return chordDictionary.filter((shape) => {
-      if (filter.chordType !== undefined && shape.chordType !== filter.chordType) {
-        return false;
-      }
-      if (filter.system !== undefined && shape.system !== filter.system) {
+      if (!matchesSharedFilter(shape, filter)) {
         return false;
       }
       if (filter.voicingFamily !== undefined && shape.voicingFamily !== filter.voicingFamily) {
@@ -431,15 +464,6 @@ export const chordShapes = {
       }
       if (filter.stringSet !== undefined) {
         if (JSON.stringify(shape.stringSet) !== JSON.stringify(filter.stringSet)) {
-          return false;
-        }
-      }
-      if (filter.cagedPosition !== undefined && shape.cagedPosition !== filter.cagedPosition) {
-        return false;
-      }
-      if (filter.tags !== undefined) {
-        const shapeTags = shape.tags ?? [];
-        if (!filter.tags.every((tag) => shapeTags.includes(tag))) {
           return false;
         }
       }
@@ -487,20 +511,8 @@ export const arpeggioShapes = {
     overrides?: string;
   }): ArpeggioShape[] {
     return arpeggioDictionary.filter((shape) => {
-      if (filter.chordType !== undefined && shape.chordType !== filter.chordType) {
+      if (!matchesSharedFilter(shape, filter)) {
         return false;
-      }
-      if (filter.system !== undefined && shape.system !== filter.system) {
-        return false;
-      }
-      if (filter.cagedPosition !== undefined && shape.cagedPosition !== filter.cagedPosition) {
-        return false;
-      }
-      if (filter.tags !== undefined) {
-        const shapeTags = shape.tags ?? [];
-        if (!filter.tags.every((tag) => shapeTags.includes(tag))) {
-          return false;
-        }
       }
       if (filter.chordShape !== undefined && shape.chordShape !== filter.chordShape) {
         return false;
