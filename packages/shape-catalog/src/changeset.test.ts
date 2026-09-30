@@ -305,4 +305,57 @@ describe("buildChangeset — collision detection", () => {
     expect(result.collisions).toHaveLength(1);
     expect(result.collisions[0]).toMatchObject({ reason: "name" });
   });
+  // CR-086: an explicit `AddChange.ident` override is what gets written, so
+  // it must be checked too — `shapes-merge` rule 6 refuses on it.
+  it("flags an add whose explicit `ident` collides with a registered shape's identifier", () => {
+    const changes: ChangesetChange[] = [
+      {
+        op: "add",
+        kind: "chord",
+        file: "caged-chords-minor",
+        ident: "CHORD_A_SHAPE_MAJOR",
+        shape: { ...A_SHAPE_MAJOR, name: "Totally Novel Shape Name" },
+      },
+    ];
+    const result = buildChangeset({ version: "0.2.0", tuning: ["E2"], changes });
+    expect(result.collisions).toHaveLength(1);
+    expect(result.collisions[0]).toMatchObject({ reason: "identifier" });
+    expect(result.collisions[0].detail).toContain("CHORD_A_SHAPE_MAJOR");
+  });
+
+  it("flags two adds in the same batch sharing an explicit `ident`", () => {
+    const changes: ChangesetChange[] = [
+      {
+        op: "add",
+        kind: "chord",
+        file: "caged-chords-minor",
+        ident: "CAGED_CHORD_NOVEL",
+        shape: { ...A_SHAPE_MAJOR, name: "Novel Shape One" },
+      },
+      {
+        op: "add",
+        kind: "chord",
+        file: "caged-chords-minor",
+        ident: "CAGED_CHORD_NOVEL",
+        shape: { ...A_SHAPE_MAJOR, name: "Novel Shape Two" },
+      },
+    ];
+    const result = buildChangeset({ version: "0.2.0", tuning: ["E2"], changes });
+    expect(result.collisions).toHaveLength(1);
+    expect(result.collisions[0]).toMatchObject({ change: changes[1], reason: "identifier" });
+  });
+
+  it("does not flag an add whose unique `ident` differs from its derived identifier", () => {
+    const changes: ChangesetChange[] = [
+      {
+        op: "add",
+        kind: "chord",
+        file: "caged-chords-minor",
+        ident: "CAGED_CHORD_NOVEL",
+        shape: { ...A_SHAPE_MAJOR, name: "Totally Novel Shape Name" },
+      },
+    ];
+    const result = buildChangeset({ version: "0.2.0", tuning: ["E2"], changes });
+    expect(result.collisions).toEqual([]);
+  });
 });

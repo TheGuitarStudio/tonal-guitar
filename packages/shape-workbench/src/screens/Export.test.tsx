@@ -67,7 +67,7 @@ const removeChange: RemoveChange = { op: "remove", kind: "chord", name: "Some Sh
 
 // A collision: shape.name matches a real, already-registered chord
 // (`src/data/caged-chords.ts`'s "A Shape Major") — `buildChangeset`'s
-// collision detection (`checkNameUnique`) flags this against the live
+// collision detection (`checkNameCollision`) flags this against the live
 // registry.
 const collidingAdd: AddChange = { ...addChange, shape: { ...NEW_SHAPE, name: "A Shape Major" } };
 

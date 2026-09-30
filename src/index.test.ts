@@ -2071,6 +2071,8 @@ import {
   checkTuningMismatch,
   checkBarreFretOrigin,
   checkNameUnique,
+  checkNameCollision,
+  checkIdentifierCollision,
   checkPositionSpan,
   checkFingeringComplete,
   checkOverridesTarget,
@@ -2152,6 +2154,8 @@ describe("Public API — shape-workbench exports (spec §1.11)", () => {
     expect(typeof checkTuningMismatch).not.toBe("undefined");
     expect(typeof checkBarreFretOrigin).not.toBe("undefined");
     expect(typeof checkNameUnique).not.toBe("undefined");
+    expect(typeof checkNameCollision).not.toBe("undefined");
+    expect(typeof checkIdentifierCollision).not.toBe("undefined");
     expect(typeof checkPositionSpan).not.toBe("undefined");
     expect(typeof checkFingeringComplete).not.toBe("undefined");
     expect(typeof checkOverridesTarget).not.toBe("undefined");
