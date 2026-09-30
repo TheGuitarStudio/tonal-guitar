@@ -331,17 +331,20 @@ export function applyChordShape(
   // (D-010) to an absolute fret for this build. `fromString`/`toString` are
   // shape-indexed on `shape.barres` (like `shape.fingers`), so they're
   // remapped onto tuning-string indices via `strOffset` the same way
-  // `fingers` is above — clamped to the last valid tuning index so a barre
-  // referencing a string beyond a truncated tuning never points out of
-  // bounds (CR-003). `finger` passes through unchanged.
+  // `fingers` is above. A barre lying entirely beyond a truncated tuning is
+  // dropped (CR-111, like the `frets` loop drops those strings); the rest are
+  // clamped to the last valid tuning index so none points out of bounds
+  // (CR-003). `finger` passes through unchanged.
   const gripBase = gripBaseFret(frets);
   const lastTuningIndex = tuning.length - 1;
-  const barres: Barre[] = shape.barres.map((b) => ({
-    ...b,
-    fret: gripBase + b.fret,
-    fromString: Math.min(b.fromString + strOffset, lastTuningIndex),
-    toString: Math.min(b.toString + strOffset, lastTuningIndex),
-  }));
+  const barres: Barre[] = shape.barres
+    .filter((b) => Math.min(b.fromString, b.toString) + strOffset <= lastTuningIndex)
+    .map((b) => ({
+      ...b,
+      fret: gripBase + b.fret,
+      fromString: Math.min(b.fromString + strOffset, lastTuningIndex),
+      toString: Math.min(b.toString + strOffset, lastTuningIndex),
+    }));
 
   return {
     positions: result.notes,

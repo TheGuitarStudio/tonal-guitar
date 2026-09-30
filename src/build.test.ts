@@ -186,6 +186,23 @@ describe("applyChordShape — barres", () => {
       { fret: result.barres[0].fret, fromString: 0, toString: 5, finger: 1 },
     ]);
   });
+
+  it("drops a barre lying entirely beyond a truncated tuning instead of clamping it (CR-111)", () => {
+    const shape: ChordShape = {
+      name: "Synthetic 7-String Top Barre Fixture",
+      system: "custom",
+      strings: ["1P", "5P", "1P", "3M", "5P", "1P", "3M"],
+      fingers: [1, 3, 3, 2, 1, 1, 4],
+      barres: [
+        { fret: 0, fromString: 0, toString: 5, finger: 1 },
+        { fret: 2, fromString: 6, toString: 6, finger: 4 },
+      ],
+      rootString: 0,
+    };
+    const result = applyChordShape(shape, "C", STANDARD);
+    expect(result.barres).toHaveLength(1);
+    expect(result.barres[0]).toMatchObject({ fromString: 0, toString: 5, finger: 1 });
+  });
 });
 
 // ============================================================
