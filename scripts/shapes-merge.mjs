@@ -501,46 +501,55 @@ class FileStates {
    * rather than left half-applied.
    */
   apply() {
-    const changes = this.changed();
     const applied = []; // { absPath, before } for every change flushed so far
     try {
-      for (const { absPath, before, after } of changes) {
+      for (const { absPath, before, after } of this.changed()) {
         if (after === null) {
           if (before !== undefined) unlinkSync(absPath);
         } else {
-          mkdirSync(path.dirname(absPath), { recursive: true });
-          const tmpPath = `${absPath}.shapes-merge-tmp-${process.pid}-${Math.random().toString(36).slice(2)}`;
-          try {
-            writeFileSync(tmpPath, after, "utf8");
-            renameSync(tmpPath, absPath);
-          } catch (err) {
-            // CR-108: don't leave an orphan temp file next to the target.
-            try {
-              rmSync(tmpPath, { force: true });
-            } catch {
-              // Best-effort — the original failure is what matters.
-            }
-            throw err;
-          }
+          writeFileAtomic(absPath, after);
         }
         applied.push({ absPath, before });
       }
     } catch (err) {
-      for (const { absPath, before } of applied.reverse()) {
-        try {
-          if (before === undefined) {
-            if (existsSync(absPath)) unlinkSync(absPath);
-          } else {
-            mkdirSync(path.dirname(absPath), { recursive: true });
-            writeFileSync(absPath, before, "utf8");
-          }
-        } catch {
-          // Best-effort rollback — surface the original failure below
-          // regardless of whether every restore succeeded.
-        }
-      }
+      for (const { absPath, before } of applied.reverse()) restoreFile(absPath, before);
       throw err;
     }
+  }
+}
+
+/** Writes `text` via a same-directory temp file + `renameSync`, removing the
+ * temp file if either step fails (CR-108: no orphan temp file next to the
+ * target). */
+function writeFileAtomic(absPath, text) {
+  mkdirSync(path.dirname(absPath), { recursive: true });
+  const tmpPath = `${absPath}.shapes-merge-tmp-${process.pid}-${Math.random().toString(36).slice(2)}`;
+  try {
+    writeFileSync(tmpPath, text, "utf8");
+    renameSync(tmpPath, absPath);
+  } catch (err) {
+    try {
+      rmSync(tmpPath, { force: true });
+    } catch {
+      // Best-effort — the original failure is what matters.
+    }
+    throw err;
+  }
+}
+
+/** Best-effort rollback of one file to `before` (`undefined` = the file
+ * didn't exist). Never throws: `apply()` re-throws the original failure
+ * regardless of whether every restore succeeded. */
+function restoreFile(absPath, before) {
+  try {
+    if (before === undefined) {
+      rmSync(absPath, { force: true });
+    } else {
+      mkdirSync(path.dirname(absPath), { recursive: true });
+      writeFileSync(absPath, before, "utf8");
+    }
+  } catch {
+    // Best-effort — see the doc comment.
   }
 }
 
