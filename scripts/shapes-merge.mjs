@@ -193,13 +193,9 @@ export function parseArgs(argv) {
 // Small utilities
 // ============================================================
 
-function deepEqualArray(a, b) {
-  return Array.isArray(a) && Array.isArray(b) && a.length === b.length && a.every((v, i) => v === b[i]);
-}
-
 /** Structural equality over the JSON-safe shape objects this script deals
- * in (strings/numbers/booleans/null/arrays/plain objects) — used by
- * CR-021's rename-fallback verification. `undefined`-valued keys are
+ * in (strings/numbers/booleans/null/arrays/plain objects) — used by rule 3's
+ * tuning check and CR-021's rename-fallback verification. `undefined`-valued keys are
  * treated as absent on both sides, matching how `renderShape` already
  * treats them (and how `JSON.stringify`/a changeset's own `patch` do). */
 function deepEqual(a, b) {
@@ -730,7 +726,7 @@ async function planMerge(changeset, ctx) {
   }
 
   // ---- rule 3: tuning -------------------------------------------------------
-  if (!deepEqualArray(changeset.tuning, library.STANDARD)) {
+  if (!deepEqual(changeset.tuning, library.STANDARD)) {
     if (!force) {
       throw new MergeRefusal(
         "tuning-mismatch",
