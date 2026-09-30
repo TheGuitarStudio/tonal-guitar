@@ -14,6 +14,7 @@ import type { ChangesetChange } from "tonal-guitar";
 import { renderShapeTs, type ShapeLike } from "shape-catalog/render";
 import type { WorkbenchState } from "../store";
 import { changeAfterShape, changeBeforeShape, changeShapeDiff } from "./changeInfo";
+import { copyToClipboard } from "../clipboard";
 
 export interface ExportDiffViewProps {
   state: WorkbenchState;
@@ -21,17 +22,6 @@ export interface ExportDiffViewProps {
 }
 
 type DiffTab = "ts" | "json" | "before-after";
-
-/** Best-effort clipboard write, mirroring `../editor/OutputPreview.tsx`'s
- * helper — the Clipboard API is unavailable in some embeddings, and a
- * failed copy must never throw or crash the screen. */
-function copyToClipboard(text: string): void {
-  try {
-    void navigator.clipboard?.writeText(text);
-  } catch {
-    // best-effort only
-  }
-}
 
 function formatCell(value: unknown): string {
   return value === undefined ? "—" : JSON.stringify(value);
