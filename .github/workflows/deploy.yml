@@ -36,6 +36,10 @@ jobs:
       - name: Build package
         run: npm run build
 
+      # The site `file:`-links and transpiles `packages/*` sources; their peer
+      # imports resolve via the site's own node_modules (see the webpack
+      # `resolve.modules` fallback in site/next.config.mjs), so no per-package
+      # `npm ci` is needed here.
       - name: Install site dependencies
         working-directory: site
         run: npm ci
