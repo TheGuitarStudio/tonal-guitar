@@ -24,7 +24,8 @@ import type {
   ScaleShape,
   UpdateChange,
 } from "tonal-guitar";
-import { CHECK_NAME_UNIQUE, checkNameUnique, exportIdentifierFor } from "tonal-guitar";
+import type { ShapeAuditIssue } from "tonal-guitar";
+import { checkIdentifierCollision, checkNameCollision, exportIdentifierFor } from "tonal-guitar";
 import { diffShape } from "./diff";
 import type { DiffableShape } from "./diff";
 
@@ -145,7 +146,8 @@ export interface BuildChangesetState {
   /**
    * Known names/identifiers to check `add` changes against, in addition to
    * the live `tonal-guitar` registry — e.g. other pending changes already
-   * merged elsewhere. Passed straight through to `checkNameUnique`.
+   * merged elsewhere. Passed straight through as `checkNameCollision`'s/
+   * `checkIdentifierCollision`'s `knownNames`/`knownIdentifiers`.
    * Collision detection always separately checks the live registry
    * regardless of this option, matching spec §6.2.6 ("against the live
    * registry AND within the changeset").
@@ -165,20 +167,36 @@ export interface BuildChangesetResult {
   collisions: ChangesetCollision[];
 }
 
-function isIdentifierCollisionMessage(message: string): boolean {
-  return message.includes("Export identifier");
+/**
+ * The name a change introduces, if it introduces one: an `add`'s
+ * `shape.name`, or a renaming `update`'s `patch.name` (when it differs from
+ * the current `name`). `undefined` for non-renaming `update`s and `remove`s,
+ * which target an existing name by design.
+ */
+function introducedName(change: ChangesetChange): string | undefined {
+  if (change.op === "add") return change.shape.name;
+  if (change.op === "update" && typeof change.patch?.name === "string" && change.patch.name !== change.name) {
+    return change.patch.name;
+  }
+  return undefined;
 }
 
 /**
  * Collision detection (spec §6.2.6) for every `add` change and every
- * renaming `update` (`patch.name` differs from `name`) in `changes`: each is
- * checked against the live registry (`checkNameUnique`'s default,
- * no-`options` mode) AND against every earlier add/rename in the list, so
- * two changes in the same batch that would collide with each other are
- * caught too, not just collisions against already-registered shapes. A
- * renaming `update` is checked for name collisions only (see CR-019 below).
- * Non-renaming `update`s and `remove`s are exempt — they target an existing
- * name by design.
+ * renaming `update` in `changes`: each is checked against the live registry
+ * (the checks' default, no-`options` mode) AND against every earlier
+ * add/rename in the list, so two changes in the same batch that would
+ * collide with each other are caught too, not just collisions against
+ * already-registered shapes.
+ *
+ * Only an `add` is checked for identifier collisions — both its derived
+ * identifier and, when set, its explicit `ident` override, matching
+ * `shapes-merge` rule 6. A renaming `update` gets the name check only
+ * (CR-019): an `update` never derives a fresh export identifier (the merge
+ * script keeps a renamed shape's marker identifier fixed at whatever it was
+ * set to at `add` time), so running it through `exportIdentifierFor(kind,
+ * { name: newName })` would flag false "identifier" collisions unrelated to
+ * what actually gets written.
  */
 function detectCollisions(
   changes: readonly ChangesetChange[],
@@ -188,65 +206,43 @@ function detectCollisions(
   const collisions: ChangesetCollision[] = [];
   const seenNames = new Set<string>(extraKnownNames);
   const seenIdentifiers = new Set<string>(extraKnownIdentifiers);
+  const batch = { knownNames: seenNames, knownIdentifiers: seenIdentifiers };
+
+  const report = (
+    change: ChangesetChange,
+    reason: ChangesetCollision["reason"],
+    issues: ShapeAuditIssue[],
+  ) => {
+    for (const issue of issues) collisions.push({ change, reason, detail: issue.message });
+  };
 
   for (const change of changes) {
+    const name = introducedName(change);
+    if (name === undefined) continue;
+    const kind = change.kind;
+    const shapeLike = { name };
+
+    report(change, "name", [
+      ...checkNameCollision(shapeLike, kind),
+      ...checkNameCollision(shapeLike, kind, batch),
+    ]);
+
     if (change.op === "add") {
-      const kind = change.kind;
-      const shapeLike = { name: change.shape.name };
-      const identifier = change.ident ?? exportIdentifierFor(kind, shapeLike);
-
-      const liveIssues = checkNameUnique(shapeLike, kind);
-      const batchIssues = checkNameUnique(shapeLike, kind, {
-        knownNames: seenNames,
-        knownIdentifiers: seenIdentifiers,
-      });
-
-      for (const issue of [...liveIssues, ...batchIssues]) {
-        if (issue.id !== CHECK_NAME_UNIQUE) continue;
-        collisions.push({
-          change,
-          reason: isIdentifierCollisionMessage(issue.message) ? "identifier" : "name",
-          detail: issue.message,
-        });
+      const derived = exportIdentifierFor(kind, shapeLike);
+      const identifiers =
+        change.ident !== undefined && change.ident !== derived ? [derived, change.ident] : [derived];
+      for (const identifier of identifiers) {
+        report(change, "identifier", [
+          ...checkIdentifierCollision(shapeLike, kind, { identifier }),
+          ...checkIdentifierCollision(shapeLike, kind, { ...batch, identifier }),
+        ]);
       }
-
-      seenNames.add(change.shape.name);
-      seenIdentifiers.add(identifier);
-      continue;
+      seenIdentifiers.add(change.ident ?? derived);
     }
 
-    // CR-019: a renaming `update` (`patch.name` differs from the shape's
-    // current `name`) needs the same name-collision check `add` gets above —
-    // otherwise the Workbench can build (and offer to write) a changeset
-    // that merges cleanly into a duplicate registration. Identifier
-    // collisions are NOT checked here: an `update` never derives a fresh
-    // export identifier (the merge script keeps a renamed shape's marker
-    // identifier fixed at whatever it was set to at `add` time), so running
-    // it through `exportIdentifierFor(kind, { name: newName })` would flag
-    // false "identifier" collisions unrelated to what actually gets written.
-    if (change.op === "update" && typeof change.patch?.name === "string" && change.patch.name !== change.name) {
-      const kind = change.kind;
-      const shapeLike = { name: change.patch.name };
-
-      const liveIssues = checkNameUnique(shapeLike, kind).filter(
-        (issue) => !isIdentifierCollisionMessage(issue.message),
-      );
-      const batchIssues = checkNameUnique(shapeLike, kind, {
-        knownNames: seenNames,
-        knownIdentifiers: seenIdentifiers,
-      }).filter((issue) => !isIdentifierCollisionMessage(issue.message));
-
-      for (const issue of [...liveIssues, ...batchIssues]) {
-        if (issue.id !== CHECK_NAME_UNIQUE) continue;
-        collisions.push({ change, reason: "name", detail: issue.message });
-      }
-
-      // Tracked so a LATER change in this same batch renaming onto the same
-      // new name is also caught (mirrors `add`'s within-batch tracking
-      // above) — identifiers are deliberately NOT tracked here, per the
-      // comment above.
-      seenNames.add(shapeLike.name);
-    }
+    // Tracked so a LATER change in this same batch introducing the same
+    // name/identifier is also caught.
+    seenNames.add(name);
   }
 
   return collisions;

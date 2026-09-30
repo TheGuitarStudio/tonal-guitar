@@ -6,7 +6,8 @@
  * badge for metadata-only edits (`../export/ExportDiffView.tsx`); a
  * "Test counts touched" summary; name/identifier conflict detection
  * (`shape-catalog`'s `buildChangeset`, which itself reuses `tonal-guitar`'s
- * `checkNameUnique`/`exportIdentifierFor` — never reimplemented here);
+ * `checkNameCollision`/`checkIdentifierCollision`/`exportIdentifierFor` —
+ * never reimplemented here);
  * "Write changeset.json" against the dev-server plugin's
  * `/__workbench/changeset` endpoint (`../export/writeChangeset.ts`); and
  * the exact `shapes:merge` CLI invocation with a sample transcript plus the
