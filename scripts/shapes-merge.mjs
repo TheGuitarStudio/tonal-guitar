@@ -99,6 +99,7 @@ const COUNT_RULES = {
   "caged-scale-total": (shape, kind) => kind === "scale" && shape.system === "caged",
   "three-nps-scale-total": (shape, kind) => kind === "scale" && shape.system === "3nps",
   "pentatonic-scale-total": (shape, kind) => kind === "scale" && shape.system === "pentatonic",
+  "arpeggio-shape-total": (shape, kind) => kind === "arpeggio",
 };
 
 // Only a bare integer literal argument is ever auto-rewritten by

@@ -3,7 +3,9 @@
  *
  * Each shape mirrors the format of caged-chords.ts: one interval per string
  * (or null for muted/excluded strings), with the new harmonic-metadata fields
- * (chordType, voicingFamily, system, stringSet, inversion) populated per R-4.1.
+ * (chordType, voicingFamily, system, stringSet, inversion) populated per R-4.1,
+ * plus `cagedPosition` (the letter in the shape name) so each grip resolves
+ * its CAGED arpeggio seed (data/caged-arpeggios) via `resolveArpeggioForSlot`.
  *
  * These are movable shapes — no canonicalRoot is set. Apply them to any root
  * via applyChordShape(shape, root).
@@ -65,6 +67,7 @@ export const CAGED_CHORD_E_MAJ7: RegisteredChordShape = {
   rootString: 0,
   chordType: "maj7",
   voicingFamily: "caged",
+  cagedPosition: "E",
   inversion: 0,
   stringSet: [0, 1, 2, 3, 4, 5],
 };
@@ -86,6 +89,7 @@ export const CAGED_CHORD_A_MAJ7: RegisteredChordShape = {
   rootString: 1,
   chordType: "maj7",
   voicingFamily: "caged",
+  cagedPosition: "A",
   inversion: 0,
   stringSet: [1, 2, 3, 4, 5],
 };
@@ -107,6 +111,7 @@ export const CAGED_CHORD_D_MAJ7: RegisteredChordShape = {
   rootString: 2,
   chordType: "maj7",
   voicingFamily: "caged",
+  cagedPosition: "D",
   inversion: 0,
   stringSet: [2, 3, 4, 5],
 };
@@ -129,6 +134,7 @@ export const CAGED_CHORD_E_M7: RegisteredChordShape = {
   rootString: 0,
   chordType: "m7",
   voicingFamily: "caged",
+  cagedPosition: "E",
   inversion: 0,
   stringSet: [0, 1, 2, 3, 4, 5],
 };
@@ -150,6 +156,7 @@ export const CAGED_CHORD_A_M7: RegisteredChordShape = {
   rootString: 1,
   chordType: "m7",
   voicingFamily: "caged",
+  cagedPosition: "A",
   inversion: 0,
   stringSet: [1, 2, 3, 4, 5],
 };
@@ -170,6 +177,7 @@ export const CAGED_CHORD_D_M7: RegisteredChordShape = {
   rootString: 2,
   chordType: "m7",
   voicingFamily: "caged",
+  cagedPosition: "D",
   inversion: 0,
   stringSet: [2, 3, 4, 5],
 };
@@ -192,6 +200,7 @@ export const CAGED_CHORD_E_DOM7: RegisteredChordShape = {
   rootString: 0,
   chordType: "7",
   voicingFamily: "caged",
+  cagedPosition: "E",
   inversion: 0,
   stringSet: [0, 1, 2, 3, 4, 5],
 };
@@ -214,6 +223,7 @@ export const CAGED_CHORD_A_DOM7: RegisteredChordShape = {
   rootString: 1,
   chordType: "7",
   voicingFamily: "caged",
+  cagedPosition: "A",
   inversion: 0,
   stringSet: [1, 2, 3, 4, 5],
 };
@@ -236,6 +246,7 @@ export const CAGED_CHORD_D_DOM7: RegisteredChordShape = {
   rootString: 2,
   chordType: "7",
   voicingFamily: "caged",
+  cagedPosition: "D",
   inversion: 0,
   stringSet: [2, 3, 4, 5],
 };
@@ -262,6 +273,7 @@ export const CAGED_CHORD_E_M7B5: RegisteredChordShape = {
   rootString: 0,
   chordType: "m7b5",
   voicingFamily: "caged",
+  cagedPosition: "E",
   inversion: 0,
   stringSet: [0, 1, 2, 3],
 };
@@ -284,6 +296,7 @@ export const CAGED_CHORD_A_M7B5: RegisteredChordShape = {
   rootString: 1,
   chordType: "m7b5",
   voicingFamily: "caged",
+  cagedPosition: "A",
   inversion: 0,
   stringSet: [1, 2, 3, 4],
 };

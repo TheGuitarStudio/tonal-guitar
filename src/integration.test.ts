@@ -2107,8 +2107,16 @@ describe("parentBoxForChordShape (Task Group 11)", () => {
 });
 
 describe("arpeggioFor (Task Group 11)", () => {
+  // Isolate from the built-in seeds (data/caged-arpeggios), which occupy the
+  // same caged|m7|E|0 slot these fixtures use; restore them after each test.
+  let seeded: ArpeggioShape[] = [];
+  beforeEach(() => {
+    seeded = arpeggioShapes.all();
+    arpeggioShapes.removeAll();
+  });
   afterEach(() => {
     arpeggioShapes.removeAll();
+    seeded.forEach((shape) => arpeggioShapes.add(shape));
   });
 
   const makeStoredArpeggio = (
