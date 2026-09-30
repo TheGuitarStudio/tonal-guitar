@@ -8,6 +8,7 @@
 import type { ChangesetChange } from "tonal-guitar";
 import type { WorkbenchState } from "../store";
 import { changeCheckStatus, changeDisplayName, changeOpGlyph, changeTargetFile } from "./changeInfo";
+import { STATUS_BADGE_CLASS } from "../statusBadge";
 
 export interface ExportChangeListProps {
   state: WorkbenchState;
@@ -16,13 +17,6 @@ export interface ExportChangeListProps {
   onSelect: (index: number) => void;
   onRemove: (index: number) => void;
 }
-
-const STATUS_CLASS: Record<string, string> = {
-  pass: "tg-badge",
-  warning: "tg-badge tg-badge-warning",
-  error: "tg-badge tg-badge-error",
-  "n/a": "tg-badge",
-};
 
 export function ExportChangeList({ state, changes, selectedIndex, onSelect, onRemove }: ExportChangeListProps) {
   return (
@@ -65,7 +59,7 @@ export function ExportChangeList({ state, changes, selectedIndex, onSelect, onRe
                 {targetFile !== undefined ? `src/data/${targetFile}.ts` : "resolved by shapes:merge"}
               </td>
               <td>
-                <span className={STATUS_CLASS[status]} data-testid="export-change-status">
+                <span className={STATUS_BADGE_CLASS[status]} data-testid="export-change-status">
                   {status}
                 </span>
               </td>
