@@ -110,6 +110,8 @@ export {
   checkTuningMismatch,
   checkBarreFretOrigin,
   checkNameUnique,
+  checkNameCollision,
+  checkIdentifierCollision,
   checkPositionSpan,
   checkFingeringComplete,
   checkOverridesTarget,
@@ -134,6 +136,7 @@ export type {
   ChordGeometryDetails,
   ChordShapeAuditResult,
   NameUniqueKind,
+  NameUniqueOptions,
 } from "./audit";
 
 // Pattern generators
