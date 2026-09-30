@@ -8,7 +8,6 @@ import {
   buildCatalog,
   buildReportUrl,
   chordEntryMatchesSelection,
-  GROUP_COLLAPSE_THRESHOLD,
   groupChordEntriesByType,
   groupScaleEntriesBySystem,
   parseShapesUrlState,
@@ -33,10 +32,10 @@ import {
 // never reaches `index.ts` at all, so it can't drag the detail-panel code
 // (`ShapeDetailPanel`/`ChordDetailView`/`ScaleDetailView`) into this chunk.
 import { FilterBar, type ChordSortOption } from "shape-library-ui/src/FilterBar";
-import { ShapeCard } from "shape-library-ui/src/ShapeCard";
 import { ShapeLibraryProvider } from "shape-library-ui/src/capabilities";
 import { ToggleGroup } from "shape-library-ui/src/ToggleGroup";
 import { REPO_SLUG } from "@/lib/repo";
+import { GridView } from "./GridView";
 import { ShapeBoardView } from "./ShapeBoardView";
 
 // The panel's own Tonal-derivation logic and its `scalesContainingChord`
@@ -71,16 +70,6 @@ const ShapeDetailPanel = dynamic(
   () => import("shape-library-ui/src/ShapeDetailPanel").then((mod) => mod.ShapeDetailPanel),
   { ssr: false },
 );
-
-// Cards at this index or earlier mount immediately rather than waiting on
-// the IntersectionObserver `ShapeCard`'s `lazy` prop drives internally —
-// roughly the first screenful of the 3-column (`xl:grid-cols-3`) layout, so
-// there's real content on screen (and in the statically-exported HTML)
-// before any scrolling or hydration-dependent observer work happens.
-// Applied within the grouped grid's flattened visible-entry order; the
-// pinned "Needs attention" section (below) always mounts eagerly since it's
-// the audit's primary above-the-fold signal.
-const EAGER_CARD_COUNT = 9;
 
 /** Below this viewport width the detail panel renders as a full-height
  * bottom sheet instead of a docked sidebar (spec's mobile variant) — mirrors
@@ -529,23 +518,6 @@ export function ShapeLibrary() {
 
   const groups: ShapeGroup<ShapeCatalogEntry>[] = kind === "chord" ? chordGroups : scaleGroups;
 
-  // Global eager-mount budget for the grouped grid, in the same top-to-
-  // bottom / left-to-right order the sections render in (pinned-section
-  // cards are always eager — see the `ShapeCard eager` usage below — so this
-  // budget only covers the grouped grid).
-  const eagerNames = useMemo(() => {
-    const names = new Set<string>();
-    let i = 0;
-    for (const group of groups) {
-      for (const entry of group.visibleEntries) {
-        if (i >= EAGER_CARD_COUNT) return names;
-        names.add(`${entry.kind}-${entry.name}`);
-        i += 1;
-      }
-    }
-    return names;
-  }, [groups]);
-
   return (
     // Capabilities omitted `edit` (D-002 read-only default): `/shapes` never
     // passes `capabilities.edit`, so every shared component it renders below
@@ -635,47 +607,14 @@ export function ShapeLibrary() {
             </div>
           ) : (
             <div onClickCapture={handleResultsClickCapture}>
-              {failingEntries.length > 0 && (
-                <section className="mb-6">
-                  <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-fd-foreground">
-                    <span aria-hidden="true">⚠</span> Needs attention
-                    <span className="rounded-full bg-fd-muted px-2 py-0.5 text-xs font-normal text-fd-muted-foreground">
-                      {failingEntries.length}
-                    </span>
-                  </h3>
-                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-                    {failingEntries.map((entry) => (
-                      <ShapeCard
-                        key={`pinned-${entry.kind}-${entry.name}`}
-                        entry={entry}
-                        lazy
-                        eager
-                        onSelectEntry={handleCardSelectEntry}
-                        isSelected={selectedEntry?.kind === entry.kind && selectedEntry.name === entry.name}
-                      />
-                    ))}
-                  </div>
-                </section>
-              )}
-
-              {matchedEntries.length === 0 ? (
-                <p className="text-sm text-fd-muted-foreground">
-                  No shapes match the current filters.
-                </p>
-              ) : (
-                <div className="flex flex-col gap-6">
-                  {groups.map((group) => (
-                    <GroupSection
-                      key={group.key}
-                      group={group}
-                      selectedEntry={selectedEntry}
-                      eagerNames={eagerNames}
-                      onSelectEntry={handleCardSelectEntry}
-                      onToggleExpanded={() => handleToggleGroupExpanded(group.key)}
-                    />
-                  ))}
-                </div>
-              )}
+              <GridView
+                failingEntries={failingEntries}
+                groups={groups}
+                hasMatches={matchedEntries.length > 0}
+                selectedEntry={selectedEntry}
+                onSelectEntry={handleCardSelectEntry}
+                onToggleGroupExpanded={handleToggleGroupExpanded}
+              />
             </div>
           )}
         </div>
@@ -690,57 +629,5 @@ export function ShapeLibrary() {
         />
       </div>
     </ShapeLibraryProvider>
-  );
-}
-
-// ============================================================
-// Grouped section rendering (spec 8.6 / D-004's grid reorganization)
-// ============================================================
-
-interface GroupSectionProps {
-  group: ShapeGroup<ShapeCatalogEntry>;
-  selectedEntry: ShapeCatalogEntry | undefined;
-  eagerNames: ReadonlySet<string>;
-  onSelectEntry: (entry: ShapeCatalogEntry) => void;
-  onToggleExpanded: () => void;
-}
-
-function GroupSection({
-  group,
-  selectedEntry,
-  eagerNames,
-  onSelectEntry,
-  onToggleExpanded,
-}: GroupSectionProps) {
-  return (
-    <section>
-      <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-fd-foreground">
-        {group.label}
-        <span className="rounded-full bg-fd-muted px-2 py-0.5 text-xs font-normal text-fd-muted-foreground">
-          {group.totalCount}
-        </span>
-      </h3>
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {group.visibleEntries.map((entry) => (
-          <ShapeCard
-            key={`${entry.kind}-${entry.name}`}
-            entry={entry}
-            lazy
-            eager={eagerNames.has(`${entry.kind}-${entry.name}`)}
-            onSelectEntry={onSelectEntry}
-            isSelected={selectedEntry?.kind === entry.kind && selectedEntry.name === entry.name}
-          />
-        ))}
-      </div>
-      {group.totalCount > GROUP_COLLAPSE_THRESHOLD && (
-        <button
-          type="button"
-          onClick={onToggleExpanded}
-          className="mt-2 text-xs text-fd-muted-foreground underline decoration-dotted hover:text-fd-primary"
-        >
-          {group.isExpanded ? "Show less ▴" : `Show all ${group.totalCount} ▾`}
-        </button>
-      )}
-    </section>
   );
 }
