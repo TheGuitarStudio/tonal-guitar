@@ -100,6 +100,20 @@ export function displayRootFor(shape: { canonicalRoot?: string }): string {
 }
 
 // ============================================================
+// Span helper
+// ============================================================
+
+// `max - min` over the fretted frets only: muted (`null`) and open (`0`)
+// strings are excluded, so an open-string drone never inflates the span.
+// `0` when nothing is fretted. Shared by `checkFretSpan` and
+// `checkPositionSpan`; `checkBarreFretOrigin` measures from `gripBaseFret`
+// (open strings included) instead, so it doesn't use this.
+function frettedSpan(frets: readonly (number | null)[]): number {
+  const fretted = frets.filter((f): f is number => f !== null && f > 0);
+  return fretted.length ? Math.max(...fretted) - Math.min(...fretted) : 0;
+}
+
+// ============================================================
 // Individual checks
 // ============================================================
 
@@ -124,8 +138,7 @@ export function checkFretSpan(
   prebuilt?: Fingering,
 ): ShapeAuditIssue[] {
   const { frets } = prebuilt ?? applyChordShape(shape, root, tuning);
-  const fretted = frets.filter((f): f is number => f !== null && f > 0);
-  const span = fretted.length ? Math.max(...fretted) - Math.min(...fretted) : 0;
+  const span = frettedSpan(frets);
 
   if (span <= maxSpan) return [];
 
@@ -948,8 +961,7 @@ export function checkPositionSpan(
   const result = prebuilt ?? buildFrettedScale(shape, root, tuning);
   if (result.empty) return [];
 
-  const fretted = result.notes.map((n) => n.fret).filter((f) => f > 0);
-  const span = fretted.length ? Math.max(...fretted) - Math.min(...fretted) : 0;
+  const span = frettedSpan(result.notes.map((n) => n.fret));
 
   if (span <= maxSpan) return [];
 
