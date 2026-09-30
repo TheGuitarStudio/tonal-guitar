@@ -75,13 +75,16 @@ export const ShapeCard = memo(function ShapeCard({
   eager = false,
 }: ShapeCardProps) {
   const placeholderRef = useRef<HTMLDivElement>(null);
-  // One-way latch: once the observer (or a fail-open path) has mounted the
-  // real card, it never unmounts again. `visible` itself is computed during
-  // render rather than synced via a separate effect+state pair — so a
-  // filter change that flips a previously-deferred entry into the eager
-  // range (e.g. it now sorts to the top of a failures-first list) is
-  // reflected immediately, with no effect required (CR-041).
+  // One-way latch: once the real card has rendered — via `eager`, the
+  // observer, or a fail-open path — it never unmounts again, even if `eager`
+  // later flips back to false (the site recomputes its eager range on every
+  // filter change; unmounting would jump the layout, CR-117). An `eager`
+  // render latches during render rather than via an effect, so a filter
+  // change that flips a previously-deferred entry into the eager range
+  // (e.g. it now sorts to the top of a failures-first list) is reflected
+  // immediately (CR-041).
   const [mounted, setMounted] = useState(false);
+  if (lazy && eager && !mounted) setMounted(true);
   const visible = !lazy || eager || mounted;
 
   useEffect(() => {

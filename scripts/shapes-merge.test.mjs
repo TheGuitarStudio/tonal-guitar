@@ -17,6 +17,8 @@ import {
   statSync,
   rmSync,
 } from "node:fs";
+import fs from "node:fs";
+import { syncBuiltinESMExports } from "node:module";
 import { fileURLToPath } from "node:url";
 import { tmpdir } from "node:os";
 import { createHash } from "node:crypto";
@@ -438,6 +440,25 @@ describe("shapes-merge: update — surgical owned-block replace (17.2)", () => {
   );
 });
 
+describe("shapes-merge: CR-027 — an unparseable owned block is a structural refusal", () => {
+  it(
+    "update against a hand-corrupted block refuses with MergeRefusal naming the ident",
+    withFixtureRoot(async (dir) => {
+      const dataPath = realDataFile(dir, "caged-chords");
+      const source = readFileSync(dataPath, "utf8");
+      const block = findOwnedBlock(source, "CAGED_CHORD_A");
+      writeFileSync(dataPath, source.replace(block.content, block.content.replace("{", "{ ???")));
+      const changesetPath = writeChangeset(
+        dir,
+        baseChangeset([{ op: "update", kind: "chord", name: "A Shape Major", patch: { notes: "x" } }]),
+      );
+      const err = await expectRefusalWithNoWrites(dir, changesetPath);
+      expect(err.rule).toBe("structure");
+      expect(err.message).toContain("CAGED_CHORD_A");
+    }),
+  );
+});
+
 describe("shapes-merge: remove — drops the owned block, deletes an emptied generated file (17.2)", () => {
   it(
     "removes one constant from a 2-constant generated file, then deletes the file + import once empty",
@@ -488,6 +509,36 @@ describe("shapes-merge: remove — drops the owned block, deletes an emptied gen
   );
 });
 
+describe("shapes-merge: CR-108 — a failed rename removes its temp file and rolls back", () => {
+  it(
+    "leaves no .shapes-merge-tmp-* file behind and the tree untouched",
+    withFixtureRoot(async (dir) => {
+      const dataDir = path.join(dir, "src", "data");
+      const beforeFiles = readdirSync(dataDir).sort();
+      const beforeIndex = readFileSync(realIndexFile(dir), "utf8");
+      const changesetPath = writeChangeset(
+        dir,
+        baseChangeset([{ op: "add", kind: "chord", file: "caged-chords-fixture", shape: C_SHAPE_MINOR }]),
+      );
+      // shapes-merge.mjs holds ESM named bindings to node:fs; patch the CJS
+      // object and sync so its `renameSync` import sees the failure.
+      const realRename = fs.renameSync;
+      fs.renameSync = () => {
+        throw new Error("simulated rename failure");
+      };
+      syncBuiltinESMExports();
+      try {
+        await expect(runMerge([changesetPath, "--root", dir])).rejects.toThrow("simulated rename failure");
+      } finally {
+        fs.renameSync = realRename;
+        syncBuiltinESMExports();
+      }
+      expect(readdirSync(dataDir).sort()).toEqual(beforeFiles);
+      expect(readFileSync(realIndexFile(dir), "utf8")).toBe(beforeIndex);
+    }),
+  );
+});
+
 // Shared by the ad hoc refusal-scenario tests below (Task Group 17) and the
 // committed-fixture refusal tests (Task Group 18) — asserts a MergeRefusal
 // was thrown and that not one file under src/data or src/index.ts changed,
@@ -514,6 +565,19 @@ async function expectRefusalWithNoWrites(dir, changesetPath, argsExtra = []) {
 }
 
 describe("shapes-merge: refusal scenarios (spec §6.2, in order) — every one writes nothing", () => {
+  it(
+    "CR-028: a missing tuning is a structural refusal, even with --force",
+    withFixtureRoot(async (dir) => {
+      const changeset = baseChangeset([
+        { op: "add", kind: "chord", file: "caged-chords-fixture", shape: C_SHAPE_MINOR },
+      ]);
+      delete changeset.tuning;
+      const changesetPath = writeChangeset(dir, changeset);
+      const err = await expectRefusalWithNoWrites(dir, changesetPath, ["--force"]);
+      expect(err.rule).toBe("structure");
+    }),
+  );
+
   it(
     "rule 1: invalid $schema is refused",
     withFixtureRoot(async (dir) => {
@@ -1031,6 +1095,11 @@ describe("shapes-merge: CLI arg parsing", () => {
   it("throws UsageError on an unknown flag", () => {
     expect(() => parseArgs(["changeset.json", "--nope"])).toThrow(UsageError);
   });
+
+  it("CR-029: --out/--root refuse a following flag as their value", () => {
+    expect(() => parseArgs(["changeset.json", "--out", "--dry-run"])).toThrow(UsageError);
+    expect(() => parseArgs(["changeset.json", "--root", "--check"])).toThrow(UsageError);
+  });
 });
 
 /**
@@ -1417,6 +1486,10 @@ describe("shapes-merge: CR-022 — remove is idempotent (already-absent target i
       const result = await runMerge([removePath, "--root", dir]);
       expect(result.plan.removed).toBe(1);
       expect(result.plan.files.changed()).toHaveLength(0);
+      // CR-109: satisfied, but flagged — the name may be a typo.
+      expect(result.plan.warnings).toEqual([
+        expect.stringContaining('remove chord "Totally Nonexistent Shape Xyz CR022": not found'),
+      ]);
     }),
   );
 });

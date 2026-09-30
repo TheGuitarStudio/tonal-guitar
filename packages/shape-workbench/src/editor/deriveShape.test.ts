@@ -3,6 +3,7 @@ import { STANDARD } from "tonal-guitar";
 import type { Barre, ChordShape } from "tonal-guitar";
 import type { EditorCell } from "fretboard-ui";
 import {
+  autoFingerCells,
   buildShapeFromCells,
   deriveChordGeometry,
   deriveRootString,
@@ -104,6 +105,25 @@ describe("buildShapeFromCells", () => {
     expect(shape?.tags).toEqual(["caged", "core"]);
     expect(shape?.rootString).toBe(0);
     expect(shape?.barres).toBe(barres);
+  });
+});
+
+describe("autoFingerCells", () => {
+  it("folds autoFingering's fingers into unmuted cells and returns its barres", () => {
+    const cells: EditorCell[] = [
+      { string: 0, fret: 5, isRoot: true },
+      { string: 1, fret: 7 },
+      { string: 2, fret: 7 },
+      { string: 3, fret: 5 },
+      { string: 4, fret: 5 },
+      { string: 5, fret: 5, muted: true, finger: 2 },
+    ];
+    const derived = buildShapeFromCells(EMPTY_SHAPE, cells, [], STANDARD, "A");
+    expect(derived).toBeDefined();
+    const seeded = autoFingerCells(cells, derived!, "A", STANDARD);
+    expect(seeded.cells.slice(0, 5).every((c) => typeof c.finger === "number")).toBe(true);
+    expect(seeded.cells[5]).toBe(cells[5]);
+    expect(seeded.barres.length).toBeGreaterThan(0);
   });
 });
 

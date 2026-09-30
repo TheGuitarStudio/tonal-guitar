@@ -167,21 +167,13 @@ export function buildCatalog(
 }
 
 // ============================================================
-// Issue-badge presentation (shared by `ShapeCard` and `ShapeDetailPanel` via
+// Issue-badge ordering (shared by `ShapeCard` and `ShapeDetailPanel` via
 // the `IssueBadges` component in `IssueBadges.tsx`)
 // ============================================================
 
 /** Sort rank for a single issue's severity — errors before warnings. */
 export function severityRank(severity: AuditSeverity): number {
   return severity === "error" ? 0 : 1;
-}
-
-/** Badge className for a single issue's severity. */
-export function badgeClassFor(severity: AuditSeverity): string {
-  if (severity === "error") {
-    return "bg-red-500/10 text-red-700 dark:text-red-600 border border-red-500/40";
-  }
-  return "bg-amber-500/10 text-amber-700 dark:text-amber-600 border border-amber-500/40";
 }
 
 // ============================================================

@@ -6,7 +6,14 @@
 import { Buffer } from "node:buffer";
 import { EventEmitter } from "node:events";
 import { promises as fs } from "node:fs";
-import type { IncomingMessage } from "node:http";
+import {
+  createServer,
+  request as httpRequest,
+  type IncomingMessage,
+  type Server,
+  type ServerResponse,
+} from "node:http";
+import type { AddressInfo } from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -21,6 +28,7 @@ import {
   resolveWithinWorkbench,
   resolveWorkbenchDir,
   validateChangesetPayload,
+  workbenchIoPlugin,
   writeChangesetFile,
 } from "./workbench-io";
 
@@ -197,15 +205,81 @@ describe("readRequestBody (CR-103)", () => {
     expect(MAX_REQUEST_BODY_BYTES).toBe(8 * 1024 * 1024);
   });
 
-  it("rejects with RequestBodyTooLargeError and destroys the request once the cap is exceeded", async () => {
+  it("rejects with RequestBodyTooLargeError once the cap is exceeded, without destroying the request (CR-118)", async () => {
     const { req, wasDestroyed } = fakeRequest([Buffer.alloc(10), Buffer.alloc(10)]);
     await expect(readRequestBody(req, 15)).rejects.toBeInstanceOf(RequestBodyTooLargeError);
-    expect(wasDestroyed()).toBe(true);
+    // Destroying here would reset the connection before the 413 is written;
+    // the POST handler closes it after the response has finished instead.
+    expect(wasDestroyed()).toBe(false);
   });
 
   it("accepts a body exactly at the cap", async () => {
     const { req } = fakeRequest([Buffer.alloc(15)]);
     await expect(readRequestBody(req, 15)).resolves.toHaveLength(15);
+  });
+});
+
+describe("POST /__workbench/changeset over a real connection (CR-118)", () => {
+  let server: Server;
+  let port: number;
+
+  beforeEach(async () => {
+    const handlers: ((req: IncomingMessage, res: ServerResponse, next: (err?: unknown) => void) => void)[] = [];
+    const plugin = workbenchIoPlugin({ repoRoot: os.tmpdir() });
+    const fakeViteServer = {
+      middlewares: { use: (_path: string, handler: (typeof handlers)[number]) => handlers.push(handler) },
+    };
+    (plugin.configureServer as (server: unknown) => void)(fakeViteServer);
+    // handlers[1] is the changeset endpoint (registered after /status).
+    server = createServer((req, res) => handlers[1](req, res, () => {}));
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    port = (server.address() as AddressInfo).port;
+  });
+
+  afterEach(async () => {
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  });
+
+  it("answers an oversized body with a 413 the client actually receives, not a connection reset", async () => {
+    // Resolves on the response head: once the server has answered, the
+    // client's still-in-flight body writes may fail (EPIPE/ECONNRESET) as the
+    // server closes the connection — expected, and only a failure if it
+    // happens BEFORE any response arrived.
+    const status = await new Promise<number>((resolve, reject) => {
+      let answered = false;
+      const req = httpRequest(
+        {
+          host: "127.0.0.1",
+          port,
+          method: "POST",
+          path: "/",
+          headers: { "Content-Type": "application/json", Host: `127.0.0.1:${port}` },
+        },
+        (res) => {
+          answered = true;
+          res.resume();
+          resolve(res.statusCode ?? 0);
+        },
+      );
+      req.on("error", (err) => {
+        if (!answered) reject(err);
+      });
+      // Stream past the cap in 1 MB chunks.
+      const chunk = Buffer.alloc(1024 * 1024, 0x20);
+      let sent = 0;
+      const pump = () => {
+        while (sent <= MAX_REQUEST_BODY_BYTES && !req.destroyed) {
+          sent += chunk.length;
+          if (!req.write(chunk)) {
+            req.once("drain", pump);
+            return;
+          }
+        }
+        req.end();
+      };
+      pump();
+    });
+    expect(status).toBe(413);
   });
 });
 

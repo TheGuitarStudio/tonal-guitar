@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - `scaleTypeForChordType` no longer returns `Object.prototype` members for chord types like `"toString"`, `"constructor"` or `"__proto__"`; it only matches `CHORD_SCALE_RULE`'s own keys and returns `undefined` otherwise. `CHORD_SCALE_RULE` itself is unchanged and still mutable.
+- `applyChordShape` no longer returns a degenerate barre on a tuning with fewer strings than the shape. A barre that lies entirely on strings the tuning doesn't have is now dropped, where before it was clamped to a one-string `{ fromString: last, toString: last }` barre on the tuning's last string. Barres that only partly overhang are still clamped (#204).
 
 ## [0.4.0] — 2026-09-30
 

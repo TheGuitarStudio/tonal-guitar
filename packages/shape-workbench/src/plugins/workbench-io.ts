@@ -232,11 +232,18 @@ export const MAX_REQUEST_BODY_BYTES = 8 * 1024 * 1024; // 8 MB
 
 export class RequestBodyTooLargeError extends Error {}
 
+/** How long an oversized-request connection keeps draining after its 413
+ * before being destroyed (CR-118). */
+const LINGERING_CLOSE_MS = 2000;
+
 /**
- * Buffers `req`'s body into a UTF-8 string, destroying the request and
- * rejecting with `RequestBodyTooLargeError` once more than `maxBytes` have
- * arrived (CR-103) — the caller maps that specifically to a 413, distinct
- * from a generic malformed-JSON 400.
+ * Buffers `req`'s body into a UTF-8 string, rejecting with
+ * `RequestBodyTooLargeError` once more than `maxBytes` have arrived (CR-103)
+ * — the caller maps that specifically to a 413, distinct from a generic
+ * malformed-JSON 400. Past the cap it stops buffering (the rest of the body
+ * is drained and discarded) but does NOT destroy the request: that would
+ * reset the connection before the caller's 413 is written (CR-118). The
+ * caller closes the connection after the response has finished.
  */
 export function readRequestBody(
   req: IncomingMessage,
@@ -251,7 +258,7 @@ export function readRequestBody(
       total += chunk.length;
       if (total > maxBytes) {
         settled = true;
-        req.destroy();
+        chunks.length = 0;
         reject(new RequestBodyTooLargeError(`request body exceeds ${maxBytes} bytes`));
         return;
       }
@@ -374,6 +381,18 @@ async function handleChangesetPost(
     payload = raw.length > 0 ? JSON.parse(raw) : undefined;
   } catch (err) {
     if (err instanceof RequestBodyTooLargeError) {
+      // CR-118: write the 413 first, then close the connection with a
+      // lingering close: half-close (FIN) once the response has finished,
+      // keep draining (and discarding) whatever the client is still
+      // uploading, and destroy the socket after a short grace period.
+      // Destroying immediately — which is also what Node does for a
+      // `Connection: close` response — sends an RST while the client is
+      // still writing, and the client often surfaces EPIPE/ECONNRESET
+      // before it ever reads the 413.
+      res.on("finish", () => {
+        req.socket.end();
+        setTimeout(() => req.socket.destroy(), LINGERING_CLOSE_MS).unref();
+      });
       sendJson(res, 413, { message: err.message });
       return;
     }
