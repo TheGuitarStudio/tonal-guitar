@@ -85,8 +85,7 @@ function isMobileViewport(): boolean {
   return typeof window !== "undefined" && window.matchMedia(MOBILE_BREAKPOINT_QUERY).matches;
 }
 
-/** Grid vs. Board (spec §7's read-only Board view, columns toggle +
- * diagram orientation toggle). */
+/** Grid vs. Board (spec §7's read-only Board view with its columns toggle). */
 type LibraryView = "grid" | "board";
 
 /**

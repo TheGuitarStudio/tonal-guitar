@@ -1,10 +1,9 @@
 "use client";
 
 // Read-only CAGED board view for `/shapes` (spec §7 "The read-only Board
-// view (columns toggle + diagram orientation toggle) is added to `/shapes`;
-// gap cells render inert, never 'Create' buttons"). Built entirely from
-// `shape-catalog`'s `boardModel` and `shape-library-ui`'s `ShapeBoard` /
-// `ColumnsToggle` / `DiagramOrientationToggle` — the same primitives the
+// view (columns toggle) is added to `/shapes`; gap cells render inert, never
+// 'Create' buttons"). Built entirely from `shape-catalog`'s `boardModel` and
+// `shape-library-ui`'s `ShapeBoard` / `ColumnsToggle` — the same primitives the
 // Shape Workbench's own Board screen (`packages/shape-workbench/src/screens/
 // Board.tsx`) composes, just without any `EditCapabilities` wired in. The
 // site's `ShapeLibraryProvider` (see `ShapeLibrary.tsx`) never passes
@@ -13,16 +12,10 @@
 // this view depends on) — this component adds no capability wiring of its
 // own, it just can't opt in.
 //
-// `orientation` mirrors the workbench Board screen's own toggle: it's a
-// stored preference with no direct visual effect on the board itself
-// (`BoardCellCard` renders plain text buttons, not diagrams) — the
-// workbench's copy of this control also feeds its Editor screen when the
-// author navigates there. The site has no such screen, so the toggle is
-// kept here only because spec §7 calls for it explicitly alongside the
-// columns toggle; it's included for parity rather than because a diagram on
-// this page currently reads it.
+// No diagram orientation toggle (CR-075): `BoardCellCard` renders text
+// buttons, not diagrams, so it would do nothing here. The workbench keeps
+// its copy because that one also sets the Editor's orientation.
 import { useMemo, useState } from "react";
-import type { Orientation } from "fretboard-ui";
 import { boardModel, type BoardAxis, type ShapeCatalogEntry, type ShapeKind } from "shape-catalog";
 // Deep-imported from their own files rather than the `shape-library-ui`
 // barrel (CR-068, see `ShapeLibrary.tsx`'s import comment): this component
@@ -32,7 +25,6 @@ import { boardModel, type BoardAxis, type ShapeCatalogEntry, type ShapeKind } fr
 // back into the eager `/shapes` chunk regardless of how `ShapeLibrary.tsx`
 // itself imports things.
 import { ColumnsToggle } from "shape-library-ui/src/ColumnsToggle";
-import { DiagramOrientationToggle } from "shape-library-ui/src/DiagramOrientationToggle";
 import { ShapeBoard } from "shape-library-ui/src/ShapeBoard";
 
 export interface ShapeBoardViewProps {
@@ -53,7 +45,6 @@ export function ShapeBoardView({
   collapseToSingleColumn,
 }: ShapeBoardViewProps) {
   const [columnAxis, setColumnAxis] = useState<BoardAxis>("cagedPosition");
-  const [orientation, setOrientation] = useState<Orientation>("horizontal");
 
   // `boardModel`'s `rowGrouping: "chordType"` is chord-only — scale shapes
   // carry no `chordType` facet, so grouping by it always yields zero rows
@@ -91,8 +82,6 @@ export function ShapeBoardView({
       <div className="tg-filterbar-row mb-4">
         <span className="tg-facet-label">Columns</span>
         <ColumnsToggle value={columnAxis} onChange={setColumnAxis} />
-        <span className="tg-facet-label">Diagrams</span>
-        <DiagramOrientationToggle value={orientation} onChange={setOrientation} />
       </div>
       <ShapeBoard model={model} onSelectEntry={onSelectEntry} collapseToSingleColumn={collapseToSingleColumn} />
     </div>

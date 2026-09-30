@@ -1,8 +1,8 @@
 /**
  * Toggle between `fretboard-ui`'s `Orientation` values ("horizontal" |
- * "vertical") — drives `ShapeDiagram`'s `orientation` prop from the Board
- * view / detail panel (spec §5.3, §7 "columns toggle + diagram orientation
- * toggle"). Read-only, capability-independent: never emits `data-tg-edit`.
+ * "vertical") — used by the workbench's Board screen and Editor tool palette
+ * to set the Editor's diagram orientation (spec §5.3, §5.4). Read-only,
+ * capability-independent: never emits `data-tg-edit`.
  */
 import type { Orientation } from "fretboard-ui";
 import { ToggleGroup, type ToggleGroupOption } from "./ToggleGroup";

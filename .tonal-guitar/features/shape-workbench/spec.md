@@ -723,8 +723,10 @@ npm run shapes:merge -- <changeset.json> [--dry-run] [--check] [--force]
      (`parseShapesUrlState`/`serializeShapesUrlState`), the mobile-breakpoint media query, and
      the dynamic import; `LazyShapeCard`'s IntersectionObserver behaviour moves into
      `shape-library-ui` behind a prop and stays SSR-safe.
-- The read-only Board view (columns toggle + diagram orientation toggle) is added to
-  `/shapes`; gap cells render inert, never "Create" buttons.
+- The read-only Board view (columns toggle) is added to `/shapes`; gap cells render inert,
+  never "Create" buttons. It has no diagram orientation toggle: board cells render no
+  diagrams, so the control would do nothing there (CR-075, #199). Add one if board cells
+  gain diagrams.
 - `site/package.json` gains `"shape-catalog": "file:../packages/shape-catalog"` and
   `"shape-library-ui": "file:../packages/shape-library-ui"`; `site/next.config.mjs`
   `transpilePackages` becomes `["fretboard-ui", "shape-catalog", "shape-library-ui"]`.
@@ -857,8 +859,9 @@ are reference for later phases.
   count, "Export changeset" (workbench only). Kind tabs (Chords / Arpeggios / Scales),
   quality-group chips (All / Triads / Sevenths / Extended / Sus-Add), search with alias
   awareness (`ø` → half-dim, already in `shapeLibraryUtils`), family facet counts, a
-  **Columns** control (CAGED position · String set · Inversion) and a **Diagrams** control
-  (Vertical · Horizontal). Grid reads `type ↓ · position →` with a per-row count
+  **Columns** control (CAGED position · String set · Inversion) and, in the workbench only, a
+  **Diagrams** control (Vertical · Horizontal) that sets the orientation the Editor uses —
+  `/shapes` omits it (see §7). Grid reads `type ↓ · position →` with a per-row count
   (`Minor m · 1/5`) and a header summary (`Showing 46 of 132 · 14 gaps`). Filled cells are
   cards with a diagram + `<root> · fr <n>`; gaps are dashed placeholders — a
   `Create <X> Shape <type>` button when `capabilities.edit` is injected, an inert
