@@ -8,11 +8,11 @@
 import type { ShapeAuditIssue } from "tonal-guitar";
 import { severityRank } from "shape-catalog";
 
-// `shape-catalog`'s own `badgeClassFor` returns Tailwind utility classes for
-// the site's direct consumption (spec §5.2) — this package has no Tailwind
+// Severity → class mapping is presentation, so it lives here rather than in
+// the framework-agnostic `shape-catalog`; this package has no Tailwind
 // dependency (spec §5.3 hard constraint), so severity maps to a `tg-`
-// class here instead. `severityRank` (imported above) still drives sort
-// order so severity handling can't drift between packages.
+// class. `severityRank` (imported above) still drives sort order so
+// severity handling can't drift between packages.
 const SEVERITY_CLASS: Record<string, string> = {
   error: "tg-badge tg-badge-error",
   warning: "tg-badge tg-badge-warning",
