@@ -34,14 +34,14 @@ Dependency direction (never the reverse; the root library imports nothing from `
 - `shape-catalog` (pure catalog/diff/changeset helpers) → `tonal-guitar`
 - `shape-library-ui` (React browse/edit components) → `fretboard-ui`, `shape-catalog`
 - `shape-workbench` (local-only Vite authoring app) → all of the above
-- `site/` (Next.js docs, `transpilePackages`) → `tonal-guitar`, `fretboard-ui`, `shape-catalog`, `shape-library-ui`. It deep-imports `shape-library-ui/src/*` on purpose (the package has no `sideEffects: false`), so don't switch those to the barrel.
+- `site/` (Next.js docs, `transpilePackages`) → `tonal-guitar`, `fretboard-ui`, `shape-catalog`, `shape-library-ui`. It deep-imports `shape-library-ui/src/*` on purpose (keeps the lazily loaded detail panel out of the static chunk), so don't switch those to the barrel. `shape-library-ui` declares `"sideEffects": ["*.css"]` (never `false` — consumers import its `styles.css`); `shape-catalog` declares `false`.
 
 ### Shape authoring: workbench → changeset → merge
 
 1. `npm run workbench` — the dev server's `workbench-io` plugin (serve-only; must never be imported client-side) writes `.workbench/changeset.json` (gitignored), a `tonal-guitar/changeset@1` document typed by `src/changeset.ts`.
 2. `npm run shapes:merge -- .workbench/changeset.json [--check]` — imports the **built** `dist/`, validates, audits, and rewrites only `// shapes-merge:begin/end <IDENT>` blocks in `src/data/*.ts` + `src/index.ts`, plus test assertions tagged `// shapes-merge:count <name>`. Undo: `git checkout -- src/data`.
 
-Rules: `scripts/lib/render-shape.mjs` is the single TS printer for shape constants (re-exported by `shape-catalog` for "Copy TS") — never reimplement it. Files with the `GENERATED FILE` header are merge-owned; of the hand-written files only `caged-chords.ts` is managed, and the derived `caged-scales-minor`/`pentatonic-minor` are refused even with `--force`. Spec: `.tonal-guitar/features/shape-workbench/spec.md` (the "spec §N" refs in code).
+Rules: `scripts/lib/render-shape.mjs` is the single TS printer for shape constants (re-exported, for "Copy TS", only via the `shape-catalog/render` subpath — never the `shape-catalog` barrel, so the printer stays out of browser bundles; its types live in `render-shape.d.mts`) — never reimplement it. Files with the `GENERATED FILE` header are merge-owned; of the hand-written files only `caged-chords.ts` is managed, and the derived `caged-scales-minor`/`pentatonic-minor` are refused even with `--force`. Spec: `.tonal-guitar/features/shape-workbench/spec.md` (the "spec §N" refs in code).
 
 ### Design conventions
 

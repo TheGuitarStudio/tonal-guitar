@@ -10,6 +10,7 @@
     "./render": "./src/render.ts"
   },
   "files": ["src"],
+  "sideEffects": false,
   "peerDependencies": {
     "tonal-guitar": "*",
     "@tonaljs/note": "^4.12.0",
