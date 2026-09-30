@@ -25,13 +25,16 @@
  * baseFret handling (from chords-db spec):
  *   absFret = baseFret === 1 ? frets[i] : frets[i] + (baseFret - 1)
  *
- * `barres[].fret` below follows the D-010 offset convention: it stores an
- * offset in frets from the shape's grip base (the lowest non-open fretted
- * fret of the source diagram — `sourceGripBaseFret` in `../shape`, fed by
- * `chordShapeGeometry(shape).sourceFrets` from `../audit`), not an absolute
- * fret. This file was migrated from the original chords-db absolute values
- * via `newFret = absoluteFret - sourceGripBase`. Resolve an absolute fret for
- * display with `absoluteBarreFret(barre, gripBase)`.
+ * `barres[].fret` below follows the D-010 offset convention (as amended by
+ * CR-002 / #192): it stores an offset in frets from the shape's grip base —
+ * the lowest *played* fret of the source diagram, open strings included
+ * (`sourceGripBaseFret` in `../shape`, fed by
+ * `chordShapeGeometry(shape).sourceFrets` from `../audit`) — not an absolute
+ * fret. For an open shape with at least one open string that base is the nut
+ * (0), so the offset equals the barre's fret at `canonicalRoot`; because the
+ * base moves rigidly with the grip, the same offset resolves correctly at any
+ * other root. Resolve an absolute fret for display with
+ * `absoluteBarreFret(barre, gripBaseFret(frets))`.
  *
  * Shapes are registered into the chord shape registry at import time.
  */
@@ -214,7 +217,7 @@ export const OPEN_C_SUS2: RegisteredChordShape = {
   // ring between them, blocking one continuous barre — string 1 keeps its
   // own finger and strings 4-5 form their own two-string mini-barre.
   fingers: [null, 4, 0, 0, 3, 3],
-  barres: [{ fret: 0, fromString: 4, toString: 5, finger: 3 }],
+  barres: [{ fret: 3, fromString: 4, toString: 5, finger: 3 }],
   rootString: 1,
   chordType: "sus2",
   voicingFamily: "open",
@@ -235,7 +238,7 @@ export const OPEN_C_SUS4: RegisteredChordShape = {
   system: "open",
   strings: [null, "1P", "4P", "5P", "1P", "4P"],
   fingers: [null, 3, 4, 0, 1, 1],
-  barres: [{ fret: 0, fromString: 4, toString: 5, finger: 1 }],
+  barres: [{ fret: 1, fromString: 4, toString: 5, finger: 1 }],
   rootString: 1,
   chordType: "sus4",
   voicingFamily: "open",
@@ -281,7 +284,7 @@ export const OPEN_A_MAJOR: RegisteredChordShape = {
   system: "open",
   strings: [null, "1P", "5P", "1P", "3M", "5P"],
   fingers: [null, 0, 2, 2, 2, 0],
-  barres: [{ fret: 0, fromString: 2, toString: 4, finger: 2 }],
+  barres: [{ fret: 2, fromString: 2, toString: 4, finger: 2 }],
   rootString: 1,
   chordType: "M",
   voicingFamily: "open",
@@ -303,7 +306,7 @@ export const OPEN_A_MINOR: RegisteredChordShape = {
   system: "open",
   strings: [null, "1P", "5P", "1P", "3m", "5P"],
   fingers: [null, 0, 2, 2, 1, 0],
-  barres: [{ fret: 1, fromString: 2, toString: 3, finger: 2 }],
+  barres: [{ fret: 2, fromString: 2, toString: 3, finger: 2 }],
   rootString: 1,
   chordType: "m",
   voicingFamily: "open",
@@ -407,7 +410,7 @@ export const OPEN_A_AUG: RegisteredChordShape = {
   system: "open",
   strings: [null, "1P", "5P", "1P", "3M", "5A"],
   fingers: [null, 0, 3, 2, 2, 1],
-  barres: [{ fret: 1, fromString: 3, toString: 4, finger: 2 }],
+  barres: [{ fret: 2, fromString: 3, toString: 4, finger: 2 }],
   rootString: 1,
   chordType: "aug",
   voicingFamily: "open",
@@ -426,7 +429,7 @@ export const OPEN_A_SUS2: RegisteredChordShape = {
   system: "open",
   strings: [null, "1P", "5P", "1P", "2M", "5P"],
   fingers: [null, 0, 2, 2, 0, 0],
-  barres: [{ fret: 0, fromString: 2, toString: 3, finger: 2 }],
+  barres: [{ fret: 2, fromString: 2, toString: 3, finger: 2 }],
   rootString: 1,
   chordType: "sus2",
   voicingFamily: "open",
@@ -445,7 +448,7 @@ export const OPEN_A_SUS4: RegisteredChordShape = {
   system: "open",
   strings: [null, "1P", "5P", "1P", "4P", "5P"],
   fingers: [null, 0, 2, 2, 3, 0],
-  barres: [{ fret: 0, fromString: 2, toString: 3, finger: 2 }],
+  barres: [{ fret: 2, fromString: 2, toString: 3, finger: 2 }],
   rootString: 1,
   chordType: "sus4",
   voicingFamily: "open",
@@ -464,7 +467,7 @@ export const OPEN_A_M7B5: RegisteredChordShape = {
   system: "open",
   strings: [null, "1P", "5d", "1P", "3m", "7m"],
   fingers: [null, 0, 1, 2, 1, 3],
-  barres: [{ fret: 0, fromString: 2, toString: 4, finger: 1 }],
+  barres: [{ fret: 1, fromString: 2, toString: 4, finger: 1 }],
   rootString: 1,
   chordType: "m7b5",
   voicingFamily: "open",
@@ -576,7 +579,7 @@ export const OPEN_G_M7: RegisteredChordShape = {
   // finger-3 note) is a lower fret with string 3 (open) between it and the
   // barre, so it keeps its own distinct finger.
   fingers: [2, 1, 3, 0, 4, 4],
-  barres: [{ fret: 2, fromString: 4, toString: 5, finger: 4 }],
+  barres: [{ fret: 3, fromString: 4, toString: 5, finger: 4 }],
   rootString: 0,
   chordType: "m7",
   voicingFamily: "open",
@@ -693,7 +696,7 @@ export const OPEN_E_MAJOR: RegisteredChordShape = {
   system: "open",
   strings: ["1P", "5P", "1P", "3M", "5P", "1P"],
   fingers: [0, 2, 2, 1, 0, 0],
-  barres: [{ fret: 1, fromString: 1, toString: 2, finger: 2 }],
+  barres: [{ fret: 2, fromString: 1, toString: 2, finger: 2 }],
   rootString: 0,
   chordType: "M",
   voicingFamily: "open",
@@ -715,7 +718,7 @@ export const OPEN_E_MINOR: RegisteredChordShape = {
   system: "open",
   strings: ["1P", "5P", "1P", "3m", "5P", "1P"],
   fingers: [0, 2, 2, 0, 0, 0],
-  barres: [{ fret: 0, fromString: 1, toString: 2, finger: 2 }],
+  barres: [{ fret: 2, fromString: 1, toString: 2, finger: 2 }],
   rootString: 0,
   chordType: "m",
   voicingFamily: "open",
@@ -757,7 +760,7 @@ export const OPEN_E_MAJ7: RegisteredChordShape = {
   system: "open",
   strings: ["1P", "5P", "7M", "3M", "5P", "1P"],
   fingers: [0, 2, 1, 1, 0, 0],
-  barres: [{ fret: 0, fromString: 2, toString: 3, finger: 1 }],
+  barres: [{ fret: 1, fromString: 2, toString: 3, finger: 1 }],
   rootString: 0,
   chordType: "maj7",
   voicingFamily: "open",
@@ -818,7 +821,7 @@ export const OPEN_E_AUG: RegisteredChordShape = {
   system: "open",
   strings: ["1P", "5A", "1P", "3M", "5A", "1P"],
   fingers: [0, 3, 2, 1, 1, 0],
-  barres: [{ fret: 0, fromString: 3, toString: 4, finger: 1 }],
+  barres: [{ fret: 1, fromString: 3, toString: 4, finger: 1 }],
   rootString: 0,
   chordType: "aug",
   voicingFamily: "open",
@@ -856,7 +859,7 @@ export const OPEN_E_SUS4: RegisteredChordShape = {
   system: "open",
   strings: ["1P", "5P", "1P", "4P", "5P", "1P"],
   fingers: [0, 2, 2, 2, 0, 0],
-  barres: [{ fret: 0, fromString: 1, toString: 3, finger: 2 }],
+  barres: [{ fret: 2, fromString: 1, toString: 3, finger: 2 }],
   rootString: 0,
   chordType: "sus4",
   voicingFamily: "open",
@@ -902,7 +905,7 @@ export const OPEN_D_MAJOR: RegisteredChordShape = {
   system: "open",
   strings: [null, null, "1P", "5P", "1P", "3M"],
   fingers: [null, null, 0, 2, 3, 2],
-  barres: [{ fret: 0, fromString: 3, toString: 5, finger: 2 }],
+  barres: [{ fret: 2, fromString: 3, toString: 5, finger: 2 }],
   rootString: 2,
   chordType: "M",
   voicingFamily: "open",
@@ -970,7 +973,7 @@ export const OPEN_D_MAJ7: RegisteredChordShape = {
   // Strings 3-5 are a genuine three-string mini-barre (CR-006: three
   // identical fingers now backed by an explicit barre entry).
   fingers: [null, null, 0, 2, 2, 2],
-  barres: [{ fret: 0, fromString: 3, toString: 5, finger: 2 }],
+  barres: [{ fret: 2, fromString: 3, toString: 5, finger: 2 }],
   rootString: 2,
   chordType: "maj7",
   voicingFamily: "open",
@@ -989,7 +992,7 @@ export const OPEN_D_M7: RegisteredChordShape = {
   system: "open",
   strings: [null, null, "1P", "5P", "7m", "3m"],
   fingers: [null, null, 0, 2, 1, 1],
-  barres: [{ fret: 0, fromString: 4, toString: 5, finger: 1 }],
+  barres: [{ fret: 1, fromString: 4, toString: 5, finger: 1 }],
   rootString: 2,
   chordType: "m7",
   voicingFamily: "open",
@@ -1008,7 +1011,7 @@ export const OPEN_D_DIM: RegisteredChordShape = {
   system: "open",
   strings: [null, null, "1P", "5d", "1P", "3m"],
   fingers: [null, null, 0, 1, 3, 1],
-  barres: [{ fret: 0, fromString: 3, toString: 5, finger: 1 }],
+  barres: [{ fret: 1, fromString: 3, toString: 5, finger: 1 }],
   rootString: 2,
   chordType: "dim",
   voicingFamily: "open",
@@ -1066,7 +1069,7 @@ export const OPEN_D_SUS4: RegisteredChordShape = {
   system: "open",
   strings: [null, null, "1P", "5P", "1P", "4P"],
   fingers: [null, null, 0, 2, 3, 3],
-  barres: [{ fret: 1, fromString: 4, toString: 5, finger: 3 }],
+  barres: [{ fret: 3, fromString: 4, toString: 5, finger: 3 }],
   rootString: 2,
   chordType: "sus4",
   voicingFamily: "open",
@@ -1089,7 +1092,7 @@ export const OPEN_D_M7B5: RegisteredChordShape = {
   // three-string mini-barre), not the two-fret spread the older fret-diagram
   // comment above suggests.
   fingers: [null, null, 0, 1, 1, 1],
-  barres: [{ fret: 0, fromString: 3, toString: 5, finger: 1 }],
+  barres: [{ fret: 1, fromString: 3, toString: 5, finger: 1 }],
   rootString: 2,
   chordType: "m7b5",
   voicingFamily: "open",

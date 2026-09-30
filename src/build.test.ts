@@ -230,8 +230,9 @@ describe("autoFingering", () => {
     };
     const result = autoFingering(shape, "E", STANDARD);
     expect(result.fingers).toEqual([0, 2, 2, 1, 0, 0]);
+    // Offset from the grip base 0 (open strings count — CR-002 / #192).
     expect(result.barres).toEqual([
-      { fret: 1, fromString: 1, toString: 2, finger: 2 },
+      { fret: 2, fromString: 1, toString: 2, finger: 2 },
     ]);
   });
 

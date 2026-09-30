@@ -104,14 +104,17 @@ export interface ChordShape {
 }
 
 export interface Barre {
-  // Offset in frets from the shape's grip base (D-010), NOT an absolute
-  // fret: `gripBase` is the lowest *fretted* (non-null, non-zero) fret of
-  // the shape as placed — open strings never set it. Resolve to an
-  // absolute fret with `absoluteBarreFret(barre, gripBaseFret(frets))` for
-  // a built grip, or `absoluteBarreFret(barre, sourceGripBaseFret(shape,
+  // Offset in frets from the shape's grip base (D-010, amended by CR-002 /
+  // #192), NOT an absolute fret: `gripBase` is the lowest *played*
+  // (non-null) fret of the shape as placed, open strings (`0`) included.
+  // Because a built grip transposes rigidly, that base moves by exactly the
+  // transposition interval, so a stored offset resolves to the same finger
+  // position at every root. Resolve to an absolute fret with
+  // `absoluteBarreFret(barre, gripBaseFret(frets))` for a built grip, or
+  // `absoluteBarreFret(barre, sourceGripBaseFret(shape,
   // chordShapeGeometry(shape).sourceFrets))` for an authored source
-  // diagram. Existing `src/data/*` shapes still store the pre-D-010
-  // absolute value — see the barre-fret migration task for the conversion.
+  // diagram. A resolved fret of `0` means the barre lies on the nut at that
+  // root (no finger actually presses it).
   fret: number;
   fromString: number;
   toString: number;
@@ -211,13 +214,17 @@ export function impliedStringSet(shape: ChordShape): number[] {
 }
 
 /**
- * The grip base fret for a set of per-string frets: the minimum *fretted*
- * (non-null, non-zero) fret, or `0` when there are no fretted strings (all
- * open/muted). Open strings (`0`) never set the grip base — see D-010.
+ * The grip base fret for a set of per-string frets: the minimum *played*
+ * (non-null) fret, open strings (`0`) included, or `0` when every string is
+ * muted. Including open strings is what makes the base root-invariant
+ * (D-010 as amended by CR-002 / #192): a shape whose root string lands on
+ * the nut at one root (E Shape at E, A Form at A, ...) keeps the same
+ * base-relative geometry as at every other root, so a `Barre.fret` offset
+ * resolves correctly everywhere.
  */
 export function gripBaseFret(frets: (number | null)[]): number {
-  const fretted = frets.filter((f): f is number => f != null && f !== 0);
-  return fretted.length === 0 ? 0 : Math.min(...fretted);
+  const played = frets.filter((f): f is number => f != null);
+  return played.length === 0 ? 0 : Math.min(...played);
 }
 
 /**

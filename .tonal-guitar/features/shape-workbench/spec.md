@@ -157,7 +157,7 @@ export function visibleArpeggios(options?: { includeOverridden?: boolean }): Arp
 export function isMovable(shape: ChordShape): boolean;            // movable ?? canonicalRoot === undefined
 export function playedStringSet(shape: ChordShape): number[];     // indices where strings[i] != null
 export function impliedStringSet(shape: ChordShape): number[];    // shape.stringSet ?? playedStringSet(shape)
-export function gripBaseFret(frets: (number | null)[]): number;   // min non-null, non-zero fret; 0 if none
+export function gripBaseFret(frets: (number | null)[]): number;   // min non-null fret, open strings included (CR-002); 0 if none
 export function absoluteBarreFret(barre: Barre, gripBase: number): number;  // gripBase + barre.fret
 export function sourceGripBaseFret(shape: ChordShape, sourceFrets: (number|null)[]): number;
 export function exportIdentifierFor(kind: "chord"|"scale"|"arpeggio", shape: { name: string }): string;
@@ -175,8 +175,9 @@ export function exportIdentifierFor(kind: "chord"|"scale"|"arpeggio", shape: { n
 **1.9 Barre fret origin (D-010, definition change)**
 
 - `Barre.fret` is redefined as **an offset in frets from the grip base**, where grip base =
-  the lowest *fretted* (non-null, non-zero) fret of the shape as placed. Open strings never
-  set the grip base.
+  the lowest *played* (non-null) fret of the shape as placed, **open strings included**
+  (amended by CR-002 / #192 — the original open-string-excluding base was not
+  root-invariant; see D-010's amendment).
 - Absolute fret for a built grip: `absoluteBarreFret(barre, gripBaseFret(fingering.frets))`.
 - Absolute fret for an authored source diagram: `absoluteBarreFret(barre,
   sourceGripBaseFret(shape, chordShapeGeometry(shape).sourceFrets))`.

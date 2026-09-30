@@ -854,17 +854,17 @@ describe("playedStringSet / impliedStringSet (spec §1.8)", () => {
   });
 });
 
-describe("gripBaseFret (spec §1.8, D-010): min non-null, non-zero fret; 0 if none", () => {
-  it("ignores open strings (0) and picks the lowest fretted fret", () => {
+describe("gripBaseFret (spec §1.8, D-010 as amended by CR-002/#192): min played fret, open strings included; 0 if none", () => {
+  it("includes open strings (0) — a grip with an open string has its base at the nut", () => {
     // "A Major Open" (x02220): open strings at 0, fretted at 2.
-    expect(gripBaseFret([null, 0, 2, 2, 2, 0])).toBe(2);
+    expect(gripBaseFret([null, 0, 2, 2, 2, 0])).toBe(0);
   });
 
   it("ignores muted strings (null)", () => {
     expect(gripBaseFret([null, null, 3, 5, 5, 4])).toBe(3);
   });
 
-  it("returns 0 when every string is open or muted (no fretted strings)", () => {
+  it("returns 0 when every string is open or muted", () => {
     expect(gripBaseFret([null, 0, 0, 0, null, 0])).toBe(0);
   });
 
@@ -874,6 +874,14 @@ describe("gripBaseFret (spec §1.8, D-010): min non-null, non-zero fret; 0 if no
 
   it("picks the minimum across multiple fretted strings", () => {
     expect(gripBaseFret([3, 5, 5, 4, 3, 3])).toBe(3);
+  });
+
+  it("is root-invariant: shifting every played fret by k shifts the base by exactly k, even when the unshifted grip touches the nut", () => {
+    // E-form major at E (022100) vs. at A (577655): the old
+    // open-string-excluding base was 1 at E but 5 at A (shift 4, not 5).
+    const atE: (number | null)[] = [0, 2, 2, 1, 0, 0];
+    const atA = atE.map((f) => (f == null ? null : f + 5));
+    expect(gripBaseFret(atA) - gripBaseFret(atE)).toBe(5);
   });
 });
 
@@ -898,7 +906,7 @@ describe("absoluteBarreFret / sourceGripBaseFret (spec §1.8, D-010)", () => {
     };
     // Source diagram for "C Major Open" (x32010): frets 3,2,0,1,0.
     const sourceFrets: (number | null)[] = [null, 3, 2, 0, 1, 0];
-    expect(sourceGripBaseFret(shape, sourceFrets)).toBe(1);
+    expect(sourceGripBaseFret(shape, sourceFrets)).toBe(0);
     expect(sourceGripBaseFret(shape, sourceFrets)).toBe(gripBaseFret(sourceFrets));
   });
 
