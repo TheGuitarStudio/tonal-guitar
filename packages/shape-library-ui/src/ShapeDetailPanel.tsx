@@ -1,3 +1,5 @@
+"use client";
+
 /**
  * Ported from `site/app/shapes/components/ShapeDetailPanel.tsx`. Non-modal
  * detail slide-over. No backdrop, no focus trap — the grid behind stays

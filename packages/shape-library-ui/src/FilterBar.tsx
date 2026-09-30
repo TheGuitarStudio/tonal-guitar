@@ -1,3 +1,5 @@
+"use client";
+
 /**
  * Ported from `site/app/shapes/components/FilterBar.tsx`. Tailwind/Fumadocs
  * classes replaced with `tg-`-prefixed classes from `./styles.css`; all

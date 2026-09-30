@@ -1,3 +1,5 @@
+"use client";
+
 /**
  * Ported from `site/app/shapes/components/ChordDetailView.tsx`. The root
  * panel (`ShapeDetailPanel.tsx`, including `buildDetail`, which produces

@@ -1,3 +1,5 @@
+"use client";
+
 /**
  * The single read-only/editing switch for every `shape-library-ui` component
  * (spec §5.3, D-002). Every component in this package renders read-only by

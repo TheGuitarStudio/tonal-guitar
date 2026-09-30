@@ -1,3 +1,5 @@
+"use client";
+
 /**
  * CAGED-style board grid (spec §5.2 `boardModel`, §5.3, §5.4 "Board
  * requirements"). Renders `shape-catalog`'s `boardModel(...)` result as a
