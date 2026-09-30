@@ -38,8 +38,13 @@
   }
 }
 
+/* Off-screen cards skip layout/paint until scrolled near (restores the
+ * deleted site card's optimization). On the wrapper, not the card button,
+ * so the absolutely positioned edit button stays inside the contained box. */
 .tg-card-wrapper {
   position: relative;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 480px;
 }
 
 .tg-card-placeholder {
