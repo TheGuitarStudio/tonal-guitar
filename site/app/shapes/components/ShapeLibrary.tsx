@@ -22,6 +22,7 @@ import {
   type ShapeCatalogEntry,
   type ShapeGroup,
   type ShapeKind,
+  type ShapesView,
 } from "shape-catalog";
 // Deep-imported from their own files rather than the `shape-library-ui`
 // barrel (`./index.ts`) — see the `ShapeDetailPanel` comment below.
@@ -85,9 +86,6 @@ function isMobileViewport(): boolean {
   return typeof window !== "undefined" && window.matchMedia(MOBILE_BREAKPOINT_QUERY).matches;
 }
 
-/** Grid vs. Board (spec §7's read-only Board view with its columns toggle). */
-type LibraryView = "grid" | "board";
-
 /**
  * Thin Next adapter (spec §7 step 5) over `shape-library-ui`'s shared
  * components: owns URL state (`parseShapesUrlState`/`serializeShapesUrlState`),
@@ -124,7 +122,9 @@ export function ShapeLibrary() {
   const [kind, setKind] = useState<ShapeKind>("chord");
   const [nameQuery, setNameQuery] = useState("");
   const [failingOnly, setFailingOnly] = useState(false);
-  const [view, setView] = useState<LibraryView>("grid");
+  // Grid vs. Board (spec §7's read-only Board view). Deep-linkable via
+  // `view=board`; `parseShapesUrlState` drops it for scale links (CR-067).
+  const [view, setView] = useState<ShapesView>("grid");
 
   // Scale-mode facets: single-select system/quality chips (`FilterBar` emits
   // `[value]` or `[]` = no narrowing), rendered with the same live-count
@@ -182,6 +182,7 @@ export function ShapeLibrary() {
     if (parsed.root) setRoot(parsed.root);
     if (parsed.sort) setChordSort(parsed.sort);
     if (parsed.expandedGroups) setExpandedGroups(parsed.expandedGroups);
+    if (parsed.view) setView(parsed.view);
     // Resolve `shape` against the catalog built above (stable for this
     // component instance) — an unknown name leaves `selectedEntry` unset
     // (honest stale link) rather than erroring.
@@ -214,6 +215,7 @@ export function ShapeLibrary() {
       root: kind === "chord" && root !== ANY_ROOT ? root : undefined,
       sort: kind === "chord" && chordSort !== "baseFret" ? chordSort : undefined,
       expandedGroups: expandedGroups.length > 0 ? expandedGroups : undefined,
+      view,
     });
     window.history.replaceState(
       null,
@@ -234,6 +236,7 @@ export function ShapeLibrary() {
     root,
     chordSort,
     expandedGroups,
+    view,
   ]);
 
   // Mobile-breakpoint media query (spec §7 step 5) — the one piece of

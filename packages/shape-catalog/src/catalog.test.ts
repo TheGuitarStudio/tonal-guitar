@@ -7,7 +7,7 @@
  * collapses back to `[]`.
  */
 import { describe, it, expect } from "vitest";
-import { toggleInAllOnSet } from "./catalog";
+import { parseShapesUrlState, serializeShapesUrlState, toggleInAllOnSet } from "./catalog";
 
 describe("toggleInAllOnSet", () => {
   const all = ["a", "b", "c"];
@@ -44,5 +44,28 @@ describe("toggleInAllOnSet", () => {
     active = toggleInAllOnSet(active, all, "b"); // -> [a, b]
     active = toggleInAllOnSet(active, all, "c"); // -> [a, b, c] === all, collapses
     expect(active).toEqual([]);
+  });
+});
+
+describe("shapes URL state: view", () => {
+  it("keeps the default grid landing view as a bare URL", () => {
+    expect(serializeShapesUrlState({})).toBe("");
+    expect(serializeShapesUrlState({ kind: "chord", view: "grid" })).toBe("");
+    expect(parseShapesUrlState("").view).toBeUndefined();
+  });
+
+  it("round-trips the chord board view", () => {
+    const qs = serializeShapesUrlState({ kind: "chord", view: "board" });
+    expect(qs).toBe("?view=board");
+    expect(parseShapesUrlState(qs)).toEqual({ view: "board" });
+  });
+
+  it("falls back to the grid for scale shapes (the board is chord-only)", () => {
+    expect(parseShapesUrlState("?kind=scale&view=board")).toEqual({ kind: "scale" });
+    expect(serializeShapesUrlState({ kind: "scale", view: "board" })).toBe("?kind=scale");
+  });
+
+  it("ignores unknown view values", () => {
+    expect(parseShapesUrlState("?view=table").view).toBeUndefined();
   });
 });
