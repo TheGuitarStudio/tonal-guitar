@@ -1486,6 +1486,10 @@ describe("shapes-merge: CR-022 — remove is idempotent (already-absent target i
       const result = await runMerge([removePath, "--root", dir]);
       expect(result.plan.removed).toBe(1);
       expect(result.plan.files.changed()).toHaveLength(0);
+      // CR-109: satisfied, but flagged — the name may be a typo.
+      expect(result.plan.warnings).toEqual([
+        expect.stringContaining('remove chord "Totally Nonexistent Shape Xyz CR022": not found'),
+      ]);
     }),
   );
 });

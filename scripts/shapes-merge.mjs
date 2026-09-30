@@ -900,6 +900,12 @@ async function planMerge(changeset, ctx) {
     if (region === undefined) {
       if (change.op === "remove") {
         alreadySatisfiedRemoves.add(change);
+        // CR-109: satisfied, but say so — a typo'd name would otherwise
+        // report a successful remove.
+        warnings.push(
+          `remove ${change.kind} "${change.name}": not found in any src/data/*.ts file — nothing removed ` +
+            `(already removed, or a misspelled name?)`,
+        );
         continue;
       }
       throw new MergeRefusal(
