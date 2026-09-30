@@ -11,37 +11,33 @@
  *
  * Every Tonal-derived value the panel needs (identified chord, scales over a
  * chord, alternate fingerings, inversions, sibling steppers, related scales,
- * compatible shapes) is computed once in `buildDetail`, invoked from a
- * single `useMemo` keyed on `entry` — never for the full catalog.
- * `buildDetail` itself only calls the pure helpers in `shape-catalog`.
+ * compatible shapes) is computed once by `shape-catalog`'s `buildDetail`,
+ * invoked from a single `useMemo` keyed on `entry` — never for the full
+ * catalog.
  *
  * Capability-gated: the Edit / Duplicate-to-position / Add-tag affordances
  * (each carrying `data-tg-edit`) render only when the corresponding
  * `EditCapabilities` callback is provided (spec §5.3 D-002 invariant).
  */
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import type { ShapeCatalogEntry } from "shape-catalog";
 import {
-  alternateFingerings,
+  buildDetail,
+  buildEntryNameMap,
   CAGED_ORDER,
-  chordDetailFor,
-  chordTypeSiblings,
-  compatibleShapesForEntry,
-  inversionGroups,
-  relatedScalesForEntry,
-  scaleSiblings,
-  siblingScaleStepper,
-  siblingStepper,
+  type ChordDetail,
+  type PanelDetail,
+  type ScaleDetail,
+  type ShapeCatalogEntry,
 } from "shape-catalog";
 import { ChordDetailView } from "./ChordDetailView";
 import { ScaleDetailView } from "./ScaleDetailView";
 import { useLibraryCapabilities } from "./capabilities";
 import { Section, SiblingStepper, siblingIndexAt, ReportProblemLink } from "./detailPrimitives";
-import type { ChordDetail, ScaleDetail, PanelDetail } from "./detailTypes";
 
 // Re-exported so the package barrel (`index.ts`) — and any code importing
 // directly from this module — keep working unchanged after the CR-035
-// extraction into `detailPrimitives.tsx`/`detailTypes.ts`.
+// extraction into `detailPrimitives.tsx` and the CR-051 move of the detail
+// types/builders into `shape-catalog`.
 export { Section, SiblingStepper, siblingIndexAt, ReportProblemLink };
 export type { ChordDetail, ScaleDetail };
 
@@ -75,51 +71,6 @@ export interface ShapeDetailPanelProps {
 // one rather than threading optionality through every sibling-link/stepper
 // helper inside those views.
 const NOOP_SELECT_ENTRY = () => {};
-
-// ============================================================
-// Detail computation — the panel's single Tonal-derivation useMemo
-// ============================================================
-
-function buildDetail(entry: ShapeCatalogEntry, catalog: readonly ShapeCatalogEntry[]): PanelDetail {
-  if (entry.kind === "chord") {
-    const siblings = chordTypeSiblings(entry);
-    const { identified, chordName, scales } = chordDetailFor(entry);
-    return {
-      kind: "chord",
-      entry,
-      identified,
-      chordName,
-      scales,
-      siblings,
-      stepper: siblingStepper(entry, siblings),
-      alternates: alternateFingerings(entry),
-      inversions: inversionGroups(entry, siblings),
-    };
-  }
-
-  const scaleSiblingsList = scaleSiblings(entry, catalog);
-  return {
-    kind: "scale",
-    entry,
-    siblings: scaleSiblingsList,
-    stepper: siblingScaleStepper(entry, scaleSiblingsList),
-    related: relatedScalesForEntry(entry),
-    compatible: compatibleShapesForEntry(entry),
-  };
-}
-
-function buildEntryNameMap<K extends ShapeCatalogEntry["kind"]>(
-  catalog: readonly ShapeCatalogEntry[],
-  kind: K,
-): Map<string, Extract<ShapeCatalogEntry, { kind: K }>> {
-  const map = new Map<string, Extract<ShapeCatalogEntry, { kind: K }>>();
-  for (const candidate of catalog) {
-    if (candidate.kind === kind) {
-      map.set(candidate.name, candidate as Extract<ShapeCatalogEntry, { kind: K }>);
-    }
-  }
-  return map;
-}
 
 // ============================================================
 // Root component

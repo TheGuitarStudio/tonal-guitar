@@ -2,11 +2,11 @@
 
 /**
  * Ported from `site/app/shapes/components/ChordDetailView.tsx`. The root
- * panel (`ShapeDetailPanel.tsx`, including `buildDetail`, which produces
- * the `ChordDetail` this view renders) is a sibling module, not an
- * ancestor: the shared presentational primitives and the `ChordDetail`
- * type live in `./detailPrimitives`/`./detailTypes` so this view doesn't
- * import back from the panel (CR-035 — keeps the import graph a DAG).
+ * panel (`ShapeDetailPanel.tsx`) is a sibling module, not an ancestor: the
+ * shared presentational primitives live in `./detailPrimitives` and the
+ * `ChordDetail` payload (built by `shape-catalog`'s `buildDetail`) in
+ * `shape-catalog`, so this view doesn't import back from the panel
+ * (CR-035 — keeps the import graph a DAG).
  *
  * The site's `CompactFretboard.tsx` (alternate-fingering thumbnails with a
  * hover/focus enlarged preview) isn't part of this package's public
@@ -17,14 +17,19 @@
  */
 import { useState } from "react";
 import type { ChordShape, ContainingScale, ScalesContainingChordResult } from "tonal-guitar";
-import { chordDisplaySymbol, type ChordCatalogEntry, type InversionGroupsResult, type ShapeCatalogEntry } from "shape-catalog";
+import {
+  chordDisplaySymbol,
+  type ChordCatalogEntry,
+  type ChordDetail,
+  type InversionGroupsResult,
+  type ShapeCatalogEntry,
+} from "shape-catalog";
 import { Fretboard } from "fretboard-ui";
 import { buildFretMarkers, fretRangeFor, fretSummary, MONOCHROME_THEME } from "./ShapeDiagram";
 import { ShapeCardDiagram } from "./ShapeCardDiagram";
 import { ShapeCardChordTable } from "./ShapeCardChordTable";
 import { FeaturedMark, IssueBadges } from "./IssueBadges";
 import { ReportProblemLink, Section, SiblingStepper, siblingIndexAt } from "./detailPrimitives";
-import type { ChordDetail } from "./detailTypes";
 
 export function ChordDetailView({
   detail,
