@@ -45,30 +45,24 @@ export function ExportDiffView({ state, change }: ExportDiffViewProps) {
     setBeforeError(undefined);
     setAfterError(undefined);
 
-    function errorMessage(error: unknown): string {
-      return error instanceof Error ? error.message : "Failed to render TS preview.";
+    function renderInto(
+      shape: unknown,
+      setText: (text: string) => void,
+      setError: (message: string) => void,
+    ): void {
+      if (shape === undefined) return;
+      renderShapeTs(change.kind, shape as ShapeLike).then(
+        (text) => {
+          if (!cancelled) setText(text);
+        },
+        (error: unknown) => {
+          if (!cancelled) setError(error instanceof Error ? error.message : "Failed to render TS preview.");
+        },
+      );
     }
 
-    if (after !== undefined) {
-      renderShapeTs(change.kind, after as unknown as ShapeLike).then(
-        (text) => {
-          if (!cancelled) setAfterTs(text);
-        },
-        (error: unknown) => {
-          if (!cancelled) setAfterError(errorMessage(error));
-        },
-      );
-    }
-    if (before !== undefined) {
-      renderShapeTs(change.kind, before as unknown as ShapeLike).then(
-        (text) => {
-          if (!cancelled) setBeforeTs(text);
-        },
-        (error: unknown) => {
-          if (!cancelled) setBeforeError(errorMessage(error));
-        },
-      );
-    }
+    renderInto(after, setAfterTs, setAfterError);
+    renderInto(before, setBeforeTs, setBeforeError);
     return () => {
       cancelled = true;
     };
