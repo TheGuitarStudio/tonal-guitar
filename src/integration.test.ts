@@ -85,7 +85,7 @@ import type {
 } from "./index";
 import { relabelShape } from "./transform";
 import { walkShapeMotif } from "./walker";
-import { STANDARD, DROP_D, STANDARD_7 } from "./tuning";
+import { STANDARD, DROP_D, STANDARD_7, STANDARD_8 } from "./tuning";
 
 // Side-effect imports to register shapes at module load time (used by TG5 tests)
 import "./data/caged-scales";
@@ -2099,10 +2099,22 @@ describe("parentBoxForChordShape (Task Group 11)", () => {
     expect(parentBoxForChordShape(chord, "D")).toBeUndefined();
   });
 
-  it("filters candidates by tuning string count", () => {
+  it("accepts shorter boxes on 7- and 8-string tunings (same box as STANDARD)", () => {
     const chord = makeChordShape({ chordType: "M", rootString: 0 });
-    // A 7-string tuning excludes every registered (6-string) box.
-    expect(parentBoxForChordShape(chord, "E", STANDARD_7)).toBeUndefined();
+    const base = parentBoxForChordShape(chord, "E", STANDARD);
+    expect(base).toBeDefined();
+    for (const tuning of [STANDARD_7, STANDARD_8]) {
+      const result = parentBoxForChordShape(chord, "E", tuning);
+      expect(result).toBeDefined();
+      expect(result?.box.name).toBe(base?.box.name);
+      expect(result?.scaleName).toBe(base?.scaleName);
+    }
+  });
+
+  it("skips boxes with more strings than the tuning", () => {
+    const chord = makeChordShape({ chordType: "M", rootString: 0 });
+    const fourString = ["E2", "A2", "D3", "G3"];
+    expect(parentBoxForChordShape(chord, "E", fourString)).toBeUndefined();
   });
 });
 
@@ -2201,5 +2213,19 @@ describe("arpeggioFor (Task Group 11)", () => {
 
     expect(result.resolution.tier).toBe("derived");
     expect(result.fretted).toEqual(NoFrettedScale);
+  });
+
+  it('tier "derived": builds on STANDARD_7 with notes on the highest six strings', () => {
+    const chord = makeChordShape({ chordType: "m", rootString: 0 });
+
+    const result = arpeggioFor(chord, "D", STANDARD_7);
+
+    expect(result.resolution.tier).toBe("derived");
+    expect(result.fretted.empty).toBe(false);
+    expect(result.fretted.notes.length).toBeGreaterThan(0);
+    for (const n of result.fretted.notes) {
+      expect(n.string).toBeGreaterThanOrEqual(1);
+      expect(n.string).toBeLessThanOrEqual(6);
+    }
   });
 });

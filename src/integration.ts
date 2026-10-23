@@ -232,9 +232,10 @@ export function relabelShapeToScale(
  * build directly against it in the requested scale's interval frame (e.g.
  * `arpeggioFromShape`).
  *
- * `tuning` (defaults to `STANDARD`) filters candidates to boxes whose
- * `strings` length matches the tuning's string count, so a box shaped for a
- * different string count is never selected.
+ * `tuning` (defaults to `STANDARD`) skips candidates with more strings than
+ * the tuning has. Shorter boxes stay eligible: a 6-string box on a 7- or
+ * 8-string tuning is placed on the highest strings via the builders' string
+ * offset, matching `buildFrettedScale`.
  *
  * Returns `undefined` when:
  * - `shape.chordType` has no `CHORD_SCALE_RULE` entry (e.g. `dim`, `dim7`,
@@ -268,7 +269,7 @@ export function parentBoxForChordShape(
   const scaleName = scale.name;
 
   for (const candidate of all()) {
-    if (candidate.strings.length !== tuning.length) {
+    if (candidate.strings.length > tuning.length) {
       continue;
     }
     const relabeled = relabelShape(candidate, scale.intervals);
