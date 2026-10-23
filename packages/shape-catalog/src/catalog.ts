@@ -8,6 +8,7 @@
 import {
   all,
   chordShapes,
+  arpeggioShapes,
   applyChordShape,
   buildFrettedScale,
   displayRootFor,
@@ -16,6 +17,7 @@ import {
 } from "tonal-guitar";
 import type {
   ScaleShape,
+  ArpeggioShape,
   ChordShape,
   FrettedScale,
   FrettedNote,
@@ -35,7 +37,7 @@ export interface CatalogConfig {
   repoSlug: string;
 }
 
-export type ShapeKind = "scale" | "chord";
+export type ShapeKind = "scale" | "chord" | "arpeggio";
 
 interface ShapeCatalogEntryBase {
   name: string;
@@ -69,12 +71,17 @@ export type ShapeCatalogEntry =
        * its source grip is authored against the root parsed from its name.
        */
       gripRoot?: string;
+    })
+  | (ShapeCatalogEntryBase & {
+      kind: "arpeggio";
+      shape: ArpeggioShape;
     });
 
 /** Narrowed catalog entry types — convenience aliases over the `kind`
  * discriminant, reused by every chord- or scale-only helper below. */
 export type ChordCatalogEntry = Extract<ShapeCatalogEntry, { kind: "chord" }>;
 export type ScaleCatalogEntry = Extract<ShapeCatalogEntry, { kind: "scale" }>;
+export type ArpeggioCatalogEntry = Extract<ShapeCatalogEntry, { kind: "arpeggio" }>;
 
 // ============================================================
 // Chord fingering → FrettedScale adapter
@@ -167,6 +174,32 @@ export function buildCatalog(
   });
 
   return entries;
+}
+
+/**
+ * Arpeggio entries live in their own builder (not `buildCatalog`) so the
+ * docs site's catalog — and the FilterBar counts derived from it — stay
+ * scale + chord only. The workbench concatenates the two.
+ */
+export function buildArpeggioCatalog(
+  auditResult: ReturnType<typeof auditAllShapes>,
+): ArpeggioCatalogEntry[] {
+  // ArpeggioShape has no canonicalRoot field (same as scales), so this
+  // always resolves to the "C" fallback.
+  const renderRoot = displayRootFor({});
+  return arpeggioShapes.all().map((shape, index) => {
+    const frettedScale = buildFrettedScale(shape, renderRoot, STANDARD);
+    return {
+      kind: "arpeggio",
+      name: shape.name,
+      shape,
+      index,
+      renderRoot,
+      frettedScale,
+      builtFrets: fretsFromNotes(frettedScale.notes, STANDARD),
+      issues: auditResult.arpeggio.get(shape.name) ?? [],
+    };
+  });
 }
 
 // ============================================================
@@ -920,7 +953,8 @@ export function parseShapesUrlState(search: string): ShapesUrlState {
  */
 export function serializeShapesUrlState(state: ShapesUrlState): string {
   const params = new URLSearchParams();
-  if (state.kind && state.kind !== "chord") params.set("kind", state.kind);
+  // Arpeggios are workbench-only: never written to (or parsed from) site URLs.
+  if (state.kind && state.kind !== "chord" && state.kind !== "arpeggio") params.set("kind", state.kind);
   if (state.system) params.set("system", state.system);
   if (state.familyOrQuality) params.set("family", state.familyOrQuality);
   if (state.nameQuery) params.set("q", state.nameQuery);
@@ -963,16 +997,19 @@ export function reportIssueBaseUrl(config: CatalogConfig): string {
 function metadataLines(entry: ShapeCatalogEntry): string[] {
   const chordShape = entry.kind === "chord" ? entry.shape : undefined;
   const scaleShape = entry.kind === "scale" ? entry.shape : undefined;
+  const arpeggioShape = entry.kind === "arpeggio" ? entry.shape : undefined;
 
   const pairs: [string, unknown][] = [
     ["system", entry.shape.system],
     ["voicingFamily", chordShape?.voicingFamily],
     ["quality", scaleShape?.quality],
-    ["chordType", chordShape?.chordType],
+    ["chordType", chordShape?.chordType ?? arpeggioShape?.chordType],
     ["inversion", chordShape?.inversion],
     ["canonicalRoot", chordShape?.canonicalRoot],
     ["baseFret", chordShape?.baseFret],
-    ["parentShape", scaleShape?.parentShape],
+    ["parentShape", scaleShape?.parentShape ?? arpeggioShape?.parentShape],
+    ["cagedPosition", arpeggioShape?.cagedPosition],
+    ["chordShape", arpeggioShape?.chordShape],
     ["stringSet", chordShape?.stringSet],
     ["omittedIntervals", chordShape?.omittedIntervals],
   ];

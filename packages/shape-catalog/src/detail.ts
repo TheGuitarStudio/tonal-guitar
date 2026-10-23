@@ -25,6 +25,7 @@ import type {
   ScalesContainingChordResult,
 } from "tonal-guitar";
 import type {
+  ArpeggioCatalogEntry,
   ChordCatalogEntry,
   ScaleCatalogEntry,
   ShapeCatalogEntry,
@@ -375,7 +376,13 @@ export interface ScaleDetail {
   compatible: CompatibleShapesResult;
 }
 
-export type PanelDetail = ChordDetail | ScaleDetail;
+/** Minimal arpeggio payload — no Tonal-derived extras, the panel shows the entry's own metadata. */
+export interface ArpeggioDetail {
+  kind: "arpeggio";
+  entry: ArpeggioCatalogEntry;
+}
+
+export type PanelDetail = ChordDetail | ScaleDetail | ArpeggioDetail;
 
 /**
  * Every Tonal-derived value the detail panel shows for `entry` (identified
@@ -385,7 +392,9 @@ export type PanelDetail = ChordDetail | ScaleDetail;
  * `catalog` is only read for scale siblings.
  */
 export function buildDetail(entry: ShapeCatalogEntry, catalog: readonly ShapeCatalogEntry[]): PanelDetail {
-  return entry.kind === "chord" ? buildChordDetail(entry) : buildScaleDetail(entry, catalog);
+  if (entry.kind === "chord") return buildChordDetail(entry);
+  if (entry.kind === "arpeggio") return { kind: "arpeggio", entry };
+  return buildScaleDetail(entry, catalog);
 }
 
 /** Chord half of `buildDetail`. */

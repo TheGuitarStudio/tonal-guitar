@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { ComponentProps } from "react";
 import { renderToString } from "react-dom/server";
 import type { ScaleFacetSelection } from "shape-catalog";
 import { FilterBar } from "./FilterBar";
@@ -6,7 +7,7 @@ import { catalog, stripReactComments } from "./testFixtures";
 
 const noop = () => {};
 
-function renderChordBar() {
+function renderChordBar(extra: Partial<ComponentProps<typeof FilterBar>> = {}) {
   return renderToString(
     <FilterBar
       entries={catalog}
@@ -28,6 +29,7 @@ function renderChordBar() {
       onFailingOnlyChange={noop}
       shownCount={10}
       totalCount={20}
+      {...extra}
     />,
   );
 }
@@ -59,6 +61,20 @@ function renderScaleBar(scaleSelection: ScaleFacetSelection = {}) {
 }
 
 describe("FilterBar", () => {
+  it("offers only Scale and Chord kind toggles by default", () => {
+    const html = renderChordBar();
+    expect(html).toContain("Scale");
+    expect(html).toContain("Chord");
+    expect(html).not.toContain("Arpeggio");
+  });
+
+  it("offers an Arpeggio toggle when kinds includes it, and no facet rows for the arpeggio kind", () => {
+    const html = renderChordBar({ kind: "arpeggio", kinds: ["scale", "chord", "arpeggio"] });
+    expect(html).toContain("Arpeggio");
+    expect(html).toContain("Failing only");
+    expect(html).not.toContain("Sort chord shapes");
+  });
+
   it("renders under renderToString with no window access, in both chord and scale mode", () => {
     expect(() => renderChordBar()).not.toThrow();
     expect(() => renderScaleBar()).not.toThrow();

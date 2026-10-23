@@ -35,7 +35,11 @@ export type ChordSortOption = "baseFret" | "name";
 const KIND_TOGGLE_OPTIONS: ToggleGroupOption<ShapeKind>[] = [
   { value: "scale", label: "Scale" },
   { value: "chord", label: "Chord" },
+  { value: "arpeggio", label: "Arpeggio" },
 ];
+
+/** Default kind toggles — arpeggio is opt-in (workbench only). */
+const DEFAULT_KINDS: readonly ShapeKind[] = ["scale", "chord"];
 
 export interface FilterBarProps {
   /**
@@ -46,6 +50,8 @@ export interface FilterBarProps {
   entries: ShapeCatalogEntry[];
 
   kind: ShapeKind;
+  /** Which kind toggle options to render. Default `["scale", "chord"]`. */
+  kinds?: readonly ShapeKind[];
   onKindChange: (kind: ShapeKind) => void;
 
   chordSelection: ChordFacetSelection;
@@ -78,6 +84,7 @@ export interface FilterBarProps {
 export function FilterBar({
   entries,
   kind,
+  kinds = DEFAULT_KINDS,
   onKindChange,
   chordSelection,
   onQualityGroupChange,
@@ -109,7 +116,7 @@ export function FilterBar({
   return (
     <div className="tg-filterbar">
       <div className="tg-filterbar-row">
-        <ToggleGroup options={KIND_TOGGLE_OPTIONS} value={kind} onChange={onKindChange} label="Shape kind" />
+        <ToggleGroup options={KIND_TOGGLE_OPTIONS.filter((option) => kinds.includes(option.value))} value={kind} onChange={onKindChange} label="Shape kind" />
 
         <input
           type="text"
@@ -145,7 +152,7 @@ export function FilterBar({
         </span>
       </div>
 
-      {kind === "chord" ? (
+      {kind === "arpeggio" ? null : kind === "chord" ? (
         <ChordFacets
           entries={entries}
           selection={chordSelection}

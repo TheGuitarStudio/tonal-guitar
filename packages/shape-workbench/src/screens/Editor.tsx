@@ -19,7 +19,7 @@
  */
 import { useEffect, useState } from "react";
 import { Fretboard, type EditorCell, type Orientation } from "fretboard-ui";
-import type { Barre, ChordShape } from "tonal-guitar";
+import type { ArpeggioShape, Barre, ChordShape } from "tonal-guitar";
 import { FretboardEditor } from "fretboard-ui";
 import { useWorkbenchDispatch, useWorkbenchState } from "../StoreProvider";
 import { navigateToRoute } from "../useRoute";
@@ -30,6 +30,8 @@ import { ChordTable } from "../editor/ChordTable";
 import { ChecksCard } from "../editor/ChecksCard";
 import { OutputPreview } from "../editor/OutputPreview";
 import { PropertiesForm } from "../editor/PropertiesForm";
+import { ArpeggioPropertiesForm, DEFAULT_ARPEGGIO_FILE } from "../editor/ArpeggioPropertiesForm";
+import { buildArpeggioFromCells, seedForArpeggioDraft } from "../editor/deriveArpeggio";
 import { IdentifyRow, AtOtherRoots } from "../editor/IdentifyAndRoots";
 import {
   autoFingerCells,
@@ -288,6 +290,188 @@ function EditorInner({ slotKey, draft }: { slotKey: string; draft: WorkbenchDraf
   );
 }
 
+// Seeded-cell fret window with one fret of padding (cf. fretboard-ui's
+// `autoFretRange`, which its barrel doesn't export), at least 12 frets wide.
+function arpeggioFretRange(cells: EditorCell[]): [number, number] {
+  const lo = Math.max(0, Math.min(...cells.map((c) => c.fret)) - 1);
+  const hi = Math.max(...cells.map((c) => c.fret)) + 1;
+  return [lo, Math.max(hi, lo + 12)];
+}
+
+const ARPEGGIO_TOOLS: readonly EditorTool[] = ["select", "note", "root"];
+const ARPEGGIO_LABEL_MODES: readonly LabelDisplayMode[] = ["intervals", "notes"];
+
+/**
+ * Arpeggio editor: the same wiring as `EditorInner`, minus everything
+ * chord-specific (fingers, barres, mutes, identify, the grip table). Only
+ * note/root placement is offered — `rawGeometry` carries `barres: []`, and
+ * `strings`/`rootString` are derived via `buildArpeggioFromCells`.
+ */
+function ArpeggioEditorInner({ slotKey, draft: storedDraft }: { slotKey: string; draft: WorkbenchDraft }) {
+  const state = useWorkbenchState();
+  const dispatch = useWorkbenchDispatch();
+  // A new arpeggio defaults to its registry file; the default is persisted
+  // by the geometry effect below like any other draft edit.
+  const draft: WorkbenchDraft =
+    storedDraft.origin === "gap" && storedDraft.file === undefined
+      ? { ...storedDraft, file: DEFAULT_ARPEGGIO_FILE }
+      : storedDraft;
+  const shape = draft.shape as ArpeggioShape;
+  const tuning = state.tuning;
+
+  const [seed] = useState(() => seedForArpeggioDraft({ shape, rawGeometry: draft.rawGeometry }, tuning, state.authorRoot));
+  const [cells, setCells] = useState<EditorCell[]>(seed.cells);
+  const [tool, setTool] = useState<EditorTool>("select");
+  const [labelMode, setLabelMode] = useState<Exclude<LabelDisplayMode, "fingers">>("intervals");
+  // Initialised from the seeded cells so a seed at e.g. root A (frets past
+  // 12) isn't cut off.
+  const [fretRange, setFretRange] = useState<[number, number]>(() =>
+    seed.cells.length === 0 ? [0, 12] : arpeggioFretRange(seed.cells),
+  );
+  const [saveMessage, setSaveMessage] = useState<string | undefined>(undefined);
+
+  function handleCellsChange(next: EditorCell[]) {
+    setCells(applyCellsChange(cells, next, tool, 1));
+  }
+
+  function handleShapeFieldChange(patch: Partial<ArpeggioShape>) {
+    dispatch({ type: "SET_DRAFT", key: slotKey, draft: { ...draft, shape: { ...shape, ...patch } } });
+  }
+
+  function handleFileChange(nextFile: string) {
+    dispatch({ type: "SET_DRAFT", key: slotKey, draft: { ...draft, file: nextFile } });
+  }
+
+  function handleIdentChange(nextIdent: string) {
+    dispatch({ type: "SET_DRAFT", key: slotKey, draft: { ...draft, ident: nextIdent } });
+  }
+
+  const derivedShape = buildArpeggioFromCells(shape, cells, tuning, state.authorRoot);
+  const displayShape = derivedShape ?? shape;
+
+  // Persists the live geometry (always) and the derived shape (only when
+  // valid) — see the chord editor's effect above for the CR-052/CR-115
+  // rationale; keyed on the real inputs so it can't loop.
+  useEffect(() => {
+    dispatch({
+      type: "SET_DRAFT",
+      key: slotKey,
+      draft: {
+        ...draft,
+        rawGeometry: { cells, barres: [] },
+        ...(derivedShape !== undefined ? { shape: derivedShape } : {}),
+      },
+    });
+  }, [cells, state.authorRoot]);
+
+  function handleRunChecks() {
+    if (derivedShape === undefined) {
+      setSaveMessage(
+        'Mark a root (interval "1P") before checks can run against the real shape — showing checks against the empty draft for now.',
+      );
+      return;
+    }
+    dispatch({ type: "SET_DRAFT", key: slotKey, draft: { ...draft, shape: derivedShape } });
+    setSaveMessage(undefined);
+  }
+
+  function handleDiscard() {
+    dispatch({ type: "REMOVE_DRAFT", key: slotKey });
+    navigateToRoute({ type: "board" });
+  }
+
+  function handleSave() {
+    const result = computeSaveDraft(draft, cells, [], tuning, state.authorRoot);
+    if (!result.ok) {
+      setSaveMessage(result.error);
+      return;
+    }
+    dispatch({ type: "SET_DRAFT", key: slotKey, draft: result.draft });
+    dispatch({ type: "ADD_CHANGE", change: result.change, sourceKey: slotKey });
+    navigateToRoute({ type: "board" });
+  }
+
+  const inChangeset = isDraftInChangeset(state, shape.name);
+  const draftStatus = inChangeset ? "in changeset" : "draft · not in changeset";
+
+  return (
+    <section data-testid="editor-screen">
+      <div className="tg-board-header-bar">
+        <h1>Shape Workbench — Editor</h1>
+        <nav aria-label="Breadcrumb" className="tg-muted">
+          <a href="#/board">Board</a> / {shape.name || "Untitled"}
+        </nav>
+        <span className="tg-tag" data-testid="draft-status">
+          {draftStatus}
+        </span>
+        <button type="button" onClick={handleDiscard}>
+          Discard
+        </button>
+        <button type="button" onClick={handleRunChecks}>
+          Run checks
+        </button>
+        <button type="button" data-testid="save-button" onClick={handleSave}>
+          Save to changeset
+        </button>
+      </div>
+
+      {saveMessage !== undefined && (
+        <p role="alert" data-testid="save-message">
+          {saveMessage}
+        </p>
+      )}
+
+      <div className="tg-editor-layout" data-testid="arpeggio-editor">
+        <div className="tg-editor-left">
+          <ToolPalette
+            tools={ARPEGGIO_TOOLS}
+            labelModes={ARPEGGIO_LABEL_MODES}
+            tool={tool}
+            onToolChange={setTool}
+            activeFinger={1}
+            onActiveFingerChange={() => {}}
+            authorRoot={state.authorRoot}
+            onAuthorRootChange={(root) => dispatch({ type: "SET_AUTHOR_ROOT", root })}
+            labelMode={labelMode}
+            onLabelModeChange={(mode) => setLabelMode(mode === "fingers" ? "intervals" : mode)}
+            fretRange={fretRange}
+            onFretRangeChange={setFretRange}
+            orientation={state.orientation}
+            onOrientationChange={(orientation: Orientation) => dispatch({ type: "SET_ORIENTATION", orientation })}
+          />
+          <FretboardEditor
+            tuning={tuning}
+            cells={cells}
+            onChange={handleCellsChange}
+            rootPitchClass={state.authorRoot}
+            fretRange={fretRange}
+            layout={{ orientation: state.orientation }}
+            labelMode={labelMode}
+          />
+        </div>
+
+        <div className="tg-editor-right">
+          <OutputPreview draft={{ ...draft, shape: displayShape }} />
+          <ArpeggioPropertiesForm
+            draft={draft}
+            shape={shape}
+            onShapeChange={handleShapeFieldChange}
+            onFileChange={handleFileChange}
+            onIdentChange={handleIdentChange}
+          />
+          <ChecksCard
+            kind="arpeggio"
+            shape={displayShape}
+            root={state.authorRoot}
+            tuning={tuning}
+            existingEdit={draft.origin === "existing"}
+          />
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export function EditorScreen({ slotKey }: EditorScreenProps) {
   const state = useWorkbenchState();
   const draft = state.drafts[slotKey];
@@ -302,13 +486,17 @@ export function EditorScreen({ slotKey }: EditorScreenProps) {
     );
   }
 
+  if (draft.kind === "arpeggio") {
+    return <ArpeggioEditorInner key={slotKey} slotKey={slotKey} draft={draft} />;
+  }
+
   // The tool palette / cellsToChordShape / Fingering machinery below is
   // chord-shape-specific (spec §5.4's Editor requirements, tasks.md Group
-  // 26, closes #66's chord fingering/barre gap). Scale/arpeggio drafts can
-  // still be created and reach a slot key (`onCreateShape`/`draftForSlot`,
-  // Group 24) but authoring their multi-interval-per-string geometry is out
-  // of this group's scope — this placeholder keeps that explicit rather
-  // than mis-rendering a chord-only UI against a `ScaleShape`.
+  // 26, closes #66's chord fingering/barre gap). Scale drafts can still be
+  // created and reach a slot key (`onCreateShape`/`draftForSlot`, Group 24)
+  // but authoring their multi-interval-per-string geometry is out of scope
+  // — this placeholder keeps that explicit rather than mis-rendering a
+  // chord-only UI against a `ScaleShape`.
   if (draft.kind !== "chord") {
     return (
       <section data-testid="editor-screen">

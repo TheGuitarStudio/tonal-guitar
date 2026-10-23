@@ -24,6 +24,7 @@ import {
   buildDetail,
   buildEntryNameMap,
   CAGED_ORDER,
+  type ArpeggioDetail,
   type ChordDetail,
   type PanelDetail,
   type ScaleDetail,
@@ -31,6 +32,8 @@ import {
 } from "shape-catalog";
 import { ChordDetailView } from "./ChordDetailView";
 import { ScaleDetailView } from "./ScaleDetailView";
+import { FeaturedMark, IssueBadges } from "./IssueBadges";
+import { ShapeCardDiagram } from "./ShapeCardDiagram";
 import { useLibraryCapabilities } from "./capabilities";
 import { Section, SiblingStepper, siblingIndexAt, ReportProblemLink } from "./detailPrimitives";
 
@@ -148,7 +151,7 @@ export function ShapeDetailPanel({
       ref={panelRef}
       tabIndex={-1}
       role="complementary"
-      aria-label={`${entry.kind === "chord" ? "Chord" : "Scale"} shape details`}
+      aria-label={`${KIND_LABELS[entry.kind]} shape details`}
       className={wrapperClassName}
     >
       {/* Announces swaps for assistive tech — the panel is non-modal, so
@@ -171,6 +174,8 @@ export function ShapeDetailPanel({
 
       {detail.kind === "chord" ? (
         <ChordDetailView detail={detail} chordCatalogByName={chordCatalogByName} onSelectEntry={onSelectEntry ?? NOOP_SELECT_ENTRY} />
+      ) : detail.kind === "arpeggio" ? (
+        <ArpeggioDetailView detail={detail} />
       ) : (
         <ScaleDetailView detail={detail} scaleCatalogByName={scaleCatalogByName} onSelectEntry={onSelectEntry ?? NOOP_SELECT_ENTRY} />
       )}
@@ -251,3 +256,37 @@ function EditControls({
 // Shared presentational primitives (Section, SiblingStepper, siblingIndexAt,
 // ReportProblemLink) live in `./detailPrimitives` and are re-exported near
 // the top of this file — see the CR-035 comment there.
+
+const KIND_LABELS = { chord: "Chord", scale: "Scale", arpeggio: "Arpeggio" } as const;
+
+/** Minimal read-only arpeggio view: header tags, issues, diagram, report link. */
+function ArpeggioDetailView({ detail }: { detail: ArpeggioDetail }) {
+  const { entry } = detail;
+  const { shape } = entry;
+  const tags = [shape.system, shape.chordType, shape.cagedPosition, ...(shape.tags ?? [])];
+  return (
+    <div>
+      <div className="tg-detail-header">
+        <div className="tg-card-header">
+          <h2 className="tg-detail-title">{entry.name}</h2>
+          {shape.featured && <FeaturedMark />}
+          {tags.map((tag) => tag && <span key={tag} className="tg-tag">{tag}</span>)}
+        </div>
+        {(shape.chordShape || shape.parentShape) && (
+          <p className="tg-muted tg-detail-subtitle">
+            {shape.chordShape && <>Chord grip: {shape.chordShape}</>}
+            {shape.chordShape && shape.parentShape && " · "}
+            {shape.parentShape && <>Derived from {shape.parentShape}</>}
+          </p>
+        )}
+        <div className="tg-detail-issues">
+          <IssueBadges issues={entry.issues} />
+        </div>
+      </div>
+
+      <ShapeCardDiagram entry={entry} />
+
+      <ReportProblemLink entry={entry} />
+    </div>
+  );
+}

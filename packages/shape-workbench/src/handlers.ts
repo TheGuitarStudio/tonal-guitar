@@ -17,7 +17,7 @@
  * minimal-but-correct implementations so those screens have something
  * concrete to call.
  */
-import type { CagedPosition, ChordShape, ScaleShape } from "tonal-guitar";
+import type { ArpeggioShape, CagedPosition, ChordShape, ScaleShape } from "tonal-guitar";
 import { arpeggioSlotKey } from "tonal-guitar";
 import type { BoardSlot, ChordSlot, DraftShape, ShapeCatalogEntry } from "shape-catalog";
 import type { DraftBadgeInfo, EditCapabilities } from "shape-library-ui";
@@ -145,10 +145,14 @@ function onCreateShape(deps: HandlerDeps, slot: BoardSlot): void {
 function onEditShape(deps: HandlerDeps, entry: ShapeCatalogEntry): void {
   const key = entry.shape.name;
   if (!(key in deps.state.drafts)) {
-    const draft: DraftShape =
-      entry.kind === "chord"
-        ? { kind: "chord", origin: "existing", shape: { ...entry.shape }, original: { ...entry.shape } }
-        : { kind: "scale", origin: "existing", shape: { ...entry.shape }, original: { ...entry.shape } };
+    let draft: DraftShape;
+    if (entry.kind === "chord") {
+      draft = { kind: "chord", origin: "existing", shape: { ...entry.shape }, original: { ...entry.shape } };
+    } else if (entry.kind === "arpeggio") {
+      draft = { kind: "arpeggio", origin: "existing", shape: { ...entry.shape }, original: { ...entry.shape } };
+    } else {
+      draft = { kind: "scale", origin: "existing", shape: { ...entry.shape }, original: { ...entry.shape } };
+    }
     deps.dispatch({ type: "SET_DRAFT", key, draft });
   }
   deps.navigate({ type: "editor", id: key });
@@ -160,15 +164,24 @@ function onDuplicateToPosition(
   position: CagedPosition,
 ): void {
   const rowKey = entry.shape.chordType ?? entry.shape.name;
-  const key = `${rowKey}::${position}`;
+  // An arpeggio duplicate and a chord duplicate can share a row key
+  // (`M::E`), and `Board.tsx` badges chord/scale cells by that exact key — so
+  // arpeggio duplicates are namespaced `arpeggio:` to never collide with (or
+  // clobber) a chord/scale draft. `draftFor` below resolves them back to the
+  // arpeggio board's plain `${chordType}::${cagedPosition}` cell keys.
+  const key = entry.kind === "arpeggio" ? `${ARPEGGIO_KEY_PREFIX}${rowKey}::${position}` : `${rowKey}::${position}`;
   // A duplicate starts life as a brand-new shape (origin "gap" ->
   // AddChange, spec §5.2's draftToChange): cleared name so the author
   // can't accidentally save a same-named collision, cagedPosition moved to
   // the target column.
-  const draft: DraftShape =
-    entry.kind === "chord"
-      ? { kind: "chord", origin: "gap", shape: { ...entry.shape, name: "", cagedPosition: position } }
-      : { kind: "scale", origin: "gap", shape: { ...entry.shape, name: "", cagedPosition: position } };
+  let draft: DraftShape;
+  if (entry.kind === "chord") {
+    draft = { kind: "chord", origin: "gap", shape: { ...entry.shape, name: "", cagedPosition: position } };
+  } else if (entry.kind === "arpeggio") {
+    draft = { kind: "arpeggio", origin: "gap", shape: { ...entry.shape, name: "", cagedPosition: position } };
+  } else {
+    draft = { kind: "scale", origin: "gap", shape: { ...entry.shape, name: "", cagedPosition: position } };
+  }
   deps.dispatch({ type: "SET_DRAFT", key, draft });
   deps.navigate({ type: "editor", id: key });
 }
@@ -195,6 +208,18 @@ function onAddTag(deps: HandlerDeps, entry: ShapeCatalogEntry, tag: string): voi
     return;
   }
 
+  if (entry.kind === "arpeggio") {
+    const base = (existing?.shape as ArpeggioShape | undefined) ?? entry.shape;
+    const draft: DraftShape = {
+      kind: "arpeggio",
+      origin: "existing",
+      shape: { ...base, tags: withTag(base.tags, tag) },
+      original: original as ArpeggioShape,
+    };
+    deps.dispatch({ type: "SET_DRAFT", key, draft });
+    return;
+  }
+
   const base = (existing?.shape as ScaleShape | undefined) ?? entry.shape;
   const draft: DraftShape = {
     kind: "scale",
@@ -205,8 +230,24 @@ function onAddTag(deps: HandlerDeps, entry: ShapeCatalogEntry, tag: string): voi
   deps.dispatch({ type: "SET_DRAFT", key, draft });
 }
 
+/** Namespace for arpeggio duplicate-to-position draft keys (see
+ * `onDuplicateToPosition`). */
+const ARPEGGIO_KEY_PREFIX = "arpeggio:";
+
+/** The arpeggio board's `BoardCell.key` (`${chordType}::${cagedPosition}`)
+ * a gap-origin arpeggio draft occupies, or undefined for any other draft. */
+export function arpeggioCellKeyOf(draft: DraftShape): string | undefined {
+  if (draft.kind !== "arpeggio" || draft.origin !== "gap") return undefined;
+  const { chordType, cagedPosition } = draft.shape;
+  return cagedPosition === undefined ? undefined : `${chordType}::${cagedPosition}`;
+}
+
 function draftFor(deps: HandlerDeps, slotKey: string): DraftBadgeInfo | undefined {
-  const draft = deps.state.drafts[slotKey];
+  // `BoardCellCard` asks with the plain cell key; a direct hit wins, else
+  // fall back to an arpeggio gap draft occupying that arpeggio-board cell.
+  const draft =
+    deps.state.drafts[slotKey] ??
+    Object.values(deps.state.drafts).find((candidate) => arpeggioCellKeyOf(candidate) === slotKey);
   if (!draft) return undefined;
 
   const name = draft.shape.name;

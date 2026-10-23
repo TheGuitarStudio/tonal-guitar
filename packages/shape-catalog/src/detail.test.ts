@@ -10,7 +10,7 @@ describe("buildDetail", () => {
     const entry = catalog.find((e) => e.kind === "chord" && e.shape.chordType !== undefined);
     if (entry?.kind !== "chord") throw new Error("registry has no typed chord shape");
     const detail = buildDetail(entry, catalog);
-    expect(detail.kind).toBe("chord");
+    if (detail.kind !== "chord") throw new Error("expected a chord payload");
     expect(detail.entry).toBe(entry);
     expect(detail.siblings).toEqual(chordTypeSiblings(entry));
     expect(detail.stepper.total).toBe(detail.siblings.length);
@@ -20,7 +20,7 @@ describe("buildDetail", () => {
     const entry = catalog.find((e) => e.kind === "scale");
     if (entry?.kind !== "scale") throw new Error("registry has no scale shape");
     const detail = buildDetail(entry, catalog);
-    expect(detail.kind).toBe("scale");
+    if (detail.kind !== "scale") throw new Error("expected a scale payload");
     expect(detail.siblings).toEqual(scaleSiblings(entry, catalog));
     expect(detail.stepper.index).toBe(detail.siblings.findIndex((s) => s.name === entry.name));
   });

@@ -8,9 +8,10 @@
  */
 import { draftToChange } from "shape-catalog";
 import type { DraftShape } from "shape-catalog";
-import type { Barre, ChangesetChange, ChordShape } from "tonal-guitar";
+import type { ArpeggioShape, Barre, ChangesetChange, ChordShape } from "tonal-guitar";
 import type { EditorCell } from "fretboard-ui";
 import { buildShapeFromCells } from "./deriveShape";
+import { buildArpeggioFromCells } from "./deriveArpeggio";
 
 /** Spec §9 edge case 9's exact refusal reason. */
 export const NO_ROOT_MESSAGE =
@@ -19,7 +20,7 @@ export const NO_FILE_MESSAGE = "Choose a target file before saving this new shap
 export const NO_NAME_MESSAGE = "Name this shape before saving — an empty name breaks changeset matching.";
 
 export type SaveDraftResult =
-  | { ok: true; shape: ChordShape; draft: DraftShape; change: ChangesetChange }
+  | { ok: true; shape: ChordShape | ArpeggioShape; draft: DraftShape; change: ChangesetChange }
   | { ok: false; error: string };
 
 /**
@@ -33,6 +34,9 @@ export type SaveDraftResult =
  * `"existing"`-origin draft always yields an `UpdateChange` and a
  * `"gap"`-origin draft always yields an `AddChange` (spec §5.2's origin
  * tracking); this function never re-derives that branching itself.
+ *
+ * `kind: "arpeggio"` drafts derive via `buildArpeggioFromCells` (`barres` is
+ * ignored) and go through the same refusals and `draftToChange`.
  */
 export function computeSaveDraft(
   draft: DraftShape,
@@ -41,7 +45,10 @@ export function computeSaveDraft(
   tuning: string[],
   authorRoot: string,
 ): SaveDraftResult {
-  const shape = buildShapeFromCells(draft.shape as ChordShape, cells, barres, tuning, authorRoot);
+  const shape =
+    draft.kind === "arpeggio"
+      ? buildArpeggioFromCells(draft.shape as ArpeggioShape, cells, tuning, authorRoot)
+      : buildShapeFromCells(draft.shape as ChordShape, cells, barres, tuning, authorRoot);
   if (shape === undefined) {
     return { ok: false, error: NO_ROOT_MESSAGE };
   }

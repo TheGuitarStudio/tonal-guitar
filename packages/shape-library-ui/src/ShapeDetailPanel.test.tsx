@@ -2,11 +2,19 @@ import { describe, expect, it } from "vitest";
 import { renderToString } from "react-dom/server";
 import { ShapeDetailPanel } from "./ShapeDetailPanel";
 import { ShapeLibraryProvider } from "./capabilities";
-import { catalog, chordEntry, chordEntryWithSiblings, scaleEntry } from "./testFixtures";
+import { arpeggioEntry, catalog, chordEntry, chordEntryWithSiblings, scaleEntry } from "./testFixtures";
 
 const noop = () => {};
 
 describe("ShapeDetailPanel", () => {
+  it("renders an arpeggio entry with an Arpeggio aria-label", () => {
+    const html = renderToString(
+      <ShapeDetailPanel entry={arpeggioEntry} catalog={catalog} onClose={noop} onSelectEntry={noop} focusOnOpenKey={1} />,
+    );
+    expect(html).toContain("Arpeggio shape details");
+    expect(html).toContain(arpeggioEntry.name);
+  });
+
   it("renders nothing (null) when entry is undefined", () => {
     const html = renderToString(
       <ShapeDetailPanel entry={undefined} catalog={catalog} onClose={noop} onSelectEntry={noop} focusOnOpenKey={0} />,

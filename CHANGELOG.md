@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `auditAllShapes` now also returns `arpeggio: Map<string, ShapeAuditIssue[]>`, the `auditArpeggioShape` result for every registered arpeggio shape, alongside `chord` and `scale`.
 - The `NameUniqueKind` type (`"chord" | "scale" | "arpeggio"`, the `kind` parameter of `checkNameUnique`) is exported from the root barrel.
+- `packages/shape-catalog`: `buildArpeggioCatalog(auditResult)` builds catalog entries (`kind: "arpeggio"`, `ArpeggioCatalogEntry`) for every registered arpeggio shape, with built geometry and audit issues. `buildCatalog` still returns only scale and chord entries, so the docs site is unchanged. `ShapeKind` now includes `"arpeggio"`.
+- `packages/shape-library-ui`: `FilterBar` takes an optional `kinds` prop that selects which kind toggles to show (default Scale and Chord). The detail panel shows a minimal read-only view for arpeggio entries.
+- Shape Workbench: the board has an Arpeggio kind that shows the 20 registered CAGED arpeggio seeds. The Editor can open, edit (note and root tools, metadata, checks) and save an arpeggio, and exports it as an `update` change that `npm run shapes:merge` applies to `src/data/caged-arpeggios.ts` (#212).
 - `checkNameCollision` and `checkIdentifierCollision`, the name and export-identifier halves of `checkNameUnique`, are exported so callers can tell the two collisions apart without parsing `message`. They take the same options as `checkNameUnique` (now also exported as the `NameUniqueOptions` type). `checkIdentifierCollision` also accepts `options.identifier` to check an explicit identifier override instead of the one derived from `shape.name`. `checkNameUnique` is unchanged: it returns the two results concatenated.
 
 ### Changed

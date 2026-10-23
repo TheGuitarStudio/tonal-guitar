@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import { auditAllShapes } from "tonal-guitar";
 import type { AddChange, CagedPosition } from "tonal-guitar";
 import {
+  buildArpeggioCatalog,
   buildCatalog,
+  type ArpeggioCatalogEntry,
   type ChordCatalogEntry,
   type ChordSlot,
   type DraftShape,
@@ -15,6 +17,10 @@ import type { Route } from "./router";
 const catalog: ShapeCatalogEntry[] = buildCatalog(auditAllShapes());
 const chordEntry: ChordCatalogEntry = catalog.find(
   (entry): entry is ChordCatalogEntry => entry.kind === "chord",
+)!;
+
+const arpeggioEntry: ArpeggioCatalogEntry = buildArpeggioCatalog(auditAllShapes()).find(
+  (entry): entry is ArpeggioCatalogEntry => entry.kind === "arpeggio",
 )!;
 
 function harness(state: WorkbenchState = initialWorkbenchState) {
@@ -217,5 +223,59 @@ describe("createEditCapabilities", () => {
     expect(capabilities.exportState!.pendingCount).toBe(2);
     capabilities.exportState!.onExport();
     expect(navigated).toEqual([{ type: "export" }]);
+  });
+
+  describe("arpeggio entries", () => {
+    it("onEditShape seeds a kind: arpeggio existing-origin draft keyed by name with original set", () => {
+      const { deps, dispatched, navigated } = harness();
+      createEditCapabilities(deps).onEditShape!(arpeggioEntry);
+
+      const action = dispatched[0];
+      if (action.type !== "SET_DRAFT") throw new Error("unreachable");
+      expect(action.key).toBe(arpeggioEntry.shape.name);
+      expect(action.draft.kind).toBe("arpeggio");
+      expect(action.draft.origin).toBe("existing");
+      expect(action.draft.original).toEqual(arpeggioEntry.shape);
+      expect(navigated).toEqual([{ type: "editor", id: arpeggioEntry.shape.name }]);
+    });
+
+    it("onAddTag produces a kind: arpeggio draft with the tag appended", () => {
+      const { deps, dispatched } = harness();
+      createEditCapabilities(deps).onAddTag!(arpeggioEntry, "beginner");
+
+      const action = dispatched[0];
+      if (action.type !== "SET_DRAFT") throw new Error("unreachable");
+      expect(action.key).toBe(arpeggioEntry.shape.name);
+      expect(action.draft.kind).toBe("arpeggio");
+      expect(action.draft.origin).toBe("existing");
+      expect(action.draft.shape.tags).toContain("beginner");
+    });
+
+    it("onDuplicateToPosition produces a namespaced, name-cleared kind: arpeggio gap draft", () => {
+      const { deps, dispatched, navigated } = harness();
+      createEditCapabilities(deps).onDuplicateToPosition!(arpeggioEntry, "G");
+
+      const action = dispatched[0];
+      if (action.type !== "SET_DRAFT") throw new Error("unreachable");
+      const expectedKey = `arpeggio:${arpeggioEntry.shape.chordType}::G`;
+      expect(action.key).toBe(expectedKey);
+      expect(action.draft.kind).toBe("arpeggio");
+      expect(action.draft.origin).toBe("gap");
+      expect(action.draft.shape.name).toBe("");
+      expect(action.draft.shape.cagedPosition).toBe("G");
+      expect(navigated).toEqual([{ type: "editor", id: expectedKey }]);
+    });
+
+    it("draftFor resolves an arpeggio gap draft from the plain board cell key", () => {
+      const draft: DraftShape = {
+        kind: "arpeggio",
+        origin: "gap",
+        shape: { ...arpeggioEntry.shape, name: "", cagedPosition: "G" },
+      };
+      const key = `arpeggio:${arpeggioEntry.shape.chordType}::G`;
+      const { deps } = harness({ ...initialWorkbenchState, drafts: { [key]: draft } });
+      const badge = createEditCapabilities(deps).draftFor!(`${arpeggioEntry.shape.chordType}::G`);
+      expect(badge).toEqual({ label: "Untitled", status: "draft" });
+    });
   });
 });
