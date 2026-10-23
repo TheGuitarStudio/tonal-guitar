@@ -7,7 +7,15 @@
  * collapses back to `[]`.
  */
 import { describe, it, expect } from "vitest";
-import { parseShapesUrlState, serializeShapesUrlState, toggleInAllOnSet } from "./catalog";
+import { arpeggioShapes, auditAllShapes } from "tonal-guitar";
+import {
+  buildArpeggioCatalog,
+  buildCatalog,
+  buildReportUrl,
+  parseShapesUrlState,
+  serializeShapesUrlState,
+  toggleInAllOnSet,
+} from "./catalog";
 
 describe("toggleInAllOnSet", () => {
   const all = ["a", "b", "c"];
@@ -67,5 +75,46 @@ describe("shapes URL state: view", () => {
 
   it("ignores unknown view values", () => {
     expect(parseShapesUrlState("?view=table").view).toBeUndefined();
+  });
+});
+
+describe("buildArpeggioCatalog", () => {
+  const audit = auditAllShapes();
+  const entries = buildArpeggioCatalog(audit);
+
+  it("builds one arpeggio entry per registered arpeggio shape", () => {
+    expect(entries).toHaveLength(20);
+    expect(entries.every((e) => e.kind === "arpeggio")).toBe(true);
+  });
+
+  it("carries the registered shape, built geometry and audit issues", () => {
+    const entry = entries.find((e) => e.name === "E Shape Major Arpeggio");
+    if (!entry) throw new Error("missing E Shape Major Arpeggio");
+    const registered = arpeggioShapes.all().find((s) => s.name === entry.name);
+    expect(entry.shape).toBe(registered);
+    expect(entry.shape.chordType).toBe(registered?.chordType);
+    expect(entry.shape.cagedPosition).toBe("E");
+    expect(entry.shape.parentShape).toBe(registered?.parentShape);
+    expect(entry.shape.chordShape).toBe(registered?.chordShape);
+    expect(entry.shape.tags).toEqual(registered?.tags);
+    expect(entry.frettedScale.notes.length).toBeGreaterThan(0);
+    expect(entry.builtFrets).toHaveLength(6);
+    expect(entry.issues).toEqual(audit.arpeggio.get(entry.name) ?? []);
+  });
+
+  it("is kept out of buildCatalog", () => {
+    expect(buildCatalog(audit).some((e) => e.kind === "arpeggio")).toBe(false);
+  });
+
+  it("includes arpeggio metadata in the report URL", () => {
+    const body = decodeURIComponent(buildReportUrl(entries[0], { repoSlug: "o/r" }));
+    expect(body).toContain("kind: arpeggio");
+    expect(body).toContain("cagedPosition");
+    expect(body).toContain("chordType");
+  });
+
+  it("never serializes an arpeggio kind into site URL state", () => {
+    expect(serializeShapesUrlState({ kind: "arpeggio" })).toBe("");
+    expect(parseShapesUrlState("?kind=arpeggio")).toEqual({});
   });
 });
