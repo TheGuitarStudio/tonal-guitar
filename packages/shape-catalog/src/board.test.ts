@@ -6,7 +6,7 @@
 import { describe, expect, it } from "vitest";
 import { auditAllShapes, impliedStringSet, type ChordShape, type ScaleShape } from "tonal-guitar";
 import { boardModel, type BoardAxis, type BoardRowGrouping } from "./board";
-import { buildCatalog, type ChordCatalogEntry, type ScaleCatalogEntry, type ShapeCatalogEntry } from "./catalog";
+import { buildArpeggioCatalog, buildCatalog, type ChordCatalogEntry, type ScaleCatalogEntry, type ShapeCatalogEntry } from "./catalog";
 
 // ============================================================
 // Fixture builders
@@ -381,5 +381,30 @@ describe("boardModel — live catalog places every shape exactly once", () => {
     const board = boardModel(liveCatalog, { kind: "chord", axis: "stringSet", rowGrouping: "chordType" });
     const stacked = [...board.cells.values()].filter((cell) => cell.entries.length > 1);
     expect(stacked.length).toBeGreaterThan(0);
+  });
+});
+
+describe("arpeggio board over the live registry", () => {
+  const board = boardModel(buildArpeggioCatalog(auditAllShapes()), {
+    kind: "arpeggio",
+    axis: "cagedPosition",
+    rowGrouping: "chordType",
+  });
+
+  it("fills every chordType x CAGED cell with no gaps", () => {
+    expect(board.rows).toHaveLength(4);
+    expect(board.columns).toHaveLength(5);
+    expect(board.counts.shown).toBe(20);
+    expect(board.counts.gaps).toBe(0);
+  });
+
+  it("places each entry in the cell matching its chordType and cagedPosition", () => {
+    for (const cell of board.cells.values()) {
+      for (const entry of cell.entries) {
+        expect(entry.kind).toBe("arpeggio");
+        expect(entry.shape.chordType).toBe(cell.rowKey);
+        expect(entry.shape.cagedPosition).toBe(cell.columnKey);
+      }
+    }
   });
 });

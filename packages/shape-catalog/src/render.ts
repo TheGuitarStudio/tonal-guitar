@@ -17,10 +17,10 @@
 import { renderShape } from "../../../scripts/lib/render-shape.mjs";
 
 // Re-exported as `RenderShapeKind` (not `ShapeKind`) — `./catalog` already
-// exports a `ShapeKind` (`"scale" | "chord"`, the two-kind catalog-entry
-// discriminant); the printer's `ShapeKind` additionally includes
-// `"arpeggio"`, so keeping both names distinct avoids conflating the two
-// different unions in consumers that import from both entry points.
+// exports a `ShapeKind` (`"scale" | "chord" | "arpeggio"`, the catalog-entry
+// discriminant); the printer's `ShapeKind` is a separate union, so keeping
+// both names distinct avoids conflating the two in consumers that import
+// from both entry points.
 export type {
   ShapeKind as RenderShapeKind,
   ShapeLike,

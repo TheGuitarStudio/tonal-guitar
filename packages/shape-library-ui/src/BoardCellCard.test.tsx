@@ -3,7 +3,7 @@ import { renderToString } from "react-dom/server";
 import type { BoardCell } from "shape-catalog";
 import { BoardCellCard, shownEntryIndex } from "./BoardCellCard";
 import { ShapeLibraryProvider } from "./capabilities";
-import { catalog, chordBoardModel, chordEntry, stripReactComments } from "./testFixtures";
+import { arpeggioEntry, catalog, chordBoardModel, chordEntry, stripReactComments } from "./testFixtures";
 
 const gapCell: BoardCell = {
   key: "gap::A",
@@ -24,6 +24,13 @@ const filledCell: BoardCell = {
   slot: { kind: "chord", rowGrouping: "chordType", rowKey: "filled-row", axis: "cagedPosition", columnKey: "A" },
 };
 
+const arpeggioCell: BoardCell = {
+  ...filledCell,
+  key: "arpeggio::A",
+  entries: [arpeggioEntry],
+  entry: arpeggioEntry,
+};
+
 const stackedEntries = catalog.filter((entry) => entry.kind === "chord").slice(0, 3);
 const stackedCell: BoardCell = {
   ...filledCell,
@@ -42,6 +49,10 @@ const draftCell: BoardCell = {
 };
 
 describe("BoardCellCard", () => {
+  it("renders an arpeggio entry cell", () => {
+    expect(renderToString(<BoardCellCard cell={arpeggioCell} />)).toContain(arpeggioEntry.name);
+  });
+
   it("renders under renderToString with no window access", () => {
     for (const cell of [gapCell, filledCell, draftCell]) {
       expect(() => renderToString(<BoardCellCard cell={cell} />)).not.toThrow();
