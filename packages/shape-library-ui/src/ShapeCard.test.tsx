@@ -2,9 +2,14 @@ import { describe, expect, it } from "vitest";
 import { renderToString } from "react-dom/server";
 import { ShapeCard } from "./ShapeCard";
 import { ShapeLibraryProvider } from "./capabilities";
-import { chordEntry } from "./testFixtures";
+import { arpeggioEntry, chordEntry } from "./testFixtures";
 
 describe("ShapeCard", () => {
+  it("renders an arpeggio entry", () => {
+    const html = renderToString(<ShapeCard entry={arpeggioEntry} onSelectEntry={() => {}} isSelected={false} />);
+    expect(html).toContain(arpeggioEntry.name);
+  });
+
   it("renders under renderToString with no window access", () => {
     expect(() => renderToString(<ShapeCard entry={chordEntry} onSelectEntry={() => {}} isSelected={false} />)).not.toThrow();
   });

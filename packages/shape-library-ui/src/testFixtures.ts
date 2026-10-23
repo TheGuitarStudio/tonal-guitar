@@ -6,10 +6,12 @@
  * suffix), so vitest's `include` glob never picks it up directly.
  */
 import { auditAllShapes } from "tonal-guitar";
-import { boardModel, buildCatalog, chordTypeSiblings, type BoardModelResult, type ChordCatalogEntry, type ScaleCatalogEntry, type ShapeCatalogEntry } from "shape-catalog";
+import { boardModel, buildArpeggioCatalog, buildCatalog, chordTypeSiblings, type ArpeggioCatalogEntry, type BoardModelResult, type ChordCatalogEntry, type ScaleCatalogEntry, type ShapeCatalogEntry } from "shape-catalog";
 
 const auditResult = auditAllShapes();
 export const catalog: ShapeCatalogEntry[] = buildCatalog(auditResult);
+
+export const arpeggioEntry: ArpeggioCatalogEntry = buildArpeggioCatalog(auditResult)[0];
 
 export const chordEntry: ChordCatalogEntry = catalog.find(
   (entry): entry is ChordCatalogEntry => entry.kind === "chord",
