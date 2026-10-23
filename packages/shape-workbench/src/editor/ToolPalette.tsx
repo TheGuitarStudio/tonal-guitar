@@ -43,6 +43,10 @@ const LEGEND_ENTRIES: { interval: string; label: string }[] = [
 const ROOT_PITCH_CLASSES = ["C", "D", "E", "F", "G", "A", "B"];
 
 export interface ToolPaletteProps {
+  /** Tools to offer; defaults to all six. Arpeggios pass note/root/select. */
+  tools?: readonly EditorTool[];
+  /** Hide the Fingers label mode (arpeggios have no per-cell fingering). */
+  labelModes?: readonly LabelDisplayMode[];
   tool: EditorTool;
   onToolChange: (tool: EditorTool) => void;
   activeFinger: ActiveFinger;
@@ -58,6 +62,8 @@ export interface ToolPaletteProps {
 }
 
 export function ToolPalette({
+  tools,
+  labelModes,
   tool,
   onToolChange,
   activeFinger,
@@ -74,7 +80,7 @@ export function ToolPalette({
   return (
     <div className="tg-section" data-testid="tool-palette">
       <div className="tg-toggle-group" role="group" aria-label="Editing tool">
-        {TOOLS.map((t) => (
+        {TOOLS.filter((t) => tools === undefined || tools.includes(t.value)).map((t) => (
           <button key={t.value} type="button" aria-pressed={tool === t.value} onClick={() => onToolChange(t.value)}>
             {t.label}
           </button>
@@ -113,7 +119,7 @@ export function ToolPalette({
       </label>
 
       <div className="tg-toggle-group" role="group" aria-label="Labels">
-        {LABEL_MODES.map((m) => (
+        {LABEL_MODES.filter((m) => labelModes === undefined || labelModes.includes(m.value)).map((m) => (
           <button
             key={m.value}
             type="button"

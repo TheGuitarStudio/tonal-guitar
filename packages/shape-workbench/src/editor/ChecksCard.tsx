@@ -5,12 +5,14 @@
  * All the check-running/roster logic lives in `./checks` (pure, unit-tested
  * there) — this component only renders `chordCheckRows`' output.
  */
-import type { ChordShape } from "tonal-guitar";
-import { chordCheckRows, runChordChecks } from "./checks";
+import type { ArpeggioShape, ChordShape } from "tonal-guitar";
+import { arpeggioCheckRows, chordCheckRows, runArpeggioChecks, runChordChecks } from "./checks";
 import { STATUS_BADGE_CLASS } from "../statusBadge";
 
 export interface ChecksCardProps {
-  shape: ChordShape;
+  shape: ChordShape | ArpeggioShape;
+  /** Which audit roster to run; defaults to `"chord"`. */
+  kind?: "chord" | "arpeggio";
   root: string;
   tuning: string[];
   /** True when the draft edits an already-registered shape (`origin:
@@ -19,9 +21,11 @@ export interface ChecksCardProps {
   existingEdit?: boolean;
 }
 
-export function ChecksCard({ shape, root, tuning, existingEdit }: ChecksCardProps) {
-  const issues = runChordChecks(shape, root, tuning, { existingEdit });
-  const rows = chordCheckRows(issues);
+export function ChecksCard({ shape, kind = "chord", root, tuning, existingEdit }: ChecksCardProps) {
+  const rows =
+    kind === "arpeggio"
+      ? arpeggioCheckRows(runArpeggioChecks(shape as ArpeggioShape, root, tuning, { existingEdit }))
+      : chordCheckRows(runChordChecks(shape as ChordShape, root, tuning, { existingEdit }));
   const errorCount = rows.filter((r) => r.status === "error").length;
   const warningCount = rows.filter((r) => r.status === "warning").length;
 

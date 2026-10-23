@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { STANDARD } from "tonal-guitar";
+import { arpeggioShapes, STANDARD } from "tonal-guitar";
 import type { ChordShape } from "tonal-guitar";
 import type { DraftShape } from "shape-catalog";
 import type { EditorCell } from "fretboard-ui";
 import { seedCellsFromShape } from "./deriveShape";
+import { seedCellsFromArpeggio } from "./deriveArpeggio";
 import { computeSaveDraft, NO_FILE_MESSAGE, NO_NAME_MESSAGE, NO_ROOT_MESSAGE } from "./saveDraft";
 
 const EMPTY_SHAPE: ChordShape = {
@@ -158,5 +159,36 @@ describe("computeSaveDraft", () => {
     expect(result.change.patch.fingers).toBeDefined();
     expect((result.change.patch.fingers as (number | null)[])[5]).toBe(3);
     expect(result.shape.strings[5]).toBe("9M");
+  });
+});
+
+describe("computeSaveDraft (arpeggio)", () => {
+  const original = arpeggioShapes.all().find((s) => s.name === "E Shape Minor Arpeggio")!;
+  const cells = seedCellsFromArpeggio(original, STANDARD, "A");
+  const existing: DraftShape = { kind: "arpeggio", origin: "existing", shape: original, original };
+
+  it("yields an UpdateChange with an empty patch for unchanged cells", () => {
+    const result = computeSaveDraft(existing, cells, [], STANDARD, "A");
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("unreachable");
+    expect(result.change).toEqual({ op: "update", kind: "arpeggio", name: original.name, patch: {} });
+  });
+
+  it("patches only tags for a metadata-only edit", () => {
+    const draft: DraftShape = { ...existing, shape: { ...original, tags: ["caged", "triad", "verified"] } };
+    const result = computeSaveDraft(draft, cells, [], STANDARD, "A");
+    if (!result.ok || result.change.op !== "update") throw new Error("unreachable");
+    expect(result.change.patch).toEqual({ tags: ["caged", "triad", "verified"] });
+  });
+
+  it("refuses with no root, an empty name, and a gap draft without a file", () => {
+    expect(computeSaveDraft(existing, [], [], STANDARD, "A")).toEqual({ ok: false, error: NO_ROOT_MESSAGE });
+    const unnamed: DraftShape = { ...existing, shape: { ...original, name: " " } };
+    expect(computeSaveDraft(unnamed, cells, [], STANDARD, "A")).toEqual({ ok: false, error: NO_NAME_MESSAGE });
+    const gap: DraftShape = { kind: "arpeggio", origin: "gap", shape: original };
+    expect(computeSaveDraft(gap, cells, [], STANDARD, "A")).toEqual({ ok: false, error: NO_FILE_MESSAGE });
+    const filed: DraftShape = { ...gap, file: "caged-arpeggios" };
+    const added = computeSaveDraft(filed, cells, [], STANDARD, "A");
+    expect(added.ok && added.change.op).toBe("add");
   });
 });
