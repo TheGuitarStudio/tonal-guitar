@@ -13,6 +13,14 @@
 import {
   auditChordShape,
   auditChordShapeIntegration,
+  auditArpeggioShape,
+  auditArpeggioShapeIntegration,
+  CHECK_POSITION_SPAN,
+  CHECK_FINGERING_COMPLETE,
+  CHECK_OVERRIDES_TARGET,
+  CHECK_CHORD_TONES_ONLY,
+  CHECK_COVERS_CHORD,
+  CHECK_CONTAINS_CHORD_GRIP,
   CHECK_FRET_SPAN,
   CHECK_FINGER_ZERO_ON_MOVABLE,
   CHECK_REPEATED_FINGER_NO_BARRE,
@@ -25,7 +33,7 @@ import {
   CHECK_NAME_UNIQUE,
   CHECK_IDENTIFY_MISMATCH,
 } from "tonal-guitar";
-import type { ChordShape, ShapeAuditIssue } from "tonal-guitar";
+import type { ArpeggioShape, ChordShape, ShapeAuditIssue } from "tonal-guitar";
 
 /**
  * Every check id `auditChordShape` (required tier) or
@@ -46,6 +54,21 @@ export const CHORD_CHECK_IDS: readonly string[] = [
   CHECK_BARRE_FRET_ORIGIN,
   CHECK_NAME_UNIQUE,
   CHECK_IDENTIFY_MISMATCH,
+];
+
+/** The arpeggio counterpart of `CHORD_CHECK_IDS`: every id
+ * `auditArpeggioShape` (required tier) or `auditArpeggioShapeIntegration`
+ * (optional tier) can produce. `CHECK_BUILD_LOSS` is shared with chords
+ * (`checkScaleBuildLoss`). */
+export const ARPEGGIO_CHECK_IDS: readonly string[] = [
+  CHECK_BUILD_LOSS,
+  CHECK_POSITION_SPAN,
+  CHECK_FINGERING_COMPLETE,
+  CHECK_OVERRIDES_TARGET,
+  CHECK_NAME_UNIQUE,
+  CHECK_CHORD_TONES_ONLY,
+  CHECK_COVERS_CHORD,
+  CHECK_CONTAINS_CHORD_GRIP,
 ];
 
 /** Runs both check functions and returns their combined issue list — the
@@ -69,6 +92,20 @@ export function runChordChecks(
   return existingEdit ? issues.filter((issue) => issue.id !== CHECK_NAME_UNIQUE) : issues;
 }
 
+/** `runChordChecks` for arpeggios: `auditArpeggioShape` +
+ * `auditArpeggioShapeIntegration`, with the same `existingEdit`
+ * `CHECK_NAME_UNIQUE` filter. */
+export function runArpeggioChecks(
+  shape: ArpeggioShape,
+  root: string,
+  tuning: string[],
+  { existingEdit = false }: { existingEdit?: boolean } = {},
+): ShapeAuditIssue[] {
+  const options = { root, tuning };
+  const issues = [...auditArpeggioShape(shape, options), ...auditArpeggioShapeIntegration(shape, options)];
+  return existingEdit ? issues.filter((issue) => issue.id !== CHECK_NAME_UNIQUE) : issues;
+}
+
 export interface ChordCheckRow {
   id: string;
   issues: ShapeAuditIssue[];
@@ -79,7 +116,16 @@ export interface ChordCheckRow {
  * of that id, else the highest severity among the issues that do (an id can
  * report more than once, e.g. `barre-fret-origin` per offending barre). */
 export function chordCheckRows(issues: ShapeAuditIssue[]): ChordCheckRow[] {
-  return CHORD_CHECK_IDS.map((id) => {
+  return checkRows(CHORD_CHECK_IDS, issues);
+}
+
+/** `chordCheckRows` over `ARPEGGIO_CHECK_IDS`. */
+export function arpeggioCheckRows(issues: ShapeAuditIssue[]): ChordCheckRow[] {
+  return checkRows(ARPEGGIO_CHECK_IDS, issues);
+}
+
+function checkRows(ids: readonly string[], issues: ShapeAuditIssue[]): ChordCheckRow[] {
+  return ids.map((id) => {
     const matching = issues.filter((issue) => issue.id === id);
     const status: ChordCheckRow["status"] = matching.some((issue) => issue.severity === "error")
       ? "error"
