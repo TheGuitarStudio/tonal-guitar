@@ -13,6 +13,7 @@ import {
   type ScaleCatalogEntry,
   type ScaleFacetSelection,
   type ShapeCatalogEntry,
+  type ShapeKind,
 } from "shape-catalog";
 import { ShapeLibraryProvider, type EditCapabilities } from "shape-library-ui";
 import { BoardScreen, restrictCellsByEntry } from "./Board";
@@ -38,12 +39,16 @@ function stripReactComments(html: string): string {
   return html.replace(/<!--\s*-->/g, "");
 }
 
-function renderBoard(state: WorkbenchState = initialWorkbenchState, edit?: EditCapabilities): string {
+function renderBoard(
+  state: WorkbenchState = initialWorkbenchState,
+  edit?: EditCapabilities,
+  initialKind?: ShapeKind,
+): string {
   return renderToString(
     <WorkbenchStateContext.Provider value={state}>
       <WorkbenchDispatchContext.Provider value={() => {}}>
         <ShapeLibraryProvider capabilities={edit ? { edit } : undefined}>
-          <BoardScreen />
+          <BoardScreen initialKind={initialKind} />
         </ShapeLibraryProvider>
       </WorkbenchDispatchContext.Provider>
     </WorkbenchStateContext.Provider>,
@@ -71,6 +76,22 @@ describe("BoardScreen", () => {
     const columnHeaderCount = (html.match(/class="tg-board-header"/g) ?? []).length;
     // +1 for ShapeBoard's aria-hidden corner spacer cell.
     expect(columnHeaderCount).toBe(expectedModel.columns.length + 1);
+  });
+
+  it("arpeggio kind renders the 20 registered seeds with no gaps, and Edit buttons when onEditShape is injected", () => {
+    const html = stripReactComments(renderBoard(initialWorkbenchState, { onEditShape: () => {} }, "arpeggio"));
+    expect(html).toContain("Showing 20 of 20");
+    expect(html).toContain("0 gaps");
+    expect(html).toContain("E Shape Minor Arpeggio");
+    expect(html).toContain('aria-label="Edit E Shape Minor Arpeggio"');
+    // Columns toggle is hidden: arpeggios only have the CAGED-position axis.
+    expect(html).not.toContain('aria-label="Board columns"');
+  });
+
+  it("arpeggio board ignores a non-CAGED columnAxis", () => {
+    const state: WorkbenchState = { ...initialWorkbenchState, columnAxis: "stringSet" };
+    const html = stripReactComments(renderBoard(state, undefined, "arpeggio"));
+    expect(html).toContain("Showing 20 of 20");
   });
 
   it("emits zero data-tg-edit elements without capabilities.edit (read-only default)", () => {
