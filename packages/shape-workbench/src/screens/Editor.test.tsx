@@ -1,12 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { renderToString } from "react-dom/server";
+import { arpeggioShapes, STANDARD } from "tonal-guitar";
 import type { ChordShape } from "tonal-guitar";
 import type { DraftShape } from "shape-catalog";
 import { ShapeLibraryProvider } from "shape-library-ui";
 import { EditorScreen } from "./Editor";
 import { WorkbenchDispatchContext, WorkbenchStateContext } from "../StoreProvider";
 import { initialWorkbenchState, type WorkbenchState } from "../store";
-import { CHORD_CHECK_IDS } from "../editor/checks";
+import { ARPEGGIO_CHECK_IDS, CHORD_CHECK_IDS } from "../editor/checks";
+import { seedForArpeggioDraft } from "../editor/deriveArpeggio";
+import { computeSaveDraft } from "../editor/saveDraft";
 
 /** See `Board.test.tsx`'s doc comment: React SSR inserts `<!-- -->` comment
  * markers between adjacent text/expression children. */
@@ -173,5 +176,54 @@ describe("EditorScreen", () => {
     for (const root of ["C", "D", "E", "G", "A"]) {
       expect(html).toContain(`data-testid="at-other-root-${root}"`);
     }
+  });
+});
+
+describe("EditorScreen (arpeggio)", () => {
+  const original = arpeggioShapes.all().find((a) => a.name === "E Shape Minor Arpeggio")!;
+  const existing: DraftShape = { kind: "arpeggio", origin: "existing", shape: original, original };
+
+  it("renders the arpeggio editor instead of the unsupported-kind placeholder", () => {
+    const html = renderEditor(stateWithDraft(existing));
+    expect(html).toContain('data-testid="arpeggio-editor"');
+    expect(html).not.toContain('data-testid="editor-unsupported-kind"');
+    expect(stripReactComments(html)).toContain("E Shape Minor Arpeggio");
+  });
+
+  it("offers only the select/note/root tools and no finger/barre/mute", () => {
+    const html = renderEditor(stateWithDraft(existing));
+    for (const tool of ["Select", "Note", "Root"]) expect(html).toContain(`>${tool}<`);
+    for (const tool of ["Finger", "Barre", "Mute", "Fingers"]) expect(html).not.toContain(`>${tool}<`);
+  });
+
+  it("renders one Checks-card row per ARPEGGIO_CHECK_IDS entry and the arpeggio properties fields", () => {
+    const html = renderEditor(stateWithDraft(existing));
+    for (const id of ARPEGGIO_CHECK_IDS) expect(html).toContain(`data-check-id="${id}"`);
+    expect((html.match(/data-check-id="/g) ?? []).length).toBe(ARPEGGIO_CHECK_IDS.length);
+    expect(html).toContain('data-testid="field-chordShape"');
+    expect(html).not.toContain('data-testid="field-file"');
+  });
+
+  it("shows file/ident only for a gap-origin arpeggio draft, defaulting the file", () => {
+    const html = renderEditor(stateWithDraft({ kind: "arpeggio", origin: "gap", shape: original }));
+    expect(html).toContain('data-testid="field-file"');
+    expect(html).toMatch(/value="caged-arpeggios"/);
+  });
+
+  // The Save button's handler is `computeSaveDraft` over the editor's seeded
+  // cells (SSR cannot click), so assert exactly what it would dispatch.
+  it("Save over the seeded cells yields an update change with an empty patch", () => {
+    const { cells } = seedForArpeggioDraft({ shape: original }, STANDARD, "A");
+    const result = computeSaveDraft(existing, cells, [], STANDARD, "A");
+    if (!result.ok) throw new Error("unreachable");
+    expect(result.change).toEqual({ op: "update", kind: "arpeggio", name: "E Shape Minor Arpeggio", patch: {} });
+  });
+
+  it("Save after a tags edit yields a patch with only tags", () => {
+    const { cells } = seedForArpeggioDraft({ shape: original }, STANDARD, "A");
+    const edited: DraftShape = { ...existing, shape: { ...original, tags: ["caged", "triad", "verified"] } };
+    const result = computeSaveDraft(edited, cells, [], STANDARD, "A");
+    if (!result.ok || result.change.op !== "update") throw new Error("unreachable");
+    expect(result.change.patch).toEqual({ tags: ["caged", "triad", "verified"] });
   });
 });
