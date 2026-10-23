@@ -10,6 +10,10 @@
  * is reused as-is from `shape-library-ui` — this screen only supplies the
  * `boardModel` options and the filter state that feeds them.
  *
+ * The Arpeggio kind always uses the CAGED-position axis (arpeggios derive no
+ * string-set/inversion columns), so the Columns toggle is hidden there and
+ * the chord-only row/cell facets (quality group, type chips) are not applied.
+ *
  * `ShapeBoard` itself renders the "Showing N of M · K gaps" header and,
  * because `App.tsx` always populates `capabilities.edit.exportState`
  * (D-002 — never omitted, never runtime-sniffed), the pending-changes count
@@ -23,6 +27,7 @@ import { useMemo, useState } from "react";
 import { auditAllShapes } from "tonal-guitar";
 import {
   boardModel,
+  buildArpeggioCatalog,
   buildCatalog,
   chordEntryMatchesSelection,
   scaleEntryMatchesSelection,
@@ -43,6 +48,7 @@ import {
   useLibraryCapabilities,
   type ChordSortOption,
 } from "shape-library-ui";
+import { arpeggioCellKeyOf } from "../handlers";
 import { useWorkbenchDispatch, useWorkbenchState } from "../StoreProvider";
 
 /**
@@ -51,7 +57,9 @@ import { useWorkbenchDispatch, useWorkbenchState } from "../StoreProvider";
  * lifetime of the dev-server process, so there is no reason to re-audit the
  * whole catalog on every render.
  */
-const catalog: ShapeCatalogEntry[] = buildCatalog(auditAllShapes());
+const audit = auditAllShapes();
+const catalog: ShapeCatalogEntry[] = [...buildCatalog(audit), ...buildArpeggioCatalog(audit)];
+const KINDS: readonly ShapeKind[] = ["scale", "chord", "arpeggio"];
 
 /**
  * Narrows a `BoardModelResult` to a subset of rows — the "type" half of
@@ -120,13 +128,15 @@ export function restrictCellsByEntry(
   return { columns: model.columns, rows: model.rows, cells, counts: { shown, total: model.counts.total, gaps } };
 }
 
-export function BoardScreen() {
+/** `initialKind` seeds the kind toggle (default "chord"); it exists so SSR
+ * tests, which cannot click the toggle, can render the other boards. */
+export function BoardScreen({ initialKind = "chord" }: { initialKind?: ShapeKind } = {}) {
   const state = useWorkbenchState();
   const dispatch = useWorkbenchDispatch();
   const capabilities = useLibraryCapabilities();
   const edit = capabilities.edit;
 
-  const [kind, setKind] = useState<ShapeKind>("chord");
+  const [kind, setKind] = useState<ShapeKind>(initialKind);
   const [chordSelection, setChordSelection] = useState<ChordFacetSelection>({});
   const [chordSort, setChordSort] = useState<ChordSortOption>("baseFret");
   const [scaleSelection, setScaleSelection] = useState<ScaleFacetSelection>({});
@@ -141,12 +151,17 @@ export function BoardScreen() {
   // `boardModel` prefers `filled` over `draft` regardless.
   const drafts = useMemo(() => {
     const map = new Map<string, DraftBadge>();
-    for (const key of Object.keys(state.drafts)) {
-      const badge = edit?.draftFor?.(key);
-      if (badge) map.set(key, badge);
+    for (const [key, draft] of Object.entries(state.drafts)) {
+      // Arpeggio drafts only badge the arpeggio board (under its plain
+      // `${chordType}::${cagedPosition}` cell key); chord/scale drafts only
+      // badge their own boards, so shared `M::E`-style keys never cross over.
+      const cellKey = kind === "arpeggio" ? arpeggioCellKeyOf(draft) : draft.kind === "arpeggio" ? undefined : key;
+      if (cellKey === undefined) continue;
+      const badge = edit?.draftFor?.(cellKey);
+      if (badge) map.set(cellKey, badge);
     }
     return map;
-  }, [state.drafts, state.changes, edit]);
+  }, [state.drafts, state.changes, edit, kind]);
 
   // The search box feeds the facet selections too, so `FilterBar`'s live
   // chip counts (and the cell-level pass below) narrow with it.
@@ -160,6 +175,15 @@ export function BoardScreen() {
   );
 
   const model = useMemo(() => {
+    if (kind === "arpeggio") {
+      return boardModel(catalog, {
+        kind,
+        axis: "cagedPosition",
+        rowGrouping: "chordType",
+        search: nameQuery,
+        drafts,
+      });
+    }
     const typeFilter: ChordQualityGroup[] | undefined = chordSelection.qualityGroup
       ? [chordSelection.qualityGroup]
       : undefined;
@@ -201,8 +225,12 @@ export function BoardScreen() {
       <h1>Shape Workbench — Board</h1>
 
       <div className="tg-filterbar-row">
-        <span className="tg-facet-label">Columns</span>
-        <ColumnsToggle value={state.columnAxis} onChange={(axis) => dispatch({ type: "SET_COLUMN_AXIS", axis })} />
+        {kind !== "arpeggio" && (
+          <>
+            <span className="tg-facet-label">Columns</span>
+            <ColumnsToggle value={state.columnAxis} onChange={(axis) => dispatch({ type: "SET_COLUMN_AXIS", axis })} />
+          </>
+        )}
         <span className="tg-facet-label">Diagrams</span>
         <DiagramOrientationToggle
           value={state.orientation}
@@ -213,6 +241,7 @@ export function BoardScreen() {
       <FilterBar
         entries={catalog}
         kind={kind}
+        kinds={KINDS}
         onKindChange={setKind}
         chordSelection={chordFacets}
         onQualityGroupChange={(group) => setChordSelection((prev) => ({ ...prev, qualityGroup: group }))}
